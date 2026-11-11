@@ -69,8 +69,11 @@ export abstract class Brain {
     this.awareness.alert(at);
     this.awareness.sinceSeen = 0;
     this.pendingFix = at === null;
+    this.pendingHunt = true;
   }
   private pendingFix = false;
+  /** An alert lands as a hunt on the next step even if the meter decays first. */
+  private pendingHunt = false;
 
   stagger(seconds: number): void {
     if (this.mode === 'dead') return;
@@ -110,8 +113,9 @@ export abstract class Brain {
       this.staggerFor -= dt;
       this.slow(dt, 6);
       if (this.staggerFor <= 0) { this.mode = lostHost ? 'calm' : 'hunt'; this.setPhase('recover'); }
-    } else if (!lostHost && this.awareness.hunting && this.mode !== 'hunt') {
+    } else if (!lostHost && (this.awareness.hunting || this.pendingHunt) && this.mode !== 'hunt') {
       this.mode = 'hunt';
+      this.awareness.level = 1;
       this.events.push({ type: 'alert' });
       this.setPhase('engage');
       this.onEngage(w);
@@ -121,6 +125,7 @@ export abstract class Brain {
       this.events.push({ type: 'notice', at: { ...this.awareness.lastKnown } });
     }
 
+    if (this.mode !== 'stagger') this.pendingHunt = false;
     switch (this.mode) {
       case 'calm': this.calm(dt, w); break;
       case 'investigate': this.investigate(dt, w); break;
