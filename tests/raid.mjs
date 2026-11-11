@@ -74,7 +74,9 @@ try {
   if (!(await page.isVisible('#hive'))) await fail('Hive menu is not shown at boot');
   if ((await page.getAttribute('#hive', 'data-tab')) !== 'menu') await fail('the Hive does not open on the main menu');
   // The main menu stands the host's 3D body in the Hive lab behind the specimen column (src/ui/hive-stage.ts).
-  await page.waitForSelector('#hive.lab-live', { timeout: 60000 }).catch(() => fail('the 3D Hive lab is not live behind the main menu'));
+  // Software rendering has no parallel shader compile, so the lab's first compile freezes the page for ~20 s locally
+  // and longer on CI runners; on a GPU it is well under a second.
+  await page.waitForSelector('#hive.lab-live', { timeout: 180000 }).catch(() => fail('the 3D Hive lab is not live behind the main menu'));
   await freezeAndScreenshot(page, 'tests/out/raid-hive-menu.png', { resume: true });
   await tab('stash');
   if (p.dna !== PROFILE.newProfile.dna || !PROFILE.newProfile.stash.every((k) => total(p.stash, k.item) === k.count)) await fail(`unexpected new profile ${JSON.stringify(p)}`);
