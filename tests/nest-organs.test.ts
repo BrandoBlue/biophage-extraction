@@ -77,5 +77,6 @@ describe('host bodies', () => {
     expect(box.max.y).toBeLessThan(2.6);
     for (let i = 0; i < 30; i++) h.update(1 / 30);
     expect(h.root.getObjectByName('body')).toBeTruthy();
-  });
+    // Meshing a host body takes 1-2 s locally and up to ~6 s on a busy shared CI runner.
+  }, 20000);
 });
