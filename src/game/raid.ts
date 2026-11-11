@@ -34,6 +34,7 @@ import { simplifyForSoftware } from '../render/pipeline';
 import { creatureGore } from '../creatures/gore';
 import { HostArm, VIRUS_LOOKS, attachToViewmodel, type VirusLook } from '../creatures/hostarm';
 import { HarvestFx } from '../creatures/organs';
+import { SPECIES } from '../creatures/species';
 import { HIVE, OCHRE, ZONE7 } from '../render/palette';
 import { NeuralOverload, Biomass } from './vitals';
 import { SynapseBurster, projectileLooks } from './weapon';
@@ -269,7 +270,7 @@ export class Raid {
     if (this.layout.spawns) {
       for (const s of this.layout.spawns) {
         const kind = s.kind as AbominationKind, data = ABOMINATIONS[kind];
-        if (!data) continue;
+        if (!data || !(kind in SPECIES)) continue; // no body yet (Creature builds it): skip rather than crash
         for (let n = 0; n < (s.count ?? 1); n++) {
           const size = s.packed ? data.packSize[0] + Math.floor(this.rand() * (data.packSize[1] - data.packSize[0] + 1)) : 1;
           for (let k = 0; k < size; k++) {
