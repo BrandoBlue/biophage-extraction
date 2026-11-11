@@ -27,7 +27,7 @@ Headless tests take screenshots with `freezeAndScreenshot` from `tests/lib/harne
 loop first; a plain `page.screenshot` can time out on slow CI runners.
 
 CI builds once, then runs unit tests and each browser suite (smoke, raid, raid-release, creatures) as parallel jobs with
-their own 35 min limit; add a new browser suite as one more `matrix` entry in `.github/workflows/ci.yml`.
+their own 35 min limit (raid suites 50 min, set per entry with `timeout:`); add a new browser suite as one more `matrix` entry in `.github/workflows/ci.yml`.
 
 CI also uploads, per PR, the smoke screenshots and a **playable build** zip (`biophage-playable-<sha>`).
 
