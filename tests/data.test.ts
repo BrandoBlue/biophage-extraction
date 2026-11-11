@@ -316,4 +316,22 @@ describe('economy, zones and bosses (docs/gdd/07, 08)', () => {
       for (const n of z.nests ?? []) expect(NESTS[n], n).toBeDefined();
     }
   });
+  it('vendor perks are in range, gated by a real rep level and give real items', () => {
+    for (const [id, v] of Object.entries(VENDORS)) {
+      const p = v.perks;
+      if (!p) continue;
+      for (const perk of [p.pouchUpgradeDiscount, p.deployGift]) {
+        if (perk) expect(perk.rep, id).toBeLessThanOrEqual(VENDOR_REP_THRESHOLDS.length); // levels are 1-based
+      }
+      if (p.pouchUpgradeDiscount) {
+        expect(p.pouchUpgradeDiscount.fraction).toBeGreaterThan(0);
+        expect(p.pouchUpgradeDiscount.fraction).toBeLessThanOrEqual(0.25);
+      }
+      if (p.deployGift) {
+        expect(itemDef(p.deployGift.item), p.deployGift.item).toBeDefined();
+        expect(p.deployGift.count).toBeGreaterThan(0);
+      }
+    }
+    expect(VENDORS.motherClot.perks?.deployGift?.item).toBe('clotGel');
+  });
 });

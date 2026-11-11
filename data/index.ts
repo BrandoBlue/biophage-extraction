@@ -389,9 +389,14 @@ export interface Vendor {
   stock?: { item: string; price: number; rep: number }[];
   services?: Record<string, { price: number; rep?: number; description: string }>;
   unlocks: Record<string, string>;
+  /** Machine-readable versions of unlocks Gameplay enforces. Missing = text only. */
+  perks?: {
+    pouchUpgradeDiscount?: { rep: number; fraction: number };
+    deployGift?: { rep: number; item: string; count: number; to: 'pouch' | 'stash' };
+  };
 }
 export type ObjectiveType = 'harvest' | 'kill' | 'extractWith' | 'visit' | 'open' | 'killBoss' | 'killRival' | 'surviveRaid' | 'place';
-export interface Objective { type: ObjectiveType; item?: string; count?: number; landmark?: string; boss?: string; container?: string; zone?: string }
+export interface Objective { type: ObjectiveType; creature?: string; item?: string; count?: number; landmark?: string; boss?: string; container?: string; zone?: string }
 export interface Contract {
   id: string; vendor: VendorId; milestone: string; title: string; brief: string;
   objectives: Objective[];

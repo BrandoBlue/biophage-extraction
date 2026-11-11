@@ -42,6 +42,10 @@
       "2": "gut pouch upgrades sold here at 10% off",
       "3": "Gestation Vat level 2 recipes",
       "4": "one free Clot Gel every deploy"
+    },
+    "perks": {
+      "pouchUpgradeDiscount": { "rep": 2, "fraction": 0.1 },
+      "deployGift": { "rep": 4, "item": "clotGel", "count": 1, "to": "pouch" }
     }
   },
   "archivist": {

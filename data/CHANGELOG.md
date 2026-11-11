@@ -6,6 +6,7 @@ Every tuning change to `data/*.json`, newest first, with the reason.
 - New: vendors.json (Mother Clot, the Archivist, the Gullet Broker), contracts.json (11 contracts in 3 chains), hive.json (Hive Body organs and recipes), zones.json (5 zones), bosses.json (the Reliquary, the Warden).
 - New items: Seed Key, Black Box, Coolant Rod, Reliquary Heart, Ribchoir Bone, Warden Seed-Core, Embryo Pod; containers Reliquary Cage, Sealed Locker, Cargo Crate.
 - Evolutions now cost DNA plus catalyst organs; Reliquary and Warden XP added.
+- Mother Clot gets machine-readable `perks` (10% off pouch upgrades at rep 2, one free Clot Gel per deploy at rep 4) for Gameplay to enforce; other vendor unlocks stay as text for now. Kill objectives name their target with `creature`.
 
 ## Host spec (2026-11-11)
 - New tables: kits, synapse, progression, viral-lab, market, rivals, `RAID.host`; Tithe Weaver, Husk Mimic and Lumen Grazer added with their organs. No Spore or Larva values changed.
