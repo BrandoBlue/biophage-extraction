@@ -452,7 +452,7 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
 
   // A cool moonlight key (the shadow caster on the high tier) over a soft cyan/violet sky fill; the magenta rim
   // is an accent, so form comes from light and shadow rather than coloured glow.
-  scene.add(new THREE.HemisphereLight(ORGANIC.mist, ZONE7_SHADE.rockDeep, 0.85));
+  scene.add(new THREE.HemisphereLight(ORGANIC.mist, ZONE7_SHADE.rockDeep, 1.0));
   const key = new THREE.DirectionalLight(ORGANIC.mist, 1.7);
   key.position.set(60, 80, -120);
   const rim = new THREE.DirectionalLight(ORGANIC.wetFlesh, 0.5);
