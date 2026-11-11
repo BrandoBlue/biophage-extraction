@@ -31,7 +31,7 @@ export function organic(geo: THREE.BufferGeometry, amount: number, freq: number,
 }
 
 function wet(color: THREE.Color, o: Partial<THREE.MeshPhysicalMaterialParameters> = {}): THREE.MeshPhysicalMaterial {
-  return new THREE.MeshPhysicalMaterial({ color, roughness: 0.5, clearcoat: 0.7, clearcoatRoughness: 0.25, sheen: 0.4, sheenColor: C.fleshDeep, ...o });
+  return new THREE.MeshPhysicalMaterial({ color, roughness: 0.5, clearcoat: 0.7, clearcoatRoughness: 0.25, ...o });
 }
 
 function glow(color: THREE.Color, intensity = 2.2): THREE.MeshStandardMaterial {
@@ -198,7 +198,7 @@ export class SynapseBursterView {
     g.add(this.flash);
 
     // Alien host hand: dark chitin fingers wrapped under the grip.
-    const handMat = wet(C.skin, { roughness: 0.6, clearcoat: 0.6, sheenColor: C.cyan });
+    const handMat = wet(C.skin, { roughness: 0.6, clearcoat: 0.6 });
     const palm = new THREE.Mesh(organic(new THREE.SphereGeometry(0.05, 16, 12), 0.004, 60, 2), handMat);
     palm.scale.set(1.1, 0.6, 1.5);
     palm.position.set(0.02, -0.11, 0.1);

@@ -60,9 +60,6 @@ export class BioPod {
       const pts = [new THREE.Vector3(0, 0.3, 0), new THREE.Vector3(Math.cos(a) * 0.6, 0.15, Math.sin(a) * 0.6), new THREE.Vector3(Math.cos(a) * 1.2, -0.05, Math.sin(a) * 1.2)];
       this.root.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 10, 0.05, 5), root));
     }
-    const light = new THREE.PointLight(C.cyan, 6, 9, 2);
-    light.position.y = 1.2;
-    this.root.add(light);
   }
 
   get position(): THREE.Vector3 { return this.root.position; }
@@ -99,7 +96,7 @@ export class SeedSpire {
 
   constructor(x: number, z: number, readonly radius: number) {
     this.root.position.set(x, groundHeight(x, z), z);
-    const stalkMat = wet(C.stalk, { roughness: 0.4, sheen: 0.6, sheenColor: C.magenta });
+    const stalkMat = wet(C.stalk, { roughness: 0.4 });
     // Twisting stalk of braided tubes.
     for (let b = 0; b < 3; b++) {
       const pts: THREE.Vector3[] = [];
@@ -161,10 +158,6 @@ export class SeedSpire {
     this.progressRing.rotation.x = -Math.PI / 2;
     this.progressRing.position.y = 0.14;
     this.root.add(this.progressRing);
-
-    const light = new THREE.PointLight(C.lime, 30, 30, 2);
-    light.position.y = 4;
-    this.root.add(light);
   }
 
   get position(): THREE.Vector3 { return this.root.position; }
