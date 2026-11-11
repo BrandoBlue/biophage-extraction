@@ -301,3 +301,57 @@ describe('performance', () => {
     expect(best).toBeLessThan(4); // ms per frame for 80 creatures, test overhead included (about 1 ms locally)
   });
 });
+
+describe('homes (data/habitats.json): leash, tanks, disguises, roosts', () => {
+  const far = () => host({ x: 400, z: 400 });
+
+  it('wanders within its roam leash and drifts home after being pulled away', () => {
+    const b = at('needlemaw', 1, 0, 0);
+    b.setHome(0, 0, { roam: 6 });
+    let worst = 0;
+    simulate([b], 40, far(), { each: () => { worst = Math.max(worst, Math.hypot(b.body.x, b.body.z)); } });
+    expect(worst).toBeLessThan(6 + 1);
+    // Dragged 40 m off (a chase that went cold): it walks back inside the leash.
+    b.body.x = 40;
+    simulate([b], 30, far());
+    expect(Math.hypot(b.body.x, b.body.z)).toBeLessThan(6 + 1);
+  });
+
+  it('a Glasswalker in its tank ignores a host at 12 m and bursts out at 8 m', () => {
+    const b = at('glasswalker', 2, 0, 0);
+    b.setHome(0, 0, { hatchOnApproach: 8 });
+    const x0 = b.body.x;
+    const wait = simulate([b], 5, host({ x: 12, z: 0, visibility: 2 }));
+    expect(b.lurking).toBe(true);
+    expect(b.body.x).toBe(x0);
+    expect(wait.events.length).toBe(0);
+    b.alert({ x: 12, z: 0 }); // a packmate's alert does not open the tank
+    expect(simulate([b], 0.5, host({ x: 12, z: 0 })).events.length).toBe(0);
+    const out = simulate([b], 0.5, host({ x: 7, z: 0 }));
+    expect(out.events.map((s) => s.e)).toContainEqual({ type: 'reveal', how: 'hatch' });
+    expect(b.lurking).toBe(false);
+    expect(b.mode).toBe('hunt');
+  });
+
+  it('a disguised Husk Mimic waits until the host is in striking range, or until it is shot', () => {
+    const reach = ABOMINATIONS.huskMimic.attackRange + 1.5;
+    const b = at('huskMimic', 3, 0, 0);
+    b.setHome(0, 0, { disguise: 'cargoCrate' });
+    simulate([b], 3, host({ x: reach + 2, z: 0 }));
+    expect(b.lurking).toBe(true);
+    const near = simulate([b], 0.3, host({ x: reach - 0.5, z: 0 }));
+    expect(near.events.map((s) => s.e)).toContainEqual({ type: 'reveal', how: 'disguise' });
+    const shot = at('huskMimic', 4, 0, 0);
+    shot.setHome(0, 0, { disguise: 'cargoCrate' });
+    shot.hurt();
+    expect(shot.events).toContainEqual({ type: 'reveal', how: 'disguise' });
+    expect(shot.lurking).toBe(false);
+  });
+
+  it('an Oculimoth roosts at its home height', () => {
+    const b = at('oculimoth', 5, 0, 0);
+    b.setHome(0, 0, { height: 10 });
+    simulate([b], 8, far());
+    expect(b.body.altitude).toBeGreaterThan(9);
+  });
+});

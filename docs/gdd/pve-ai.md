@@ -13,6 +13,15 @@ Owner: PvE AI & Encounters. Code: `src/ai/`. Tuning: `data/ai.json` (attack numb
 - **Attack tokens:** at most 2 creatures commit to melee and 2 to ranged attacks on the host at once. The rest circle and feint. Holders refresh their token while committed; a stuck holder loses it after 3 s.
 - **Tracking:** a hunter follows your real position for 1.5 s after losing sight, then runs to the last known point and sweeps.
 
+## Homes (data/habitats.json, docs/gdd/09)
+Gameplay places each creature at its home and calls `Abomination.setHome(x, z, { roam, hatchOnApproach, disguise, height })` with the group's data. Then:
+- **Leash:** a calm creature wanders within `roam` of home. After a chase goes cold it walks back, so packs stay where players learned they live.
+- **Tanks (`hatchOnApproach`):** no senses and no movement until the host is that close or it is shot. Then it emits `reveal { how: 'hatch' }` and hunts at once. Packmate alerts don't open the tank.
+- **Disguise (`disguise`):** same, but it triggers at striking range (`attackRange + 1.5 m`), so it drops the crate pose and strikes. `Abomination.lurking` tells the body to show the tank or the crate.
+- **Roost (`height`):** a flyer's calm height.
+- **Reinforcements:** Gameplay spawns them at their species' nearest out-of-sight home and calls `alert(host)`. They walk in hunting, never popping in behind the host.
+- The raid turns `reveal` into a `creatureReveal` bus event, a 20 m noise and a burst.
+
 ## Archetypes
 | Kind | Archetype | Behaviour | Tell | Counter |
 | --- | --- | --- | --- | --- |

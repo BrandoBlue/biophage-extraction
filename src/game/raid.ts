@@ -866,6 +866,11 @@ export class Raid {
         p.grounded = false;
         p.addTrauma(Math.min(0.8, strength / 12));
       },
+      onReveal: (c, how) => {
+        this.bus.emit('creatureReveal', { id: c.id, type: c.kind, how, position: { x: c.position.x, y: c.position.y, z: c.position.z } });
+        this.noise(c.position, 20, how);
+        this.fx.burst(c.centre.clone(), c.fluid, 0.8);
+      },
       onScreech: (c, radius) => {
         this.bus.emit('alert', { id: c.id, type: c.kind, position: { x: c.position.x, y: c.position.y, z: c.position.z } });
         this.noise(c.position, radius, 'screech');
