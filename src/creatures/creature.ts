@@ -40,6 +40,8 @@ export interface DriveState {
   strike: THREE.Vector3 | null;
   /** Extra glow multiplier (Psych-Wave reveal). */
   reveal: number;
+  /** Hover and flight: body height above the root, overriding the plan's rest height. */
+  altitude: number | null;
 }
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -50,7 +52,7 @@ const _q = new THREE.Quaternion();
 export class Creature {
   readonly rig: Rig;
   readonly plan: BodyPlan;
-  readonly drive: DriveState = { velocity: new THREE.Vector3(), excite: 0, windup: 0, look: null, strike: null, reveal: 1 };
+  readonly drive: DriveState = { velocity: new THREE.Vector3(), excite: 0, windup: 0, look: null, strike: null, reveal: 1, altitude: null };
   ground: GroundFn = FLAT;
   /** Set false to freeze locomotion (dead bodies; the gore code poses them). */
   alive = true;
@@ -63,6 +65,8 @@ export class Creature {
   private bodyTilt = new THREE.Euler();
   private time = Math.random() * 10;
   private planted = false;
+  private deadFor = -1;
+  private fallV = 0;
 
   constructor(planOrSpecies: BodyPlan | SpeciesId, seed = 1, stage = 0, opts: { growStage?: number } = {}) {
     this.plan = typeof planOrSpecies === 'string' ? planFor(planOrSpecies, seed, stage) : planOrSpecies;
@@ -75,6 +79,20 @@ export class Creature {
   }
 
   get root(): THREE.Group { return this.rig.root; }
+
+  /** The root's world position (behaviour code may parent the rig under its own moving group). */
+  private readonly _wp = new THREE.Vector3();
+  get worldPos(): THREE.Vector3 { return this.rig.root.getWorldPosition(this._wp); }
+
+  /** Collapse: walkers drop onto their belly with legs splayed, fliers and hoverers fall out of the air. */
+  die(): void {
+    if (!this.alive) return;
+    this.alive = false;
+    this.deadFor = 0;
+    this.fallV = 0;
+    this.drive.excite = 0;
+    this.drive.windup = 0;
+  }
   get species(): SpeciesId { return this.plan.species; }
 
   /** Put every foot on the ground under its rest point (after teleporting the root). */
@@ -111,7 +129,7 @@ export class Creature {
     const scale = this.plan.radius;
 
     if (loco === 'walker' && this.alive) this.walk(dt, speed);
-    else if (loco === 'walker') { for (const f of this.feet) if (!f.limb.severed) this.reach(f); }
+    if (!this.alive) { this.deathPose(dt); return; }
 
     // Body ride: bob with the gait, lean into acceleration, coil on wind-up.
     this.gait += dt * (0.6 + speed * 2.2 / Math.max(0.4, scale));
@@ -125,10 +143,10 @@ export class Creature {
       body.position.set(this.bodyRest.x, restY + this.bob - d.windup * 0.08 * scale + this.footHeightOffset(), this.bodyRest.z);
       this.bodyTilt.set(-d.windup * 0.25 + this.feetPitch() + sagZ * 0.15, 0, -sagX * 0.25 + Math.sin(this.gait) * 0.03 * stride);
     } else if (loco === 'hover') {
-      body.position.set(this.bodyRest.x, this.bodyRest.y + Math.sin(this.time * 0.9) * 0.25, this.bodyRest.z);
+      body.position.set(this.bodyRest.x, (d.altitude ?? this.bodyRest.y) + Math.sin(this.time * 0.9) * 0.25, this.bodyRest.z);
       this.bodyTilt.set(Math.cos(this.time * 0.6) * 0.05 + d.velocity.z * 0.02, 0, Math.sin(this.time * 0.7) * 0.06 - d.velocity.x * 0.02);
     } else {
-      body.position.set(this.bodyRest.x, this.bodyRest.y + Math.sin(this.time * 6) * 0.04 + Math.sin(this.time * 1.3) * 0.15, this.bodyRest.z);
+      body.position.set(this.bodyRest.x, (d.altitude ?? this.bodyRest.y) + Math.sin(this.time * 6) * 0.04 + Math.sin(this.time * 1.3) * 0.15, this.bodyRest.z);
       this.bodyTilt.set(0.2 * Math.min(1, speed / 6) + Math.sin(this.time * 6) * 0.05, 0, Math.sin(this.time * 2.1) * 0.12);
     }
     body.quaternion.setFromEuler(this.bodyTilt);
@@ -141,11 +159,47 @@ export class Creature {
     refreshHits(this.rig);
   }
 
+  private deathPose(dt: number): void {
+    this.deadFor += dt;
+    const k = Math.min(1, this.deadFor / 0.7), e = k * k;
+    const body = this.rig.bones[0];
+    const r = this.plan.radius;
+    if (this.plan.locomotion === 'walker') {
+      // Drop onto the belly and roll a little; the planted feet splay out as the body sinks.
+      const belly = Math.max(0.15, this.bodyRest.y * 0.35);
+      body.position.y = THREE.MathUtils.lerp(this.bodyRest.y, belly + this.footHeightOffset(), e);
+      body.rotation.set(THREE.MathUtils.lerp(0, 0.12, e), 0, THREE.MathUtils.lerp(0, 0.35, e) * (this.plan.seed % 2 ? 1 : -1));
+      if (this.deadFor < 0.7) for (const f of this.feet) {
+        if (f.limb.severed) continue;
+        f.pos.addScaledVector(_v.copy(f.pos).sub(this.worldPos).setY(0).normalize(), (0.35 * r * dt) / 0.7);
+        f.pos.y = this.ground(f.pos.x, f.pos.z);
+      }
+      body.updateMatrixWorld(true);
+      for (const f of this.feet) if (!f.limb.severed) this.reach(f);
+      // Twitching.
+      for (const l of this.rig.limbs.values()) if (l.spec.kind !== 'leg' && !l.severed && l.bones[1]) l.bones[1].rotateX(Math.sin(this.deadFor * 30) * 0.02 * (1 - k));
+    } else {
+      // Out of the sky: gravity until the body rests on the ground.
+      const w = this.worldPos;
+      const floor = this.ground(w.x, w.z) - w.y + r * 0.45;
+      if (body.position.y > floor) { this.fallV += 12 * dt; body.position.y = Math.max(floor, body.position.y - this.fallV * dt); }
+      body.rotation.x = THREE.MathUtils.lerp(0, 0.5, e);
+      for (const t of this.trails) for (let i = 0; i < t.dirs.length; i++) { t.dirs[i].lerp(_v.set(Math.sin(i + t.limb.spec.mount.x) * 0.8, -0.3, Math.cos(i) * 0.8).normalize(), dt * 2).normalize(); aimBone(t.limb.bones[i], t.dirs[i], UP); }
+    }
+    for (const g of this.rig.glows) g.mat.emissiveIntensity = Math.max(0.04, g.mat.emissiveIntensity - dt * 1.2);
+    for (const p of this.rig.parts.values()) {
+      const m = p.mesh.material as THREE.MeshStandardMaterial;
+      if (m.emissive && (p.spec.weak || p.spec.type === 'pustule')) m.emissiveIntensity = Math.max(0.04, m.emissiveIntensity - dt * 2);
+    }
+    body.updateMatrixWorld(true);
+    refreshHits(this.rig);
+  }
+
   /** Average planted foot height relative to the root (slopes lift or drop the body). */
   private footHeightOffset(): number {
     let s = 0, n = 0;
     for (const f of this.feet) if (!f.limb.severed) { s += f.pos.y; n++; }
-    return n ? s / n - this.rig.root.position.y : 0;
+    return n ? s / n - this.worldPos.y : 0;
   }
 
   private feetPitch(): number {

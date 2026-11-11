@@ -68,8 +68,9 @@ export function slotMaterial(plan: BodyPlan, slot: MaterialSlot): THREE.Material
     case 'eye': m = alienEye(pal.iris, pal.sclera); break;
     case 'membrane': m = membrane(pal.membrane, 0.5); break;
   }
-  // The bio shaders seed their noise from the object's world position; creatures move, so pin it per species.
-  m.defines = { ...(m.defines ?? {}), BIO_SEED: ((plan.seed % 97) / 7).toFixed(3) };
+  // The bio shaders seed their noise from the object's world position; creatures move, so pin it. One value for
+  // every creature keeps one shader program per material slot (a define per seed would multiply programs).
+  m.defines = { ...(m.defines ?? {}), BIO_SEED: '3.7' };
   return m;
 }
 
