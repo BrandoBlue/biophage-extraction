@@ -1,0 +1,430 @@
+{
+  "_note": "Where each species lives, per zone (docs/gdd/09-weapons-and-habitats.md). Creatures spawn only at their homes, never at random. where: landmark (zone7.json landmarks, i.e. zones.json landmark ids), room (a Long Seed room id), band (radius fraction 0-1 and bearing range in degrees, 0 = north, clockwise; layoutPosition convention), biome (raid.json host biome id), nearExtract (patrols the approach to the active extract), guards (a container type: sits over one). spread = metres the group is scattered round the point. roam = leash in metres: how far it wanders from home before drifting back (PvE AI). fallback = where to put it until the primary place is built. milestone = the group only appears from that milestone on. The player spawn's noEnemyWithin rule (raid.json) still wins.",
+  "rules": {
+    "reinforceFrom": "the nearest home of that species that is out of the host's sight and at least reinforcements.spawnMinDistanceFromPlayer away; the group walks in from there, never appears behind the host",
+    "noRandomSpawns": true
+  },
+  "zones": {
+    "glowmireIsle": {
+      "needlemaw": {
+        "home": "Pack hunters of the open marsh; one pack scavenges the Long Seed debris, one patrols the extract.",
+        "roam": 35,
+        "groups": [
+          {
+            "where": {
+              "landmark": "longSeedDebris"
+            },
+            "count": 1,
+            "packed": true,
+            "spread": 10
+          },
+          {
+            "where": {
+              "band": {
+                "radius": [
+                  0.3,
+                  0.6
+                ],
+                "bearing": [
+                  250,
+                  300
+                ]
+              }
+            },
+            "count": 1,
+            "packed": true,
+            "spread": 6,
+            "label": "western marsh"
+          },
+          {
+            "where": {
+              "band": {
+                "radius": [
+                  0.35,
+                  0.65
+                ],
+                "bearing": [
+                  150,
+                  210
+                ]
+              }
+            },
+            "count": 1,
+            "packed": true,
+            "spread": 6,
+            "label": "southern fungus fields"
+          },
+          {
+            "where": {
+              "nearExtract": true
+            },
+            "count": 1,
+            "packed": true,
+            "spread": 8
+          }
+        ]
+      },
+      "bilecantor": {
+        "home": "Hovers over liquid-light: the south-west rim falls and over Bio-Pods it has claimed.",
+        "roam": 20,
+        "groups": [
+          {
+            "where": {
+              "guards": "bioPod"
+            },
+            "count": 1,
+            "spread": 5
+          },
+          {
+            "where": {
+              "band": {
+                "radius": [
+                  0.65,
+                  0.8
+                ],
+                "bearing": [
+                  190,
+                  250
+                ]
+              }
+            },
+            "count": 2,
+            "spread": 12,
+            "label": "rim falls colony"
+          }
+        ]
+      },
+      "glasswalker": {
+        "home": "Ambusher of tight dark places: the Hollow Chitin Tower's upper floor and the fungal caves.",
+        "roam": 12,
+        "groups": [
+          {
+            "where": {
+              "landmark": "chitinTower"
+            },
+            "count": 1,
+            "spread": 3,
+            "floor": "top"
+          },
+          {
+            "where": {
+              "landmark": "fungalCaves"
+            },
+            "count": 1,
+            "fallback": {
+              "landmark": "longSeedDebris"
+            },
+            "spread": 4
+          }
+        ]
+      },
+      "oculimoth": {
+        "home": "Drawn to light: a swarm circles the northern Seed Spire.",
+        "roam": 40,
+        "groups": [
+          {
+            "where": {
+              "landmark": "seedSpireNorth"
+            },
+            "count": 1,
+            "packed": true,
+            "spread": 10
+          }
+        ]
+      },
+      "mournback": {
+        "home": "Grazes alone in the north-east fungal grove, well clear of the Reliquary's bowl.",
+        "roam": 30,
+        "groups": [
+          {
+            "where": {
+              "band": {
+                "radius": [
+                  0.35,
+                  0.5
+                ],
+                "bearing": [
+                  30,
+                  70
+                ]
+              }
+            },
+            "count": 1,
+            "spread": 0,
+            "label": "north-east grove"
+          }
+        ]
+      }
+    },
+    "longSeedWreck": {
+      "needlemaw": {
+        "home": "Came in through the breach: a pack in the prow, a pack among the hold B crates.",
+        "roam": 25,
+        "groups": [
+          {
+            "where": {
+              "room": "breachedProw"
+            },
+            "count": 1,
+            "packed": true,
+            "spread": 8
+          },
+          {
+            "where": {
+              "room": "cargoHoldB"
+            },
+            "count": 1,
+            "packed": true,
+            "spread": 6
+          }
+        ]
+      },
+      "glasswalker": {
+        "home": "Corridor ambushers in the crew warrens; one hatches from a gallery tank as you pass.",
+        "roam": 10,
+        "groups": [
+          {
+            "where": {
+              "room": "crewWarrens"
+            },
+            "count": 2,
+            "spread": 6
+          },
+          {
+            "where": {
+              "room": "embryoGallery"
+            },
+            "count": 1,
+            "hatchOnApproach": 8
+          }
+        ]
+      },
+      "oculimoth": {
+        "home": "Roosts in the high ceiling of cargo hold A.",
+        "roam": 20,
+        "groups": [
+          {
+            "where": {
+              "room": "cargoHoldA"
+            },
+            "count": 1,
+            "packed": true,
+            "spread": 6,
+            "height": 10
+          }
+        ]
+      },
+      "titheWeaver": {
+        "home": "Webs the warren vents.",
+        "roam": 10,
+        "groups": [
+          {
+            "where": {
+              "room": "crewWarrens"
+            },
+            "count": 1,
+            "milestone": "host"
+          }
+        ]
+      },
+      "huskMimic": {
+        "home": "Sits among the crates pretending to be one.",
+        "roam": 6,
+        "groups": [
+          {
+            "where": {
+              "room": "cargoHoldA"
+            },
+            "count": 1,
+            "milestone": "host",
+            "disguise": "cargoCrate"
+          },
+          {
+            "where": {
+              "room": "cargoHoldB"
+            },
+            "count": 1,
+            "milestone": "host",
+            "disguise": "cargoCrate"
+          }
+        ]
+      }
+    },
+    "expanse": {
+      "needlemaw": {
+        "home": "Glowmire Flats packs and the Brood Hollow crater field.",
+        "roam": 40,
+        "groups": [
+          {
+            "where": {
+              "biome": "glowmireFlats"
+            },
+            "count": 3,
+            "packed": true,
+            "spread": 8
+          },
+          {
+            "where": {
+              "biome": "broodHollow"
+            },
+            "count": 2,
+            "packed": true,
+            "spread": 8
+          }
+        ]
+      },
+      "bilecantor": {
+        "home": "Singing colonies on the Choir Chasm island chain.",
+        "roam": 25,
+        "groups": [
+          {
+            "where": {
+              "biome": "choirChasm"
+            },
+            "count": 5,
+            "spread": 15
+          }
+        ]
+      },
+      "glasswalker": {
+        "home": "Glasswalker country: inside the Chitin Spires.",
+        "roam": 12,
+        "groups": [
+          {
+            "where": {
+              "biome": "chitinSpires"
+            },
+            "count": 4,
+            "spread": 20
+          }
+        ]
+      },
+      "oculimoth": {
+        "home": "Swarms round the Chitin Spire tops.",
+        "roam": 40,
+        "groups": [
+          {
+            "where": {
+              "biome": "chitinSpires"
+            },
+            "count": 2,
+            "packed": true,
+            "spread": 20
+          }
+        ]
+      },
+      "mournback": {
+        "home": "Grazes in the ribs of the Long Seed wreck.",
+        "roam": 30,
+        "groups": [
+          {
+            "where": {
+              "biome": "wreckOfTheLongSeed"
+            },
+            "count": 2,
+            "spread": 25
+          }
+        ]
+      },
+      "titheWeaver": {
+        "home": "Webs across the Brood Hollow craters.",
+        "roam": 12,
+        "groups": [
+          {
+            "where": {
+              "biome": "broodHollow"
+            },
+            "count": 2,
+            "spread": 20
+          }
+        ]
+      },
+      "huskMimic": {
+        "home": "Hides among the wreck's tech loot.",
+        "roam": 6,
+        "groups": [
+          {
+            "where": {
+              "biome": "wreckOfTheLongSeed"
+            },
+            "count": 2,
+            "disguise": "cargoCrate"
+          }
+        ]
+      },
+      "lumenGrazer": {
+        "home": "Drifts high over the Choir Chasm and the Flats; passive until hurt.",
+        "roam": 120,
+        "groups": [
+          {
+            "where": {
+              "biome": "choirChasm"
+            },
+            "count": 2
+          },
+          {
+            "where": {
+              "biome": "glowmireFlats"
+            },
+            "count": 1
+          }
+        ]
+      }
+    }
+  },
+  "loot": {
+    "_note": "Deliberate container placement: each container type has a reason to be where it is. at = same where-forms as above. Long Seed placement is World's zone7.json loot list (crates in the holds, lockers in the warrens and gallery).",
+    "glowmireIsle": [
+      {
+        "container": "bioPod",
+        "at": {
+          "landmark": "chitinTower"
+        },
+        "count": 2,
+        "why": "a pod on each upper floor of the tower; the climb is the risk"
+      },
+      {
+        "container": "bioPod",
+        "at": {
+          "band": {
+            "radius": [
+              0.3,
+              0.6
+            ],
+            "bearing": [
+              250,
+              300
+            ]
+          }
+        },
+        "count": 1,
+        "why": "grown in the western marsh, Needlemaw country"
+      },
+      {
+        "container": "bioPod",
+        "at": {
+          "band": {
+            "radius": [
+              0.65,
+              0.8
+            ],
+            "bearing": [
+              190,
+              250
+            ]
+          }
+        },
+        "count": 1,
+        "why": "under the rim falls, guarded by the Bile Cantor colony"
+      },
+      {
+        "container": "cargoCrate",
+        "at": {
+          "landmark": "longSeedDebris"
+        },
+        "count": 3,
+        "why": "spilled from the wreck: ammo and the first real guns"
+      }
+    ]
+  }
+}
