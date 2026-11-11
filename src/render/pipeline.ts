@@ -32,10 +32,13 @@ const GradeShader = {
     uHighlight: { value: new THREE.Color() },
     uHitColour: { value: new THREE.Color() },
     uSplit: { value: 0.18 },
+    /** Unsharp mask strength and one-pixel step: keeps surface detail crisp after TAA-free sampling and bloom. */
+    uSharpen: { value: 0.35 },
+    uTexel: { value: new THREE.Vector2(1 / 1280, 1 / 720) },
   },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
   fragmentShader: /* glsl */ `
-    uniform sampler2D tDiffuse; uniform float uTime, uOverload, uHit, uAberration, uVignette, uSaturation, uContrast, uGrain, uSplit;
+    uniform sampler2D tDiffuse; uniform float uTime, uOverload, uHit, uAberration, uVignette, uSaturation, uContrast, uGrain, uSplit, uSharpen; uniform vec2 uTexel;
     uniform vec3 uShadow, uHighlight, uHitColour; varying vec2 vUv;
     float h(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
     void main() {
@@ -44,6 +47,9 @@ const GradeShader = {
       float wobble = uOverload * 0.004 * sin(uTime * 9.0 + vUv.y * 30.0);
       vec2 off = c * (uAberration + uOverload * 0.012 + uHit * 0.01) * (0.5 + r2 * 4.0) + vec2(wobble, 0.0);
       vec3 col = vec3(texture2D(tDiffuse, vUv + off).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - off).b);
+      vec3 blur = (texture2D(tDiffuse, vUv + vec2(uTexel.x, 0.0)).rgb + texture2D(tDiffuse, vUv - vec2(uTexel.x, 0.0)).rgb
+        + texture2D(tDiffuse, vUv + vec2(0.0, uTexel.y)).rgb + texture2D(tDiffuse, vUv - vec2(0.0, uTexel.y)).rgb) * 0.25;
+      col = max(col + (col - blur) * uSharpen, 0.0);
       float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
       col = mix(vec3(l), col, uSaturation);
       // Contrast as a power curve around a dark mid-grey: no linear pivot at 0.5, which clipped night shadows to black.
@@ -194,6 +200,8 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
     setSize(w, h) {
       renderer.setSize(w, h, false);
       composer.setSize(w, h);
+      const pr = renderer.getPixelRatio();
+      grade.uniforms.uTexel.value.set(1 / Math.max(1, w * pr), 1 / Math.max(1, h * pr));
     },
     setOverload(v) { overload = THREE.MathUtils.clamp(v, 0, 1); },
     hitPulse(strength = 1) { hit = Math.min(1, hit + strength); },

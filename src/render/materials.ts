@@ -156,6 +156,12 @@ export function zoneRock(opts: { veinColour?: string; mossColour?: string; scale
       float gravel = bioNoise(vBioWorld * 9.0 * uScale);
       float relief = strata * 0.5 + grain * 0.35 + gravel * 0.08 - mossMask * colony * 0.2
         + growthMask * (0.45 + ribs * 0.2) - pits * growthMask * 0.35 + bone * 0.25;
+      // Close-range micro detail (grit, hairline cracks, pitting) that fades out with distance: surfaces stay crisp up close.
+      float near = 1.0 - smoothstep(3.0, 24.0, length(vViewPosition));
+      float grit = bioNoise(vBioWorld * 31.0 * uScale) * 0.6 + bioNoise(vBioWorld * 77.0 * uScale) * 0.4;
+      float crack = 1.0 - smoothstep(0.0, 0.035, abs(bioNoise(vBioWorld * 6.5 * uScale + 3.0) - 0.5));
+      relief += near * (grit * 0.12 - crack * 0.18);
+      col *= 1.0 - near * (crack * 0.35 - (grit - 0.5) * 0.16);
       BIO_BUMP(relief, 0.14);
       col *= (0.72 + 0.28 * smoothstep(0.2, 0.9, relief)) * (0.94 + gravel * 0.12);
       diffuseColor.rgb = col;
@@ -248,7 +254,10 @@ export function chitin(base: string = HIVE.bone, glow: string = ZONE7.cyan, scal
       float plates = smoothstep(0.05, 0.12, bioCells(q * 4.0));
       float grainC = bioNoise(q * 9.0);
       diffuseColor.rgb *= mix(0.35, 1.0, plates) * (0.8 + 0.4 * grainC);
-      BIO_BUMP(plates * 0.8 + grainC * 0.15, 0.012);
+      float nearC = 1.0 - smoothstep(1.0, 10.0, length(vViewPosition));
+      float microC = bioNoise(q * 38.0);
+      diffuseColor.rgb *= 1.0 - nearC * (0.5 - microC) * 0.14;
+      BIO_BUMP(plates * 0.8 + grainC * 0.15 + microC * 0.06 * nearC, 0.012);
       totalEmissiveRadiance += uGlow * bioVein(q * 6.0) * (1.0 - plates) * 0.8;
     `,
   });
@@ -353,7 +362,12 @@ export function livingFlesh(base: string, vein: string, rim: string, scale = 28)
       diffuseColor.rgb *= 1.0 - pores * 0.45;
       float veins = max(bioVein(p * 0.5), bioVein(p * 1.3 + 4.0) * 0.6);
       // Skin relief: mottled swells, sunken pores, raised veins.
-      BIO_BUMP(mott * 0.5 - pores * 0.6 + veins * 0.3, 0.012);
+      // Fine skin up close: wrinkles and micro pores so flesh holds up at arm's length.
+      float nearF = 1.0 - smoothstep(1.0, 10.0, length(vViewPosition));
+      float wrinkle = bioNoise(p * vec3(14.0, 40.0, 14.0));
+      float micro = 1.0 - smoothstep(0.03, 0.09, bioCells(p * 9.0));
+      diffuseColor.rgb *= 1.0 - nearF * (micro * 0.25 + (0.5 - wrinkle) * 0.1);
+      BIO_BUMP(mott * 0.5 - pores * 0.6 + veins * 0.3 + nearF * (wrinkle * 0.12 - micro * 0.15), 0.012);
       float flow = 0.55 + 0.45 * sin(bioTime * 3.0 - dot(vBioLocal, vec3(0.0, 0.0, 40.0)));
       vec3 V = normalize(cameraPosition - vBioWorld);
       float fres = pow(1.0 - abs(dot(normalize(vBioNormal), V)), 2.5);
