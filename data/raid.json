@@ -108,13 +108,13 @@
       },
       {
         "type": "bioPod",
-        "radius": 0.6,
-        "bearing": 140
+        "radius": 0.49,
+        "bearing": 268
       },
       {
         "type": "bioPod",
-        "radius": 0.7,
-        "bearing": 250
+        "radius": 0.76,
+        "bearing": 233
       }
     ],
     "spawnGroups": [

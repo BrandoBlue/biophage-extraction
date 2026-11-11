@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RAID, ZONE7_SITES } from '../data';
+import { HABITATS, RAID, ZONE7_SITES } from '../data';
 import { CATALOGUE, gravityAt, zone7Layout } from '../src/world/layout';
 import { CRATERS, FLAT_SPOTS, groundHeight, ISLAND_RADIUS, POOLS } from '../src/world/zone7';
 
@@ -115,5 +115,30 @@ describe('zone landmarks', () => {
     const { glowmireLandmarks } = await import('../src/world/zones');
     const ids = glowmireLandmarks().map((l) => l.id);
     for (const id of ['chitinTower', 'sunkenBowl', 'longSeedDebris', 'seedSpireNorth', 'seedSpireEast']) expect(ids).toContain(id);
+  });
+});
+
+describe("Design's habitat bands on Glowmire Isle (data/habitats.json)", () => {
+  type Band = { radius: [number, number]; bearing: [number, number] };
+  const inBand = (p: { x: number; z: number }, b: Band) => {
+    const r = Math.hypot(p.x, p.z) / RAID.playableRadius;
+    const bearing = ((Math.atan2(p.x, -p.z) * 180) / Math.PI + 360) % 360;
+    return r >= b.radius[0] && r <= b.radius[1] && bearing >= b.bearing[0] && bearing <= b.bearing[1];
+  };
+  const zone = HABITATS.zones.glowmireIsle ?? {};
+  const bands = Object.values(zone).flatMap((h) => (h?.groups ?? []).map((g) => (g.where as { band?: Band }).band).filter((b): b is Band => !!b));
+
+  it('gives every creature band a named area to live in', () => {
+    expect(bands.length).toBeGreaterThan(0);
+    const areas = ZONE7_SITES.areas.filter((a) => a.tag !== 'arena');
+    for (const b of bands) expect(areas.some((a) => inBand(a, b)), JSON.stringify(b)).toBe(true);
+  });
+
+  it('puts a Bio-Pod in every band Design places one', () => {
+    for (const l of HABITATS.loot.glowmireIsle ?? []) {
+      const band = (l.at as { band?: Band }).band;
+      if (!band) continue;
+      expect(CATALOGUE.pods.filter((p) => p.type === l.container && inBand(p, band)).length, JSON.stringify(band)).toBeGreaterThanOrEqual(l.count);
+    }
   });
 });

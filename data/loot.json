@@ -587,6 +587,16 @@
         1
       ],
       "stack": 1
+    },
+    "vigilLure": {
+      "label": "Vigil Lure",
+      "kind": "organ",
+      "value": 450,
+      "size": [
+        1,
+        2
+      ],
+      "stack": 1
     }
   },
   "containers": {
@@ -1242,6 +1252,84 @@
         {
           "item": "seekerStrain",
           "weight": 2,
+          "count": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "vigilCocoon": {
+      "label": "Vigil's Cocoon",
+      "openTime": 3,
+      "noiseOnOpen": 25,
+      "guaranteed": [
+        {
+          "item": "hushGill",
+          "count": 1
+        }
+      ],
+      "rolls": 3,
+      "table": [
+        {
+          "item": "dnaStrand",
+          "weight": 25,
+          "count": [
+            3,
+            6
+          ]
+        },
+        {
+          "item": "mutagenVial",
+          "weight": 15,
+          "count": [
+            1,
+            2
+          ]
+        },
+        {
+          "item": "nightEye",
+          "weight": 10,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "splinterStrain",
+          "weight": 6,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "eyestalkMarksman",
+          "weight": 8,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "leviathanQuill",
+          "weight": 4,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "needleFeed",
+          "weight": 20,
+          "count": [
+            20,
+            40
+          ]
+        },
+        {
+          "item": "glitchingHeart",
+          "weight": 6,
           "count": [
             1,
             1

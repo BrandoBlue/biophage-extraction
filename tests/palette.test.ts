@@ -14,12 +14,16 @@ describe('zone 7', () => {
     const a = mulberry32(7), b = mulberry32(7);
     expect([a(), a(), a()]).toEqual([b(), b(), b()]);
   });
-  it('keeps gameplay spots flat and falls away at the rim', () => {
+  it('keeps gameplay spots flat and walls the basin with mountains at the rim', () => {
     for (const s of FLAT_SPOTS) {
       const h = groundHeight(s.x, s.z);
       for (let a = 0; a < 8; a++) expect(Math.abs(groundHeight(s.x + Math.cos(a) * s.radius * 0.8, s.z + Math.sin(a) * s.radius * 0.8) - h), s.name).toBeLessThan(0.3);
     }
-    expect(groundHeight(ISLAND_RADIUS * 1.1, 0)).toBeLessThan(-5);
+    // Past the walkable edge the ground climbs into the mountains that ring the basin, all the way round.
+    for (let a = 0; a < 16; a++) {
+      const at = (r: number) => groundHeight(Math.cos(a) * ISLAND_RADIUS * r, Math.sin(a) * ISLAND_RADIUS * r);
+      expect(at(1.1) - at(0.8)).toBeGreaterThan(15);
+    }
   });
 });
 
