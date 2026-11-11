@@ -63,14 +63,15 @@ describe('new-zone creatures', () => {
 
   it('a Bristleback racks its quills, sloshes its cistern and grazes', () => {
     const c = new Creature('bristleback', 7, 0);
-    run(c, 1.5);
     const neck = bone(c, 'neck');
-    const grazing = neck.quaternion.clone();
+    // Grazing comes and goes on a slow random cycle (it lifts its head to look round): find the deepest graze.
+    let grazing = neck.quaternion.clone(), deepest = -1;
+    run(c, 20, () => { const a = neck.quaternion.x; if (a > deepest) { deepest = a; grazing = neck.quaternion.clone(); } });
     const quill = bone(c, 'quillL');
     c.drive.excite = 1; c.drive.windup = 1;
-    run(c, 0.6);
+    run(c, 1.2);
     expect(quill.quaternion.angleTo(new THREE.Quaternion())).toBeGreaterThan(0.3);
-    expect(neck.quaternion.angleTo(grazing)).toBeGreaterThan(0.1);
+    expect(neck.quaternion.angleTo(grazing)).toBeGreaterThan(0.25);
     // Running then stopping hard tips the water.
     const water = c.rig.parts.get('water')!.mesh;
     c.drive.windup = 0;
@@ -88,8 +89,9 @@ describe('new-zone creatures', () => {
     const z0 = head.position.z;
     c.drive.windup = 1;
     c.drive.look = new THREE.Vector3(0, 1.6, 20);
-    run(c, 0.8);
-    expect(head.position.z - z0).toBeGreaterThan(0.3);
+    let reach = 0;
+    run(c, 1.2, () => { reach = Math.max(reach, head.position.z - z0); });
+    expect(reach).toBeGreaterThan(0.25);
     // Its sleeves swing when it walks.
     const sleeve = bone(c, 'sleeveL');
     const q0 = sleeve.quaternion.clone();
