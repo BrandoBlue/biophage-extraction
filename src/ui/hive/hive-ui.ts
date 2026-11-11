@@ -137,7 +137,8 @@ export class HiveUI {
       return `<label>${label}<input type="range" data-k="${k}" min="${lo}" max="${hi}" step="${step}" value="${s[k]}"/><output>${fmt(s[k])}</output></label>`;
     };
     pnl.insertAdjacentHTML('beforeend', row('sensitivity', 'MOUSE SENSITIVITY', (v) => `${v.toFixed(2)}×`) + row('fov', 'FIELD OF VIEW', (v) => `${v}°`) + row('volume', 'MASTER VOLUME', (v) => `${Math.round(v * 100)}%`)
-      + `<label>REDUCE MOTION<input type="checkbox" data-k="reduceMotion" ${s.reduceMotion ? 'checked' : ''}/><output></output></label>`);
+      + `<label>REDUCE MOTION<input type="checkbox" data-k="reduceMotion" ${s.reduceMotion ? 'checked' : ''}/><output></output></label>`
+      + `<label>EYE SCOPE ON LONG GUNS<input type="checkbox" data-k="eyeScope" ${s.eyeScope ? 'checked' : ''}/><output></output></label>`);
     pnl.addEventListener('input', (e) => {
       const i = e.target as HTMLInputElement;
       const k = i.dataset.k as keyof Settings;

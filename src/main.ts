@@ -14,6 +14,7 @@ import { GameAudio } from './audio';
 import { getSettings } from './ui/settings';
 import { caveDistance } from './world/cave';
 import pkg from '../package.json';
+import { Online } from './net';
 
 import { creatureViewerRequested, startCreatureViewer } from './creatures/viewer';
 
@@ -46,8 +47,11 @@ function bootRaid(): void {
   const hud = new RaidHud(raid.bus, raid);
   function deployNow(): void {
     if (raid.phase !== 'briefing') return;
+    // Online squads (src/net): guests wait for the leader; the leader's Deploy drops everyone into the raid it built.
+    const gate = online.deployGate();
+    if (gate === 'wait') { menu.say('Waiting for the squad leader to deploy.'); return; }
     const want = profile.economy.zone;
-    if (!zoneParam && want !== world.zone && BUILT_ZONES.includes(want)) {
+    if (gate === 'solo' && !zoneParam && want !== world.zone && BUILT_ZONES.includes(want)) {
       save();
       try { sessionStorage.setItem(AUTO_DEPLOY, want); } catch { /* storage blocked: the player presses deploy again */ }
       location.reload();
@@ -62,6 +66,10 @@ function bootRaid(): void {
     raid.deploy(d);
   }
   const menu = new HiveMenu(profile, save, deployNow, loaded.notice);
+  const online = new Online({
+    raid, scene, seed: raidSeed, zone: world.zone, build: pkg.version, cls: () => profile.host,
+    deploy: deployNow, say: (t) => menu.say(t), menuVisible: () => menu.visible,
+  });
   let auto: string | null = null;
   try { auto = sessionStorage.getItem(AUTO_DEPLOY); sessionStorage.removeItem(AUTO_DEPLOY); } catch { /* storage blocked */ }
   if (auto && auto === world.zone) setTimeout(deployNow, 0); // after boot has wired the pipeline
@@ -89,7 +97,8 @@ function bootRaid(): void {
     zone: world.zone,
     hostClass: () => profile.host,
     menuVisible: () => menu.visible,
-    enclosed: world.zone === 'longSeedWreck' ? () => true : (x, z) => ZONE7_SITES.caves.some((c) => caveDistance(c, x, z) < 0),
+    enclosed: world.zone === 'longSeedWreck' || world.zone === 'marrowPit' ? () => true
+      : world.zone === 'glowmireIsle' ? (x, z) => ZONE7_SITES.caves.some((c) => caveDistance(c, x, z) < 0) : () => false,
     volume: () => getSettings().volume,
   });
 
@@ -115,11 +124,14 @@ function bootRaid(): void {
   // `begin` deploys through the Hive so scripted raids (tests/raid.mjs, scripts/playtest.mjs) follow the real loop.
   const debug = { ...raid.debug(), begin: deployNow };
   const clock = new THREE.Clock();
+  // Online raids keep simulating while this tab is in the background (src/net keepAlive), so others don't freeze.
+  online.keepAlive((dt) => { raid.update(dt); online.tick(dt); });
   pipeline.renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.05);
     raid.update(dt);
+    online.tick(dt);
     // Landmarks (Design's zones.json) count toward contracts the first time the host walks into one.
-    if (!menu.visible) { const lm = world.landmarkAt(camera.position.x, camera.position.z); if (lm) raid.visit(lm); }
+    if (!menu.visible) { const lm = world.landmarkAt(camera.position.x, camera.position.z, raid.player.position.y); if (lm) raid.visit(lm); }
     hud.update(dt, raid.hud());
     audio.update(dt, camera);
     // The main menu draws the 3D Hive lab with the host on its pedestal; other Hive screens cover the whole view, so
@@ -130,6 +142,6 @@ function bootRaid(): void {
     if (!menu.visible || frames < 3 || stage.due()) pipeline.render(dt);
     frames++;
     // Read by tests/smoke.mjs and tests/raid.mjs: proves the loop is alive and drives scripted raids.
-    (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), audio: audio.stats(), profile, debug, layout: world.layout };
+    (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), audio: audio.stats(), profile, debug, layout: world.layout, net: online.test };
   });
 }

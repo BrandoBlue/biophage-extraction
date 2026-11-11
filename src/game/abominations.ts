@@ -50,9 +50,19 @@ export interface AbominationContext {
 }
 
 /** Coarse state for HUD, tests and debug (derived from the brain). */
-type State = 'idle' | 'alert' | 'chase' | 'windup' | 'lunge' | 'recover' | 'stagger' | 'dead';
+export type State = 'idle' | 'alert' | 'chase' | 'windup' | 'lunge' | 'recover' | 'stagger' | 'dead';
+
+/** One creature as the online squad leader's snapshot describes it (src/net). */
+export interface FollowState {
+  x: number; z: number; yaw: number; vx: number; vz: number; altitude: number;
+  excite: number; windup: number; visibility: number; look: Vec3 | null; biomass: number; state: State;
+}
 
 let nextId = 1;
+/** Seconds a burrower takes to haul itself out of the sand. */
+const BURROW_EMERGE_TIME = 0.9;
+/** Bodies that dive and surface themselves (Creature's drive.burrow) rather than being sunk whole. */
+const NATIVE_BURROW = new Set<string>(['dunewake']);
 
 interface Pustule { mesh: THREE.Mesh; mat: THREE.MeshStandardMaterial; hp: number; popped: boolean }
 
@@ -81,8 +91,12 @@ export class Abomination {
   private limbDamage = new Map<string, number>();
   private rand: () => number;
   readonly home: THREE.Vector3;
+  /** Waits under the sand (layout.spawns `buried`): sunk out of sight while lurking, then claws its way up. */
+  burrowed = false;
+  /** 0 = fully under, 1 = out. */
+  private emerged = 1;
 
-  constructor(readonly kind: AbominationKind, readonly t: AbominationData, x: number, z: number, seed: number) {
+  constructor(readonly kind: AbominationKind, readonly t: AbominationData, x: number, z: number, readonly seed: number) {
     this.biomass = t.biomass;
     this.rand = mulberry32(seed);
     this.home = new THREE.Vector3(x, 0, z);
@@ -245,12 +259,54 @@ export class Abomination {
     this.handleEvents(ctx);
 
     const b = brain.body, pos = this.root.position;
-    pos.set(b.x, groundHeight(b.x, b.z), b.z);
+    pos.set(b.x, groundHeight(b.x, b.z) - this.burrowSink(dt), b.z);
     this.yaw = b.yaw;
     this.velocity.set(b.vx, 0, b.vz);
     this.root.rotation.y = this.yaw;
     this.setState(this.coarseState());
     this.animate(dt);
+  }
+
+  /** How far below the ground a burrower sits this frame: under while lurking, rising with a lurch once revealed. */
+  private burrowSink(dt: number): number {
+    if (!this.burrowed) return 0;
+    if (this.brain.lurking) this.emerged = 0;
+    else this.emerged = Math.min(1, this.emerged + dt / BURROW_EMERGE_TIME);
+    // Species with their own dive and surfacing (the Dunewake swims under the sand) play it on the drive instead.
+    if (NATIVE_BURROW.has(this.kind)) { this.creature.drive.burrow = 1 - this.emerged; return 0; }
+    if (this.emerged >= 1) return 0;
+    const t = this.emerged, ease = 1 - (1 - t) * (1 - t) * (1 - t);
+    // Claws up in two heaves rather than a smooth lift.
+    const heave = Math.sin(t * Math.PI * 4) * 0.08 * (1 - t);
+    return (this.radius * 2.2 + 0.6) * (1 - ease) + heave;
+  }
+
+  /**
+   * Online raids (src/net): on a guest's machine the squad leader runs the brain, and the body follows the leader's
+   * snapshots (interpolated). Same animation path as update(), fed from the snapshot instead of the brain.
+   */
+  follow(dt: number, s: FollowState): void {
+    this.stateTime += dt;
+    this.revealed = Math.max(0, this.revealed - dt);
+    if (this.state === 'dead') { this.animateDeath(dt); return; }
+    const b = this.brain.body;
+    b.x = s.x; b.z = s.z; b.yaw = s.yaw; b.vx = s.vx; b.vz = s.vz; b.altitude = s.altitude;
+    this.brain.excite = s.excite; this.brain.windup = s.windup; this.brain.visibility = s.visibility;
+    this.brain.look = s.look; this.brain.strike = null;
+    this.root.position.set(s.x, groundHeight(s.x, s.z), s.z);
+    this.yaw = s.yaw;
+    this.velocity.set(s.vx, 0, s.vz);
+    this.root.rotation.y = this.yaw;
+    this.biomass = s.biomass;
+    if (s.state !== 'dead') this.setState(s.state);
+    this.animate(dt);
+  }
+
+  /** Online raids: the squad leader's machine says this creature died. Plays the same death as a local kill. */
+  killedRemotely(): void {
+    if (!this.alive) return;
+    this.biomass = Math.min(this.biomass, 0);
+    this.die();
   }
 
   private coarseState(): State {

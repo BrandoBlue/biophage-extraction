@@ -11,6 +11,7 @@ import { CATALOGUE, zone7Layout, type Zone7Layout } from './layout';
 import { buildSites, clearings, type SiteDressing } from './sites';
 import { CollisionWorld } from './collision';
 import { caveDistance, fungalCaves, type CaveLair } from './cave';
+import { bakeEcology, wanderingTrail, type Ecology } from './ecology';
 import { hollowSpire, longSeedDebris, oldBone, reliquaryBowl, rootSkirt, type ArenaInfo, type BuiltStructures } from './structures';
 
 export { mulberry32 } from './rng';
@@ -108,6 +109,10 @@ function rawHeight(x: number, z: number): number {
   // Gentle spawn basin at the centre, full relief further out, then the mountains of the rim.
   const relief = hills * (0.15 + 0.85 * Math.min(1, d / 45)) + detail;
   let h = relief * Math.max(0, 1 - r * r) + rimHeight(x, z, r);
+  // Hummocks and creases: uneven ground between the areas, so open land is never a smooth sheet.
+  const hum = (noise3(x * 0.055, 3.1, z * 0.055) - 0.5) * 3.4 + (noise3(x * 0.16, 5.7, z * 0.16) - 0.5) * 0.9;
+  const crease = Math.pow(1 - Math.abs(noise3(x * 0.028 + 11, 0.7, z * 0.028) * 2 - 1), 6) * 2.4;
+  h += (hum - crease) * Math.max(0, 1 - r * r) * Math.min(1, d / 30);
   // Ridges: rounded spines of high ground between areas, dipping at their passes.
   for (const rg of RIDGES) {
     const { d: rd, at } = polyDist(x, z, rg.points);
@@ -128,8 +133,27 @@ const smooth = (a: number, b: number, t: number) => { const k = Math.min(1, Math
 
 /** The active map's ground, when it is not the island (the Long Seed wreck is a flat deck). */
 let terrain: ((x: number, z: number) => number) | null = null;
-/** Swap the ground every system reads through groundHeight(); null restores the island. */
-export function setTerrain(fn: ((x: number, z: number) => number) | null): void { terrain = fn; }
+/** Steepest ground (rise per metre) a body may walk up on the active map; Infinity means no limit (the island). */
+let maxSlope = Infinity;
+/**
+ * Swap the ground every system reads through groundHeight(); null restores the island. `maxSlope` makes cliff faces
+ * in the terrain itself block walking (the Marrow Pit's walls); maps without it keep the old free-climbing ground.
+ */
+export function setTerrain(fn: ((x: number, z: number) => number) | null, opts: { maxSlope?: number } = {}): void {
+  terrain = fn;
+  maxSlope = opts.maxSlope ?? Infinity;
+}
+
+/**
+ * True when a body with feet at `feetY` moving from (x0, z0) to (x1, z1) would walk up terrain steeper than the
+ * map allows. The Player reverts that part of its move, so terrain cliffs act as walls.
+ */
+export function climbBlocked(feetY: number, x0: number, z0: number, x1: number, z1: number): boolean {
+  if (maxSlope === Infinity) return false;
+  const rise = groundHeight(x1, z1) - feetY;
+  if (rise <= 0.05) return false;
+  return rise > Math.hypot(x1 - x0, z1 - z0) * maxSlope;
+}
 
 /** Height of the island surface at (x, z). Shared by the mesh and the player controller. */
 export function groundHeight(x: number, z: number): number {
@@ -166,14 +190,15 @@ export function groundHeight(x: number, z: number): number {
 
 /** True if (x, z) is inside a flat gameplay spot or pool (plus margin): keep big flora out. */
 export function isReserved(x: number, z: number, margin = 0): boolean {
-  return FLAT_SPOTS.some((s) => Math.hypot(x - s.x, z - s.z) < s.radius + margin)
+  return onTrail(x, z, margin) || FLAT_SPOTS.some((s) => Math.hypot(x - s.x, z - s.z) < s.radius + margin)
     || CRATERS.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius * 0.8 + margin)
     || Math.hypot(x - BOWL.x, z - BOWL.z) < BOWL.radius * 1.1 + margin
     || POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 1 + margin)
     || ZONE7_SITES.caves.some((c) => caveDistance(c, x, z) < 1 + margin);
 }
 
-const GLOWS = [ZONE7.cyan, ZONE7.magenta, ZONE7.lime, ZONE7.violet];
+/** Flora glow tints (Art Bible, "Grounded and eerie"): cold mist and bruised flesh, a little amber; no neon bodies. */
+const GLOWS = [ORGANIC.mist, ORGANIC.mist, ORGANIC.vein, ORGANIC.amber, ZONE7_SHADE.moss];
 
 interface Fungus { pos: THREE.Vector3; height: number; cap: number; yaw: number; tilt: number; colour: string }
 
@@ -304,7 +329,7 @@ function rimCascade(pd: { x: number; z: number; radius: number }, level: number)
     const x = dx * d, z = dz * d;
     pts.push(new THREE.Vector3(x, Math.max(rawHeight(x, z) + 0.25, level + 0.05), z));
   }
-  const mesh = new THREE.Mesh(ribbonGeometry(new THREE.CatmullRomCurve3(pts), 3.2, 120, 1.8), liquidLight({ flow: 0.6, fall: true }));
+  const mesh = new THREE.Mesh(ribbonGeometry(new THREE.CatmullRomCurve3(pts), 3.2, 120, 1.8), liquidLight({ flow: 0.6, fall: true, a: ZONE7_SHADE.rockDeep, b: ZONE7_SHADE.moss, c: ORGANIC.mist }));
   mesh.name = 'rim-cascade';
   return mesh;
 }
@@ -337,6 +362,70 @@ function mountainGeometry(): THREE.BufferGeometry {
 type Area = (typeof ZONE7_SITES.areas)[number];
 const AREAS = ZONE7_SITES.areas;
 
+/** Worn trails between the named areas (data/zone7.json `trails`), wandering a little. */
+export const TRAILS: [number, number][][] = ZONE7_SITES.trails.map((ids) => wanderingTrail(ids.map((id) => {
+  const a = AREAS.find((q) => q.id === id);
+  if (!a) throw new Error(`trail names unknown area ${id}`);
+  return [a.x, a.z] as [number, number];
+}), (x, z) => noise3(x * 0.05, 4.4, z * 0.05)));
+
+let ecology: Ecology | null = null;
+/** Glowmire's ground ecology (src/world/ecology.ts), baked on first use. */
+export function zone7Ecology(): Ecology {
+  ecology ??= bakeEcology({ height: groundHeight, pools: POOLS, valleys: VALLEYS, ridges: RIDGES, trails: TRAILS, noise: (x, z) => noise3(x * 0.045, 9.3, z * 0.045), extent: ISLAND_RADIUS });
+  return ecology;
+}
+
+/** True within a trail's worn strip (plus margin): big flora and rock keep off the routes. */
+export function onTrail(x: number, z: number, margin = 0): boolean {
+  return Math.hypot(x, z) < ISLAND_RADIUS && zone7Ecology().trailDist(x, z) < 1.8 + margin * 0.5;
+}
+
+export interface Outcrop { x: number; z: number; y: number; size: number; yaw: number; tilt: number }
+
+/**
+ * Bare rock breaking through where the ground is steep or along the ridge flanks (data/zone7.json `outcrops`),
+ * in small clusters that work as hard cover between the areas. Kept off trails, sites, pools and the caves.
+ */
+export function outcrops(rand: () => number): Outcrop[] {
+  const o = ZONE7_SITES.outcrops, eco = zone7Ecology();
+  const centres: [number, number][] = [];
+  for (let tries = 0; centres.length < o.clusters && tries < 4000; tries++) {
+    const a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * ISLAND_RADIUS * 0.8;
+    const x = Math.cos(a) * d, z = Math.sin(a) * d;
+    const flank = RIDGES.some((r) => { const q = polyDist(x, z, r.points).d; return q > r.halfWidth * 0.3 && q < r.halfWidth * 1.3; });
+    if (eco.slope(x, z) < 0.2 && !flank && rand() > 0.12) continue;
+    if (isReserved(x, z, 4) || ZONE7_SITES.caves.some((c) => caveDistance(c, x, z) < 6)) continue;
+    if (centres.some(([cx, cz]) => Math.hypot(cx - x, cz - z) < o.spacing)) continue;
+    centres.push([x, z]);
+  }
+  const out: Outcrop[] = [];
+  for (const [cx, cz] of centres) {
+    const n = o.rocks[0] + Math.floor(rand() * (o.rocks[1] - o.rocks[0] + 1));
+    for (let i = 0; i < n; i++) {
+      const size = o.size[0] + (o.size[1] - o.size[0]) * (i === 0 ? 0.6 + rand() * 0.4 : rand() * 0.6);
+      const a = rand() * Math.PI * 2, d = i === 0 ? 0 : 1.2 + rand() * 2.2;
+      const x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
+      if (isReserved(x, z, size)) continue;
+      out.push({ x, z, y: groundHeight(x, z) - size * 0.25, size, yaw: rand() * Math.PI * 2, tilt: (rand() - 0.5) * 0.4 });
+    }
+  }
+  return out;
+}
+
+/** One weathered boulder shape, sheared and dented so instances do not read as spheres. */
+function boulderGeometry(): THREE.BufferGeometry {
+  const g = new THREE.IcosahedronGeometry(1, 2);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const b = 0.78 + noise3(x * 1.7 + 3, y * 1.7, z * 1.7) * 0.42 + noise3(x * 5, y * 5, z * 5) * 0.08;
+    p.setXYZ(i, x * b * 1.15, Math.max(-0.3, y * b * 0.72), z * b);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
 /** A point in an area, denser toward its middle; null if it lands in a reserved gameplay spot. */
 function inArea(rand: () => number, a: { x: number; z: number; radius: number }, spread = 1, margin = 0): [number, number] | null {
   const ang = rand() * Math.PI * 2, d = a.radius * spread * Math.sqrt(rand()) * (0.4 + 0.6 * rand());
@@ -363,7 +452,7 @@ export function areaFungi(rand: () => number): Fungus[] {
     }
   };
   AREAS.forEach((a: Area, k) => {
-    const family = [[ZONE7.cyan, ZONE7.violet], [ZONE7.magenta, ZONE7.violet], [ZONE7.cyan, ZONE7.lime]][k % 3];
+    const family = [[ORGANIC.mist, ZONE7_SHADE.moss], [ORGANIC.vein, ORGANIC.wetFlesh], [ORGANIC.mist, ORGANIC.amber]][k % 3];
     if (a.dress.includes('giantFungi')) {
       add(a, 6, [9, 17], [3.5, 7], 0.75, 3, family);
       add(a, 22, [1.6, 4.5], [0.8, 1.9], 1, 1, family);
@@ -378,7 +467,7 @@ export function areaFungi(rand: () => number): Fungus[] {
   // Pool fringes so they glow like reference 04.
   for (const pd of POOLS) for (let i = 0; i < 40; i++) {
     const ang = rand() * Math.PI * 2, d = pd.radius + 0.5 + rand() * 4;
-    out.push(fungusAt(rand, pd.x + Math.cos(ang) * d, pd.z + Math.sin(ang) * d, [0.4, 2], [0.25, 0.95], i % 2 ? ZONE7.magenta : ZONE7.cyan));
+    out.push(fungusAt(rand, pd.x + Math.cos(ang) * d, pd.z + Math.sin(ang) * d, [0.4, 2], [0.25, 0.95], i % 2 ? ORGANIC.vein : ORGANIC.mist));
   }
   // Valley banks: a broken line of mid fungi on each side of the run marks the path from the pools to the bowl.
   for (const v of VALLEYS) {
@@ -390,7 +479,7 @@ export function areaFungi(rand: () => number): Fungus[] {
           if (rand() < 0.35) continue;
           const off = side * v.halfWidth * (1.05 + rand() * 0.4);
           const x = ax + ((bx - ax) * s) / len + nx * off, z = az + ((bz - az) * s) / len + nz * off;
-          if (!isReserved(x, z, 2)) out.push(fungusAt(rand, x, z, [1.6, 5.5], [0.8, 2.2], side > 0 ? ZONE7.cyan : ZONE7.violet));
+          if (!isReserved(x, z, 2)) out.push(fungusAt(rand, x, z, [1.6, 5.5], [0.8, 2.2], side > 0 ? ORGANIC.mist : ORGANIC.vein));
         }
       }
     }
@@ -411,7 +500,7 @@ function areaShards(rand: () => number): { crystals: { pos: THREE.Vector3; scale
     const scale = (0.35 + rand() * rand() * 1.8) * big;
     const item = { pos: new THREE.Vector3(x, groundHeight(x, z) - 0.25 * scale - 0.1, z), scale, yaw: rand() * 6.28, tilt: (rand() - 0.5) * 1.1 };
     if (bone) shards.push({ ...item, scale: scale * 1.3, colour: rand() < 0.6 ? HIVE.bone : ZONE7_SHADE.rock });
-    else crystals.push({ ...item, colour: rand() < 0.7 ? ZONE7.violet : ZONE7.cyan });
+    else crystals.push({ ...item, colour: rand() < 0.7 ? ORGANIC.mist : ORGANIC.amber });
   };
   for (const a of AREAS) {
     if (a.dress.includes('crystals')) for (let i = 0; i < 34; i++) { const p = inArea(rand, a, 1, 1); if (p) put(p[0], p[1], rand() < 0.2, 1.2); }
@@ -452,10 +541,10 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
 
   // A cool moonlight key (the shadow caster on the high tier) over a soft cyan/violet sky fill; the magenta rim
   // is an accent, so form comes from light and shadow rather than coloured glow.
-  scene.add(new THREE.HemisphereLight(ORGANIC.mist, ZONE7_SHADE.rockDeep, 0.55));
-  const key = new THREE.DirectionalLight(ORGANIC.mist, 1.3);
+  scene.add(new THREE.HemisphereLight(ORGANIC.mist, ZONE7_SHADE.rockDeep, 1.0));
+  const key = new THREE.DirectionalLight(ORGANIC.mist, 2.3);
   key.position.set(60, 80, -120);
-  const rim = new THREE.DirectionalLight(ZONE7.magenta, 0.7);
+  const rim = new THREE.DirectionalLight(ORGANIC.wetFlesh, 0.5);
   rim.position.set(-120, 40, 80);
   scene.add(key, rim);
 
@@ -469,24 +558,24 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
     pos.setY(i, groundHeight(x, z) - (Math.hypot(x, z) > MOUNTAIN_SEAM ? 30 : 0));
   }
   ringGeo.computeVertexNormals();
-  const ground = new THREE.Mesh(ringGeo, zoneRock());
+  const ground = new THREE.Mesh(ringGeo, zoneRock({ veinColour: ORGANIC.vein, mossColour: ORGANIC.mist }));
   ground.name = 'ground';
   scene.add(ground);
-  const rockMat = zoneRock({ veinColour: ZONE7.magenta });
+  const rockMat = zoneRock({ veinColour: ORGANIC.vein });
   // The mountains that wall the basin: a coarser ring from the seam out past the fog, so the island reads as a valley
   // floor among peaks rather than a platform over the void.
-  const mountains = new THREE.Mesh(mountainGeometry(), zoneRock({ veinColour: ZONE7.violet, mossColour: ZONE7.cyan, scale: 2.4 }));
+  const mountains = new THREE.Mesh(mountainGeometry(), zoneRock({ veinColour: ORGANIC.vein, mossColour: ZONE7_SHADE.moss, scale: 2.4 }));
   mountains.name = 'mountains';
   scene.add(mountains);
 
   // Liquid-light pools; the rim pool spills into the void as a fall.
   for (const [k, pd] of POOLS.entries()) {
     const level = poolLevel(pd);
-    const pool = new THREE.Mesh(new THREE.CircleGeometry(pd.radius, 48).rotateX(-Math.PI / 2), liquidLight({ pool: true }));
+    const pool = new THREE.Mesh(new THREE.CircleGeometry(pd.radius, 48).rotateX(-Math.PI / 2), liquidLight({ pool: true, a: ZONE7_SHADE.rockDeep, b: ZONE7_SHADE.moss, c: ORGANIC.mist, flow: 0.25 }));
     pool.position.set(pd.x, level, pd.z);
     pool.name = `liquid-light-pool-${k}`;
     scene.add(pool);
-    const light = new THREE.PointLight(ZONE7.cyan, 80, 36, 2);
+    const light = new THREE.PointLight(ORGANIC.mist, 22, 24, 2);
     light.position.set(pd.x, level + 2.5, pd.z);
     scene.add(light);
     if (pd.fall) scene.add(rimCascade(pd, level));
@@ -518,21 +607,36 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
   // round the crater and the wreck; a sparse sprinkle elsewhere so nothing looks pasted on.
   const { crystals, shards } = areaShards(rand);
   scene.add(instanced(crystalClusterGeometry(rand, 6), crystal(), crystals, 'crystals'));
-  scene.add(instanced(crystalClusterGeometry(rand, 4), oldBone(ZONE7.cyan, 0.15), shards, 'bone-shards'));
+  scene.add(instanced(crystalClusterGeometry(rand, 4), oldBone(ORGANIC.mist, 0.15), shards, 'bone-shards'));
+
+  // Rock outcrops on the slopes and ridge flanks: hard cover between the areas, colliders for the bigger stones.
+  const rocks = outcrops(rand);
+  const rockMesh = new THREE.InstancedMesh(boulderGeometry(), zoneRock({ veinColour: ORGANIC.vein, mossColour: ZONE7_SHADE.moss, scale: 1.8 }), rocks.length);
+  rockMesh.name = 'outcrops';
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+  rocks.forEach((r, i) => {
+    rockMesh.setMatrixAt(i, m4.compose(new THREE.Vector3(r.x, r.y, r.z), q.setFromEuler(e.set(r.tilt, r.yaw, r.tilt * 0.5)), new THREE.Vector3(r.size, r.size, r.size)));
+    if (r.size > 0.9) SOLIDS.add({ cx: r.x, cz: r.z, hx: r.size * 0.8, hz: r.size * 0.7, yaw: r.yaw, y0: r.y - 1, y1: r.y + r.size * 0.75, tag: 'outcrop' });
+  });
+  rockMesh.castShadow = true;
+  scene.add(rockMesh);
   const pustules = [];
   for (let i = 0; i < 1400; i++) {
     const a = rand() * Math.PI * 2, d = 4 + Math.sqrt(rand()) * ISLAND_RADIUS * 0.84;
     const x = Math.cos(a) * d, z = Math.sin(a) * d;
     const s = 0.08 + rand() * 0.22;
-    pustules.push({ pos: new THREE.Vector3(x, groundHeight(x, z) + s * 0.3, z), scale: s, yaw: 0, colour: rand() < 0.5 ? ZONE7.lime : ZONE7.magenta });
+    pustules.push({ pos: new THREE.Vector3(x, groundHeight(x, z) + s * 0.3, z), scale: s, yaw: 0, colour: rand() < 0.5 ? ORGANIC.amber : ORGANIC.vein });
   }
-  const pustuleMesh = instanced(new THREE.SphereGeometry(1, 8, 6), bioNode(ZONE7.lime), pustules, 'pustules');
+  const pustuleMesh = instanced(new THREE.SphereGeometry(1, 8, 6), bioNode(ORGANIC.amber), pustules, 'pustules');
   scene.add(pustuleMesh);
 
   // Dense foreground growth around the viewer (reference 04's busy ground); clear of pools, pads, nodes and the crater bed.
   const clear = clearings(layout);
+  const eco = zone7Ecology();
   scene.add(groundCover({
     height: groundHeight,
+    density: (x, z) => eco.density(x, z),
+    tints: [ORGANIC.mist, ORGANIC.amber, ORGANIC.vein, ZONE7_SHADE.moss],
     exclude: (x, z) => POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 0.6) || clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius) || Math.hypot(x - CATALOGUE.spire.x, z - CATALOGUE.spire.z) < 8.8 || Math.hypot(x - CATALOGUE.debris.x, z - CATALOGUE.debris.z) < CATALOGUE.debris.radius || ZONE7_SITES.caves.some((c) => caveDistance(c, x, z) < 0.5),
   }).group);
 
@@ -550,25 +654,19 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
 
   // Floaters in the sky lanes.
   for (let i = 0; i < 14; i++) {
-    const f = floater(rand, i % 2 ? ZONE7.magenta : ZONE7.cyan, 1.5 + rand() * 2.5);
+    const f = floater(rand, i % 2 ? ORGANIC.vein : ORGANIC.mist, 1.5 + rand() * 2.5);
     const a = -Math.PI / 2 + (rand() - 0.5) * 3.2, d = 30 + rand() * 220;
     f.position.set(Math.cos(a) * d, 16 + rand() * 45, Math.sin(a) * d);
     scene.add(f);
   }
 
-  // Cosmos: ringed giant, a lit moon, a sea of luminous cloud far below, drifting spores.
+  // Cosmos: one small, far planet (no ring, no second moon), a sea of cloud far below, drifting spores.
   const lightDir = new THREE.Vector3(1, 0.4, 0.6);
-  const giantAt = new THREE.Vector3(-500, 520, -1040);
-  // Tilt the ring nearly edge-on to the island so it reads as a ring, not a target.
-  const toIsland = giantAt.clone().negate().normalize();
-  const ringNormal = new THREE.Vector3().crossVectors(toIsland, new THREE.Vector3(1, 0, 0)).normalize().addScaledVector(toIsland, 0.35);
-  const giant = planet({ radius: 110, band: ZONE7.violet, rim: ZONE7.cyan, ring: ZONE7.magenta, lightDir, seed: 3, ringNormal });
-  giant.position.copy(giantAt);
-  const moon = planet({ radius: 60, band: ZONE7.magenta, rim: ZONE7.magenta, lightDir, seed: 9 });
-  moon.position.set(560, 300, -860);
+  const giant = planet({ radius: 34, band: ORGANIC.mist, rim: ORGANIC.mist, lightDir, seed: 3 });
+  giant.position.set(-520, 470, -1060);
   // Distant ridges and mesas rising out of the valley mist: the island reads as a plateau in a larger world.
-  scene.add(giant, moon, cloudSea(-240), starField(rand), horizonLands({ seed, lightDir }));
-  scene.add(sporeField(rand, 700, 60, 40, [ZONE7.cyan, ZONE7.lime, ZONE7.magenta]));
+  scene.add(giant, cloudSea(-240), starField(rand), horizonLands({ seed, lightDir }));
+  scene.add(sporeField(rand, 700, 60, 40, [ORGANIC.mist, ORGANIC.amber, ZONE7.lime]));
 
   return { layout, sites, structures };
 }

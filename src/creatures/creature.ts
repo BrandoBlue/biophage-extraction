@@ -4,6 +4,7 @@ import { aimBone, solveTwoBone } from './ik';
 import { buildRig, refreshHits, type LimbRig, type Rig } from './rig';
 import { planFor } from './species';
 import type { BodyPlan, SpeciesId } from './plan';
+import { ZONE_MOTIONS, type SpeciesMotion } from './zones';
 
 /**
  * A living creature: rig + procedural locomotion + secondary animation. Behaviour code (Abomination, the
@@ -48,6 +49,14 @@ export interface DriveState {
   screech: number;
   /** Pulse: set to 1 to slam (the body rears, then crashes down); decays over 0.5 s. */
   slam: number;
+  /**
+   * New-zone creatures (src/creatures/zones): 0 = on the surface, 1 = under it. Dunewake and the Sandwidow's brood
+   * swim in sand, the Fenstalker lies under water with only its eye stalks up. Ease it; the body animates the dive
+   * and the emergence (sand spray, ripples) itself. Ignored by species that cannot burrow.
+   */
+  burrow: number;
+  /** New-zone species action, 0..1 (see each species' file header: quill volley, cutting, grabbing, combing). */
+  action: number;
 }
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -58,7 +67,7 @@ const _q = new THREE.Quaternion();
 export class Creature {
   readonly rig: Rig;
   readonly plan: BodyPlan;
-  readonly drive: DriveState = { velocity: new THREE.Vector3(), excite: 0, windup: 0, look: null, strike: null, reveal: 1, altitude: null, camo: 1, screech: 0, slam: 0 };
+  readonly drive: DriveState = { velocity: new THREE.Vector3(), excite: 0, windup: 0, look: null, strike: null, reveal: 1, altitude: null, camo: 1, screech: 0, slam: 0, burrow: 0, action: 0 };
   /** Called with the limb id whenever a limb is severed (behaviour code: crawl phases, slow-downs). */
   onLimbSevered: ((limbId: string) => void) | null = null;
   private camoOn = false;
@@ -76,6 +85,17 @@ export class Creature {
   private planted = false;
   private deadFor = -1;
   private fallV = 0;
+  /** Species motion for the new-zone creatures (serpent swimming, burrowing, quill flare...), or null. */
+  motion: SpeciesMotion | null = null;
+  /**
+   * Wall and ceiling clinging (Cablecrawler): when set, feet plant on this world plane instead of on `ground`.
+   * Behaviour code orients the root so its +Y is the plane normal (walls, the underside of a walkway).
+   */
+  surface: THREE.Plane | null = null;
+  /** Metres a species motion pulls the body down this frame (lying flat in water, crouching to cut). */
+  sink = 0;
+  /** Seconds this creature has been alive (secondary animation clock). */
+  get clock(): number { return this.time; }
 
   constructor(planOrSpecies: BodyPlan | SpeciesId, seed = 1, stage = 0, opts: { growStage?: number } = {}) {
     this.plan = typeof planOrSpecies === 'string' ? planFor(planOrSpecies, seed, stage) : planOrSpecies;
@@ -85,6 +105,7 @@ export class Creature {
       if (l.spec.kind === 'leg') this.feet.push({ limb: l, pos: new THREE.Vector3(), from: new THREE.Vector3(), to: new THREE.Vector3(), t: 1 });
       if (l.spec.kind === 'tendril') this.trails.push({ limb: l, dirs: l.spec.lengths.map(() => new THREE.Vector3()) });
     }
+    this.motion = ZONE_MOTIONS[this.plan.species]?.(this) ?? null;
   }
 
   get root(): THREE.Group { return this.rig.root; }
@@ -129,7 +150,8 @@ export class Creature {
   private restFoot(l: LimbRig, out: THREE.Vector3, lead: number): THREE.Vector3 {
     out.copy(l.spec.rest).applyMatrix4(this.rig.root.matrixWorld);
     out.addScaledVector(this.drive.velocity, lead);
-    out.y = this.ground(out.x, out.z);
+    if (this.surface) this.surface.projectPoint(out, out);
+    else out.y = this.ground(out.x, out.z);
     return out;
   }
 
@@ -145,7 +167,7 @@ export class Creature {
     const scale = this.plan.radius;
 
     if (loco === 'walker' && this.alive) this.walk(dt, speed);
-    if (!this.alive) { this.deathPose(dt); return; }
+    if (!this.alive) { this.deathPose(dt); this.motion?.update(dt); return; }
     d.screech = Math.max(0, d.screech - dt / 0.6);
     d.slam = Math.max(0, d.slam - dt / 0.5);
     // Slam: rear up for the first half of the pulse, then crash below rest.
@@ -159,7 +181,7 @@ export class Creature {
       // Missing legs sag the body toward their side.
       let sagX = 0, sagZ = 0, missing = 0;
       for (const f of this.feet) if (f.limb.severed) { sagX += f.limb.spec.mount.x; sagZ += f.limb.spec.mount.z; missing++; }
-      const restY = this.bodyRest.y - missing * 0.06 * scale;
+      const restY = this.bodyRest.y - missing * 0.06 * scale - this.sink;
       body.position.set(this.bodyRest.x, restY + this.bob - d.windup * 0.08 * scale + slamY * scale + this.footHeightOffset(), this.bodyRest.z);
       this.bodyTilt.set(-d.windup * 0.25 + this.feetPitch() + sagZ * 0.15 - Math.max(0, slamY) * 0.6, 0, -sagX * 0.25 + Math.sin(this.gait) * 0.03 * stride);
     } else if (loco === 'hover') {
@@ -178,6 +200,7 @@ export class Creature {
     if (loco === 'walker') for (const f of this.feet) if (!f.limb.severed) this.reach(f);
     this.animateLimbs(dt, speed);
     this.animateParts();
+    this.motion?.update(dt);
     refreshHits(this.rig);
   }
 
@@ -221,7 +244,7 @@ export class Creature {
   private footHeightOffset(): number {
     let s = 0, n = 0;
     for (const f of this.feet) if (!f.limb.severed) { s += f.pos.y; n++; }
-    return n ? s / n - this.worldPos.y : 0;
+    return n && !this.surface ? s / n - this.worldPos.y : 0;
   }
 
   private feetPitch(): number {
@@ -230,7 +253,7 @@ export class Creature {
       if (f.limb.severed) continue;
       if (f.limb.spec.rest.z >= 0) { front += f.pos.y; nf++; } else { back += f.pos.y; nb++; }
     }
-    if (!nf || !nb) return 0;
+    if (!nf || !nb || this.surface) return 0;
     const span = Math.max(0.5, this.plan.radius * 1.5);
     return -Math.atan2(front / nf - back / nb, span) * 0.8;
   }

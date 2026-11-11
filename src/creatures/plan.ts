@@ -11,7 +11,12 @@ import type { SdfPrim } from './sdf';
  * Body space: +Z forward, +Y up, origin on the ground under the body centre, metres.
  */
 
-export type SpeciesId = 'needlemaw' | 'bilecantor' | 'glasswalker' | 'oculimoth' | 'mournback';
+export type SpeciesId =
+  | 'needlemaw' | 'bilecantor' | 'glasswalker' | 'oculimoth' | 'mournback'
+  | 'titheWeaver' | 'huskMimic' | 'lumenGrazer'
+  | ZoneSpeciesId;
+/** New-zone species (src/creatures/zones): Ochre Reach, Marrow Pit, Weeping Fen. */
+export type ZoneSpeciesId = 'dunewake' | 'bristleback' | 'shroudling';
 export type Locomotion = 'walker' | 'hover' | 'flyer';
 export type MaterialSlot = 'flesh' | 'chitin' | 'bone' | 'glow' | 'glass' | 'eye' | 'membrane' | 'raw';
 

@@ -3,12 +3,13 @@ import { BroodHeart } from './broodheart';
 import { Reliquary, type ReliquaryPhase } from './reliquary';
 import { Warden, type WardenPhase } from './warden';
 import { PaleVigil, type VigilPhase } from './palevigil';
+import { ZONE_BOSSES, showZoneBoss, type ZoneBossId, type ZoneBossShow } from './zones/showcase';
 import { MOD_SLOTS, WEAPON_BODIES, createWeaponBody, type ModSlot, type WeaponBody } from './weapons/bodies';
 import { HostArm, VIRUS_LOOKS, type VirusLook } from './hostarm';
 import { organMesh } from './organs';
 import { HostBody } from './hosts';
 import type { ClassId } from '../../data';
-import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
+import { HIVE, ORGANIC, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { bioSurface, bioNode } from '../render/materials';
 import { createPipeline, simplifyForSoftware, type Pipeline } from '../render/pipeline';
 import { buildZone7, groundHeight } from '../world/zone7';
@@ -76,17 +77,31 @@ function specimenStage(scene: THREE.Scene): void {
   scene.add(fill, fill.target);
 }
 
-interface ViewerState { species: SpeciesId; seed: number; stage: number; walking: boolean; striking: number; env: 'hive' | 'zone7' }
+/** Neutral look-dev stage (`?creatures&env=studio`): grey floor, bone-white key, cool mist rim, no coloured light. */
+function studioStage(scene: THREE.Scene): void {
+  scene.background = new THREE.Color(HIVE.background).lerp(new THREE.Color(ORGANIC.mist), 0.12);
+  scene.add(new THREE.Mesh(new THREE.CircleGeometry(40, 64).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: new THREE.Color(ORGANIC.mist).multiplyScalar(0.18), roughness: 0.9 })));
+  scene.add(new THREE.HemisphereLight(ORGANIC.mist, HIVE.background, 0.9));
+  const key = new THREE.SpotLight(HIVE.bone, 110, 34, 0.6, 0.5, 1.3);
+  key.position.set(5, 11, 7);
+  const rim = new THREE.SpotLight(ORGANIC.mist, 80, 34, 0.6, 0.5, 1.3);
+  rim.position.set(-6, 7, -9);
+  const fill = new THREE.SpotLight(ORGANIC.amber, 20, 30, 0.7, 0.6, 1.4);
+  fill.position.set(-4, 2.5, 8);
+  for (const l of [key, rim, fill]) { l.target.position.set(0, 1.2, 0); scene.add(l, l.target); }
+}
+
+interface ViewerState { species: SpeciesId; seed: number; stage: number; walking: boolean; striking: number; burrowed: boolean; acting: number; env: 'hive' | 'zone7' | 'studio' }
 
 export function startCreatureViewer(canvas: HTMLCanvasElement): void {
   const q = new URLSearchParams(location.search);
-  const env: ViewerState['env'] = q.get('env') === 'zone7' ? 'zone7' : 'hive';
+  const env: ViewerState['env'] = q.get('env') === 'zone7' ? 'zone7' : q.get('env') === 'studio' ? 'studio' : 'hive';
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 1500);
   // Zone 7: a flat spot on the island (the Bio-Pod clearing).
   const origin = env === 'zone7' ? new THREE.Vector3(22, 0, 0) : new THREE.Vector3();
   const ground = env === 'zone7' ? groundHeight : () => 0;
-  if (env === 'zone7') buildZone7(scene); else specimenStage(scene);
+  if (env === 'zone7') buildZone7(scene); else if (env === 'studio') studioStage(scene); else specimenStage(scene);
   origin.y = ground(origin.x, origin.z);
   const pipeline: Pipeline = createPipeline(canvas, scene, camera, env === 'zone7' ? 'zone7' : 'hive');
   const soft = pipeline.quality === 'low';
@@ -109,18 +124,20 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
   }
 
   const st: ViewerState = {
-    species: (q.get('species') as SpeciesId) ?? 'needlemaw', seed: Number(q.get('seed') ?? 7), stage: Number(q.get('stage') ?? 0), walking: q.has('walk'), striking: 0, env,
+    species: (q.get('species') as SpeciesId) ?? 'needlemaw', seed: Number(q.get('seed') ?? 7), stage: Number(q.get('stage') ?? 0), walking: q.has('walk'), striking: 0, burrowed: q.has('burrow'), acting: 0, env,
   };
   let creatures: Creature[] = [];
   let lineup = q.has('lineup');
   // Non-creature specimens: the Brood Heart nest, the harvest organs, the host arm.
-  type Extra = 'nest' | 'organs' | 'arm' | 'host' | 'boss' | 'warden' | 'vigil' | 'weapons' | null;
+  type Extra = 'nest' | 'organs' | 'arm' | 'host' | 'boss' | 'warden' | 'vigil' | 'weapons' | 'zoneBoss' | null;
   let extra: Extra = null;
   const extras = new THREE.Group();
   scene.add(extras);
   let boss: Reliquary | null = null;
   let warden: Warden | null = null;
   let vigil: PaleVigil | null = null;
+  /** New-zone bosses (src/creatures/zones/showcase.ts). */
+  let zoneBoss: ZoneBossShow | null = null;
   /** Cave ceiling the Vigil hangs from: above ground, so the lure sways at head height. */
   const VIGIL_CEILING = 9.5;
   let guns: { body: WeaponBody; t: number; eq: number; shot: number }[] = [];
@@ -152,8 +169,10 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     <div class="row" id="v-stage"></div>
     <div class="row">
       <button id="v-walk">Walk</button><button id="v-strike">Strike</button><button id="v-sever">Sever limb</button>
+      <button id="v-burrow" title="New-zone creatures: dive under the sand or water">Burrow</button><button id="v-act" title="New-zone creatures: species action (quill volley, neck out, jaws)">Act</button>
       <button id="v-kill">Gib</button><button id="v-seed">New seed</button><button id="v-lineup">Lineup</button>
       <button id="v-nest">Brood Heart</button><button id="v-organs">Organs</button><button id="v-arm">Host arm</button><button id="v-host">Hosts</button><button id="v-boss">Reliquary</button><button id="v-warden">Warden</button><button id="v-vigil">Pale Vigil</button><button id="v-weapons">Weapons</button>
+      ${ZONE_BOSSES.map((z) => `<button data-zone-boss="${z.id}">${z.label}</button>`).join('')}
       <button id="v-env">${env === 'zone7' ? 'Hive lab' : 'Zone 7'}</button>
     </div>
     <div class="card" id="v-card"></div>`;
@@ -176,6 +195,8 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
   }
   $('#v-walk').onclick = () => { st.walking = !st.walking; refreshUi(); };
   $('#v-strike').onclick = () => { st.striking = 1.2; };
+  $('#v-burrow').onclick = () => api.burrow(!st.burrowed);
+  $('#v-act').onclick = () => api.act();
   $('#v-sever').onclick = () => api.sever();
   $('#v-kill').onclick = () => api.gib();
   $('#v-seed').onclick = () => { st.seed = (st.seed * 7919 + 13) % 100000; rebuild(); };
@@ -185,6 +206,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
   $('#v-boss').onclick = () => { if (extra === 'boss') api.phase(); else api.boss(); };
   $('#v-warden').onclick = () => { if (extra === 'warden') api.wardenPhase(); else api.warden(); };
   $('#v-vigil').onclick = () => { if (extra === 'vigil') api.vigilPhase(); else api.vigil(); };
+  ui.querySelectorAll<HTMLButtonElement>('[data-zone-boss]').forEach((b) => { b.onclick = () => { const id = b.dataset.zoneBoss as ZoneBossId; if (zoneBoss?.id === id) api.zoneBossPhase(); else api.zoneBoss(id); }; });
   $('#v-organs').onclick = () => api.organs();
   $('#v-host').onclick = () => api.host(HOSTS[(HOSTS.indexOf(host?.classId as ClassId) + 1) % HOSTS.length]);
   $('#v-arm').onclick = () => { if (extra !== 'arm') api.arm(); else api.arm(VIRUS_LOOKS[(VIRUS_LOOKS.indexOf(arm!.current as VirusLook) + 1) % VIRUS_LOOKS.length]); };
@@ -195,11 +217,13 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     ui.querySelectorAll<HTMLButtonElement>('[data-species]').forEach((b) => b.classList.toggle('on', !lineup && b.dataset.species === st.species));
     ui.querySelectorAll<HTMLButtonElement>('[data-stage]').forEach((b) => b.classList.toggle('on', Number(b.dataset.stage) === st.stage));
     $('#v-walk').classList.toggle('on', st.walking);
+    $('#v-burrow').classList.toggle('on', st.burrowed);
     $('#v-lineup').classList.toggle('on', lineup);
     const t = (ABOMINATIONS as Record<string, Abomination>)[st.species];
     for (const k of ['nest', 'organs', 'arm', 'host', 'boss', 'warden', 'vigil', 'weapons']) $(`#v-${k}`).classList.toggle('on', extra === k);
+    ui.querySelectorAll<HTMLButtonElement>('[data-zone-boss]').forEach((b) => b.classList.toggle('on', zoneBoss?.id === b.dataset.zoneBoss));
     if (extra) {
-      $('#v-card').innerHTML = extra === 'weapons' ? '<b>Living weapons</b><br>The grown roster. Click again to reload them all; Strike fires.'
+      $('#v-card').innerHTML = extra === 'zoneBoss' ? zoneBoss!.card() : extra === 'weapons' ? '<b>Living weapons</b><br>The grown roster. Click again to reload them all; Strike fires.'
         : extra === 'warden' ? `<b>The Warden of the Long Seed</b><br>Phase ${warden?.drive.phase} · pods ${warden?.podsAlive}. Click again for the next phase; Walk sends it round the stage, Strike thrusts the root spear, Sever shatters a seed pod, Gib kills it.`
         : extra === 'vigil' ? `<b>The Pale Vigil</b><br>Phase ${vigil?.drive.phase} · limbs ${vigil?.limbsIntact}/4. Click again for the next phase (stalk unfolds it, unravel splits the skin); Walk shrieks, Strike snatches at you, Sever takes a limb, Gib kills it.`
         : extra === 'boss' ? `<b>The Reliquary</b><br>Phase ${boss?.drive.phase} · legs ${boss?.legsIntact}/6. Click again for the next phase; Walk circles it, Strike stamps, Sever takes a leg (or a heart in bloom), Gib kills it.`
@@ -217,6 +241,8 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     c.root.position.set(origin.x + x, ground(origin.x + x, origin.z + z), origin.z + z);
     c.root.rotation.y = faceYaw;
     c.drive.excite = 0.5;
+    // Sky-sized hovers (the Lumen Grazer) come down to the stage lights, low enough that their curtains brush the floor.
+    if (c.plan.locomotion === 'hover' && c.plan.radius > 6) c.drive.altitude = c.plan.radius * 1.5;
     scene.add(c.root);
     if (soft) simplifyForSoftware(c.root);
     c.plant();
@@ -224,7 +250,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
 
   function clearExtras(): void {
     extras.clear();
-    heart = null; arm = null; host = null; boss = null; warden = null; vigil = null; guns = []; extra = null;
+    heart = null; arm = null; host = null; boss = null; warden = null; vigil = null; zoneBoss = null; guns = []; extra = null;
   }
 
   function clearAll(): void {
@@ -256,6 +282,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     else if (extra === 'weapons') { target.set(origin.x, origin.y + 1.2, origin.z); dist = guns.length > 1 ? 3.6 : 2.4; }
     else if (extra === 'warden') { target.set(origin.x, origin.y + 2.2, origin.z - 6); dist = 24; }
     else if (extra === 'vigil') { target.set(origin.x, origin.y + 5.2, origin.z); dist = 17; }
+    else if (extra === 'zoneBoss' && zoneBoss) { target.set(origin.x, origin.y + zoneBoss.frame.y, origin.z + zoneBoss.frame.z); dist = zoneBoss.frame.dist; }
     else if (extra === 'boss') { target.set(origin.x, origin.y + 4.2, origin.z); dist = 26; }
     else if (extra === 'organs') { target.set(origin.x, origin.y + 1.2, origin.z); dist = 1.75; }
     else if (extra === 'host') { target.set(origin.x, origin.y + 1.1, origin.z); dist = 4.2; }
@@ -264,8 +291,9 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     else if (c) {
       const r = c.plan.radius, h = c.plan.bodyHeight;
       const top = c.plan.locomotion === 'walker' ? h : h;
-      target.copy(c.root.position).setY(c.root.position.y + (c.plan.locomotion === 'hover' ? h - 1.3 : c.plan.locomotion === 'flyer' ? h : top * 0.8));
-      dist = c.plan.locomotion === 'hover' ? 9.5 : c.plan.locomotion === 'flyer' ? 1.7 : Math.max(2.2, r * 3.4 + h * 1.4);
+      const hoverY = (c.drive.altitude ?? h) - Math.min(1.3, r);
+      target.copy(c.root.position).setY(c.root.position.y + (c.plan.locomotion === 'hover' ? hoverY : c.plan.locomotion === 'flyer' ? h : top * 0.8));
+      dist = c.plan.locomotion === 'hover' ? Math.max(4, r * 6.3) : c.plan.locomotion === 'flyer' ? 1.7 : Math.max(2.2, r * 3.4 + h * 1.4);
       if (st.walking) { target.set(origin.x, target.y, origin.z); dist = Math.max(3.2, r * 3.2) * 2.6 + h; }
     }
     dist *= zoom;
@@ -386,6 +414,16 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
       refreshUi();
     },
     /** Set (or cycle) the Vigil's phase: hang folds it to the ceiling, stalk unfolds it, unravel splits its skin. */
+    /** A new-zone boss on the stage (Sandwidow, ...). */
+    zoneBoss(id: ZoneBossId) {
+      clearAll();
+      extra = 'zoneBoss';
+      zoneBoss = showZoneBoss(id, st.seed, scene, ground, origin);
+      extras.add(zoneBoss.root);
+      if (soft) simplifyForSoftware(zoneBoss.root);
+      refreshUi();
+    },
+    zoneBossPhase(p?: string) { zoneBoss?.nextPhase(p); refreshUi(); },
     vigilPhase(p?: VigilPhase) {
       if (!vigil) return;
       const order: VigilPhase[] = ['hang', 'stalk', 'unravel'];
@@ -457,6 +495,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
         const w = boss.weakPoints.findIndex((p) => p.alive); boss.popWeakPoint(w); return w >= 0;
       }
       if (warden) { const i = warden.weakPoints.findIndex((w) => w.alive); warden.popWeakPoint(i); refreshUi(); return i >= 0; }
+      if (zoneBoss) { const ok = zoneBoss.sever(); refreshUi(); return ok; }
       if (vigil) { const i = vigil.limbs.findIndex((l) => !l.severed); if (i >= 0) vigil.severLimb(i); else vigil.popWeakPoint(0); refreshUi(); return i >= 0; }
       if (heart) { const i = heart.weakPoints.findIndex((w) => w.alive); heart.popWeakPoint(i); heart.hurt((i + 1) / heart.weakPoints.length * 0.5); return i >= 0; }
       const c = creatures[0];
@@ -468,6 +507,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
       if (boss) { boss.destroy(); return; }
       if (warden) { warden.destroy(); return; }
       if (vigil) { vigil.destroy(); return; }
+      if (zoneBoss) { zoneBoss.gib(); return; }
       const c = creatures[0];
       creatureGore.burstAll(scene, c, new THREE.Vector3(0, 2, 0));
       creatureGore.pool(scene, c);
@@ -475,8 +515,12 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     },
     walk(on: boolean) { st.walking = on; refreshUi(); },
     strike() { st.striking = 1.2; },
+    /** New-zone creatures: dive under (Dunewake into sand, Fenstalker under water) or surface. */
+    burrow(on: boolean) { st.burrowed = on; refreshUi(); },
+    /** New-zone creatures: the species action for ~1.5 s (see each file in src/creatures/zones). */
+    act() { st.acting = 1.5; },
     view(y: number, p = pitch, z = 1) { yaw = y; pitch = p; zoom = z; },
-    state() { return { ...st, lineup, extra, arm: arm?.current ?? null, host: host?.classId ?? null, nestWeak: heart?.weakPoints.filter((w) => w.alive).length ?? null, nestAlive: heart?.alive ?? null, weapons: guns.length, vigil: vigil ? { phase: vigil.drive.phase, limbs: vigil.limbsIntact, lure: vigil.lureAlive, alive: vigil.alive } : null, warden: warden ? { phase: warden.drive.phase, pods: warden.podsAlive, seams: warden.seamsAlive, alive: warden.alive } : null, boss: boss ? { phase: boss.drive.phase, legs: boss.legsIntact, weak: boss.weakPoints.filter((w) => w.alive).length, alive: boss.alive } : null, creatures: creatures.map((c) => ({ species: c.species, stage: c.plan.stage, limbs: c.rig.limbs.size, severed: [...c.rig.limbs.values()].filter((l) => l.severed).length })) }; },
+    state() { return { ...st, lineup, extra, arm: arm?.current ?? null, host: host?.classId ?? null, nestWeak: heart?.weakPoints.filter((w) => w.alive).length ?? null, nestAlive: heart?.alive ?? null, weapons: guns.length, zoneBoss: zoneBoss ? { id: zoneBoss.id, ...zoneBoss.state() } : null, vigil: vigil ? { phase: vigil.drive.phase, limbs: vigil.limbsIntact, lure: vigil.lureAlive, alive: vigil.alive } : null, warden: warden ? { phase: warden.drive.phase, pods: warden.podsAlive, seams: warden.seamsAlive, alive: warden.alive } : null, boss: boss ? { phase: boss.drive.phase, legs: boss.legsIntact, weak: boss.weakPoints.filter((w) => w.alive).length, alive: boss.alive } : null, creatures: creatures.map((c) => ({ species: c.species, stage: c.plan.stage, limbs: c.rig.limbs.size, severed: [...c.rig.limbs.values()].filter((l) => l.severed).length })) }; },
     stats() { const i = pipeline.renderer.info; return { calls: i.render.calls, triangles: i.render.triangles, programs: i.programs?.length ?? 0 }; },
   };
   (window as unknown as { __biophageViewer: typeof api }).__biophageViewer = api;
@@ -491,10 +535,13 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
   pipeline.renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.05);
     st.striking = Math.max(0, st.striking - dt);
+    st.acting = Math.max(0, st.acting - dt);
     for (const [i, c] of creatures.entries()) {
       const d = c.drive;
       d.windup = st.striking > 0 ? Math.min(1, (1.2 - st.striking) / 0.5) : 0;
       d.look = camera.position;
+      d.burrow = THREE.MathUtils.damp(d.burrow, st.burrowed ? 1 : 0, 2.2, dt);
+      d.action = Math.min(1, st.acting * 2);
       d.strike = st.striking > 0 ? c.root.localToWorld(new THREE.Vector3(0, c.plan.bodyHeight * 0.6, c.plan.radius * 2.6)) : null;
       if (st.walking && !lineup && i === 0 && c.alive) {
         const R = Math.max(3.2, c.plan.radius * 3.2), speed = c.plan.locomotion === 'walker' ? 1.1 + c.plan.radius * 0.6 : 2.5;
@@ -538,6 +585,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
       }
       warden.update(dt);
     }
+    zoneBoss?.tick({ dt, time: clock.elapsedTime, camera: camera.position, origin, striking: st.striking, walking: st.walking, acting: st.acting });
     if (vigil) {
       const d = vigil.drive;
       d.look = camera.position;

@@ -14,9 +14,15 @@
  */
 import { WEAPONS } from '../../../data';
 import { HIVE, ORGANIC } from '../../render/palette';
-import { getSettings } from '../settings';
+import { getSettings, type Settings } from '../settings';
 
 export type ReticleShape = 'arcs4' | 'brackets' | 'dots' | 'thorns3' | 'brokenRing' | 'pinhole' | 'ladder' | 'thinRing' | 'diamond';
+
+/**
+ * Only long-range classes look through the eye; every other gun aims with a slight zoom and its normal mark
+ * (coordinator call 2026-11-11 while Brandon decides on scopes). Empty this set to drop the eye scope entirely.
+ */
+export const EYE_SCOPE_CLASSES = new Set(['marksman', 'sniper']);
 
 /** Mark per weapon class; anything unknown falls back to the carbine's arcs. */
 export const RETICLE_BY_CLASS: Record<string, ReticleShape> = {
@@ -40,7 +46,7 @@ export interface ReticleInput {
   crosshair?: { radius: number; bloom?: number; style?: string; ready?: boolean; pellets?: number; charge?: number; onTarget?: boolean; weak?: boolean } | null;
 }
 
-interface Gun { shape: ReticleShape; hip: number; ads: number; moving: number; kick: number; recovery: number; zoom: number; aimTime: number; scope: boolean }
+interface Gun { cls: string; shape: ReticleShape; hip: number; ads: number; moving: number; kick: number; recovery: number; zoom: number; aimTime: number; scope: boolean }
 
 export function gunOf(id: string | undefined): Gun {
   const w = (WEAPONS as Record<string, unknown>)[id ?? 'synapseBurster'] as {
@@ -52,10 +58,10 @@ export function gunOf(id: string | undefined): Gun {
   const ads = g.ads === undefined ? { zoom: 1.3, time: g.adsTime ?? 0.18, scope: false } : g.ads;
   const spread = g.spread ?? base!.spread!;
   return {
-    shape: RETICLE_BY_CLASS[g.class ?? 'carbine'] ?? 'arcs4',
+    cls: g.class ?? 'carbine', shape: RETICLE_BY_CLASS[g.class ?? 'carbine'] ?? 'arcs4',
     hip: spread.hip, ads: spread.ads ?? spread.hip, moving: spread.movingPenalty,
     kick: g.recoil?.pitch ?? 0.3, recovery: g.recoil?.recovery ?? 9,
-    zoom: ads ? ads.zoom : 1, aimTime: ads ? ads.time : 0.2, scope: !!(ads && ads.scope),
+    zoom: ads ? ads.zoom : 1, aimTime: ads ? ads.time : 0.2, scope: !!(ads && ads.scope) && EYE_SCOPE_CLASSES.has(g.class ?? ''),
   };
 }
 
@@ -98,6 +104,7 @@ export class Reticle {
   private veins: { x: number; y: number; cx: number; cy: number; ex: number; ey: number; w: number }[] = [];
   private gun: Gun = gunOf('synapseBurster');
   private gunId = 'synapseBurster';
+  private settings: Settings = getSettings();
   /** Last drawn values, for tests and tooling. */
   readonly last = { radius: 0, shape: 'arcs4' as ReticleShape, scope: 0, alpha: 1 };
 
@@ -109,6 +116,7 @@ export class Reticle {
     parent.prepend(this.eye, this.mark);
     this.mctx = this.mark.getContext('2d');
     this.ectx = this.eye.getContext('2d');
+    globalThis.addEventListener?.('biophage:settings', (e) => { this.settings = (e as CustomEvent<Settings>).detail; });
     // Veins grow in from the screen edges; seeded so the eye is the same every raid.
     let s = 7;
     const r = () => ((s = (s * 16807) % 2147483647) / 2147483647);
@@ -140,8 +148,10 @@ export class Reticle {
     this.flash = Math.max(0, this.flash - dt * 8);
     this.hitT = Math.max(0, this.hitT - dt * 4);
     this.blink = Math.max(0, this.blink - dt * 2.4);
-    const scoped = s.weapon?.scope !== undefined ? s.weapon.scope > 0 : g.scope;
-    const scopeTarget = s.crosshair?.style === 'scope' ? 1 : scoped ? this.aim : 0;
+    // The eye is for long guns only, and the player can turn it off in Settings.
+    const eyeOk = EYE_SCOPE_CLASSES.has(g.cls) && this.settings.eyeScope;
+    const scoped = eyeOk && (s.weapon?.scope !== undefined ? s.weapon.scope > 0 : g.scope);
+    const scopeTarget = eyeOk && s.crosshair?.style === 'scope' ? 1 : scoped ? this.aim : 0;
     this.scopeAmt += (scopeTarget - this.scopeAmt) * Math.min(1, dt * 14);
     const dim = !!s.motion?.sprinting || s.crosshair?.ready === false;
     const hide = (dim ? 0.3 : 1) * (1 - Math.min(1, this.scopeAmt * 1.6));
@@ -166,7 +176,7 @@ export class Reticle {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, size, size);
     const g = this.gun;
-    const fov = getSettings().fov / (1 + (g.zoom - 1) * this.aim);
+    const fov = this.settings.fov / (1 + (g.zoom - 1) * this.aim);
     const deg = spreadNow(g, this.aim, s.motion?.moving ?? 0, this.bloom);
     const kill = this.hitKind === 'kill' ? this.hitT : 0;
     const u = vh / 100;
