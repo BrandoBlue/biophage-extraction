@@ -46,7 +46,7 @@ export interface AbominationContext {
   /** An Oculimoth screeched: everything within `radius` was alerted. */
   onScreech?(a: Abomination, radius: number): void;
   /** It burst from its tank or dropped its disguise (PvE AI habitats): play the burst, make the noise. */
-  onReveal?(a: Abomination, how: 'hatch' | 'disguise'): void;
+  onReveal?(a: Abomination, how: 'hatch' | 'disguise' | 'ambush'): void;
 }
 
 /** Coarse state for HUD, tests and debug (derived from the brain). */
@@ -171,6 +171,7 @@ export class Abomination {
     this.recentDamage += amount;
     if (dir && (this.kind === 'needlemaw' || this.kind === 'oculimoth')) this.brain.impulse(dir.x * Math.min(4, amount / 10), dir.z * Math.min(4, amount / 10));
     this.lastHit = amount;
+    this.brain.wound(this.biomass / this.t.biomass);
     this.brain.hurt();
     // Limb hits: enough damage on one limb shoots it off (the creature fights on without it).
     if (sphere?.limb && this.root.parent) {

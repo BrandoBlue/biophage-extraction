@@ -9,6 +9,7 @@ import type { BrainWorld, Vec3 } from '../types';
 
 export class SwarmBrain extends Brain {
   protected readonly turnRate = AI.swarm.turnRate;
+  protected readonly ambusher = true;
   private slot = (this.rand() * 2 - 1) * Math.PI * AI.swarm.flankBias;
   private ring = AI.swarm.ringRadius[0] + this.rand() * (AI.swarm.ringRadius[1] - AI.swarm.ringRadius[0]);
   private orbitDir = this.rand() < 0.5 ? -1 : 1;

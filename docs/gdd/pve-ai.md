@@ -22,6 +22,15 @@ Gameplay places each creature at its home and calls `Abomination.setHome(x, z, {
 - **Reinforcements:** Gameplay spawns them at their species' nearest out-of-sight home and calls `alert(host)`. They walk in hunting, never popping in behind the host.
 - The raid turns `reveal` into a `creatureReveal` bus event, a 20 m noise and a burst.
 
+## Menace (what makes hunters frightening; `ai.json` `menace`)
+Brandon's bar is enemies that feel hard and unpredictable, as if they are thinking. Every archetype shares these behaviours:
+- **The stare.** A creature that spots you itself stops dead, turns and looks at you for 0.35–0.8 s before it comes. Its alert cry goes out at the start of the stare, so the pack hears it. A packmate that was told, or a creature you shot, skips the stare.
+- **A fanned-out search.** When the trail goes cold, a hunter runs to where you were heading (your last velocity × 1.5 s, at most 10 m), not to where you were. Each searcher checks its own spot within 7 m, so a pack spreads out to sweep the area. It sweeps for 2.5 s, then tries another spot.
+- **The ambush.** Swarm and stalker hunters that lose you after a real chase may not go home at all (45%). They crouch, motionless and silent, where the trail died. They spring when you come within 5 m (`reveal { how: 'ambush' }`); the raid's reveal noise pulls the rest of the pack in. After 45 s an ambush goes cold and the hunter slinks home.
+- **Wounds.** A hunter below 35% Biomass limps (75% speed). The first time one drops below 30%, it has an even chance to break off and run for 2.2 s. Then it cries out (an alert, which calls packmates within its alertShare radius) and comes back. The Mournback never runs.
+
+The body can show an ambush through `Abomination.lurking` together with `brain.lurkHow === 'ambush'` (for example, crouched low). The stare is `brain.phase === 'spot'`, and the retreat is `phase === 'flee'`.
+
 ## Archetypes
 | Kind | Archetype | Behaviour | Tell | Counter |
 | --- | --- | --- | --- | --- |

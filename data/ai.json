@@ -39,11 +39,17 @@
   "wander": {
     "radius": 9,
     "speedFactor": 0.25,
-    "pause": [1.5, 4]
+    "pause": [
+      1.5,
+      4
+    ]
   },
   "separation": 1.2,
   "swarm": {
-    "ringRadius": [5, 7.5],
+    "ringRadius": [
+      5,
+      7.5
+    ],
     "flankBias": 0.65,
     "weaveFrequency": 4,
     "weaveAmount": 0.55,
@@ -72,12 +78,18 @@
     "turnRate": 5
   },
   "flyer": {
-    "orbitRadius": [3, 9],
+    "orbitRadius": [
+      3,
+      9
+    ],
     "orbitSpeed": 5,
     "diveGap": 0.7,
     "faceHeight": 1.5,
     "flockRadius": 6,
-    "calmHeight": [4, 9],
+    "calmHeight": [
+      4,
+      9
+    ],
     "diveSpeed": 13,
     "diveTime": 0.5,
     "climbTime": 0.8,
@@ -88,7 +100,10 @@
     "turnRate": 0.9,
     "chargeTurnRate": 0.1,
     "hornReach": 1.2,
-    "chargeRange": [8, 26],
+    "chargeRange": [
+      8,
+      26
+    ],
     "chargeAimCone": 14,
     "chargeDistance": 26,
     "chargeKnockback": 10,
@@ -102,5 +117,30 @@
     "ejectSpeed": 6,
     "ejectRadius": 4,
     "startAwareness": 1
+  },
+  "menace": {
+    "_note": "What makes hunters frightening (docs/gdd/pve-ai.md, Menace). reaction: seconds a creature that spots the host itself stands still and stares before it comes (alerted packmates skip it). search: a cold trail is chased to where the host was heading (velocity x predictTime, at most maxPredict m), and each searcher checks its own spot within spread m, sweeping sweepTime s before trying the next. ambush: after a chase that went cold, swarm and stalker hunters may crouch where they lost the host instead of going home, springing at range m, giving up after time s. wounded: below limpBelow Biomass a creature moves at limpFactor; on first dropping below fleeBelow it runs for fleeTime s with fleeChance, then calls its pack and returns.",
+    "reaction": [
+      0.35,
+      0.8
+    ],
+    "search": {
+      "predictTime": 1.5,
+      "maxPredict": 10,
+      "spread": 7,
+      "sweepTime": 2.5
+    },
+    "ambush": {
+      "chance": 0.45,
+      "range": 5,
+      "time": 45
+    },
+    "wounded": {
+      "limpBelow": 0.35,
+      "limpFactor": 0.75,
+      "fleeBelow": 0.3,
+      "fleeChance": 0.5,
+      "fleeTime": 2.2
+    }
   }
 }

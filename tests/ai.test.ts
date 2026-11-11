@@ -355,3 +355,113 @@ describe('homes (data/habitats.json): leash, tanks, disguises, roosts', () => {
     expect(b.body.altitude).toBeGreaterThan(9);
   });
 });
+
+describe('menace: the stare, the fanned search, the ambush, the wounded retreat', () => {
+  const M = AI.menace;
+  type Inner = { hostVel: { x: number; z: number }; searchTo: unknown; chased: boolean; investigateFor: number };
+  const inner = (b: Brain) => b as unknown as Inner;
+
+  it('a creature that spots the host itself stops and stares before it comes; an alerted one comes at once', () => {
+    const b = at('needlemaw', 1, 0, 12);
+    b.body.yaw = Math.PI; // facing the host at the origin
+    b.awareness.level = 0.98; // a moment from seeing it for what it is
+    for (let i = 0; i < 60 && b.mode !== 'hunt'; i++) simulate([b], 1 / 60, host());
+    expect(b.mode).toBe('hunt');
+    const z0 = b.body.z;
+    simulate([b], M.reaction[0] * 0.9, host());
+    expect(b.phase).toBe('spot');
+    expect(Math.abs(b.body.z - z0)).toBeLessThan(0.3);
+    simulate([b], M.reaction[1] + 0.5, host());
+    expect(b.phase).not.toBe('spot');
+    expect(b.body.z).toBeLessThan(z0 - 1);
+
+    const told = at('needlemaw', 2, 0, 12);
+    told.alert({ x: 0, z: 0 });
+    simulate([told], 0.05, host());
+    expect(told.phase).not.toBe('spot');
+  });
+
+  it('a pack that loses the trail heads where the host was running and fans out to search', () => {
+    const pack = [1, 2, 3, 4].map((i) => hunting(at('needlemaw', i, -2 + i, 2)));
+    const away = host({ x: -300, z: -300, visibility: 0.3, forward: null });
+    simulate(pack, 1 / 60, away);
+    for (const b of pack) {
+      b.awareness.sinceSeen = 2;
+      b.awareness.lastKnown = { x: 0, z: 0 };
+      inner(b).hostVel = { x: 6, z: 0 };
+      inner(b).searchTo = null;
+    }
+    simulate(pack, 2.5, away);
+    for (const b of pack) expect(b.phase).toBe('search');
+    const meanX = pack.reduce((a, b) => a + b.body.x, 0) / pack.length;
+    expect(meanX).toBeGreaterThan(4);
+    let spread = 0;
+    for (const a of pack) for (const b of pack) spread = Math.max(spread, Math.hypot(a.body.x - b.body.x, a.body.z - b.body.z));
+    expect(spread).toBeGreaterThan(3);
+  });
+
+  /** Ends a chase that went cold for `kind` with `seed`; returns the brain once it has decided where to go. */
+  const lose = (kind: string, seed: number) => {
+    const b = at(kind, seed, 0, 0, seed);
+    b.mode = 'investigate';
+    b.awareness.lastKnown = { x: 0, z: 0 };
+    b.awareness.level = 0;
+    inner(b).chased = true;
+    inner(b).investigateFor = 0;
+    simulate([b], 1 / 60, host({ x: 0, z: -60, visibility: 0.3, forward: null }));
+    return b;
+  };
+
+  it('after a cold chase a hunter may crouch where it lost you, and springs when you walk back in', () => {
+    const ambushers = Array.from({ length: 20 }, (_, i) => lose('needlemaw', i + 1)).filter((b) => b.lurking);
+    expect(ambushers.length).toBeGreaterThan(2);
+    expect(ambushers.length).toBeLessThan(18);
+    const b = ambushers[0];
+    expect(b.lurkHow).toBe('ambush');
+    simulate([b], 2, host({ x: 0, z: M.ambush.range + 6 }));
+    expect(b.lurking).toBe(true);
+    expect(Math.hypot(b.body.x, b.body.z)).toBeLessThan(0.01);
+    const s = simulate([b], 0.1, host({ x: 0, z: M.ambush.range - 1 }));
+    expect(s.events.some((e) => e.e.type === 'reveal' && e.e.how === 'ambush')).toBe(true);
+    expect(b.mode).toBe('hunt');
+    // An ambush nobody walks into goes cold, and it slinks home.
+    const late = ambushers[1];
+    simulate([late], M.ambush.time + 1, host({ x: 0, z: -80, visibility: 0.3, forward: null }));
+    expect(late.lurking).toBe(false);
+    // The Mournback never lies in wait.
+    expect(Array.from({ length: 20 }, (_, i) => lose('mournback', i + 1)).some((x) => x.lurking)).toBe(false);
+  });
+
+  it('a badly hurt hunter may break off and run, then calls its pack and comes back; the Mournback never runs', () => {
+    const runners = Array.from({ length: 12 }, (_, i) => {
+      const b = hunting(at('needlemaw', i + 1, 0, 6, i + 1));
+      simulate([b], 0.1, host());
+      b.wound(M.wounded.fleeBelow - 0.05);
+      return b;
+    });
+    const fled = runners.filter((b) => { simulate([b], 0.1, host()); return b.phase === 'flee'; });
+    expect(fled.length).toBeGreaterThan(0);
+    const b = fled[0], d0 = Math.hypot(b.body.x, b.body.z);
+    let farthest = d0;
+    const s = simulate([b], M.wounded.fleeTime + 0.5, host(), { each: () => { farthest = Math.max(farthest, Math.hypot(b.body.x, b.body.z)); } });
+    expect(farthest).toBeGreaterThan(d0 + 3);
+    expect(s.events.some((e) => e.e.type === 'alert')).toBe(true);
+    expect(b.mode).toBe('hunt');
+    expect(b.phase).not.toBe('flee');
+    const tank = hunting(at('mournback', 9, 0, 10));
+    simulate([tank], 0.1, host());
+    tank.wound(0.05);
+    simulate([tank], 0.5, host());
+    expect(tank.phase).not.toBe('flee');
+  });
+
+  it('a wounded hunter limps', () => {
+    const run = (left: number) => {
+      const b = hunting(at('mournback', 5, 0, 60));
+      if (left < 1) b.wound(left);
+      simulate([b], 2, host());
+      return 60 - b.body.z;
+    };
+    expect(run(M.wounded.limpBelow - 0.01)).toBeLessThan(run(1) * 0.9);
+  });
+});
