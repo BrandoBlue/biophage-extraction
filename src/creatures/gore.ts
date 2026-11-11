@@ -104,7 +104,8 @@ export const creatureGore = {
     hideLimb(c, limbId);
     l.severed = true;
     // Child limbs and parts on this limb go with it.
-    for (const other of c.rig.limbs.values()) if (other !== l && l.bones.some((b) => b === other.bones[0].parent)) { other.severed = true; hideLimb(c, other.spec.id); }
+    for (const other of c.rig.limbs.values()) if (other !== l && l.bones.some((b) => b === other.bones[0].parent)) { other.severed = true; hideLimb(c, other.spec.id); c.onLimbSevered?.(other.spec.id); }
+    c.onLimbSevered?.(limbId);
     const group = new THREE.Group();
     if (gibMesh) { group.position.copy(gibMesh.position); gibMesh.position.set(0, 0, 0); group.add(gibMesh); }
     else l.bones[0].getWorldPosition(group.position);
