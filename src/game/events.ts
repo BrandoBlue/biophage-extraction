@@ -55,6 +55,10 @@ export interface GameEvents {
   extractDone: { items: { item: string; count: number }[]; dna: number; value: number };
   death: { cause: string; items: { item: string; count: number }[]; dna: number; value: number };
   raidEnd: { result: 'extracted' | 'lost'; value: number; kills: number; time: number };
+  // Contracts (Gameplay): first open of a container, a landmark reached, a boss killed.
+  containerOpened: { id: string; container: string };
+  landmarkVisited: { landmark: string };
+  bossKilled: { boss: string };
 }
 
 type Handler<T> = (payload: T) => void;

@@ -6,6 +6,7 @@ import { HiveMenu } from './ui/hive-menu';
 import { HiveStage } from './ui/hive-stage';
 import { ItemGrid } from './game/grid';
 import { browserStorage, deploy, die, extract, loadProfile, saveProfile } from './game/profile';
+import { settleContracts } from './game/economy';
 import { buildZone7 } from './world/zone7';
 import { zone7Layout } from './world/layout';
 import { createPipeline } from './render/pipeline';
@@ -51,11 +52,13 @@ function bootRaid(): void {
     const totals = (entries: typeof r.pouch) => new ItemGrid(99, 99, entries).totals();
     if (e.result === 'extracted') {
       const st = extract(profile, r, e.kills);
+      const done = settleContracts(profile, raid.log, true).filter((c) => c.completed);
       save();
-      const note = `${st.dnaBanked} DNA banked.${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}`;
+      const note = `${st.dnaBanked} DNA banked.${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}${done.length ? ` Contract complete: ${done.map((c) => c.title).join(', ')}.` : ''}`;
       menu.showResults({ result: 'extracted', items: r.items, dna: r.dna, value: r.value, kills: e.kills, time: e.time, note });
     } else {
       die(profile, r, e.kills);
+      settleContracts(profile, raid.log, false);
       save();
       const lost = totals(r.cavity);
       menu.showResults({ result: 'lost', items: lost, dna: r.dna, value: haulValue(lost, r.dna), kills: e.kills, time: e.time, cause: r.cause, kept: totals(r.pouch) });

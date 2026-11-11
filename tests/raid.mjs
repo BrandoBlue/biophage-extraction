@@ -155,6 +155,8 @@ try {
   await call('hold', 'KeyE', false);
   if (!s.pods[0].opened) await fail('Bio-Pod did not open while holding E');
   if (!s.carried.items.length) await fail('Bio-Pod gave no items');
+  // Contract log: the harvest, the kill and the first pod open are recorded for the Hive's contract settlement.
+  if (s.zone !== 'glowmireIsle' || !s.log.harvested.needlemawGland || !s.log.killed.needlemaw || !Object.keys(s.log.opened).length) await fail(`contract log incomplete: ${JSON.stringify({ zone: s.zone, log: s.log })}`);
   log(`Bio-Pod: ${s.carried.items.map((i) => `${i.count}x ${i.item}`).join(', ')}; haul ${s.carried.value}`);
 
   // --- In-raid inventory: put the gland into the open pod and take it back (UI's Tab overlay API).

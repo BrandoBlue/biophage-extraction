@@ -8,6 +8,7 @@
 import { CLASSES, itemDef, LOOT, MARKET, marketPrice, PROFILE, stashRowCost, type ClassId } from '../../data';
 import { footprint, ItemGrid, stackLimit, type Placed } from './grid';
 import type { CarriedSnapshot, Loadout } from './inventory';
+import { earnedPerk, newEconomy, normaliseEconomy, type EconomyState } from './economy';
 
 export interface RaidRecord { raids: number; extracts: number; deaths: number; kills: number }
 
@@ -23,6 +24,8 @@ export interface Profile {
   host: ClassId;
   /** Flesh Market mood (MARKET.mood): organs please the Gullet Broker and lower its prices. */
   marketMood: number;
+  /** Vendor reputation, contracts, unlocks and the raid-select zone (src/game/economy.ts). */
+  economy: EconomyState;
 }
 
 /** Key/value store; `localStorage` in the browser, a Map in tests or when storage is blocked. */
@@ -58,7 +61,11 @@ export function pouchSize(level: number): [number, number] {
 export const pouchGrid = (p: Profile): ItemGrid => { const [c, r] = pouchSize(p.gutPouchLevel); return new ItemGrid(c, r, p.gutPouch); };
 
 /** Cost of the next gut pouch upgrade, Infinity at the top level. */
-export const pouchUpgradeCost = (p: Profile): number => PROFILE.gutPouch.upgrades[p.gutPouchLevel]?.cost ?? Infinity;
+export const pouchUpgradeCost = (p: Profile): number => {
+  const base = PROFILE.gutPouch.upgrades[p.gutPouchLevel]?.cost ?? Infinity;
+  const off = earnedPerk(p, 'pouchUpgradeDiscount');
+  return off && Number.isFinite(base) ? Math.round(base * (1 - off.fraction)) : base;
+};
 export const nextStashRowCost = (p: Profile): number => stashRowCost((p.stashRows - PROFILE.stash.rowsBase) / PROFILE.stash.rowExpansion.rows);
 
 // ------------------------------------------------------------------ creation and storage
@@ -68,6 +75,7 @@ export function newProfile(): Profile {
   return {
     schemaVersion: PROFILE.schemaVersion, dna: PROFILE.newProfile.dna, stash: stash.snapshot(), stashRows: PROFILE.stash.rowsBase,
     gutPouchLevel: 0, cavity: [], gutPouch: [], stats: { raids: 0, extracts: 0, deaths: 0, kills: 0 }, host: 'neuroInfiltrator', marketMood: MARKET.mood.start,
+    economy: newEconomy(),
   };
 }
 
@@ -81,6 +89,7 @@ function normalise(raw: Partial<Profile>): Profile {
     stash: Array.isArray(raw.stash) ? raw.stash : base.stash,
     cavity: Array.isArray(raw.cavity) ? raw.cavity : [],
     gutPouch: Array.isArray(raw.gutPouch) ? raw.gutPouch : [],
+    economy: normaliseEconomy(raw.economy),
   };
   p.stashRows = Math.min(PROFILE.stash.rowExpansion.maxRows, Math.max(PROFILE.stash.rowsBase, Math.floor(Number(p.stashRows) || 0)));
   p.gutPouchLevel = Math.min(PROFILE.gutPouch.upgrades.length, Math.max(0, Math.floor(Number(p.gutPouchLevel) || 0)));
@@ -190,7 +199,7 @@ export function upgradePouch(p: Profile): boolean {
 }
 
 // ------------------------------------------------------------------ raid transitions
-export interface Deployment { loadout: Loadout; cavitySize: [number, number]; pouchSize: [number, number]; freeKit: number }
+export interface Deployment { loadout: Loadout; cavitySize: [number, number]; pouchSize: [number, number]; freeKit: number; /** Raid-select zone id (data/zones.json). */ zone: string }
 
 /**
  * Hands the cavity loadout and gut pouch to the raid. The saved profile keeps the gut pouch (it is secure) but its
@@ -203,10 +212,13 @@ export function deploy(p: Profile): Deployment {
   const have = g.stash.count(gel) + g.cavity.count(gel) + g.pouch.count(gel);
   const grow = Math.max(0, PROFILE.freeKit.clotGelFloor - have);
   const freeKit = grow - g.cavity.add(gel, grow);
+  // Vendor perk (e.g. Mother Clot at rep 4): a free item every deploy, if it fits.
+  const gift = earnedPerk(p, 'deployGift');
+  if (gift) g[gift.to === 'cavity' ? 'cavity' : 'pouch'].add(gift.item, gift.count);
   const loadout = { cavity: g.cavity.snapshot(), pouch: g.pouch.snapshot() };
   p.cavity = [];
   p.stats.raids++;
-  return { loadout, cavitySize: cavitySize(p), pouchSize: pouchSize(p.gutPouchLevel), freeKit };
+  return { loadout, cavitySize: cavitySize(p), pouchSize: pouchSize(p.gutPouchLevel), freeKit, zone: p.economy.zone };
 }
 
 export interface Settlement { toStash: { item: string; count: number }[]; overflow: { item: string; count: number }[]; dnaBanked: number }

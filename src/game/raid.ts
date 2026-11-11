@@ -31,6 +31,7 @@ import { HarvestFx } from '../creatures/organs';
 import { HIVE, ZONE7 } from '../render/palette';
 import { NeuralOverload, Biomass } from './vitals';
 import { SynapseBurster, projectileLooks } from './weapon';
+import { DEFAULT_ZONE, RaidLog } from './economy';
 
 export type Phase = 'briefing' | 'raid' | 'extracted' | 'lost';
 
@@ -79,6 +80,9 @@ export class Raid {
   readonly weapon: SynapseBurster;
   readonly hostArm = new HostArm();
   private harvestFx = new HarvestFx();
+  /** Raid-select zone and the contract log for this raid (src/game/economy.ts). */
+  zone = DEFAULT_ZONE;
+  log = new RaidLog();
   readonly abilities: AbilitySystem;
   readonly carried = new Carried();
   readonly creatures: Abomination[] = [];
@@ -160,6 +164,9 @@ export class Raid {
     this.weapon = new SynapseBurster(WEAPONS.synapseBurster, camera, this.projectiles);
     // Creature & Mutation: the host's forearm dissolve-grows into the injected virus's look.
     attachToViewmodel(this.weapon.view, this.hostArm);
+    // Contracts: what happened this raid (settled in the Hive by economy.settleContracts).
+    this.bus.on('harvestDone', (e) => this.log.harvest(e.item));
+    this.bus.on('creatureDeath', (e) => this.log.kill(e.type));
     this.bus.on('virusInjected', (e) => {
       if ((VIRUS_LOOKS as string[]).includes(e.virus)) this.hostArm.mutate(e.virus as VirusLook, VIRUS_RULES.mutationGrowTime);
     });
@@ -308,6 +315,8 @@ export class Raid {
   deploy(d: Deployment): void {
     if (this.phase !== 'briefing') return;
     this.carried.load(d.loadout, d.cavitySize, d.pouchSize);
+    this.zone = d.zone ?? DEFAULT_ZONE;
+    this.log = new RaidLog(this.zone);
     this.begin();
   }
 
@@ -968,6 +977,7 @@ export class Raid {
   private openPod(pod: BioPod): void {
     if (pod.type === 'geneBloom') this.sites?.setNodeHarvested(pod.id, true);
     const rolled = pod.opened ? pod.remaining : rollContainer(pod.type, this.rand);
+    if (!pod.opened) { this.log.open(pod.type); this.bus.emit('containerOpened', { id: pod.id, container: pod.type }); }
     pod.open();
     pod.remaining = [];
     const items: typeof rolled = [], left: typeof rolled = [];
@@ -1156,6 +1166,19 @@ export class Raid {
     };
   }
 
+  /** World & Level calls this when the host reaches a named landmark (zones.json landmarks); contracts count it. */
+  visit(landmark: string): void {
+    if (this.log.visited.has(landmark)) return;
+    this.log.visit(landmark);
+    this.bus.emit('landmarkVisited', { landmark });
+  }
+
+  /** PvE AI calls this when a bosses.json boss dies; contracts count it. */
+  bossKilled(boss: string): void {
+    this.log.killBoss(boss);
+    this.bus.emit('bossKilled', { boss });
+  }
+
   /**
    * Places a lootable container (any id in data/loot.json containers) on the ground: its contents roll from the
    * loot table when it is first opened, through the same hold-E and transfer flow as the map's pods. PvE AI's
@@ -1172,7 +1195,7 @@ export class Raid {
   /** State for tests/raid.mjs and tooling. */
   testState(): Record<string, unknown> {
     return {
-      phase: this.phase, armLook: this.hostArm.current, biomass: this.biomass.current, overload: this.overload.value, overloaded: this.overload.overloaded,
+      phase: this.phase, zone: this.zone, log: { harvested: Object.fromEntries(this.log.harvested), killed: Object.fromEntries(this.log.killed), opened: Object.fromEntries(this.log.opened), visited: [...this.log.visited], bosses: [...this.log.bosses] }, armLook: this.hostArm.current, biomass: this.biomass.current, overload: this.overload.value, overloaded: this.overload.overloaded,
       ammo: this.weapon.state.ammo, ego: this.weapon.ego, timeLeft: this.timeLeft, kills: this.kills,
       carried: this.carried.snapshot(), extractProgress: this.extract.progress,
       extractPosition: [this.extract.x, this.extract.z], pods: this.pods.map((q) => ({ id: q.id, position: [q.position.x, q.position.z], opened: q.opened })),
@@ -1214,6 +1237,8 @@ export class Raid {
       /** Drops a container at the host's feet (offset 1.2 m on x); returns its id. */
       dropContainer: (type: string) => this.dropContainer(type, this.player.position.x - 1.2, this.player.position.z).id,
       openContainer: () => this.openContainer(),
+      visit: (landmark: string) => this.visit(landmark),
+      bossKilled: (boss: string) => this.bossKilled(boss),
       /** Injects the first carried vial of `item` (cavities, then pouch). */
       inject: (item: string) => {
         for (const zone of ['cavity', 'pouch'] as const) {
