@@ -18,6 +18,8 @@ export interface Projectile {
   /** Sticks where it lands and bursts after `fuse` seconds (stuck while `stuck` is set). */
   stick?: { fuse: number };
   stuck?: boolean;
+  /** Where a stuck round rides (the creature it stuck to), or null once that is gone. */
+  follow?: () => THREE.Vector3 | null;
   /** Creatures already hit (a piercing round hits each once). */
   hit?: Set<number>;
   /** Where it was fired from: damage falloff uses distance travelled. */
@@ -94,7 +96,9 @@ export class Projectiles {
     steer?: (p: Projectile, dt: number) => void): void {
     for (const p of [...this.list]) {
       if (p.stuck) {
-        // A stuck round (tumor launcher) bursts when its fuse runs out.
+        // A stuck round (tumor launcher) rides its target and bursts when its fuse runs out.
+        const at = p.follow?.();
+        if (at) { p.pos.copy(at); p.mesh.position.copy(at); }
         p.life -= dt;
         if (p.life <= 0) { land(p, p.pos.clone()); this.kill(p); }
         continue;

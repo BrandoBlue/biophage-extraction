@@ -1143,7 +1143,12 @@ export class Raid {
     const point = a.clone().lerp(b, bestT);
     const weak = bestC.isLiveWeakPoint(bestS);
     const dist = point.distanceTo(pr.origin);
-    if (pr.stick) return { point, t: bestT }; // sticky rounds burst on their fuse
+    if (pr.stick) {
+      // Sticky rounds burst on their fuse, riding the creature they hit.
+      const c = bestC, off = point.clone().sub(c.centre);
+      pr.follow = () => (c.alive ? c.centre.clone().add(off) : null);
+      return { point, t: bestT };
+    }
     const mult = weak ? (bestC.t.weakPoint.multiplier ?? pr.weapon?.weakPointMultiplier ?? 2) : 1;
     const dmg = pr.weapon ? projectileDamage({ damage: pr.damage, range: pr.weapon.range }, dist, mult) : pr.damage * mult;
     const dir = pr.vel.clone().normalize();
@@ -1341,6 +1346,7 @@ export class Raid {
       ammo: this.weapon.state.ammo, ego: this.weapon.ego, timeLeft: this.timeLeft, kills: this.kills,
       carried: this.carried.snapshot(), extractProgress: this.extract.progress,
       extractPosition: [this.extract.x, this.extract.z], pods: this.pods.map((q) => ({ id: q.id, position: [q.position.x, q.position.z], opened: q.opened })),
+      weapons: { held: this.held, zoom: this.player.zoom, fov: this.player.camera.fov, list: this.weapons.map((w) => ({ id: w.id, ammo: w.state.ammo, reloading: w.state.isReloading, aim: w.aim, charge: w.state.charge })) },
       enemies: this.creatures.map((c) => ({ id: c.id, kind: c.kind, alive: c.alive, state: c.state, biomass: c.biomass, position: [c.position.x, c.position.y, c.position.z], centre: [c.centre.x, c.centre.y, c.centre.z] })),
       result: this.result, gore: gore.stats(),
       nests: this.nests.map((n) => ({ id: n.id, state: n.state, biomass: n.biomass, wave: n.wave, brood: n.brood.size, position: [n.position.x, n.position.z] })),
@@ -1365,7 +1371,10 @@ export class Raid {
       /** Loads these weapons.json ids as the raid's weapon slots. */
       arm: (ids: string[]) => this.arm(ids),
       pickUpWeapons: () => this.pickUpWeapons(),
+      /** Spawns an Abomination at (x, z) and returns its id (weapon tests need a target). */
+      spawn: (kind: string, x: number, z: number) => this.addCreature(kind as AbominationKind, x, z).id,
       equip: (i: number) => this.equip(i),
+      reload: () => { const ok = this.weapon.reload(); if (ok) this.onReload(); return ok; },
       aim: (on: boolean) => { this.aimHeld = on; },
       ability: (slot: number) => this.useAbility(slot),
       hold: (code: string, on: boolean) => { if (on) this.player.keys.add(code); else this.player.keys.delete(code); },
