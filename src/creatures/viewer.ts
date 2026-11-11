@@ -191,7 +191,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     const t = (ABOMINATIONS as Record<string, Abomination>)[st.species];
     for (const k of ['nest', 'organs', 'arm', 'host', 'boss', 'weapons']) $(`#v-${k}`).classList.toggle('on', extra === k);
     if (extra) {
-      $('#v-card').innerHTML = extra === 'weapons' ? '<b>Living weapons</b><br>Quillet, Hive Spitter, Vertebra Rifle, Gullet Scatter, Eyestalk Marksman, Brood Mortar. Click again to reload them all; Strike fires.'
+      $('#v-card').innerHTML = extra === 'weapons' ? '<b>Living weapons</b><br>The grown roster. Click again to reload them all; Strike fires.'
         : extra === 'boss' ? `<b>The Reliquary</b><br>Phase ${boss?.drive.phase} · legs ${boss?.legsIntact}/6. Click again for the next phase; Walk circles it, Strike stamps, Sever takes a leg (or a heart in bloom), Gib kills it.`
         : extra === 'nest' ? '<b>Brood Heart</b><br>Wave nest. Click again to pulse a wave; sever pops a weak point; gib destroys it.'
         : extra === 'organs' ? '<b>Harvest organs</b><br>Gland, song sac, lens, eye, marrow.'
@@ -243,7 +243,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     const c = creatures[0];
     let target = new THREE.Vector3(origin.x, origin.y + 1, origin.z), dist = 6;
     if (extra === 'nest') { target.set(origin.x, origin.y + 2.3, origin.z); dist = 15; }
-    else if (extra === 'weapons') { target.set(origin.x, origin.y + 1.2, origin.z); dist = 2.4; }
+    else if (extra === 'weapons') { target.set(origin.x, origin.y + 1.2, origin.z); dist = guns.length > 1 ? 2.9 : 2.4; }
     else if (extra === 'boss') { target.set(origin.x, origin.y + 4.2, origin.z); dist = 26; }
     else if (extra === 'organs') { target.set(origin.x, origin.y + 1.2, origin.z); dist = 1.75; }
     else if (extra === 'host') { target.set(origin.x, origin.y + 1.1, origin.z); dist = 4.2; }
@@ -310,7 +310,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
       ids.forEach((id, i) => {
         const body = createWeaponBody(id);
         const one = ids.length === 1;
-        body.gun.position.set(origin.x + (one ? 0 : i % 2 ? 0.55 : -0.55), origin.y + (one ? 1.2 : 1.55 - Math.floor(i / 2) * 0.35), origin.z);
+        body.gun.position.set(origin.x + (one ? 0 : i % 2 ? 0.55 : -0.55), origin.y + (one ? 1.2 : 1.75 - Math.floor(i / 2) * 0.27), origin.z);
         body.gun.rotation.y = -Math.PI / 2;
         if (one) body.gun.scale.setScalar(2.2);
         extras.add(body.gun);
