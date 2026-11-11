@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ABILITIES, ABOMINATIONS, CLASSES, HOST, KITS, LOOT, MARKET, NESTS, PROFILE, PROGRESSION, RAID, RIVALS, SYNAPSE, VIRAL_LAB, VIRUSES, WEAPONS,
   itemDef, levelForXp, marketPrice, nodeMutagenCost,
+  BOSSES, CONTRACTS, HIVE_ORGANS, RECIPES, VENDORS, VENDOR_REP_THRESHOLDS, ZONES, bossPhase, vendorBuyPrice, vendorRepLevel,
   extractTimeFor, haulValue, layoutPosition, stashRowCost, projectileDamage, rollContainer,
 } from '../data';
 import { mulberry32 } from '../src/world/zone7';
@@ -204,7 +205,7 @@ describe('Host data (docs/gdd/host-milestone.md)', () => {
     expect(levelForXp(0)).toBe(1);
     expect(levelForXp(L[1])).toBe(2);
     expect(levelForXp(1e12)).toBe(L.length);
-    for (const k of Object.keys(PROGRESSION.xp.kill)) if (k !== 'rivalHost') expect(ABOMINATIONS[k], k).toBeDefined();
+    for (const k of Object.keys(PROGRESSION.xp.kill)) if (k !== 'rivalHost') expect(ABOMINATIONS[k] ?? BOSSES[k], k).toBeDefined();
   });
   it('the Infiltrator pays its +15% mutagen tax', () => {
     const node = SYNAPSE.neuroInfiltrator.mind.nodes[4];
@@ -238,5 +239,81 @@ describe('Host data (docs/gdd/host-milestone.md)', () => {
     const cannon = KITS.goreBehemoth.weapon as unknown as { pellets: number; damagePerPellet: number; fireRate: number };
     expect(cannon.pellets * cannon.damagePerPellet).toBeGreaterThan(lancet.damage * 5);
     expect(lancet.fireRate).toBeGreaterThan(cannon.fireRate);
+  });
+});
+
+describe('economy, zones and bosses (docs/gdd/07, 08)', () => {
+  const allItems = (): string[] => [
+    ...CONTRACTS.flatMap((c) => [...c.objectives.map((o) => o.item).filter(Boolean) as string[], ...(c.reward.items ?? []).map((i) => i.item)]),
+    ...Object.values(VENDORS).flatMap((v) => (v.stock ?? []).map((s) => s.item)),
+    ...Object.values(HIVE_ORGANS).flatMap((o) => o.levels.flatMap((l) => l.cost.items.map((i) => i.item))),
+    ...Object.values(RECIPES).flatMap((r) => [...r.inputs.map((i) => i.item), ...(r.output.item ? [r.output.item] : []), ...(r.output.pool ?? [])]),
+    ...Object.values(PROGRESSION.evolutions).flat().flatMap((e) => e.cost.items.map((i) => i.item)),
+    ...Object.values(BOSSES).flatMap((b) => [b.rewards.harvest.item, ...(b.rewards.items ?? []).map((i) => i.item)]),
+  ];
+  it('every item referenced by contracts, vendors, Hive organs, recipes, evolutions and bosses exists', () => {
+    for (const id of allItems()) expect(itemDef(id), id).toBeDefined();
+  });
+  it('contract chains point at real contracts of earlier or equal milestones, and objectives reference real things', () => {
+    const order = ['spore', 'larva', 'host', 'apex'];
+    const byId = Object.fromEntries(CONTRACTS.map((c) => [c.id, c]));
+    expect(Object.keys(byId)).toHaveLength(CONTRACTS.length);
+    for (const c of CONTRACTS) {
+      expect(VENDORS[c.vendor], c.vendor).toBeDefined();
+      for (const r of c.requires ?? []) {
+        expect(byId[r], r).toBeDefined();
+        expect(order.indexOf(byId[r].milestone)).toBeLessThanOrEqual(order.indexOf(c.milestone));
+      }
+      for (const o of c.objectives) {
+        if (o.boss) expect(BOSSES[o.boss], o.boss).toBeDefined();
+        if (o.landmark) expect(Object.values(ZONES).some((z) => z.landmarks?.includes(o.landmark!)), o.landmark).toBe(true);
+      }
+      if (c.reward.unlock?.startsWith('zone:')) expect(ZONES[c.reward.unlock.slice(5)]).toBeDefined();
+      if (c.reward.unlock && !c.reward.unlock.startsWith('zone:')) expect(HIVE_ORGANS[c.reward.unlock], c.reward.unlock).toBeDefined();
+    }
+  });
+  it('organ recipes named by Hive levels exist', () => {
+    for (const o of Object.values(HIVE_ORGANS)) for (const l of o.levels) for (const r of l.recipes ?? []) expect(RECIPES[r], r).toBeDefined();
+  });
+  it('vendors never pay more than they charge, at any reputation', () => {
+    for (const [id, v] of Object.entries(VENDORS)) for (const s of v.stock ?? []) {
+      expect(vendorBuyPrice(id as keyof typeof VENDORS, s.item), `${id}:${s.item}`).toBeLessThan(s.price);
+    }
+    expect(vendorRepLevel(0)).toBe(1);
+    expect(vendorRepLevel(VENDOR_REP_THRESHOLDS[3])).toBe(4);
+  });
+  it('each first evolution needs a catalyst from a boss or a nest, and costs more than one raid of loot', () => {
+    const catalysts = new Set([...Object.values(BOSSES).map((b) => b.rewards.harvest.item), 'broodHeartSeed', 'ribchoirBone', 'mournbackMarrow']);
+    for (const e of Object.values(PROGRESSION.evolutions).flat().filter((x) => x.milestone === 'host')) {
+      expect(e.cost.items.some((i) => catalysts.has(i.item)), e.id).toBe(true);
+      expect(e.cost.dna).toBeGreaterThan(1000);
+    }
+  });
+  it('bosses have contiguous phases from 1 to 0 and live in a real zone that names them', () => {
+    for (const [id, b] of Object.entries(BOSSES)) {
+      expect(b.phases[0].from).toBe(1);
+      expect(b.phases[b.phases.length - 1].to).toBe(0);
+      for (let i = 1; i < b.phases.length; i++) expect(b.phases[i].from).toBe(b.phases[i - 1].to);
+      expect(ZONES[b.zone]?.boss, id).toBe(id);
+      expect(bossPhase(id, 1).id).toBe(b.phases[0].id);
+      expect(bossPhase(id, 0.01).id).toBe(b.phases[b.phases.length - 1].id);
+      if (b.rewards.container) expect(LOOT.containers[b.rewards.container]).toBeDefined();
+    }
+  });
+  it('the Reliquary takes a solo Infiltrator well over a magazine but under its enrage timer of sustained fire', () => {
+    const gun = WEAPONS.synapseBurster;
+    const dps = gun.damage * gun.fireRate * (gun.magazine / gun.fireRate) / (gun.magazine / gun.fireRate + gun.reloadTime);
+    const t = BOSSES.reliquary.biomass / dps;
+    expect(t).toBeGreaterThan(20);
+    expect(t).toBeLessThan(BOSSES.reliquary.enrage.after / 4);
+  });
+  it('zones are ordered, name real creatures, and every zone container exists', () => {
+    const orders = Object.values(ZONES).map((z) => z.order).sort();
+    expect(orders).toEqual([1, 2, 3, 4, 5]);
+    for (const z of Object.values(ZONES)) {
+      for (const c of z.creatures ?? []) expect(ABOMINATIONS[c], c).toBeDefined();
+      for (const c of Object.keys(z.containers ?? {})) expect(LOOT.containers[c], c).toBeDefined();
+      for (const n of z.nests ?? []) expect(NESTS[n], n).toBeDefined();
+    }
   });
 });

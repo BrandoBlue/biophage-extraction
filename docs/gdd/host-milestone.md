@@ -111,5 +111,13 @@ Each mixes at least two unrelated biology sources, and none resembles a creature
 | Build, QA & Release | Scripted tests: buy a node and see the model change, evolve, integrate a virus, trade, fight a rival bot. |
 | Game Design | Tune Synapse costs, XP curve and market economy from bot runs and Brandon's play; Hive (multiplayer) rules before Hive starts. |
 
+## Added after the v0.1 playtest
+See [07](07-economy-and-progression.md) and [08](08-zones-and-bosses.md). Host also ships:
+- [ ] Evolutions cost DNA plus **catalyst organs** (`PROGRESSION.evolutions[*].cost`).
+- [ ] The Gullet Broker's contract chain and reputation tiers; the Archivist's *Wake the Warden*.
+- [ ] Antibody Well (Hive Body).
+- [ ] **The Warden of the Long Seed**: restoring power wakes it; reactor-chamber fight.
+- [ ] The Expanse gated by level 5 or *Rib and Hymn*.
+
 ## Out of scope for Host
 Online multiplayer and squads (Hive), Apex evolutions, raid boss, more maps.
