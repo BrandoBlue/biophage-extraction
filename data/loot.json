@@ -1,26 +1,290 @@
 {
-  "_note": "Item definitions and container loot tables. value is in DNA (the extracted-currency). size is [w, h] cells in the internal-cavity grid (used from Larva). Spore shows the haul value on the end screen.",
-  "currency": { "id": "dna", "label": "DNA" },
+  "_note": "Item definitions and loot tables. value is in DNA (the banked currency). size is [w, h] cells in the internal-cavity grid. Organs come from corpse harvesting (abominations.json harvest), viruses are defined in viruses.json. See docs/gdd/larva-milestone.md.",
+  "currency": {
+    "id": "dna",
+    "label": "DNA"
+  },
   "items": {
-    "clotGel":           { "label": "Clot Gel",              "kind": "consumable", "value": 15,  "size": [1, 1], "stack": 3 },
-    "dnaStrand":         { "label": "DNA Strand Bundle",     "kind": "currency",   "value": 25,  "size": [1, 1], "stack": 10 },
-    "mutagenVial":       { "label": "Raw Mutagen Vial",      "kind": "mutagen",    "value": 60,  "size": [1, 2], "stack": 1 },
-    "plagueStalkerStrain": { "label": "Plague-Stalker Strain", "kind": "virus",    "value": 180, "size": [1, 2], "stack": 1, "inertUntil": "larva" },
-    "synapseLens":       { "label": "Synapse Lens",          "kind": "tech",       "value": 90,  "size": [2, 1], "stack": 1 },
-    "glitchingHeart":    { "label": "Glitching Heart",       "kind": "organ",      "value": 300, "size": [2, 2], "stack": 1 }
+    "clotGel": {
+      "label": "Clot Gel",
+      "kind": "consumable",
+      "value": 15,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 3
+    },
+    "dnaStrand": {
+      "label": "DNA Strand Bundle",
+      "kind": "currency",
+      "value": 25,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 10
+    },
+    "mutagenVial": {
+      "label": "Raw Mutagen Vial",
+      "kind": "mutagen",
+      "value": 60,
+      "size": [
+        1,
+        2
+      ],
+      "stack": 1
+    },
+    "plagueStalkerStrain": {
+      "label": "Plague-Stalker Strain",
+      "kind": "virus",
+      "value": 180,
+      "size": [
+        1,
+        2
+      ],
+      "stack": 1
+    },
+    "synapseLens": {
+      "label": "Synapse Lens",
+      "kind": "tech",
+      "value": 90,
+      "size": [
+        2,
+        1
+      ],
+      "stack": 1
+    },
+    "glitchingHeart": {
+      "label": "Glitching Heart",
+      "kind": "organ",
+      "value": 300,
+      "size": [
+        2,
+        2
+      ],
+      "stack": 1
+    },
+    "needlemawGland": {
+      "label": "Needlemaw Throat Gland",
+      "kind": "organ",
+      "value": 20,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 4
+    },
+    "cantorSongSac": {
+      "label": "Cantor Song Sac",
+      "kind": "organ",
+      "value": 70,
+      "size": [
+        2,
+        1
+      ],
+      "stack": 1
+    },
+    "glasswalkerLens": {
+      "label": "Glasswalker Refraction Lens",
+      "kind": "organ",
+      "value": 110,
+      "size": [
+        1,
+        2
+      ],
+      "stack": 1
+    },
+    "oculimothEye": {
+      "label": "Oculimoth Eye",
+      "kind": "organ",
+      "value": 30,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 3
+    },
+    "mournbackMarrow": {
+      "label": "Mournback Bone Marrow",
+      "kind": "organ",
+      "value": 140,
+      "size": [
+        2,
+        2
+      ],
+      "stack": 1
+    },
+    "broodHeartSeed": {
+      "label": "Brood Heart Seed",
+      "kind": "organ",
+      "value": 260,
+      "size": [
+        2,
+        2
+      ],
+      "stack": 1
+    },
+    "adrenalineVirus": {
+      "label": "Adrenaline Virus",
+      "kind": "virus",
+      "value": 120,
+      "size": [
+        1,
+        2
+      ],
+      "stack": 1
+    },
+    "splicedParasites": {
+      "label": "Spliced Parasites",
+      "kind": "virus",
+      "value": 150,
+      "size": [
+        1,
+        2
+      ],
+      "stack": 1
+    }
   },
   "containers": {
     "bioPod": {
-      "label": "Bio-Pod", "openTime": 1.5, "noiseOnOpen": 18,
-      "guaranteed": [ { "item": "clotGel", "count": 1 } ],
+      "label": "Bio-Pod",
+      "openTime": 1.5,
+      "noiseOnOpen": 18,
+      "guaranteed": [
+        {
+          "item": "clotGel",
+          "count": 1
+        }
+      ],
       "rolls": 2,
       "table": [
-        { "item": "dnaStrand",           "weight": 40, "count": [2, 4] },
-        { "item": "clotGel",             "weight": 20, "count": [1, 2] },
-        { "item": "mutagenVial",         "weight": 18, "count": [1, 1] },
-        { "item": "synapseLens",         "weight": 12, "count": [1, 1] },
-        { "item": "plagueStalkerStrain", "weight": 8,  "count": [1, 1] },
-        { "item": "glitchingHeart",      "weight": 2,  "count": [1, 1] }
+        {
+          "item": "dnaStrand",
+          "weight": 36,
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "item": "clotGel",
+          "weight": 20,
+          "count": [
+            1,
+            2
+          ]
+        },
+        {
+          "item": "mutagenVial",
+          "weight": 16,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "synapseLens",
+          "weight": 12,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "plagueStalkerStrain",
+          "weight": 6,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "adrenalineVirus",
+          "weight": 6,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "splicedParasites",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "glitchingHeart",
+          "weight": 1,
+          "count": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "broodCache": {
+      "label": "Brood Cache",
+      "openTime": 2.5,
+      "noiseOnOpen": 30,
+      "guaranteed": [
+        {
+          "item": "broodHeartSeed",
+          "count": 1
+        }
+      ],
+      "rolls": 3,
+      "table": [
+        {
+          "item": "dnaStrand",
+          "weight": 30,
+          "count": [
+            3,
+            6
+          ]
+        },
+        {
+          "item": "mutagenVial",
+          "weight": 22,
+          "count": [
+            1,
+            2
+          ]
+        },
+        {
+          "item": "plagueStalkerStrain",
+          "weight": 14,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "adrenalineVirus",
+          "weight": 14,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "splicedParasites",
+          "weight": 10,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "glitchingHeart",
+          "weight": 10,
+          "count": [
+            1,
+            1
+          ]
+        }
       ]
     }
   }

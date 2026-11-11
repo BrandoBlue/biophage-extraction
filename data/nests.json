@@ -1,0 +1,71 @@
+{
+  "_note": "Wave-spawning nests (Larva). A Brood Heart pulses out waves while alive; destroying it stops waves and opens its Brood Cache. Times in seconds, distances in metres.",
+  "broodHeart": {
+    "label": "Brood Heart",
+    "biomass": 900,
+    "weakPoints": {
+      "count": 4,
+      "multiplier": 2.0,
+      "biomassEach": 120
+    },
+    "activationRadius": 45,
+    "firstWaveDelay": 4,
+    "waveInterval": 25,
+    "maxWaves": 6,
+    "maxAliveFromNest": 12,
+    "waves": [
+      [
+        {
+          "type": "needlemaw",
+          "count": 3
+        }
+      ],
+      [
+        {
+          "type": "oculimoth",
+          "count": 5
+        }
+      ],
+      [
+        {
+          "type": "needlemaw",
+          "count": 4
+        },
+        {
+          "type": "bilecantor",
+          "count": 1
+        }
+      ],
+      [
+        {
+          "type": "glasswalker",
+          "count": 1
+        },
+        {
+          "type": "oculimoth",
+          "count": 4
+        }
+      ],
+      [
+        {
+          "type": "needlemaw",
+          "count": 5
+        }
+      ],
+      [
+        {
+          "type": "mournback",
+          "count": 1
+        }
+      ]
+    ],
+    "onDestroyed": {
+      "container": "broodCache",
+      "dnaDrop": 80,
+      "shockwave": {
+        "radius": 12,
+        "overload": 40
+      }
+    }
+  }
+}

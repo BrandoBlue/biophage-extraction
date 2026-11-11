@@ -9,6 +9,9 @@ import abilitiesJson from './abilities.json';
 import abominationsJson from './abominations.json';
 import lootJson from './loot.json';
 import raidJson from './raid.json';
+import virusesJson from './viruses.json';
+import nestsJson from './nests.json';
+import profileJson from './profile.json';
 
 export type Range = [number, number];
 
@@ -107,6 +110,36 @@ export interface Container {
 }
 
 export interface Placement { radius: number; bearing: number }
+
+export interface Virus {
+  label: string;
+  item: string;
+  effect: Record<string, unknown>;
+  cost: Record<string, unknown>;
+  /** Art brief for the visible mutation. */
+  mutation: string;
+}
+export interface VirusRules { injectTime: number; injectMovementMultiplier: number; injectNoise: number; maxActive: number; mutationGrowTime: number }
+
+export interface SpawnSpec { type: string; count: number }
+export interface Nest {
+  label: string;
+  biomass: number;
+  weakPoints: { count: number; multiplier: number; biomassEach: number };
+  activationRadius: number; firstWaveDelay: number; waveInterval: number; maxWaves: number; maxAliveFromNest: number;
+  waves: SpawnSpec[][];
+  onDestroyed: { container: string; dnaDrop: number; shockwave: { radius: number; overload: number } };
+}
+
+export interface ProfileRules {
+  storageKey: string;
+  schemaVersion: number;
+  newProfile: { dna: number; stash: { item: string; count: number }[] };
+  stash: { gridColumns: number; rowsBase: number; rowExpansion: { rows: number; baseCost: number; costGrowth: number; maxRows: number } };
+  gutPouch: { size: Range; upgrades: { size: Range; cost: number }[] };
+  death: { losesCavityItems: boolean; keepsGutPouch: boolean; keepsInnateWeapon: boolean; killDnaLost: boolean };
+  freeKit: { clotGelFloor: number };
+}
 export interface SpawnGroup {
   type: string; count: number; radius: Range;
   packed?: boolean; nearExtract?: boolean; guardsContainer?: boolean;
@@ -129,6 +162,13 @@ export interface RaidRules {
   };
   pacing: { targetRushExtract: number; targetFullRaid: number };
   results: { dnaOnDeath: number; showHaulValue: boolean };
+  larva: {
+    nests: (Placement & { type: string })[];
+    containers: (Placement & { type: string; guard?: string })[];
+    spawnGroups: SpawnGroup[];
+    extracts: (Placement & { label: string; opensAt: number })[];
+    corpseHarvest: boolean;
+  };
 }
 
 const strip = <T>(o: object): T => {
@@ -143,6 +183,18 @@ export const ABILITIES = strip<Record<string, Ability>>(abilitiesJson);
 export const ABOMINATIONS = strip<Record<string, Abomination>>(abominationsJson);
 export const LOOT = strip<{ currency: { id: string; label: string }; items: Record<string, Item>; containers: Record<string, Container> }>(lootJson);
 export const RAID = strip<RaidRules>(raidJson);
+const virusData = strip<Record<string, unknown>>(virusesJson);
+export const VIRUS_RULES = virusData.rules as VirusRules;
+export const VIRUSES = Object.fromEntries(Object.entries(virusData).filter(([k]) => k !== 'rules')) as Record<string, Virus>;
+export const NESTS = strip<Record<string, Nest>>(nestsJson);
+export const PROFILE = strip<ProfileRules>(profileJson);
+
+/** DNA cost of the next stash row expansion, given rows already bought. Infinity at the cap. */
+export function stashRowCost(rowsBought: number): number {
+  const e = PROFILE.stash.rowExpansion;
+  if (PROFILE.stash.rowsBase + rowsBought * e.rows >= e.maxRows) return Infinity;
+  return Math.round(e.baseCost * e.costGrowth ** rowsBought);
+}
 
 /** Speed of the extract channel for a class, in seconds. */
 export function extractTimeFor(cls: ClassId): number {

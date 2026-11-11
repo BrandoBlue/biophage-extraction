@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ABILITIES, ABOMINATIONS, CLASSES, HOST, LOOT, RAID, WEAPONS,
-  extractTimeFor, haulValue, layoutPosition, projectileDamage, rollContainer,
+  ABILITIES, ABOMINATIONS, CLASSES, HOST, LOOT, NESTS, PROFILE, RAID, VIRUSES, WEAPONS,
+  extractTimeFor, haulValue, layoutPosition, stashRowCost, projectileDamage, rollContainer,
 } from '../data';
 import { mulberry32 } from '../src/world/zone7';
 
@@ -106,5 +106,54 @@ describe('loot rolls', () => {
   });
   it('haul value sums item DNA and kill DNA', () => {
     expect(haulValue([{ item: 'dnaStrand', count: 2 }], 5)).toBe(LOOT.items.dnaStrand.value * 2 + 5);
+  });
+});
+
+describe('Larva data (docs/gdd/larva-milestone.md)', () => {
+  it('every abomination has a harvestable organ that exists', () => {
+    for (const [k, a] of Object.entries(ABOMINATIONS)) {
+      const h = a.harvest as { item: string } | undefined;
+      expect(h, k).toBeDefined();
+      expect(LOOT.items[h!.item], h!.item).toBeDefined();
+    }
+  });
+  it('ships five Abomination types by Larva', () => {
+    const larva = Object.values(ABOMINATIONS).filter((a) => ['spore', 'larva'].includes(a.introducedIn as string));
+    expect(larva).toHaveLength(5);
+  });
+  it('every virus is a virus item, and every virus item has a definition', () => {
+    for (const v of Object.values(VIRUSES)) expect(LOOT.items[v.item]?.kind).toBe('virus');
+    for (const [id, item] of Object.entries(LOOT.items)) if (item.kind === 'virus') expect(Object.values(VIRUSES).some((v) => v.item === id), id).toBe(true);
+  });
+  it('nest waves, drops and Larva layout reference real data', () => {
+    for (const n of Object.values(NESTS)) {
+      for (const wave of n.waves) for (const s of wave) expect(ABOMINATIONS[s.type], s.type).toBeDefined();
+      expect(LOOT.containers[n.onDestroyed.container]).toBeDefined();
+    }
+    for (const n of RAID.larva.nests) expect(NESTS[n.type], n.type).toBeDefined();
+    for (const g of RAID.larva.spawnGroups) expect(ABOMINATIONS[g.type], g.type).toBeDefined();
+    for (const c of RAID.larva.containers) expect(LOOT.containers[c.type], c.type).toBeDefined();
+    for (const it of PROFILE.newProfile.stash) expect(LOOT.items[it.item], it.item).toBeDefined();
+  });
+  it('a new profile fits its stash and gut pouch upgrades get bigger and pricier', () => {
+    const cells = PROFILE.newProfile.stash.reduce((s, { item, count }) => s + LOOT.items[item].size[0] * LOOT.items[item].size[1] * Math.ceil(count / LOOT.items[item].stack), 0);
+    expect(cells).toBeLessThanOrEqual(PROFILE.stash.gridColumns * PROFILE.stash.rowsBase);
+    let area = PROFILE.gutPouch.size[0] * PROFILE.gutPouch.size[1], cost = 0;
+    for (const u of PROFILE.gutPouch.upgrades) {
+      expect(u.size[0] * u.size[1]).toBeGreaterThan(area);
+      expect(u.cost).toBeGreaterThan(cost);
+      area = u.size[0] * u.size[1]; cost = u.cost;
+    }
+  });
+  it('stash rows get more expensive and stop at the cap', () => {
+    expect(stashRowCost(1)).toBeGreaterThan(stashRowCost(0));
+    const maxBuys = (PROFILE.stash.rowExpansion.maxRows - PROFILE.stash.rowsBase) / PROFILE.stash.rowExpansion.rows;
+    expect(stashRowCost(maxBuys)).toBe(Infinity);
+  });
+  it('the Mournback cannot be beaten from the front with one magazine', () => {
+    const m = ABOMINATIONS.mournback as unknown as { biomass: number; frontArmour: { multiplier: number } };
+    const gun = WEAPONS.synapseBurster;
+    expect(gun.magazine * gun.damage * m.frontArmour.multiplier).toBeLessThan(m.biomass);
+    expect(gun.magazine * gun.damage).toBeGreaterThan(m.biomass * 0.6);
   });
 });
