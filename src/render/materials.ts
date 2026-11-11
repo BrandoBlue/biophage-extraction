@@ -93,16 +93,27 @@ export function zoneRock(opts: { veinColour?: string; mossColour?: string; scale
       float strata = bioFbm(p * vec3(1.0, 3.5, 1.0));
       vec3 rock = mix(uDeep, uRock, smoothstep(0.25, 0.75, strata));
       float up = smoothstep(0.55, 0.9, vBioNormal.y);
-      float mossMask = up * smoothstep(0.5, 0.68, bioFbm(p * 1.7 + 4.0));
-      vec3 col = mix(rock, uMoss, mossMask);
+      float mossMask = up * smoothstep(0.36, 0.6, bioFbm(p * 1.7 + 4.0));
+      // Moss colonies vary from deep teal to a lighter, almost luminous sea-green, with fine grain underfoot.
+      float colony = bioNoise(p * 2.3 + 1.7);
+      vec3 moss = mix(uMoss * 0.8, uMoss * 2.0 + uVein * 0.05, smoothstep(0.35, 0.85, colony));
+      float grain = 0.72 + 0.5 * bioNoise(vBioWorld * 2.6 * uScale);
+      vec3 col = mix(rock, moss, mossMask) * grain;
       // Mycelium: two scales of veins, pulsing slowly along their length.
       float v = max(bioVein(p * 4.5), bioVein(p * 11.0 + 2.0) * 0.5);
       float pulse = 0.6 + 0.4 * sin(bioTime * 1.3 + bioFbm(p * 0.7) * 12.0);
       float veinMask = v * smoothstep(0.58, 0.72, bioFbm(p * 0.6 + 9.0));
+      // Wide luminous rivulets of mycelium threading the moss on flat ground (reference 04's lit floor).
+      float riv = bioVein(p * 1.4 + 5.0) * up * smoothstep(0.45, 0.65, bioNoise(p * 0.5 + 3.0));
+      vec3 rivCol = mix(uVein, uMossGlow, smoothstep(0.3, 0.7, bioNoise(p * 0.8)));
       // Sparse glowing moss specks.
       float specks = (1.0 - smoothstep(0.02, 0.12, bioCells(vBioWorld * 1.6))) * mossMask;
+      // Wet sheen: moss reads glossy and catches a teal rim at grazing angles.
+      float fres = pow(1.0 - abs(dot(normalize(vBioNormal), normalize(cameraPosition - vBioWorld))), 3.0);
       diffuseColor.rgb = col;
-      totalEmissiveRadiance += uVein * veinMask * pulse * 0.7 + uMossGlow * specks * 1.2 + uMossGlow * mossMask * 0.02;
+      roughnessFactor = mix(roughnessFactor, 0.35, mossMask * colony);
+      totalEmissiveRadiance += uVein * veinMask * pulse * 0.7 + uMossGlow * specks * 1.2 + uMossGlow * mossMask * 0.02
+        + rivCol * riv * pulse * 0.9 + mix(uVein, uMossGlow, colony) * fres * mossMask * 0.12;
       // Edges facing down darken to void; reads as mass hanging in space.
       diffuseColor.rgb *= mix(0.35, 1.0, smoothstep(-0.8, 0.2, vBioNormal.y));
     `,
