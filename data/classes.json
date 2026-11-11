@@ -1,6 +1,24 @@
 {
-  "_note": "Placeholder numbers. The Game Design department owns this file and resolves the conflicts between the reference screens.",
-  "venomWraith": { "label": "The Venom-Wraith", "weight": "light", "biomass": 120, "moveSpeed": 7.2, "sprintMultiplier": 1.6, "noise": 0.5 },
-  "neuroInfiltrator": { "label": "The Neuro-Infiltrator", "weight": "medium", "biomass": 200, "moveSpeed": 5.2, "sprintMultiplier": 1.5, "noise": 1.0 },
-  "goreBehemoth": { "label": "The Gore-Behemoth", "weight": "heavy", "biomass": 360, "moveSpeed": 3.2, "sprintMultiplier": 1.35, "noise": 2.0 }
+  "_note": "Host classes. Medium (Neuro-Infiltrator) is the 100% baseline; light and heavy are expressed against it. Rationale and reference-screen conflict resolution: docs/gdd/02-classes.md. moveSpeed in m/s, noise is a multiplier on footstep audible radius.",
+  "venomWraith": {
+    "label": "The Venom-Wraith", "weight": "light", "playableFrom": "host",
+    "biomass": 120, "moveSpeed": 7.3, "sprintMultiplier": 1.6, "noise": 0.5,
+    "stealth": 0.5, "impactVulnerability": 0.3, "toxinResistance": 0,
+    "extractTimeMultiplier": 0.7, "stashSlots": 40, "cavityGrid": [4, 3],
+    "overloadDecayMultiplier": 1.0, "mutagenCostMultiplier": 1.0
+  },
+  "neuroInfiltrator": {
+    "label": "The Neuro-Infiltrator", "weight": "medium", "playableFrom": "spore",
+    "biomass": 200, "moveSpeed": 5.2, "sprintMultiplier": 1.5, "noise": 1.0,
+    "stealth": 0, "impactVulnerability": 0, "toxinResistance": 0.2,
+    "extractTimeMultiplier": 1.0, "stashSlots": 60, "cavityGrid": [5, 4],
+    "overloadDecayMultiplier": 1.0, "toxicOverloadDecayMultiplier": 0.5, "mutagenCostMultiplier": 1.15
+  },
+  "goreBehemoth": {
+    "label": "The Gore-Behemoth", "weight": "heavy", "playableFrom": "host",
+    "biomass": 360, "moveSpeed": 3.1, "sprintMultiplier": 1.35, "noise": 2.0,
+    "stealth": -0.5, "impactVulnerability": -0.25, "toxinResistance": 0,
+    "extractTimeMultiplier": 2.0, "stashSlots": 80, "cavityGrid": [6, 5],
+    "overloadDecayMultiplier": 1.0, "mutagenCostMultiplier": 1.0
+  }
 }

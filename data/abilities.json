@@ -1,0 +1,14 @@
+{
+  "_note": "Active abilities, bound to the five HUD slots. Using one fills Neural Overload. Spore ships slot 1 (neuralPulse) and slot 2 (clotGel, a consumable).",
+  "neuralPulse": {
+    "label": "Psych-Wave Pulse", "slot": 1, "class": "neuroInfiltrator",
+    "overloadCost": 25, "cooldown": 12,
+    "radius": 40, "revealDuration": 4,
+    "damage": 10, "damageRadius": 6, "staggerDuration": 0.6
+  },
+  "clotGel": {
+    "label": "Clot Gel", "slot": 2, "consumable": true, "item": "clotGel",
+    "overloadCost": 0, "cooldown": 1, "useTime": 1.2,
+    "heal": 70, "healDuration": 3, "movementMultiplierWhileUsing": 0.6
+  }
+}

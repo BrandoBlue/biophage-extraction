@@ -1,0 +1,31 @@
+{
+  "_note": "Synapse Burster: a living spore gun. Projectiles, not hitscan. Damage is per spore. Distances in metres, times in seconds. See docs/gdd/03-combat.md.",
+  "synapseBurster": {
+    "label": "Synapse Burster",
+    "damage": 14,
+    "fireRate": 8,
+    "burst": { "radius": 0.8, "damage": 4 },
+    "magazine": 42,
+    "reserve": "infinite",
+    "reloadTime": 2.2,
+    "projectileSpeed": 90,
+    "projectileGravity": 2,
+    "spread": { "hip": 1.6, "ads": 0.35, "movingPenalty": 1.2, "sprintBlocksFire": true },
+    "range": { "falloffStart": 35, "falloffEnd": 70, "minMultiplier": 0.6, "maxDistance": 120 },
+    "weakPointMultiplier": 2.0,
+    "recoil": { "pitch": 0.35, "yawJitter": 0.15, "recovery": 9 },
+    "adsTime": 0.18,
+    "egoCharge": {
+      "chargePerHit": 1,
+      "chargePerWeakPointHit": 2,
+      "chargeToFire": 30,
+      "overloadFill": 30,
+      "projectiles": 6,
+      "damage": 30,
+      "seekRadius": 18,
+      "seekTurnRate": 4,
+      "projectileSpeed": 45,
+      "burstRadius": 2.5
+    }
+  }
+}

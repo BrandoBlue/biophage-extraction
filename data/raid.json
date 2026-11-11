@@ -1,0 +1,33 @@
+{
+  "_note": "Spore raid rules. Times in seconds, distances in metres. Layout positions are fractions of the playable radius from the island centre (0 = centre, 1 = rim) plus a compass bearing in degrees (0 = north = -Z, 90 = east = +X, clockwise from above; position = (sin(b) * r, cos(b) * -r) in x, z), so World & Level can scale the pocket freely. See docs/gdd/05-raid-and-extraction.md.",
+  "raidTime": 600,
+  "zoneCollapse": { "warningAt": 120, "damagePerSecondAfterTimeout": 25 },
+  "playableRadius": 150,
+  "spawn": { "radius": 0.8, "bearing": 200, "safeTime": 8, "noEnemyWithin": 35 },
+  "extract": {
+    "label": "Seed Spire",
+    "radius": 0.85, "bearing": 20,
+    "activatesAt": 0,
+    "zoneRadius": 4,
+    "extractTime": 8,
+    "cancelOnLeave": true,
+    "pausedWhileDamagedFor": 0,
+    "signalNoise": 40
+  },
+  "containers": [
+    { "type": "bioPod", "radius": 0.15, "bearing": 90, "guard": "bilecantor" }
+  ],
+  "spawnGroups": [
+    { "type": "needlemaw",  "count": 2, "radius": [0.3, 0.6],  "packed": true },
+    { "type": "needlemaw",  "count": 1, "radius": [0.55, 0.8], "packed": true, "nearExtract": true },
+    { "type": "bilecantor", "count": 1, "radius": [0.1, 0.2],  "guardsContainer": true },
+    { "type": "bilecantor", "count": 1, "radius": [0.4, 0.7] }
+  ],
+  "reinforcements": {
+    "firstAt": 150, "interval": 90, "maxAlive": 18,
+    "wave": [ { "type": "needlemaw", "count": 1, "packed": true } ],
+    "spawnMinDistanceFromPlayer": 45
+  },
+  "pacing": { "targetRushExtract": 90, "targetFullRaid": 300 },
+  "results": { "dnaOnDeath": 0, "showHaulValue": true }
+}
