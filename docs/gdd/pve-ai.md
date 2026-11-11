@@ -63,3 +63,22 @@ Enrage at 7:00: the pool fills the bowl; only the ledge is safe.
 - The flood burns the bowl floor out to the pool radius; the ledge is safe.
 - Kill: 400 DNA, the Reliquary Cage container, `bossKilled` for contracts, and the Reliquary Heart to cut out (hold E for 6 s, noise 40 m).
 - Bus events: `bossAwake`, `bossPhase`, `bossEnraged`, `bossAttack`, `bossDamaged`, `bossPartDestroyed`, `bossCoverBroken`, `bossDefeated`. HUD boss bar shows `The Reliquary · PHASE`.
+
+## The Pale Vigil (Glowmire Isle, Fungal Cave boss)
+`src/ai/vigil.ts` (`PaleVigilBrain`) is renderer-free and takes every number from `bosses.json` `paleVigil`. It makes no sound at all; the only tell is the lure going still.
+- **Dormant:** it hangs over its spot and wakes when a host comes within `wakeRadius`, or when it is shot.
+- **hang:** it crawls the ceiling at `ceilingSpeed` to park its lure over where the host is *heading* (1.5 s ahead).
+  - Standing under it (`triggerUnderLure`) earns the drop: the lure holds dead still for the wind-up (`lureStill`), it falls, crouches for 1.5 s, then climbs back.
+  - Coming within `snatch.range` earns a grab (pin, lift, freed by damage).
+  - `lurePull()` gives the Overload per second a host within range takes; the raid checks line of sight.
+  - Losing the lure forces stalk.
+- **stalk:** on the floor and dim.
+  - Seen from the front, it swings wide round the host; it only lunges from the `fromBehindArc` blind cone, and rakes up close.
+  - After each attack it climbs into the roof (`vanish`), stays `hiddenFor` s, and drops back `reappear`ing 6 m behind the host.
+  - With every limb cut off it can't climb. Each lost limb slows it by `slowPerSevered`.
+- **unravel:** it charges. The shriek opens the chest with the spines out (`spinesExposed`).
+  - Ceiling collapse warns (`collapseWarn`, dust) `warning` s before each `chunk` lands: one on the host, the rest scattered.
+  - Frenzy lunges chain `chain` times.
+- **Enrage:** at `enrage.after` the ceiling keeps falling every 6 s.
+- **Raid wiring:** this lands once Creature's body is in, with the same pattern as `src/game/boss.ts` (hit spheres: lure, spines, limbs).
+
