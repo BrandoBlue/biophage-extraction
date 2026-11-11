@@ -47,7 +47,7 @@ export interface BuiltStructures {
 }
 
 /** A structure's local frame: (u, v) metres from its centre, rotated by `yaw`. */
-class Kit {
+export class Kit {
   readonly group = new THREE.Group();
   constructor(readonly solids: CollisionWorld, readonly x: number, readonly z: number, readonly yaw: number, readonly base: number) {
     this.group.position.set(x, base, z);

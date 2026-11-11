@@ -84,8 +84,14 @@ function rawHeight(x: number, z: number): number {
 
 const smooth = (a: number, b: number, t: number) => { const k = Math.min(1, Math.max(0, (t - a) / (b - a))); return k * k * (3 - 2 * k); };
 
+/** The active map's ground, when it is not the island (the Long Seed wreck is a flat deck). */
+let terrain: ((x: number, z: number) => number) | null = null;
+/** Swap the ground every system reads through groundHeight(); null restores the island. */
+export function setTerrain(fn: ((x: number, z: number) => number) | null): void { terrain = fn; }
+
 /** Height of the island surface at (x, z). Shared by the mesh and the player controller. */
 export function groundHeight(x: number, z: number): number {
+  if (terrain) return terrain(x, z);
   let h = rawHeight(x, z);
   for (const s of FLAT_SPOTS) {
     const w = 1 - smooth(s.radius, s.radius + 14, Math.hypot(x - s.x, z - s.z));

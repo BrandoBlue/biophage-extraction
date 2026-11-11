@@ -26,6 +26,8 @@ export interface Zone7Layout {
   /** Harvest nodes (Gene Blooms), opened like a container of type `geneBloom`. */
   nodes: Site[];
   anomaly: AnomalySite;
+  /** Rectangular walkable area for maps that are not the round island (creature spawns stay inside it). */
+  area?: { x0: number; x1: number; z0: number; z1: number };
 }
 
 /** Walkable radius the layout is resolved against (same clamp the Raid uses). */
