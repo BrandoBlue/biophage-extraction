@@ -103,6 +103,8 @@ export interface Abomination {
   packSize: Range;
   staggerThreshold: number;
   dnaDrop: number;
+  /** Organ cut from the corpse (Larva). */
+  harvest?: { item: string; time: number; noise: number };
   [tunable: string]: unknown;
 }
 

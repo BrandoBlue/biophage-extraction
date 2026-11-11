@@ -3,7 +3,7 @@ import { CLASSES, LOOT, PROFILE, stashRowCost } from '../data';
 import { ItemGrid } from '../src/game/grid';
 import { Carried } from '../src/game/inventory';
 import {
-  deploy, die, expandStash, extract, loadProfile, memoryStorage, newProfile, pouchSize, rotate, saveProfile, transfer, upgradePouch,
+  deploy, die, expandStash, extract, loadProfile, memoryStorage, newProfile, placeAt, pouchSize, rotate, saveProfile, transfer, upgradePouch,
 } from '../src/game/profile';
 
 const total = (entries: { item: string; count: number }[], item: string) => entries.reduce((n, e) => n + (e.item === item ? e.count : 0), 0);
@@ -101,6 +101,19 @@ describe('profile', () => {
     p.stash.push({ item: 'synapseLens', count: 1, x: 5, y: 3, rotated: false });
     expect(rotate(p, 'stash', p.stash.length - 1)).toBe(true);
     expect(p.stash[p.stash.length - 1].rotated).toBe(true);
+  });
+
+  it('drag and drop places at a cell, tops up same-item stacks, and refuses blocked drops', () => {
+    const p = newProfile();
+    p.stash = [{ item: 'clotGel', count: 2, x: 0, y: 0, rotated: false }, { item: 'clotGel', count: 2, x: 1, y: 0, rotated: false }, { item: 'synapseLens', count: 1, x: 3, y: 0, rotated: false }];
+    expect(placeAt(p, 'stash', 2, 'cavity', 0, 0, true)).toBe(true);
+    expect(p.cavity).toEqual([{ item: 'synapseLens', count: 1, x: 0, y: 0, rotated: true }]);
+    expect(placeAt(p, 'stash', 0, 'cavity', 0, 1)).toBe(false); // the turned lens covers (0, 1)
+    const limit = LOOT.items.clotGel.stack;
+    expect(placeAt(p, 'stash', 0, 'stash', 1, 0)).toBe(true); // onto the other gel stack
+    expect(p.stash.map((e) => e.count)).toEqual([4 - limit, limit].filter((n) => n > 0));
+    expect(placeAt(p, 'stash', 0, 'stash', 9, 5)).toBe(true);
+    expect(p.stash[0]).toMatchObject({ x: 9, y: 5 });
   });
 
   it('buys stash rows and pouch upgrades with banked DNA, up to the caps', () => {

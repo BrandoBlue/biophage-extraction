@@ -25,6 +25,15 @@ export interface GameEvents {
   pickup: { items: { item: string; count: number }[]; dna: number; source: string };
   /** Pickup items that did not fit in the cavities or gut pouch; they stay where they were. */
   cavityFull: { items: { item: string; count: number }[] };
+  /** In-raid inventory move between 'cavity', 'pouch' and 'pod' (the opened Bio-Pod in reach). */
+  inventoryChanged: { from: string; to: string; item: string; count: number };
+  virusInjectStart: { virus: string; time: number };
+  virusInjectCancel: { virus: string };
+  /** The virus took hold: Creature & Mutation grows the arm mutation from here. */
+  virusInjected: { virus: string; item: string };
+  harvestStart: { type: string; time: number };
+  harvestProgress: { progress: number };
+  harvestDone: { item: string; type: string };
   extractStart: { label: string; time: number };
   extractProgress: { progress: number; timeLeft: number };
   extractCancel: Record<string, never>;
