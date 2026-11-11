@@ -515,7 +515,7 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
   scene.background = new THREE.Color(OCHRE.skyHaze);
   scene.fog = new THREE.FogExp2(OCHRE.skyHaze, 0.0017);
   scene.add(new THREE.HemisphereLight(OCHRE.skyHaze, OCHRE.sandShade, 0.85));
-  const sun = new THREE.DirectionalLight(OCHRE.sun, 2.3);
+  const sun = new THREE.DirectionalLight(OCHRE.sun, 1.8);
   sun.position.copy(sunDir).multiplyScalar(200);
   scene.add(sun, sun.target);
   const fill = new THREE.DirectionalLight(ORGANIC.mist, 0.25);
