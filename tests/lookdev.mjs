@@ -55,6 +55,14 @@ const POSES = {
   pitGallery: { at: [-7.7, -87.7], eye: 1.7, yaw: 1.6, pitch: 0.12 },
   pitFloor: { at: [-51.7, -18.8], eye: 1.7, yaw: -1.92, pitch: 0.05 },
   pitUp: { at: [10, -30], eye: 1.7, yaw: 0, pitch: 1.05 },
+  // The Weeping Fen: run with ZONE=weepingFen (World & Level, data/weepingfen.json).
+  fenSpawn: { at: [-6, 124], eye: 1.7, yaw: 0.25, pitch: 0.06 },
+  fenRootHut: { at: [-36, 28], eye: 1.7, yaw: 0.85, pitch: 0.18 },
+  fenStilts: { at: [22, -24], eye: 1.7, yaw: -0.8, pitch: 0.08 },
+  fenCamp: { at: [-38, 47], eye: 1.7, yaw: -0.14, pitch: -0.12 },
+  fenPool: { at: [58, 72], eye: 1.9, yaw: -0.8, pitch: 0.02 },
+  fenPod: { at: [-62, -56], eye: 1.7, yaw: 0.9, pitch: 0.04 },
+  fenAerial: { pos: [0, 60, 150], yaw: 0, pitch: -0.38 },
 };
 const width = Number(process.env.LOOKDEV_W || 1280), height = Number(process.env.LOOKDEV_H || 720);
 const server = spawn('npx', ['vite', 'preview', '--port', '4174', '--strictPort'], { stdio: 'ignore' });
