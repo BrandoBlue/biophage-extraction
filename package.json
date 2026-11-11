@@ -1,6 +1,6 @@
 {
   "name": "biophage-extraction",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "BIOPHAGE: EXTRACTION, a bio-cybernetic PvPvE extraction shooter",
   "scripts": {
     "dev": "vite",

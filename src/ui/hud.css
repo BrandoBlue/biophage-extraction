@@ -118,7 +118,13 @@ html, body { margin:0; height:100%; overflow:hidden; background:var(--bg); color
 .vein.w { top:0; bottom:0; left:0; width:18%; background:linear-gradient(to right, color-mix(in srgb, var(--danger) 70%, transparent), transparent); }
 
 .toast { position:absolute; left:50%; top:26%; transform:translateX(-50%); font-size:15px; opacity:0; transition:opacity .2s; color:var(--acid); text-shadow:0 0 10px currentColor; white-space:nowrap; }
-.toast.on { opacity:1; } .toast.violet { color:var(--viral); } .toast.cyan { color:var(--cyan); } .toast.danger { color:var(--danger); } .toast.lime { color:var(--lime); }
+.toast.on { opacity:1; } .toast.alarm { top:20%; font-size:26px; padding:10px 28px; letter-spacing:.14em; background:color-mix(in srgb, var(--background) 88%, transparent);
+  border:1px solid var(--danger); text-shadow:0 0 8px var(--danger), 0 2px 2px #000; box-shadow:0 0 30px color-mix(in srgb, var(--danger) 45%, transparent);
+  animation:alarm-pulse .5s ease-out 2; }
+@keyframes alarm-pulse { 0% { transform:translateX(-50%) scale(1); } 40% { transform:translateX(-50%) scale(1.12); } 100% { transform:translateX(-50%) scale(1); } }
+#prompt.ended { display:none; }
+#prompt small + small { margin-top:2px; }
+.toast.violet { color:var(--viral); } .toast.cyan { color:var(--cyan); } .toast.danger { color:var(--danger); } .toast.lime { color:var(--lime); }
 
 .results { position:fixed; inset:0; display:grid; place-items:center; background:radial-gradient(circle, color-mix(in srgb, var(--background) 55%, transparent), var(--background)); z-index:5; }
 .results .panel { width:min(560px, 90vw); padding:28px 34px; background:color-mix(in srgb, var(--panel) 88%, transparent); border:1px solid var(--acid);

@@ -15,6 +15,10 @@ function el(tag: string, cls: string, html = ''): HTMLElement {
   return e;
 }
 
+/** Full control list, shown on the briefing prompt and whenever the mouse is released mid-raid. */
+const CONTROLS = '<small>WASD move · SHIFT sprint · C slide/crouch · SPACE jump · ESC release</small>'
+  + '<small>LMB fire · RMB aim · R regrow · F ego charge · 1/Q psych-wave pulse · 2 clot gel · hold E harvest</small>';
+
 const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 export class RaidHud {
@@ -101,7 +105,7 @@ export class RaidHud {
     this.results = el('div', 'results hidden');
     document.body.append(this.results);
 
-    this.prompt.innerHTML = 'CLICK TO DROP INTO ZONE 7<small>WASD move · SHIFT sprint · C slide/crouch · SPACE jump · LMB fire · RMB aim · F ego charge · R regrow · 1/Q psych-wave pulse · 2 clot gel · E hold to harvest · ESC release</small>';
+    this.prompt.innerHTML = `CLICK TO DROP INTO ZONE 7${CONTROLS}`;
 
     bus.on('hit', (e) => { this.hitLeft = 0.18; this.hitmarker.className = `hitmarker on${e.weakPoint ? ' weak' : ''}${e.kill ? ' kill' : ''}`; });
     bus.on('damaged', (e) => {
@@ -112,7 +116,7 @@ export class RaidHud {
     bus.on('overload', () => this.say('OVERLOADED', 'violet'));
     bus.on('abilityDenied', (e) => this.say(e.reason === 'overloaded' ? 'OVERLOADED' : e.reason === 'empty' ? 'NONE CARRIED' : 'RECHARGING'));
     bus.on('pickup', (e) => this.say(`HARVESTED ${e.items.map((i) => (i.count > 1 ? `${i.count}× ` : '') + i.item.replace(/([A-Z])/g, ' $1')).join(' · ')}`.toUpperCase(), 'cyan'));
-    bus.on('collapseWarning', () => this.say('ZONE COLLAPSE IN 2:00 · EXTRACT NOW', 'danger', 4));
+    bus.on('collapseWarning', () => this.say('ZONE COLLAPSE IN 2:00 · EXTRACT NOW', 'danger alarm', 5));
     bus.on('extractStart', (e) => this.say(`${e.label.toUpperCase()} SIGNAL · HOLD THE ZONE`, 'lime'));
     bus.on('extractCancel', () => this.say('EXTRACTION INTERRUPTED', 'danger'));
     bus.on('alert', () => { this.eye.classList.add('alarm'); setTimeout(() => this.eye.classList.remove('alarm'), 600); });
@@ -198,7 +202,9 @@ export class RaidHud {
 
     if (s.phase !== this.lastPhase) {
       this.lastPhase = s.phase;
-      if (s.phase === 'raid') this.prompt.innerHTML = 'CLICK TO TAKE CONTROL<small>ESC releases the mouse · the raid keeps running</small>';
+      if (s.phase === 'raid') this.prompt.innerHTML = `CLICK TO TAKE CONTROL · THE RAID KEEPS RUNNING${CONTROLS}`;
+      // The result screen owns the screen once the raid ends: never show the enter prompt behind it.
+      this.prompt.classList.toggle('ended', s.phase === 'extracted' || s.phase === 'lost');
     }
   }
 

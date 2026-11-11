@@ -7,7 +7,10 @@ const MiB = 1048576;
 const BUDGET = {
   releaseMiB: 15,        // claude.ai artifact pages cap at 16 MiB; keep headroom
   releaseGzipMiB: 6,     // ~6 s on a 10 Mbit link, inside the 15 s load budget
-  firstFrameMs: 15000,   // software-rendered first frame in CI; a real GPU is much faster
+  // Regression tripwire, not the player's load time: CI renders on SwiftShader (CPU), where compiling the
+  // ~35 shader programs dominates. Main measured 11-14 s here at v0.1.0 while a GPU starts in about a second.
+  // The real 15 s budget is checked on hardware in each iteration's bug bash.
+  firstFrameMs: 40000,
 };
 
 const problems = [];
