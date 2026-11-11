@@ -1,26 +1,220 @@
 {
-  "_note": "Spore Abominations. Speeds in m/s, perception in metres (hearing radius is multiplied by the target's class noise). dnaDrop is banked only on extraction. Creature briefs: docs/gdd/04-abominations.md.",
+  "_note": "Abominations. Speeds in m/s, perception in metres (hearing radius is multiplied by the target's class noise). dnaDrop is banked only on extraction. harvest: organ cut from the corpse (Larva). introducedIn: first milestone that spawns it. Briefs: docs/gdd/04-abominations.md and docs/gdd/larva-milestone.md.",
   "needlemaw": {
-    "label": "Needlemaw", "role": "fast melee crawler",
-    "biomass": 60, "speed": 6.8, "lungeSpeed": 14,
-    "damage": 14, "attackRange": 3.0, "cooldown": 1.3, "windup": 0.35,
-    "weakPoint": { "name": "throat sac", "multiplier": 2.0 },
-    "perception": { "sight": 30, "fov": 140, "hearing": 22, "alertShare": 20, "loseInterest": 8 },
-    "packSize": [3, 5],
+    "label": "Needlemaw",
+    "role": "fast melee crawler",
+    "biomass": 75,
+    "speed": 6.8,
+    "lungeSpeed": 14,
+    "damage": 14,
+    "attackRange": 3.0,
+    "cooldown": 1.3,
+    "windup": 0.35,
+    "weakPoint": {
+      "name": "throat sac",
+      "multiplier": 2.0
+    },
+    "perception": {
+      "sight": 30,
+      "fov": 140,
+      "hearing": 22,
+      "alertShare": 20,
+      "loseInterest": 8
+    },
+    "packSize": [
+      4,
+      6
+    ],
     "staggerThreshold": 20,
-    "dnaDrop": 5
+    "dnaDrop": 5,
+    "introducedIn": "spore",
+    "harvest": {
+      "item": "needlemawGland",
+      "time": 2,
+      "noise": 10
+    }
   },
   "bilecantor": {
-    "label": "Bile Cantor", "role": "slow hovering ranged spitter",
-    "biomass": 220, "speed": 2.4, "hoverHeight": [3, 6],
-    "damage": 22, "attackRange": 45, "preferredRange": [18, 35], "cooldown": 2.8, "windup": 0.8,
-    "projectile": { "speed": 22, "gravity": 9.8, "leadTarget": 0.5 },
-    "acidPool": { "radius": 2.5, "damagePerSecond": 6, "duration": 4 },
-    "weakPoint": { "name": "song pustule", "count": 3, "multiplier": 2.5, "biomassEach": 45, "allPoppedKills": true },
-    "deathCloud": { "radius": 4, "duration": 4, "damagePerSecond": 5, "overloadPerSecond": 10 },
-    "perception": { "sight": 50, "fov": 360, "hearing": 30, "alertShare": 35, "loseInterest": 12 },
-    "packSize": [1, 1],
+    "label": "Bile Cantor",
+    "role": "slow hovering ranged spitter",
+    "biomass": 220,
+    "speed": 2.4,
+    "hoverHeight": [
+      3,
+      6
+    ],
+    "damage": 22,
+    "attackRange": 45,
+    "preferredRange": [
+      18,
+      35
+    ],
+    "cooldown": 2.8,
+    "windup": 0.8,
+    "projectile": {
+      "speed": 22,
+      "gravity": 9.8,
+      "leadTarget": 0.5
+    },
+    "acidPool": {
+      "radius": 2.5,
+      "damagePerSecond": 6,
+      "duration": 4
+    },
+    "weakPoint": {
+      "name": "song pustule",
+      "count": 3,
+      "multiplier": 2.5,
+      "biomassEach": 45,
+      "allPoppedKills": true
+    },
+    "deathCloud": {
+      "radius": 4,
+      "duration": 4,
+      "damagePerSecond": 5,
+      "overloadPerSecond": 10
+    },
+    "perception": {
+      "sight": 50,
+      "fov": 360,
+      "hearing": 30,
+      "alertShare": 35,
+      "loseInterest": 12
+    },
+    "packSize": [
+      1,
+      1
+    ],
     "staggerThreshold": 60,
-    "dnaDrop": 20
+    "dnaDrop": 20,
+    "introducedIn": "spore",
+    "harvest": {
+      "item": "cantorSongSac",
+      "time": 3,
+      "noise": 14
+    }
+  },
+  "glasswalker": {
+    "label": "Glasswalker",
+    "role": "camouflaged stalker",
+    "introducedIn": "larva",
+    "biomass": 110,
+    "speed": 3.0,
+    "chargeSpeed": 11,
+    "damage": 30,
+    "attackRange": 2.5,
+    "cooldown": 2.2,
+    "windup": 0.5,
+    "camouflage": {
+      "visibilityIdle": 0.08,
+      "visibilityMoving": 0.35,
+      "revealOnHit": 3
+    },
+    "weakPoint": {
+      "name": "refraction lens",
+      "multiplier": 2.5
+    },
+    "perception": {
+      "sight": 25,
+      "fov": 200,
+      "hearing": 30,
+      "alertShare": 0,
+      "loseInterest": 20
+    },
+    "packSize": [
+      1,
+      1
+    ],
+    "staggerThreshold": 35,
+    "dnaDrop": 15,
+    "harvest": {
+      "item": "glasswalkerLens",
+      "time": 3,
+      "noise": 10
+    }
+  },
+  "oculimoth": {
+    "label": "Oculimoth",
+    "role": "flying swarm scout",
+    "introducedIn": "larva",
+    "biomass": 18,
+    "speed": 9,
+    "flightHeight": [
+      2,
+      10
+    ],
+    "damage": 6,
+    "attackRange": 1.5,
+    "cooldown": 0.9,
+    "windup": 0.25,
+    "screech": {
+      "radius": 35,
+      "cooldown": 8
+    },
+    "weakPoint": {
+      "name": "eye",
+      "multiplier": 2.0
+    },
+    "perception": {
+      "sight": 45,
+      "fov": 300,
+      "hearing": 15,
+      "alertShare": 40,
+      "loseInterest": 10
+    },
+    "packSize": [
+      4,
+      8
+    ],
+    "staggerThreshold": 5,
+    "dnaDrop": 2,
+    "harvest": {
+      "item": "oculimothEye",
+      "time": 1,
+      "noise": 4
+    }
+  },
+  "mournback": {
+    "label": "Mournback",
+    "role": "armoured tank",
+    "introducedIn": "larva",
+    "biomass": 700,
+    "speed": 2.6,
+    "chargeSpeed": 9,
+    "damage": 45,
+    "attackRange": 4,
+    "cooldown": 3.5,
+    "windup": 1.0,
+    "frontArmour": {
+      "arc": 120,
+      "multiplier": 0.15
+    },
+    "weakPoint": {
+      "name": "dorsal vent cluster",
+      "multiplier": 3.0
+    },
+    "slam": {
+      "radius": 5,
+      "damage": 30,
+      "knockback": 8
+    },
+    "perception": {
+      "sight": 30,
+      "fov": 160,
+      "hearing": 35,
+      "alertShare": 25,
+      "loseInterest": 15
+    },
+    "packSize": [
+      1,
+      1
+    ],
+    "staggerThreshold": 200,
+    "dnaDrop": 60,
+    "harvest": {
+      "item": "mournbackMarrow",
+      "time": 4,
+      "noise": 20
+    }
   }
 }

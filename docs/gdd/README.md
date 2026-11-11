@@ -18,7 +18,8 @@ Owned by the Game Design department. Short living docs, one per system. **Every 
 | [04-abominations](04-abominations.md) | Spore creatures: Needlemaw and Bile Cantor, briefs for art, AI and audio |
 | [05-raid-and-extraction](05-raid-and-extraction.md) | Raid timer, layout, spawns, Bio-Pod loot, Seed Spire extraction, death |
 | [06-roadmap-systems](06-roadmap-systems.md) | Decisions already made for Larva and Host: inventory, stash, viruses, Synapse tree, Flesh Market, PvP |
-| [spore-milestone](spore-milestone.md) | **The Spore feature list with acceptance criteria per department** |
+| [spore-milestone](spore-milestone.md) | The Spore feature list with acceptance criteria per department |
+| [larva-milestone](larva-milestone.md) | **The Larva feature list: stash, cavities, harvesting, viruses, three new creatures, the Brood Heart** |
 
 ## Data files
 | File | Contents | Main readers |
@@ -29,7 +30,10 @@ Owned by the Game Design department. Short living docs, one per system. **Every 
 | `data/abilities.json` | Ability slots: Psych-Wave Pulse, Clot Gel | Gameplay, UI |
 | `data/abominations.json` | Needlemaw, Bile Cantor | AI, Creatures, Gameplay |
 | `data/loot.json` | Items, values, Bio-Pod loot table | Gameplay, UI |
-| `data/raid.json` | Timer, layout, spawns, extraction, reinforcements | World, AI, Gameplay |
+| `data/raid.json` | Timer, layout, spawns, extraction, reinforcements; `larva` block | World, AI, Gameplay |
+| `data/viruses.json` | Mid-raid viruses, injection rules, mutation art briefs | Gameplay, Creatures, Rendering |
+| `data/nests.json` | Brood Heart waves and rewards | AI, Gameplay |
+| `data/profile.json` | Persistent profile, stash, gut pouch, death rules | Gameplay, UI |
 
 `tests/data.test.ts` checks cross-references and the balance targets stated in these docs, so a tuning change that breaks a design promise fails CI.
 

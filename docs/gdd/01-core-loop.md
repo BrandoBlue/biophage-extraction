@@ -19,6 +19,6 @@ Only the raid loop, single-player, Neuro-Infiltrator only, no persistence. The e
 ## Pacing targets (Spore)
 | Play style | Target length | How it plays |
 | --- | --- | --- |
-| Rush | about 90 s | Sprint-manage across the island, dodge one Needlemaw pack, extract with kill DNA only |
-| Full raid | about 5 min | Clear the Cantor guarding the Bio-Pod, loot it, fight through reinforcements, extract |
+| Rush | about 60 to 75 s | Sprint-manage across the island, dodge one Needlemaw pack, extract with kill DNA only |
+| Full raid | about 2 to 4 min (the playtest bot, which beelines with good aim, does it in 75 s) | Clear the Cantor guarding the Bio-Pod, loot it, fight through reinforcements, extract |
 | Greedy | 8 to 10 min | Farm reinforcement waves for DNA until the zone collapses at 10:00 |

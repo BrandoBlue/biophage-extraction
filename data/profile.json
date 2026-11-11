@@ -1,0 +1,59 @@
+{
+  "_note": "Persistent profile and stash rules (Larva). Stored client-side under storageKey until the server takes over in Hive. See docs/gdd/larva-milestone.md.",
+  "storageKey": "biophage.profile.v1",
+  "schemaVersion": 1,
+  "newProfile": {
+    "dna": 100,
+    "stash": [
+      {
+        "item": "clotGel",
+        "count": 3
+      },
+      {
+        "item": "dnaStrand",
+        "count": 2
+      }
+    ]
+  },
+  "stash": {
+    "gridColumns": 10,
+    "rowsBase": 6,
+    "rowExpansion": {
+      "rows": 1,
+      "baseCost": 150,
+      "costGrowth": 1.6,
+      "maxRows": 12
+    }
+  },
+  "gutPouch": {
+    "size": [
+      2,
+      1
+    ],
+    "upgrades": [
+      {
+        "size": [
+          2,
+          2
+        ],
+        "cost": 400
+      },
+      {
+        "size": [
+          3,
+          2
+        ],
+        "cost": 1200
+      }
+    ]
+  },
+  "death": {
+    "losesCavityItems": true,
+    "keepsGutPouch": true,
+    "keepsInnateWeapon": true,
+    "killDnaLost": true
+  },
+  "freeKit": {
+    "clotGelFloor": 1
+  }
+}

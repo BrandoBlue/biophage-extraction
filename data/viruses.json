@@ -1,0 +1,55 @@
+{
+  "_note": "Viruses: injected mid-raid (Larva) for a strong effect plus a cost, lasting the rest of the raid, and visibly mutating the host. Integration (permanent, Viral Lab) arrives in Host. Multipliers are relative (1 = unchanged). Only one active virus at a time in Larva; injecting a second replaces the first. See docs/gdd/larva-milestone.md.",
+  "rules": {
+    "injectTime": 3,
+    "injectMovementMultiplier": 0.3,
+    "injectNoise": 8,
+    "maxActive": 1,
+    "mutationGrowTime": 2.5
+  },
+  "plagueStalkerStrain": {
+    "label": "Plague-Stalker Strain",
+    "item": "plagueStalkerStrain",
+    "effect": {
+      "sporeInfection": {
+        "damagePerSecond": 4,
+        "duration": 4,
+        "maxStacks": 3,
+        "spreadOnDeathRadius": 4
+      }
+    },
+    "cost": {
+      "footstepVisibility": 1.5,
+      "glowTrail": true
+    },
+    "mutation": "violet pustules spread up both forearms; the gun's crystal turns sickly green; footsteps leave glowing prints"
+  },
+  "adrenalineVirus": {
+    "label": "Adrenaline Virus",
+    "item": "adrenalineVirus",
+    "effect": {
+      "overloadDecayMultiplier": 2.0,
+      "sprintMultiplier": 1.1
+    },
+    "cost": {
+      "biomassMaxMultiplier": 0.85
+    },
+    "mutation": "veins swell amber under translucent skin and pulse with the heartbeat; antennae stiffen and twitch"
+  },
+  "splicedParasites": {
+    "label": "Spliced Parasites",
+    "item": "splicedParasites",
+    "effect": {
+      "parasiteOnKill": {
+        "damage": 40,
+        "seekRadius": 20,
+        "speed": 12,
+        "lifetime": 6
+      }
+    },
+    "cost": {
+      "biomassDrainPerSecondWhileParasiteAlive": 1
+    },
+    "mutation": "segmented larvae writhe under the skin of the forearms and burst out on kills"
+  }
+}
