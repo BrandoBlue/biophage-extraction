@@ -11,19 +11,27 @@ import { ZONE7, ZONE7_SHADE, HIVE } from './palette';
 export const bioTime = { value: 0 };
 
 export const GLSL_NOISE = /* glsl */ `
+// BIO_LOW (software tier) trims octaves and cell taps: SwiftShader JIT time scales with shader size.
+#ifdef BIO_LOW
+  #define BIO_OCT 2
+  #define BIO_C0 0
+#else
+  #define BIO_OCT 5
+  #define BIO_C0 -1
+#endif
 float bioHash(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float bioNoise(vec3 x) {
   vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(bioHash(i), bioHash(i + vec3(1,0,0)), f.x), mix(bioHash(i + vec3(0,1,0)), bioHash(i + vec3(1,1,0)), f.x), f.y),
              mix(mix(bioHash(i + vec3(0,0,1)), bioHash(i + vec3(1,0,1)), f.x), mix(bioHash(i + vec3(0,1,1)), bioHash(i + vec3(1,1,1)), f.x), f.y), f.z);
 }
-float bioFbm(vec3 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * bioNoise(p); p = p * 2.03 + 11.7; a *= 0.5; } return s; }
+float bioFbm(vec3 p) { float a = 0.5, s = 0.0; for (int i = 0; i < BIO_OCT; i++) { s += a * bioNoise(p); p = p * 2.03 + 11.7; a *= 0.5; } return s; }
 // Thin ridges along noise zero-crossings: veins, cracks, mycelium.
 float bioVein(vec3 p) { float n = bioNoise(p) * 2.0 - 1.0; return 1.0 - smoothstep(0.0, 0.08, abs(n)); }
 // Voronoi-ish cell distance: spots, pustules, scales.
 float bioCells(vec3 p) {
   vec3 i = floor(p); vec3 f = fract(p); float d = 1.0;
-  for (int x = -1; x <= 1; x++) for (int y = -1; y <= 1; y++) for (int z = -1; z <= 1; z++) {
+  for (int x = BIO_C0; x <= 1; x++) for (int y = BIO_C0; y <= 1; y++) for (int z = BIO_C0; z <= 1; z++) {
     vec3 o = vec3(x, y, z); vec3 r = o + vec3(bioHash(i + o), bioHash(i + o + 7.1), bioHash(i + o + 3.3)) - f;
     d = min(d, dot(r, r));
   }
@@ -92,7 +100,7 @@ export function zoneRock(opts: { veinColour?: string; mossColour?: string; scale
       float pulse = 0.6 + 0.4 * sin(bioTime * 1.3 + bioFbm(p * 0.7) * 12.0);
       float veinMask = v * smoothstep(0.58, 0.72, bioFbm(p * 0.6 + 9.0));
       // Sparse glowing moss specks.
-      float specks = smoothstep(0.12, 0.02, bioCells(vBioWorld * 1.6)) * mossMask;
+      float specks = (1.0 - smoothstep(0.02, 0.12, bioCells(vBioWorld * 1.6))) * mossMask;
       diffuseColor.rgb = col;
       totalEmissiveRadiance += uVein * veinMask * pulse * 0.7 + uMossGlow * specks * 1.2 + uMossGlow * mossMask * 0.02;
       // Edges facing down darken to void; reads as mass hanging in space.
@@ -115,10 +123,10 @@ export function fungusCap(glow: string = ZONE7.cyan): THREE.MeshPhysicalMaterial
       #ifdef USE_COLOR
         glowCol = vColor.rgb;
       #endif
-      float under = smoothstep(0.1, -0.4, vBioNormal.y);           // gills face down
+      float under = (1.0 - smoothstep(-0.4, 0.1, vBioNormal.y));           // gills face down
       float radial = length(vBioLocal.xz);
       float gills = 0.5 + 0.5 * sin(atan(vBioLocal.z, vBioLocal.x) * 64.0);
-      float spots = smoothstep(0.3, 0.12, bioCells(vBioLocal * 5.0 + vBioSeed));
+      float spots = (1.0 - smoothstep(0.12, 0.3, bioCells(vBioLocal * 5.0 + vBioSeed)));
       float rim = smoothstep(0.75, 1.02, radial) * (1.0 - under);   // luminous lip
       float mottling = bioFbm(vBioLocal * 4.0 + vBioSeed);
       float breathe = 0.8 + 0.2 * sin(bioTime * 1.7 + vBioSeed.x * 3.0);
@@ -165,15 +173,16 @@ export function crystal(glow: string = ZONE7.violet): THREE.MeshPhysicalMaterial
 }
 
 /** Wet chitin with veins and a faked subsurface rim. For creature armour (Creature & Mutation). */
-export function chitin(base: string = HIVE.bone, glow: string = ZONE7.cyan): THREE.MeshPhysicalMaterial {
+export function chitin(base: string = HIVE.bone, glow: string = ZONE7.cyan, scale = 1): THREE.MeshPhysicalMaterial {
   const mat = new THREE.MeshPhysicalMaterial({ color: base, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.15, sheen: 0.5, sheenColor: c(glow) });
   return bioSurface(mat, {
-    uniforms: { uGlow: u(glow) },
-    declarations: 'uniform vec3 uGlow;\n',
+    uniforms: { uGlow: u(glow), uScale: { value: scale } },
+    declarations: 'uniform vec3 uGlow; uniform float uScale;\n',
     fragment: /* glsl */ `
-      float plates = smoothstep(0.05, 0.12, bioCells(vBioLocal * 4.0));
-      diffuseColor.rgb *= mix(0.35, 1.0, plates);
-      totalEmissiveRadiance += uGlow * bioVein(vBioLocal * 6.0) * (1.0 - plates) * 0.8;
+      vec3 q = vBioLocal * uScale + vBioSeed;
+      float plates = smoothstep(0.05, 0.12, bioCells(q * 4.0));
+      diffuseColor.rgb *= mix(0.35, 1.0, plates) * (0.8 + 0.4 * bioNoise(q * 9.0));
+      totalEmissiveRadiance += uGlow * bioVein(q * 6.0) * (1.0 - plates) * 0.8;
     `,
   });
 }
@@ -234,11 +243,11 @@ export function liquidLight(opts: { a?: string; b?: string; c?: string; flow?: n
         vec3 p;
         if (uPool > 0.5) {
           vec2 c = uv - 0.5; float r = length(c) * 2.0;
-          edge = smoothstep(1.0, 0.75, r); along = r;
+          edge = (1.0 - smoothstep(0.75, 1.0, r)); along = r;
           p = vec3(c * 6.0, bioTime * 0.25);
           p.xy += vec2(sin(bioTime * 0.3 + r * 6.0), cos(bioTime * 0.27 + r * 5.0)) * 0.4;
         } else {
-          edge = smoothstep(0.0, 0.25, uv.x) * smoothstep(1.0, 0.75, uv.x) * smoothstep(1.0, 0.7, uv.y);
+          edge = smoothstep(0.0, 0.25, uv.x) * (1.0 - smoothstep(0.75, 1.0, uv.x)) * (1.0 - smoothstep(0.7, 1.0, uv.y));
           along = uv.y;
           p = vec3(uv.x * 4.0, uv.y * 14.0 - bioTime * uFlow * 6.0, 0.0);
         }
@@ -254,5 +263,54 @@ export function liquidLight(opts: { a?: string; b?: string; c?: string; flow?: n
         if (uFall > 0.5) { a *= pow(1.0 - uv.y, 1.6) * 0.75; col = mix(uA, uB, smoothstep(0.1, 0.8, uv.y + streak * 0.3)) * (0.6 + caustic); }
         gl_FragColor = vec4(col * a * 0.9, a);
       }`,
+  });
+}
+
+/**
+ * Living weapon flesh: wet, mottled, veined, with a faked subsurface rim. For viewmodels and
+ * close-up hero props (seen at arm's length, so detail frequencies are high).
+ */
+export function livingFlesh(base: string, vein: string, rim: string): THREE.MeshPhysicalMaterial {
+  const mat = new THREE.MeshPhysicalMaterial({ color: base, roughness: 0.42, clearcoat: 1, clearcoatRoughness: 0.18, sheen: 0.25, sheenColor: c(rim), sheenRoughness: 0.5 });
+  return bioSurface(mat, {
+    uniforms: { uVein: u(vein), uRim: u(rim) },
+    declarations: 'uniform vec3 uVein, uRim;\n',
+    fragment: /* glsl */ `
+      vec3 p = vBioLocal * 28.0 + vBioSeed;
+      float mott = bioFbm(p * 0.6);
+      diffuseColor.rgb *= 0.55 + mott * 0.8;
+      float pores = 1.0 - smoothstep(0.05, 0.16, bioCells(p * 1.8));
+      diffuseColor.rgb *= 1.0 - pores * 0.45;
+      float veins = max(bioVein(p * 0.5), bioVein(p * 1.3 + 4.0) * 0.6);
+      float flow = 0.55 + 0.45 * sin(bioTime * 3.0 - dot(vBioLocal, vec3(0.0, 0.0, 40.0)));
+      vec3 V = normalize(cameraPosition - vBioWorld);
+      float fres = pow(1.0 - abs(dot(normalize(vBioNormal), V)), 2.5);
+      totalEmissiveRadiance += uVein * veins * flow * 1.2 + uRim * fres * 0.22;
+      roughnessFactor = mix(roughnessFactor, 0.15, pores);
+    `,
+  });
+}
+
+/** Alien eye: wet sclera with red-violet capillaries, radially streaked glowing iris, slit pupil. Local -Z is the gaze. */
+export function alienEye(iris: string, sclera: string): THREE.MeshPhysicalMaterial {
+  const mat = new THREE.MeshPhysicalMaterial({ color: sclera, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.02, emissive: iris });
+  return bioSurface(mat, {
+    uniforms: { uCap: u(ZONE7.magenta) },
+    declarations: 'uniform vec3 uCap;\n',
+    fragment: /* glsl */ `
+      vec3 n = normalize(vBioLocal);
+      float fwd = -n.z;                                   // 1 at the gaze centre
+      float ang = atan(n.y, n.x);
+      float irisMask = smoothstep(0.72, 0.76, fwd);
+      float pupil = smoothstep(0.9, 0.92, fwd) * (1.0 - smoothstep(0.03, 0.06, abs(n.x)));
+      float streaks = 0.6 + 0.4 * bioNoise(vec3(ang * 12.0, fwd * 20.0, vBioSeed.x));
+      float ring = smoothstep(0.72, 0.78, fwd) * (1.0 - smoothstep(0.78, 0.86, fwd));
+      float caps = bioVein(n * 9.0 + vBioSeed) * (1.0 - irisMask) * (1.0 - smoothstep(0.0, 0.75, fwd));
+      diffuseColor.rgb = mix(diffuseColor.rgb, uCap * 0.6, caps * 0.7);
+      diffuseColor.rgb = mix(diffuseColor.rgb, emissive * 0.3, irisMask);
+      diffuseColor.rgb *= 1.0 - pupil;
+      float dilate = 0.85 + 0.15 * sin(bioTime * 0.9 + vBioSeed.y);
+      totalEmissiveRadiance = emissive * irisMask * (1.0 - pupil) * (streaks * 0.8 + ring * 0.7) * dilate + uCap * caps * 0.25;
+    `,
   });
 }

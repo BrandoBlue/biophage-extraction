@@ -67,3 +67,17 @@ describe('zone 7 layout', () => {
     }
   });
 });
+
+describe('shader portability', () => {
+  it('never calls smoothstep with edge0 >= edge1 (undefined in GLSL; square sprites on SwiftShader)', () => {
+    const sources = import.meta.glob(['../src/render/*.ts', '../src/world/*.ts'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+    expect(Object.keys(sources).length).toBeGreaterThan(5);
+    const bad: string[] = [];
+    for (const [file, src] of Object.entries(sources)) {
+      for (const m of src.matchAll(/smoothstep\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*,/g)) {
+        if (Number(m[1]) >= Number(m[2])) bad.push(`${file}: ${m[0]}`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+});
