@@ -27,3 +27,12 @@ Owner: PvE AI & Encounters. Code: `src/ai/`. Tuning: `data/ai.json` (attack numb
 
 ## Integration
 `createBrain(kind, id, x, z, seed, radius)` builds the brain for a kind. Each frame the Abomination fills a `BrainWorld` (host view, noises, allies, the raid's `tokensFor(creatures)` pool), calls `brain.step(dt, world)`, copies `brain.body` to its root and the outputs onto `Creature.drive`, and turns `brain.events` into raid callbacks (melee, spit, screech, slam). Damage calls `brain.hurt()`, stagger calls `brain.stagger()`, death calls `brain.kill()`.
+
+## The Reliquary (Glowmire Isle boss)
+`ReliquaryBrain` (`src/ai/reliquary.ts`) runs the boss in `data/bosses.json` (spec: `docs/gdd/08-zones-and-bosses.md`). Dormant until a host comes within `wakeRadius` of the bowl or wounds it; waking starts the zone-wide song (`songRadius`). Phase from `bossPhase()`; every attack has a wind-up the body shows (`windup`, `strike`, `rear`).
+| Phase | Moves | Tell | Counter |
+| --- | --- | --- | --- |
+| Stalk | Holds 5 m, turns slowly with its bone shell (×0.2 from a 120° front arc). Leg stamp lands where you stood when it began; rib sweep hits the front arc; brood drops every 25 s from 8 s after waking | Stamp 0.9 s, sweep 1.1 s, sac 0.8 s | Step off the marked spot, flank, pop the brood sac (stops drops) |
+| Bloom | Holds 10 m. Rears for 1.4 s and vents a spore cloud; the hearts stay exposed 4 s. Hymn ring to 30 m (jump it); breaks cover within 12 m | Rear-up, hymn 1.0 s, cover 1.2 s | Burst the hearts during the vent, jump the ring, sever legs (each −15% speed) |
+| Collapse | Drags itself fast: forelimb lunge (×2.5 for 0.6 s), tendril grab within 10 m pins for 2 s; the light pool floods to 70% of the bowl over 90 s. Body takes ×1.5 | Lunge 0.7 s, grab 0.8 s | Keep moving, stay out of 10 m when the tendrils coil |
+Enrage at 7:00: the pool fills the bowl; only the ledge is safe. The raid applies the events (`stamp`, `sweep`, `brood`, `vent`, `hymn`, `coverBreak`, `drag`, `grab`, `enrage`); Creature's body and World's bowl arena plug in next.
