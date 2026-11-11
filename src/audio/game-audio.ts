@@ -99,7 +99,8 @@ export class GameAudio {
 
   /** Somewhere just around the host (for sounds with a direction but no position). */
   private around(dir: V3 | null, dist = 2): V3 {
-    const L = this.engine!.listener;
+    // Events can arrive before the first click has started audio (an online guest tab): `play` then skips them.
+    const L = this.engine?.listener ?? { x: 0, y: 0, z: 0 };
     if (!dir) return { x: L.x, y: L.y, z: L.z };
     const n = Math.hypot(dir.x, dir.z) || 1;
     return { x: L.x + (dir.x / n) * dist, y: L.y, z: L.z + (dir.z / n) * dist };
