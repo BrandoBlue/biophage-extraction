@@ -161,7 +161,8 @@ try {
   const strands = total(s.result.cavity, 'dnaStrand');
 
   // --- Return to the Hive (reload): the haul must be in the stash, kill DNA and strands banked.
-  await page.click('#deploy-again');
+  // The reload can take a while on software rendering; the next line waits for the fresh Hive.
+  await page.click('#deploy-again', { noWaitAfter: true });
   await page.waitForFunction(() => window.__biophage?.state?.phase === 'briefing', null, { timeout: 90000 });
   await boot();
   p = await profile();
@@ -190,7 +191,8 @@ try {
   if (lost !== 'HOST LOST') await fail(`result screen says ${lost}`);
   await freezeAndScreenshot(page, 'tests/out/raid-lost.png', { resume: true });
   log(`HOST LOST; lost value ${s.result.value}`);
-  await page.click('#deploy-again');
+  // The reload can take a while on software rendering; the next line waits for the fresh Hive.
+  await page.click('#deploy-again', { noWaitAfter: true });
   await page.waitForFunction(() => window.__biophage?.state?.phase === 'briefing', null, { timeout: 90000 });
   await boot();
   p = await profile();

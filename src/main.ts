@@ -73,7 +73,8 @@ pipeline.renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
   raid.update(dt);
   hud.update(dt, raid.hud());
-  pipeline.render(dt);
+  // The Hive screens cover the whole view: skip the 3D frame behind them (the loop and frame counter keep running).
+  if (!menu.visible) pipeline.render(dt);
   frames++;
   // Read by tests/smoke.mjs and tests/raid.mjs: proves the loop is alive and drives scripted raids.
   (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), profile, debug };
