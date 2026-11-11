@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ABILITIES, ABOMINATIONS, CLASSES, HOST, LOOT, RAID, VIRUSES, VIRUS_RULES, WEAPONS, extractTimeFor, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
+import { ABILITIES, ABOMINATIONS, CLASSES, HOST, LOOT, RAID, VIRUSES, VIRUS_RULES, WEAPONS, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
 import { groundHeight, ISLAND_RADIUS, mulberry32 } from '../world/zone7';
 import { Abomination, type AbominationContext, type AbominationKind, type HitSphere } from './abominations';
 import { AbilitySystem } from './abilities';
@@ -15,6 +15,9 @@ import { Player } from './player';
 import { Projectiles, segmentSphere, type Projectile } from './projectiles';
 import { BioPod, Hazards, SeedSpire } from './props';
 import { gore } from '../render/gore';
+import { simplifyForSoftware } from '../render/pipeline';
+import { creatureGore } from '../creatures/gore';
+import { HostArm, VIRUS_LOOKS, attachToViewmodel, type VirusLook } from '../creatures/hostarm';
 import { HIVE, ZONE7 } from '../render/palette';
 import { NeuralOverload, Biomass } from './vitals';
 import { SynapseBurster, projectileLooks } from './weapon';
@@ -22,7 +25,7 @@ import { SynapseBurster, projectileLooks } from './weapon';
 export type Phase = 'briefing' | 'raid' | 'extracted' | 'lost';
 
 /** Optional hooks into the render pipeline (Rendering & Tech Art). Missing methods are ignored. */
-export interface PipelineHooks { setOverload?(v: number): void; hitPulse?(strength: number): void }
+export interface PipelineHooks { setOverload?(v: number): void; hitPulse?(strength: number): void; readonly quality?: 'low' | 'high' }
 
 export interface ScannerPing { x: number; z: number; kind: string; revealed: boolean }
 
@@ -62,6 +65,7 @@ export class Raid {
   readonly biomass: Biomass;
   readonly overload: NeuralOverload;
   readonly weapon: SynapseBurster;
+  readonly hostArm = new HostArm();
   readonly abilities: AbilitySystem;
   readonly carried = new Carried();
   readonly creatures: Abomination[] = [];
@@ -126,6 +130,11 @@ export class Raid {
     this.hazards = new Hazards(scene);
     this.projectiles = new Projectiles(scene, projectileLooks());
     this.weapon = new SynapseBurster(WEAPONS.synapseBurster, camera, this.projectiles);
+    // Creature & Mutation: the host's forearm dissolve-grows into the injected virus's look.
+    attachToViewmodel(this.weapon.view, this.hostArm);
+    this.bus.on('virusInjected', (e) => {
+      if ((VIRUS_LOOKS as string[]).includes(e.virus)) this.hostArm.mutate(e.virus as VirusLook, VIRUS_RULES.mutationGrowTime);
+    });
 
     // Layout from data.
     const [ex, ez] = layoutPosition(RAID.extract, this.playable);
@@ -169,7 +178,8 @@ export class Raid {
     const minFromSpawn = Math.max(15, RAID.spawn.noEnemyWithin * this.spawnScale);
     const spawn = this.player.position;
     const [ex, ez] = [this.extract.x, this.extract.z];
-    for (const g of RAID.spawnGroups) {
+    // Spore spawns plus the Larva roster (Glasswalkers, an Oculimoth swarm, a Mournback).
+    for (const g of [...RAID.spawnGroups, ...(RAID.larva?.spawnGroups ?? [])]) {
       const kind = g.type as AbominationKind;
       const data = ABOMINATIONS[kind];
       for (let n = 0; n < g.count; n++) {
@@ -203,6 +213,8 @@ export class Raid {
     const c = new Abomination(kind, ABOMINATIONS[kind], x, z, Math.floor(this.rand() * 1e9));
     this.creatures.push(c);
     this.scene.add(c.root);
+    // Creatures spawned after the first frame miss the pipeline's one-time software-tier simplification.
+    if (this.pipeline.quality === 'low') simplifyForSoftware(c.root);
     return c;
   }
 
@@ -377,6 +389,7 @@ export class Raid {
         this.fx.burst(c.centre.clone(), GORE.violetFluid, 1.2);
       }
       if (this.injection.active === 'splicedParasites') this.spawnParasite(c.centre);
+      this.hostArm.onKill(this.scene);
     }
   }
 
@@ -645,6 +658,8 @@ export class Raid {
       },
     };
     for (const c of this.creatures) c.update(dt, ctx);
+    creatureGore.update(dt);
+    this.hostArm.update(dt);
     for (let i = this.creatures.length - 1; i >= 0; i--) if (this.creatures[i].removable) { this.scene.remove(this.creatures[i].root); this.creatures.splice(i, 1); }
     if (live && this.elapsed >= this.nextReinforce) { this.nextReinforce += RAID.reinforcements.interval; this.reinforce(); }
 
@@ -853,7 +868,7 @@ export class Raid {
       ego: w.egoFraction, egoReady: w.egoReady, aiming: w.aim > 0.5,
       timeLeft: this.timeLeft, collapse: this.timeLeft <= RAID.zoneCollapse.warningAt,
       slots: this.abilities.slots(),
-      carried: this.carried.items.map((s) => ({ item: s.item, label: LOOT.items[s.item].label, count: s.count, kind: LOOT.items[s.item].kind })),
+      carried: this.carried.items.map((s) => ({ item: s.item, label: itemDef(s.item)!.label, count: s.count, kind: itemDef(s.item)!.kind })),
       dna: this.carried.dna, value: this.carried.value, kills: this.kills,
       extract: { progress: this.extract.progress, inside: this.extract.inside, distance: Math.hypot(this.extract.x - p.x, this.extract.z - p.z), label: RAID.extract.label },
       interact: this.interactText,
@@ -874,7 +889,7 @@ export class Raid {
   /** State for tests/raid.mjs and tooling. */
   testState(): Record<string, unknown> {
     return {
-      phase: this.phase, biomass: this.biomass.current, overload: this.overload.value, overloaded: this.overload.overloaded,
+      phase: this.phase, armLook: this.hostArm.current, biomass: this.biomass.current, overload: this.overload.value, overloaded: this.overload.overloaded,
       ammo: this.weapon.state.ammo, ego: this.weapon.ego, timeLeft: this.timeLeft, kills: this.kills,
       carried: this.carried.snapshot(), extractProgress: this.extract.progress,
       extractPosition: [this.extract.x, this.extract.z], pods: this.pods.map((q) => ({ id: q.id, position: [q.position.x, q.position.z], opened: q.opened })),

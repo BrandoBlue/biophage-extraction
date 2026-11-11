@@ -1,20 +1,20 @@
 /**
  * Item grid shared by the stash, the internal cavities and the gut pouch (Larva, docs/gdd/larva-milestone.md).
- * Items occupy `LOOT.items[id].size` cells ([w, h]; swapped when rotated) and stack up to `stack`.
+ * Items occupy `itemDef(id).size` (loot and Flesh Market contraband) cells ([w, h]; swapped when rotated) and stack up to `stack`.
  * Pure logic, no DOM, so every transfer rule is unit-tested in tests/profile.test.ts.
  */
-import { LOOT } from '../../data';
+import { itemDef } from '../../data';
 
 export interface Placed { item: string; count: number; x: number; y: number; rotated: boolean }
 
 export function footprint(item: string, rotated = false): [number, number] {
-  const def = LOOT.items[item];
+  const def = itemDef(item);
   if (!def) throw new Error(`unknown item ${item}`);
   const [w, h] = def.size;
   return rotated ? [h, w] : [w, h];
 }
 
-export const stackLimit = (item: string): number => Math.max(1, LOOT.items[item]?.stack ?? 1);
+export const stackLimit = (item: string): number => Math.max(1, itemDef(item)?.stack ?? 1);
 
 export class ItemGrid {
   readonly entries: Placed[] = [];
@@ -22,7 +22,7 @@ export class ItemGrid {
   constructor(public cols: number, public rows: number, entries: Placed[] = []) {
     // Restore saved placements; anything that no longer fits (grid shrank, data changed) is re-packed.
     for (const e of entries) {
-      if (!LOOT.items[e.item] || e.count <= 0) continue;
+      if (!itemDef(e.item) || e.count <= 0) continue;
       if (!this.place(e.item, e.count, e.x, e.y, e.rotated)) this.add(e.item, e.count);
     }
   }

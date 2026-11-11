@@ -176,6 +176,7 @@ try {
   for (let i = 0; i < 40; i++) { await frames(3); s = await state(); if (s.virus) break; }
   if (s.virus !== 'adrenalineVirus' || !(s.maxBiomass < HOST_BIOMASS) || vials(s) !== vialsBefore) await fail(`virus did not take hold: ${s.virus}, max ${s.maxBiomass}`);
   log(`injected ${s.virus}; max Biomass ${s.maxBiomass}`);
+  if (s.armLook !== 'adrenalineVirus') await fail(`host arm did not mutate: ${s.armLook}`);
 
   // --- Zone collapse warning must be readable (issue #8): a backed, enlarged banner.
   await call('setTimeLeft', 120.2);

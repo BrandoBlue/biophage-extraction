@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { CLASSES, LOOT, PROFILE, stashRowCost } from '../data';
-import { ItemGrid } from '../src/game/grid';
+import { CLASSES, LOOT, MARKET, PROFILE, stashRowCost } from '../data';
+import { footprint, ItemGrid } from '../src/game/grid';
 import { Carried } from '../src/game/inventory';
 import {
-  deploy, die, expandStash, extract, loadProfile, memoryStorage, newProfile, placeAt, pouchSize, rotate, saveProfile, transfer, upgradePouch,
+  buy, canBuy, deploy, die, expandStash, marketStock, sell, extract, loadProfile, memoryStorage, newProfile, placeAt, pouchSize, rotate, saveProfile, transfer, upgradePouch,
 } from '../src/game/profile';
 
 const total = (entries: { item: string; count: number }[], item: string) => entries.reduce((n, e) => n + (e.item === item ? e.count : 0), 0);
@@ -192,5 +192,59 @@ describe('profile', () => {
     expect(total(p.stash, 'glitchingHeart')).toBe(0);
     expect(total(p.gutPouch, 'clotGel')).toBe(1);
     expect(p.stats).toMatchObject({ deaths: 1, kills: 1, raids: 1 });
+  });
+});
+
+describe('Flesh Market', () => {
+  const day = new Date('2026-11-11T12:00:00Z');
+
+  it('stocks the same distinct items for everyone in a rotation window, priced by mood', () => {
+    const p = newProfile();
+    const a = marketStock(p, day), b = marketStock(newProfile(), new Date('2026-11-11T13:00:00Z'));
+    expect(a).toEqual(b);
+    expect(a).toHaveLength(Math.min(MARKET.stockSize, MARKET.catalogue.length));
+    expect(new Set(a.map((s) => s.item)).size).toBe(a.length);
+    const happy = { marketMood: MARKET.mood.max };
+    for (const [i, s] of marketStock(happy, day).entries()) expect(s.price).toBeLessThanOrEqual(a[i].price);
+  });
+
+  it('pays value × buyRate, and organs please the Broker while tech sours it', () => {
+    const p = newProfile();
+    p.stash = [{ item: 'needlemawGland', count: 3, x: 0, y: 0, rotated: false }, { item: 'synapseLens', count: 1, x: 1, y: 0, rotated: false }];
+    const dna = p.dna;
+    expect(sell(p, 'stash', 0, 2)).toBe(2 * Math.floor(LOOT.items.needlemawGland.value * MARKET.buyRate));
+    expect(p.dna).toBe(dna + 2 * Math.floor(LOOT.items.needlemawGland.value * MARKET.buyRate));
+    expect(p.marketMood).toBeCloseTo(2 * MARKET.mood.perLikedSale);
+    expect(p.stash[0].count).toBe(1);
+    sell(p, 'stash', 1);
+    expect(p.marketMood).toBeCloseTo(2 * MARKET.mood.perLikedSale + MARKET.mood.perDislikedSale);
+    expect(p.stash.some((e) => e.item === 'synapseLens')).toBe(false);
+  });
+
+  it('buys stocked items into the stash, including contraband, and refuses when short of DNA or space', () => {
+    const p = newProfile();
+    const offer = marketStock(p, day)[0];
+    p.dna = offer.price - 1;
+    expect(canBuy(p, offer.item, day)).toBe('dna');
+    expect(buy(p, offer.item, day)).toBe(false);
+    p.dna = offer.price * 2;
+    expect(buy(p, offer.item, day)).toBe(true);
+    expect(p.dna).toBe(offer.price);
+    expect(p.stash.some((e) => e.item === offer.item)).toBe(true);
+    expect(canBuy(p, 'glitchingHeart', day)).toBe('not-stocked');
+    expect(footprint('heartHusk')).toEqual(MARKET.contraband.heartHusk.size);
+    p.stashRows = 1;
+    p.stash = [];
+    for (let x = 0; x < PROFILE.stash.gridColumns; x++) p.stash.push({ item: 'needlemawGland', count: LOOT.items.needlemawGland.stack, x, y: 0, rotated: false });
+    p.dna = 1e6;
+    expect(canBuy(p, offer.item, day)).toBe(offer.item === 'needlemawGland' ? 'ok' : 'space');
+  });
+
+  it('keeps market mood through save and load', () => {
+    const kv = memoryStorage();
+    const p = newProfile();
+    p.marketMood = 1.5;
+    saveProfile(kv, p);
+    expect(loadProfile(kv).profile.marketMood).toBe(1.5);
   });
 });
