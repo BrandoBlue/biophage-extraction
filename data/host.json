@@ -31,5 +31,16 @@
     "gunfire": 25,
     "egoCharge": 30,
     "reload": 6
+  },
+  "melee": {
+    "lungeImpulseMultiplier": 4,
+    "staggerDuration": 0.4
+  },
+  "throwables": {
+    "throwSpeed": 16,
+    "loft": 4,
+    "selfDamageMultiplier": 0.5,
+    "staggerPerOverload": 0.025,
+    "_overload": "a grenade's overload value fills a host's Overload if inside the blast; on creatures it becomes stagger seconds = overload \u00d7 staggerPerOverload"
   }
 }

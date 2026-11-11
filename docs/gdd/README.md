@@ -8,6 +8,8 @@ Owned by the Game Design department. Short living docs, one per system. **Every 
 3. **Mutation you can see from 50 m.** Every upgrade changes your silhouette or glow pattern. Power is readable to friend and rival.
 4. **Beautiful, then horrible.** Zone 7 is gorgeous from afar and grotesque up close. Gore glows; kills are wet, luminous and anatomical, never arcade.
 5. **Readable chaos.** Psychedelic visuals, but threats always read: glowing weak points, clear wind-ups, no damage numbers.
+6. **Ethereal, not neon.** (Brandon, v0.1 playtest.) Mist, soft natural light and wet organic surfaces; glow is an accent on creatures, fungi and liquid light, never a wash. Neon-everything reads as AI-made.
+7. **Every raid has a shopping list.** Contracts, Hive organs and evolution catalysts give each raid a goal; nothing counts until you extract. See [07](07-economy-and-progression.md).
 
 ## Docs
 | Doc | What it decides |
@@ -17,6 +19,8 @@ Owned by the Game Design department. Short living docs, one per system. **Every 
 | [03-combat](03-combat.md) | Biomass, Neural Overload, Synapse Burster, abilities, hit zones, feedback rules |
 | [04-abominations](04-abominations.md) | Spore creatures: Needlemaw and Bile Cantor, briefs for art, AI and audio |
 | [05-raid-and-extraction](05-raid-and-extraction.md) | Raid timer, layout, spawns, Bio-Pod loot, Seed Spire extraction, death |
+| [07-economy-and-progression](07-economy-and-progression.md) | **Why you extract:** what every loot type is for, vendors, contracts, the Hive Body, evolution catalysts, difficulty |
+| [08-zones-and-bosses](08-zones-and-bosses.md) | **Zone roster** (Glowmire Isle, Wreck of the Long Seed, the Expanse, two Apex zones) and **bosses** (the Reliquary, the Warden) |
 | [06-roadmap-systems](06-roadmap-systems.md) | Decisions already made for Larva and Host: inventory, stash, viruses, Synapse tree, Flesh Market, PvP |
 | [spore-milestone](spore-milestone.md) | The Spore feature list with acceptance criteria per department |
 | [larva-milestone](larva-milestone.md) | The Larva feature list: stash, cavities, harvesting, viruses, three new creatures, the Brood Heart |
@@ -41,6 +45,11 @@ Owned by the Game Design department. Short living docs, one per system. **Every 
 | `data/viral-lab.json` | Virus integration, Viral Load, instabilities | Gameplay, UI |
 | `data/market.json` | The Gullet Broker: catalogue, mood, contraband | Gameplay, UI, Audio |
 | `data/rivals.json` | Rival host bots | AI |
+| `data/vendors.json` | Mother Clot, the Archivist, the Gullet Broker: rates, stock, reputation | Gameplay, UI |
+| `data/contracts.json` | Contract chains and objectives | Gameplay, UI |
+| `data/hive.json` | Hive Body organs and Gestation recipes | Gameplay, UI |
+| `data/zones.json` | Zone roster: access, raid time, structures, foes, loot focus | World, AI, UI, Gameplay |
+| `data/bosses.json` | The Reliquary and the Warden: phases, weak points, arenas, rewards | Creatures, AI, World, Gameplay |
 
 `tests/data.test.ts` checks cross-references and the balance targets stated in these docs, so a tuning change that breaks a design promise fails CI.
 

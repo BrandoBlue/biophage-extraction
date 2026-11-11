@@ -10,6 +10,14 @@ import { ZONE7, ZONE7_SHADE, HIVE } from './palette';
 /** Shared clock for every animated material. `pipeline.render(dt)` advances it. */
 export const bioTime = { value: 0 };
 
+/**
+ * Global glow restraint for every bio-material (Art Bible, "Ethereal, not neon"): emissive is scaled by
+ * `bioGlow` and pulled toward its own luminance by `1 - bioSat`, so bioluminescence reads as an organic
+ * accent on lit surfaces rather than neon. Presets may tune these; departments should not bypass them.
+ */
+export const bioGlow = { value: 0.5 };
+export const bioSat = { value: 0.8 };
+
 export const GLSL_NOISE = /* glsl */ `
 // BIO_LOW (software tier) trims octaves and cell taps: SwiftShader JIT time scales with shader size.
 #ifdef BIO_LOW
@@ -50,6 +58,8 @@ interface SurfaceOptions {
 export function bioSurface<T extends THREE.MeshStandardMaterial>(mat: T, opts: SurfaceOptions): T {
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.bioTime = bioTime;
+    shader.uniforms.bioGlow = bioGlow;
+    shader.uniforms.bioSat = bioSat;
     Object.assign(shader.uniforms, opts.uniforms ?? {});
     const varyings = 'varying vec3 vBioWorld;\nvarying vec3 vBioLocal;\nvarying vec3 vBioNormal;\nvarying vec3 vBioSeed;\n';
     shader.vertexShader = varyings + shader.vertexShader.replace(
@@ -68,12 +78,13 @@ export function bioSurface<T extends THREE.MeshStandardMaterial>(mat: T, opts: S
       vBioWorld = (bioModel * vec4(transformed, 1.0)).xyz;
       vBioNormal = normalize(mat3(bioModel) * objectNormal);`,
     );
-    shader.fragmentShader = varyings + 'uniform float bioTime;\n' + (opts.declarations ?? '') + GLSL_NOISE + shader.fragmentShader.replace(
+    shader.fragmentShader = varyings + 'uniform float bioTime;\nuniform float bioGlow, bioSat;\n' + (opts.declarations ?? '') + GLSL_NOISE + shader.fragmentShader.replace(
       '#include <emissivemap_fragment>',
       `#include <emissivemap_fragment>
       {
         ${opts.fragment}
-      }`,
+      }
+      totalEmissiveRadiance = mix(vec3(dot(totalEmissiveRadiance, vec3(0.2126, 0.7152, 0.0722))), totalEmissiveRadiance, bioSat) * bioGlow;`,
     );
   };
   // Distinct program per variant so Three does not share the patched shader with plain materials.
@@ -145,9 +156,12 @@ export function fungusCap(glow: string = ZONE7.cyan): THREE.MeshPhysicalMaterial
       float rim = smoothstep(0.75, 1.02, radial) * (1.0 - under);   // luminous lip
       float mottling = bioFbm(vBioLocal * 4.0 + vBioSeed);
       float breathe = 0.8 + 0.2 * sin(bioTime * 1.7 + vBioSeed.x * 3.0);
-      diffuseColor.rgb = mix(uFlesh * (0.35 + mottling * 0.5), glowCol * 0.3, under);
-      vec3 topGlow = glowCol * (spots * 1.8 + rim * 1.1 + mottling * 0.12);
-      vec3 gillGlow = glowCol * (0.6 + 0.9 * gills * smoothstep(0.1, 0.9, radial)) * 1.3;
+      // Caps are lit flesh tinted by their colony colour; only spots, the lip and the gills glow.
+      vec3 capTint = mix(uFlesh, glowCol * 0.35, 0.3);
+      diffuseColor.rgb = mix(capTint * (0.45 + mottling * 0.8), mix(uFlesh, glowCol, 0.25) * (0.5 + 0.3 * gills), under);
+      vec3 topGlow = glowCol * (spots * 0.9 + rim * 0.45 + mottling * 0.02);
+      // Gills: a soft inner light that gathers toward the stem, ridges barely brighter than the hollows.
+      vec3 gillGlow = glowCol * (0.18 + 0.22 * gills) * (0.35 + 0.65 * (1.0 - smoothstep(0.2, 1.0, radial)));
       totalEmissiveRadiance = mix(topGlow, gillGlow, under) * breathe;
     `,
   });
@@ -182,7 +196,7 @@ export function crystal(glow: string = ZONE7.violet): THREE.MeshPhysicalMaterial
       #endif
       float core = bioFbm(vBioLocal * 3.0 + vBioSeed + bioTime * 0.15);
       float tip = smoothstep(0.0, 1.0, vBioLocal.y);
-      totalEmissiveRadiance = glowCol * (0.35 + core * 0.9 + tip * 1.2);
+      totalEmissiveRadiance = glowCol * (0.08 + core * 0.4 + tip * 0.7);
     `,
   });
 }
@@ -204,13 +218,15 @@ export function chitin(base: string = HIVE.bone, glow: string = ZONE7.cyan, scal
 
 /** Veined membrane (wings, frills, jelly bells): thin, back-lit, translucent. */
 export function membrane(glow: string = ZONE7.magenta, opacity = 0.55): THREE.MeshStandardMaterial {
-  const mat = new THREE.MeshStandardMaterial({ color: glow, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false, roughness: 0.4, emissive: glow });
+  // Body tone is a dim, greyed version of the glow: the membrane reads as tissue first, light second.
+  const body = c(glow).lerp(c(ZONE7_SHADE.rockDeep), 0.45).multiplyScalar(0.6);
+  const mat = new THREE.MeshStandardMaterial({ color: body, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false, roughness: 0.4, emissive: glow });
   return bioSurface(mat, {
     fragment: /* glsl */ `
       float veins = max(bioVein(vBioLocal * 3.0), bioVein(vBioLocal * 7.0 + 3.0) * 0.6);
       float fres = 1.0 - abs(dot(normalize(vBioNormal), normalize(cameraPosition - vBioWorld)));
       float pulse = 0.7 + 0.3 * sin(bioTime * 2.4 + vBioLocal.y * 4.0);
-      totalEmissiveRadiance = emissive * (0.25 + veins * 1.4 + fres * 1.1) * pulse;
+      totalEmissiveRadiance = emissive * (0.12 + veins * 1.0 + fres * 0.6) * pulse;
       diffuseColor.a *= 0.35 + fres * 0.65 + veins * 0.3;
     `,
   });
@@ -245,12 +261,12 @@ export function liquidLight(opts: { a?: string; b?: string; c?: string; flow?: n
   return new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false,
     uniforms: {
-      bioTime, uA: u(opts.a ?? ZONE7.cyan), uB: u(opts.b ?? ZONE7.magenta), uC: u(opts.c ?? ZONE7.lime),
+      bioTime, bioGlow, bioSat, uA: u(opts.a ?? ZONE7.cyan), uB: u(opts.b ?? ZONE7.magenta), uC: u(opts.c ?? ZONE7.lime),
       uFlow: { value: opts.flow ?? 0.6 }, uPool: { value: opts.pool ? 1 : 0 }, uFall: { value: opts.fall ? 1 : 0 },
     },
     vertexShader: 'varying vec2 vUv; varying vec3 vW; void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
     fragmentShader: /* glsl */ `
-      uniform float bioTime, uFlow, uPool, uFall; uniform vec3 uA, uB, uC; varying vec2 vUv; varying vec3 vW;
+      uniform float bioTime, bioGlow, bioSat, uFlow, uPool, uFall; uniform vec3 uA, uB, uC; varying vec2 vUv; varying vec3 vW;
       ${GLSL_NOISE}
       void main() {
         vec2 uv = vUv;
@@ -276,6 +292,7 @@ export function liquidLight(opts: { a?: string; b?: string; c?: string; flow?: n
         col = col * (0.55 + streak * 0.6) + mix(col, vec3(1.0), 0.4) * caustic * 0.8;
         // Falls dissolve into mist as they drop, and stay saturated (additive white is the enemy).
         if (uFall > 0.5) { a *= pow(1.0 - uv.y, 1.6) * 0.75; col = mix(uA, uB, smoothstep(0.1, 0.8, uv.y + streak * 0.3)) * (0.6 + caustic); }
+        col = mix(vec3(dot(col, vec3(0.2126, 0.7152, 0.0722))), col, bioSat) * (0.4 + bioGlow);
         gl_FragColor = vec4(col * a * 0.9, a);
       }`,
   });

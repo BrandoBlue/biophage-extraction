@@ -1,0 +1,270 @@
+{
+  "_note": "Contracts: the reason for each raid beyond 'grab loot'. Objective types: harvest {organ,count}, kill {type,count}, extractWith {item,count} (must be carried out alive), visit {landmark}, open {container,count}, killBoss {boss}, killRival {count}, surviveRaid {zone}, place {item,landmark}. Progress counts only on a successful extract unless 'countsOnDeath' is true. Rewards: dna, items, rep, unlock. One contract per vendor active at a time; chains via requires.",
+  "list": [
+    {
+      "id": "firstBlood",
+      "vendor": "motherClot",
+      "milestone": "larva",
+      "title": "First Blood",
+      "brief": "Bring Mother back something that bled.",
+      "objectives": [
+        {
+          "type": "harvest",
+          "item": "needlemawGland",
+          "count": 3
+        }
+      ],
+      "reward": {
+        "dna": 150,
+        "rep": 40,
+        "items": [
+          {
+            "item": "clotGel",
+            "count": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "songForTheCreche",
+      "vendor": "motherClot",
+      "milestone": "larva",
+      "title": "A Song for the Crèche",
+      "brief": "The crèche will not sleep without a Cantor's song sac.",
+      "objectives": [
+        {
+          "type": "harvest",
+          "item": "cantorSongSac",
+          "count": 1
+        }
+      ],
+      "reward": {
+        "dna": 250,
+        "rep": 60,
+        "items": [
+          {
+            "item": "mutagenVial",
+            "count": 1
+          }
+        ]
+      },
+      "requires": [
+        "firstBlood"
+      ]
+    },
+    {
+      "id": "heartOfTheBrood",
+      "vendor": "motherClot",
+      "milestone": "larva",
+      "title": "Heart of the Brood",
+      "brief": "Kill a Brood Heart and bring its seed home.",
+      "objectives": [
+        {
+          "type": "extractWith",
+          "item": "broodHeartSeed",
+          "count": 1
+        }
+      ],
+      "reward": {
+        "dna": 500,
+        "rep": 120,
+        "unlock": "gestationVat"
+      },
+      "requires": [
+        "songForTheCreche"
+      ]
+    },
+    {
+      "id": "theReliquary",
+      "vendor": "motherClot",
+      "milestone": "larva",
+      "title": "Rib and Hymn",
+      "brief": "Something sings in the sunken bowl. Mother wants its heart.",
+      "objectives": [
+        {
+          "type": "killBoss",
+          "boss": "reliquary"
+        },
+        {
+          "type": "extractWith",
+          "item": "reliquaryHeart",
+          "count": 1
+        }
+      ],
+      "reward": {
+        "dna": 1200,
+        "rep": 250,
+        "items": [
+          {
+            "item": "heartHusk",
+            "count": 1
+          }
+        ]
+      },
+      "requires": [
+        "heartOfTheBrood"
+      ]
+    },
+    {
+      "id": "eyesInTheGlass",
+      "vendor": "archivist",
+      "milestone": "larva",
+      "title": "Eyes in the Glass",
+      "brief": "The Archivist wants to see what the Glasswalkers see.",
+      "objectives": [
+        {
+          "type": "harvest",
+          "item": "glasswalkerLens",
+          "count": 2
+        }
+      ],
+      "reward": {
+        "dna": 250,
+        "rep": 60
+      }
+    },
+    {
+      "id": "signalInTheWreck",
+      "vendor": "archivist",
+      "milestone": "larva",
+      "title": "Signal in the Wreck",
+      "brief": "Reach the Long Seed's debris field on Glowmire Isle and recover a black box.",
+      "objectives": [
+        {
+          "type": "visit",
+          "landmark": "longSeedDebris"
+        },
+        {
+          "type": "extractWith",
+          "item": "blackBox",
+          "count": 1
+        }
+      ],
+      "reward": {
+        "dna": 400,
+        "rep": 120,
+        "unlock": "zone:longSeedWreck"
+      },
+      "requires": [
+        "eyesInTheGlass"
+      ]
+    },
+    {
+      "id": "coldReactor",
+      "vendor": "archivist",
+      "milestone": "larva",
+      "title": "Cold Reactor",
+      "brief": "Bring coolant rods out of the Long Seed. The Archivist means to wake something.",
+      "objectives": [
+        {
+          "type": "extractWith",
+          "item": "coolantRod",
+          "count": 3
+        }
+      ],
+      "reward": {
+        "dna": 600,
+        "rep": 150,
+        "items": [
+          {
+            "item": "seedKey",
+            "count": 2
+          }
+        ]
+      },
+      "requires": [
+        "signalInTheWreck"
+      ]
+    },
+    {
+      "id": "wakeTheWarden",
+      "vendor": "archivist",
+      "milestone": "host",
+      "title": "Wake the Warden",
+      "brief": "Restore the Long Seed's power and survive what wakes.",
+      "objectives": [
+        {
+          "type": "killBoss",
+          "boss": "warden"
+        },
+        {
+          "type": "extractWith",
+          "item": "wardenCore",
+          "count": 1
+        }
+      ],
+      "reward": {
+        "dna": 2000,
+        "rep": 300
+      },
+      "requires": [
+        "coldReactor"
+      ]
+    },
+    {
+      "id": "husksAndLiars",
+      "vendor": "gulletBroker",
+      "milestone": "host",
+      "title": "Husks and Liars",
+      "brief": "The Broker collects Mimic lures. It says it likes the taste of lies.",
+      "objectives": [
+        {
+          "type": "harvest",
+          "item": "mimicLure",
+          "count": 2
+        }
+      ],
+      "reward": {
+        "dna": 500,
+        "rep": 80
+      }
+    },
+    {
+      "id": "rivalTithe",
+      "vendor": "gulletBroker",
+      "milestone": "host",
+      "title": "A Rival's Tithe",
+      "brief": "Kill three rival hosts and extract with their kill DNA.",
+      "objectives": [
+        {
+          "type": "killRival",
+          "count": 3
+        }
+      ],
+      "reward": {
+        "dna": 900,
+        "rep": 150,
+        "items": [
+          {
+            "item": "mawSeedMine",
+            "count": 2
+          }
+        ]
+      },
+      "requires": [
+        "husksAndLiars"
+      ]
+    },
+    {
+      "id": "lanternHunt",
+      "vendor": "gulletBroker",
+      "milestone": "host",
+      "title": "The Lantern Hunt",
+      "brief": "Bring the Broker a Lumen Grazer's lantern gland. Alive is not required.",
+      "objectives": [
+        {
+          "type": "extractWith",
+          "item": "lanternGland",
+          "count": 1
+        }
+      ],
+      "reward": {
+        "dna": 1100,
+        "rep": 200
+      },
+      "requires": [
+        "rivalTithe"
+      ]
+    }
+  ]
+}

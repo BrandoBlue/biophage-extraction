@@ -1,0 +1,255 @@
+{
+  "_note": "The Hive Body: your base is a living organism you grow by feeding it extracted items (a hideout as an organ system). Each organ has levels; each level costs specific items, so every raid has a shopping list. Built from the Hive menu. Some organs produce over real time (capped), a reason to come back.",
+  "organs": {
+    "gestationVat": {
+      "label": "Gestation Vat",
+      "milestone": "larva",
+      "brief": "a womb-tank where you grow consumables from organs",
+      "levels": [
+        {
+          "cost": {
+            "dna": 300,
+            "items": [
+              {
+                "item": "needlemawGland",
+                "count": 4
+              }
+            ]
+          },
+          "recipes": [
+            "clotGelFromGlands"
+          ]
+        },
+        {
+          "cost": {
+            "dna": 800,
+            "items": [
+              {
+                "item": "cantorSongSac",
+                "count": 2
+              },
+              {
+                "item": "broodHeartSeed",
+                "count": 1
+              }
+            ]
+          },
+          "recipes": [
+            "clotGelFromGlands",
+            "mutagenFromMarrow",
+            "neuroSpikeFromLens"
+          ]
+        },
+        {
+          "cost": {
+            "dna": 2000,
+            "items": [
+              {
+                "item": "reliquaryHeart",
+                "count": 1
+              },
+              {
+                "item": "embryoPod",
+                "count": 2
+              }
+            ]
+          },
+          "recipes": [
+            "clotGelFromGlands",
+            "mutagenFromMarrow",
+            "neuroSpikeFromLens",
+            "virusFromEmbryo"
+          ]
+        }
+      ]
+    },
+    "sporeGarden": {
+      "label": "Spore Garden",
+      "milestone": "larva",
+      "brief": "a bed of glowing fungus fed with corpses that slowly fruits DNA",
+      "levels": [
+        {
+          "cost": {
+            "dna": 250,
+            "items": [
+              {
+                "item": "oculimothEye",
+                "count": 5
+              }
+            ]
+          },
+          "dnaPerHour": 20,
+          "cap": 160
+        },
+        {
+          "cost": {
+            "dna": 900,
+            "items": [
+              {
+                "item": "mournbackMarrow",
+                "count": 1
+              }
+            ]
+          },
+          "dnaPerHour": 45,
+          "cap": 360
+        },
+        {
+          "cost": {
+            "dna": 2400,
+            "items": [
+              {
+                "item": "lanternGland",
+                "count": 1
+              }
+            ]
+          },
+          "dnaPerHour": 90,
+          "cap": 720
+        }
+      ]
+    },
+    "memoryCoral": {
+      "label": "Memory Coral",
+      "milestone": "larva",
+      "brief": "a coral of glass neurons that remembers maps",
+      "levels": [
+        {
+          "cost": {
+            "dna": 400,
+            "items": [
+              {
+                "item": "synapseLens",
+                "count": 2
+              }
+            ]
+          },
+          "effect": {
+            "scannerShowsPodsAtStart": true
+          }
+        },
+        {
+          "cost": {
+            "dna": 1200,
+            "items": [
+              {
+                "item": "blackBox",
+                "count": 1
+              },
+              {
+                "item": "glasswalkerLens",
+                "count": 2
+              }
+            ]
+          },
+          "effect": {
+            "scannerShowsBossState": true,
+            "raidSelectShowsAnomaly": true
+          }
+        }
+      ]
+    },
+    "antibodyWell": {
+      "label": "Antibody Well",
+      "milestone": "host",
+      "brief": "a pool of white blood that hardens you against the Zone",
+      "levels": [
+        {
+          "cost": {
+            "dna": 600,
+            "items": [
+              {
+                "item": "weaverGanglion",
+                "count": 2
+              }
+            ]
+          },
+          "effect": {
+            "toxinResistance": 0.1
+          }
+        },
+        {
+          "cost": {
+            "dna": 1800,
+            "items": [
+              {
+                "item": "wardenCore",
+                "count": 1
+              }
+            ]
+          },
+          "effect": {
+            "toxinResistance": 0.2,
+            "viralLoadStableBonus": 1
+          }
+        }
+      ]
+    }
+  },
+  "recipes": {
+    "clotGelFromGlands": {
+      "inputs": [
+        {
+          "item": "needlemawGland",
+          "count": 2
+        }
+      ],
+      "output": {
+        "item": "clotGel",
+        "count": 1
+      },
+      "time": 600
+    },
+    "mutagenFromMarrow": {
+      "inputs": [
+        {
+          "item": "mournbackMarrow",
+          "count": 1
+        }
+      ],
+      "output": {
+        "item": "mutagenVial",
+        "count": 2
+      },
+      "time": 1800
+    },
+    "neuroSpikeFromLens": {
+      "inputs": [
+        {
+          "item": "synapseLens",
+          "count": 1
+        },
+        {
+          "item": "oculimothEye",
+          "count": 2
+        }
+      ],
+      "output": {
+        "item": "neuroSpikeGrenade",
+        "count": 2
+      },
+      "time": 1200
+    },
+    "virusFromEmbryo": {
+      "inputs": [
+        {
+          "item": "embryoPod",
+          "count": 1
+        },
+        {
+          "item": "mutagenVial",
+          "count": 1
+        }
+      ],
+      "output": {
+        "pool": [
+          "plagueStalkerStrain",
+          "adrenalineVirus",
+          "splicedParasites"
+        ],
+        "count": 1
+      },
+      "time": 3600
+    }
+  }
+}

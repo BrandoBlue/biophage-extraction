@@ -44,8 +44,10 @@ export function zone7Sky(radius = 900): THREE.Mesh {
         vec3 gas = mix(uViolet, uMagenta, smoothstep(0.35, 0.75, w.x));
         gas = mix(gas, uCyan, smoothstep(0.55, 0.85, w.y) * 0.85);
         float density = smoothstep(0.38, 0.85, n);
-        sky += gas * density * 0.95;
-        sky += uMagenta * smoothstep(0.6, 0.95, n2) * 0.35;
+        // Ethereal, not neon: the gas is a veil, partly desaturated toward its own luminance.
+        gas = mix(vec3(dot(gas, vec3(0.2126, 0.7152, 0.0722))), gas, 0.62);
+        sky += gas * density * 0.7;
+        sky += uMagenta * smoothstep(0.6, 0.95, n2) * 0.16;
 
         // Plasma rift: a bright band of cyan-white across the sky, broken by noise.
         vec3 axis = normalize(vec3(0.35, 0.82, -0.45));
@@ -120,7 +122,8 @@ export function planet(opts: { radius: number; band: string; rim: string; ring?:
             float bands = bioNoise(vec3(t * 60.0, 0.0, 0.0)) * 0.7 + bioNoise(vec3(t * 13.0, 5.0, 0.0)) * 0.5;
             float a = smoothstep(0.0, 0.08, t) * (1.0 - smoothstep(0.75, 1.0, t)) * bands;
             vec3 c = mix(uCol, uRim, t);
-            gl_FragColor = vec4(c * a * 1.4, a);
+            c = mix(vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), c, 0.6);
+            gl_FragColor = vec4(c * a * 0.6, a);
           }`,
       }),
     );
