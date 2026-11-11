@@ -20,6 +20,7 @@ import { gore } from '../render/gore';
 import { simplifyForSoftware } from '../render/pipeline';
 import { creatureGore } from '../creatures/gore';
 import { HostArm, VIRUS_LOOKS, attachToViewmodel, type VirusLook } from '../creatures/hostarm';
+import { HarvestFx } from '../creatures/organs';
 import { HIVE, ZONE7 } from '../render/palette';
 import { NeuralOverload, Biomass } from './vitals';
 import { SynapseBurster, projectileLooks } from './weapon';
@@ -70,6 +71,7 @@ export class Raid {
   readonly overload: NeuralOverload;
   readonly weapon: SynapseBurster;
   readonly hostArm = new HostArm();
+  private harvestFx = new HarvestFx();
   readonly abilities: AbilitySystem;
   readonly carried = new Carried();
   readonly creatures: Abomination[] = [];
@@ -688,6 +690,7 @@ export class Raid {
     if (live) this.updateNests(dt);
     creatureGore.update(dt);
     this.hostArm.update(dt);
+    this.harvestFx.update(dt);
     for (let i = this.creatures.length - 1; i >= 0; i--) if (this.creatures[i].removable) { this.scene.remove(this.creatures[i].root); this.creatures.splice(i, 1); }
     if (live && this.elapsed >= this.nextReinforce) { this.nextReinforce += RAID.reinforcements.interval; this.reinforce(); }
 
@@ -736,6 +739,9 @@ export class Raid {
         if (this.harvestProgress >= 1) this.harvest(corpse);
       } else this.harvestProgress = 0;
     }
+    // Creature & Mutation: the wet, glowing cut grows with the hold.
+    if (this.harvestTarget && this.harvestProgress > 0) this.harvestFx.progress(this.scene, this.harvestTarget, this.harvestProgress);
+    else this.harvestFx.cancel();
     this.interactText = this.interactTarget
       ? { text: this.interactTarget.opened ? 'HOLD E · TAKE WHAT IS LEFT' : `HOLD E · TEAR OPEN ${LOOT.containers[this.interactTarget.type].label.toUpperCase()}`, progress: this.interactTarget.progress }
       : this.harvestTarget ? { text: `HOLD E · HARVEST ${LOOT.items[ABOMINATIONS[this.harvestTarget.kind].harvest!.item].label.toUpperCase()}`, progress: this.harvestProgress } : null;
@@ -790,6 +796,7 @@ export class Raid {
     this.harvestTarget = null;
     const colour = `#${c.fluid.getHexString()}`;
     gore.burst(this.scene, { point: c.centre.clone(), colour, count: 50, speed: 4 });
+    this.harvestFx.done(this.scene, item, c.centre, this.hostArm.root);
     this.bus.emit('harvestDone', { item, type: c.kind });
     this.bus.emit('pickup', { items: [{ item, count: 1 }], dna: 0, source: c.kind });
   }
