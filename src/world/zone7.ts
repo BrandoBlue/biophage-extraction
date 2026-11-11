@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import { HIVE, ZONE7, ZONE7_SHADE } from '../render/palette';
+import { HIVE, ORGANIC, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { bioNode, crystal, fungusCap, fungusStem, liquidLight, membrane, zoneRock, bioTime } from '../render/materials';
 import { capGeometry, crystalClusterGeometry, floatingIslandGeometry, ISLAND_TOP, ribbonGeometry, stemGeometry } from '../render/geometry';
 import { cloudSea, planet, sporeField, starField, zone7Sky } from '../render/sky';
+import { horizonLands } from '../render/horizon';
 import { groundCover } from '../render/cover';
 import { ZONE7_SITES } from '../../data';
 import { mulberry32 } from './rng';
@@ -269,10 +270,12 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
   scene.background = new THREE.Color(ZONE7.void);
   scene.fog = new THREE.FogExp2(ZONE7_SHADE.skyHorizon, 0.0016);
 
-  scene.add(new THREE.HemisphereLight(ZONE7.cyan, ZONE7.violet, 0.35));
-  const key = new THREE.DirectionalLight(ZONE7.cyan, 0.9);
+  // A cool moonlight key (the shadow caster on the high tier) over a soft cyan/violet sky fill; the magenta rim
+  // is an accent, so form comes from light and shadow rather than coloured glow.
+  scene.add(new THREE.HemisphereLight(ZONE7.cyan, ZONE7.violet, 0.3));
+  const key = new THREE.DirectionalLight(ORGANIC.mist, 1.3);
   key.position.set(60, 80, -120);
-  const rim = new THREE.DirectionalLight(ZONE7.magenta, 1.3);
+  const rim = new THREE.DirectionalLight(ZONE7.magenta, 0.7);
   rim.position.set(-120, 40, 80);
   scene.add(key, rim);
 
@@ -404,7 +407,8 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
   giant.position.copy(giantAt);
   const moon = planet({ radius: 60, band: ZONE7.magenta, rim: ZONE7.magenta, lightDir, seed: 9 });
   moon.position.set(560, 300, -860);
-  scene.add(giant, moon, cloudSea(-240), starField(rand));
+  // Distant ridges and mesas rising out of the valley mist: the island reads as a plateau in a larger world.
+  scene.add(giant, moon, cloudSea(-240), starField(rand), horizonLands({ seed, lightDir }));
   scene.add(sporeField(rand, 700, 60, 40, [ZONE7.cyan, ZONE7.lime, ZONE7.magenta]));
 
   return { layout, sites, structures };

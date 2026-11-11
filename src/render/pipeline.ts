@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { sunShadows } from './lighting';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -121,6 +122,7 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
   composer.addPass(renderPass);
   // Ambient occlusion only where there is a GPU: it is the most expensive pass and SwiftShader can't afford it.
   const ao = quality === 'high' ? new BioAOPass(scene, camera) : null;
+  const shadows = sunShadows(renderer, quality === 'high');
   if (ao) composer.addPass(ao);
   const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 1, 0.6, 0.6);
   composer.addPass(bloom);
@@ -183,6 +185,7 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
       if (quality === 'low' && !simplified.has(active)) { simplified.add(active); simplifyForSoftware(active); }
       renderPass.scene = active;
       renderPass.camera = pipeline.overrideCamera ?? camera;
+      shadows.update(active, renderPass.camera);
       if (ao) { ao.scene = active; ao.syncCamera(renderPass.camera); }
       if (pipeline.bypassPost) renderer.render(active, renderPass.camera);
       else composer.render(dt);
