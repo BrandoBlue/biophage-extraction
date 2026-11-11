@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { HIVE, ORGANIC, PATH, ZONE7 } from '../../render/palette';
 import { alienEye, bioNode, chitin, livingFlesh, membrane } from '../../render/materials';
-import { merge, needleRing, rng, roughen, spike, taperTube, type Rand } from '../parts';
+import { merge, needleRing, rng, roughen, spike, taperTube, wing, type Rand } from '../parts';
 
 /**
  * Living weapon bodies (Creature & Mutation). Each archetype is a grown organism, never a machine with
@@ -16,8 +16,8 @@ import { merge, needleRing, rng, roughen, spike, taperTube, type Rand } from '..
  */
 
 /** Design's roster ids (data/weapons.json) that have a grown body here; the rest use Gameplay's generic view. */
-export type WeaponId = 'quillet' | 'hiveSpitter' | 'vertebraRifle' | 'gulletScatter' | 'eyestalkMarksman' | 'broodMortar';
-export const WEAPON_BODIES: WeaponId[] = ['quillet', 'hiveSpitter', 'vertebraRifle', 'gulletScatter', 'eyestalkMarksman', 'broodMortar'];
+export type WeaponId = 'quillet' | 'marrowHand' | 'hiveSpitter' | 'stingerChoir' | 'vertebraRifle' | 'cicadine' | 'gulletScatter' | 'bloomcannon' | 'eyestalkMarksman' | 'broodMortar';
+export const WEAPON_BODIES: WeaponId[] = ['quillet', 'marrowHand', 'hiveSpitter', 'stingerChoir', 'vertebraRifle', 'cicadine', 'gulletScatter', 'bloomcannon', 'eyestalkMarksman', 'broodMortar'];
 export type ReloadStyle = 'magazine' | 'perShell' | 'regrow';
 
 export interface WeaponPose {
@@ -605,9 +605,220 @@ class Launcher extends Body {
   }
 }
 
+/** Marrow Hand (heavy sidearm): a bone hand-cannon; its knuckle cylinder swings out and each knuckle is packed with marrow. */
+class MarrowHand extends Body {
+  readonly id = 'marrowHand';
+  readonly reloadStyle = 'magazine';
+  readonly kick: Kick = { back: 0.05, pitch: 0.34, roll: 0.08 };
+  readonly muzzleFx: MuzzleFx = 'spit';
+  readonly zooms = true;
+  private cylinder: THREE.Group;
+  private knuckles: THREE.Mesh[] = [];
+  private hammer: THREE.Mesh;
+  constructor(seed = 7) {
+    super(mix(ORGANIC.amber, HIVE.danger, 0.25), seed);
+    this.flesh = this.add(lathe(0.16, (t) => 0.026 + Math.sin(t * Math.PI) * 0.016, 15).translate(0, 0, 0.13), this.m.fleshDeep);
+    // Bone frame: a palm plate over the top joining the grip hump to the barrel.
+    this.add(roughen(taperTube([V(0, 0.035, 0.12), V(0, 0.042, 0.0), V(0, 0.034, -0.09)], [0.016, 0.02, 0.016], 8, 5).scale(1.6, 1, 1), 0.0015, 90, 2), this.m.boneDark);
+    // A heavy bone barrel: a long finger bone with joint knuckles, a split fingernail at the muzzle.
+    const bar: THREE.BufferGeometry[] = [taperTube([V(0, 0.012, -0.08), V(0, 0.014, -0.18), V(0, 0.012, -0.28)], [0.02, 0.018, 0.017], 9, 5)];
+    for (const z of [-0.13, -0.21]) bar.push(new THREE.SphereGeometry(0.024, 12, 8).scale(1, 0.9, 0.7).translate(0, 0.013, z));
+    bar.push(new THREE.SphereGeometry(0.02, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2).scale(1.1, 0.5, 1.6).rotateX(-0.2).translate(0, 0.03, -0.27));
+    this.add(roughen(merge(bar), 0.0015, 90, 3), this.m.bone);
+    this.muzzle.position.set(0, 0.012, -0.29);
+    // The knuckle cylinder: five knuckle bones round an axle, each with a glowing marrow core.
+    this.cylinder = new THREE.Group();
+    this.cylinder.position.set(0, 0.0, -0.035);
+    this.add(new THREE.CylinderGeometry(0.008, 0.008, 0.07, 8).rotateX(Math.PI / 2), this.m.boneDark, this.cylinder);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2, k = new THREE.Group();
+      k.position.set(Math.cos(a) * 0.028, Math.sin(a) * 0.028, 0);
+      this.add(roughen(new THREE.SphereGeometry(0.019, 12, 8).scale(1, 1, 1.9), 0.0012, 120, i), this.m.bone, k);
+      this.knuckles.push(this.add(new THREE.SphereGeometry(0.009, 8, 6).scale(1, 1, 1.4).translate(0, 0, -0.033), this.m.core, k));
+      this.cylinder.add(k);
+    }
+    this.flex.add(this.cylinder);
+    // Hammer: a hooked claw over the back.
+    this.hammer = this.add(spike(0.045, 0.008, 0.9).rotateX(-0.4), this.m.boneDark);
+    this.hammer.position.set(0, 0.04, 0.06);
+    this.setGrip(V(0, -0.035, 0.07), 0.11);
+    this.size = 0.9;
+    this.socket('barrel', V(0, 0.012, -0.28)); this.socket('sight', V(0, 0.06, -0.08)); this.socket('under', V(0, -0.02, -0.16)); this.socket('chamber', V(0.045, 0.0, 0.08));
+  }
+  protected pose(t: number, s: Pose, fire: number): void {
+    const r = s.reload;
+    // Each shot cocks the claw hammer and indexes the cylinder one knuckle.
+    this.hammer.rotation.x = -fire * 0.9;
+    const left = Math.round(s.ammo * 5);
+    this.knuckles.forEach((k, i) => { k.visible = r !== null ? r > 0.4 + i * 0.08 : i < left || s.ammo >= 1; });
+    const out = r === null ? 0 : r < 0.5 ? smooth((r - 0.05) / 0.2) : 1 - smooth((r - 0.82) / 0.12);
+    this.cylinder.position.x = out * 0.05;
+    this.cylinder.rotation.z = (5 - left) * ((Math.PI * 2) / 5) * (r === null ? 1 : 0) + (r === null ? 0 : r * 8);
+    this.flex.rotation.set(r === null ? 0 : bump(r, 0, 1) * 0.15, 0, r === null ? 0 : -bump(r, 0, 1) * 0.6 + bump(r, 0.8, 0.95) * 0.25);
+    void t;
+  }
+}
+
+/** Stinger Choir (burst SMG): three venom stingers on a cicada abdomen; the stingers retract and push out fresh. */
+class StingerChoir extends Body {
+  readonly id = 'stingerChoir';
+  readonly reloadStyle = 'regrow';
+  readonly kick: Kick = { back: 0.02, pitch: 0.09, roll: 0.05 };
+  readonly muzzleFx: MuzzleFx = 'quill';
+  readonly zooms = true;
+  private stingers: THREE.Group[] = [];
+  private tymbal: THREE.Mesh;
+  constructor(seed = 8) {
+    super(mix(PATH.stealth, ORGANIC.mist, 0.55), seed);
+    // The abdomen: banded segments (a lathe with ridges) from the grip forward.
+    this.flesh = this.add(lathe(0.34, (t) => 0.036 + Math.sin(Math.pow(t, 0.8) * Math.PI) * 0.024 + (Math.sin(t * 40) > 0.6 ? 0.004 : 0), 17).translate(0, 0, 0.14), this.m.fleshDeep);
+    const bands: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < 6; i++) bands.push(new THREE.TorusGeometry(0.064 - Math.abs(i - 2.5) * 0.005, 0.007, 5, 18, Math.PI * 1.3).rotateZ(-0.15 * Math.PI).translate(0, 0.002, 0.12 - i * 0.05));
+    this.add(merge(bands), this.m.bone);
+    // Tymbal: the drum membrane on the flank that sings with each burst.
+    this.tymbal = this.add(new THREE.SphereGeometry(0.03, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.4).rotateZ(-Math.PI / 2).scale(0.5, 1, 1.4).translate(0.045, 0.005, 0.02), this.m.sac);
+    // Three stingers in a triangle at the front.
+    for (let i = 0; i < 3; i++) {
+      const a = Math.PI / 2 + (i / 3) * Math.PI * 2, g = new THREE.Group();
+      g.position.set(Math.cos(a) * 0.022, Math.sin(a) * 0.022, -0.2);
+      g.rotation.set(-Math.sin(a) * 0.08, Math.cos(a) * 0.08, 0);
+      this.add(spike(0.16, 0.011, 0.1).rotateX(-Math.PI / 2), this.m.bone, g);
+      this.add(new THREE.SphereGeometry(0.009, 8, 6).scale(1, 1, 1.6).translate(0, 0, 0.005), this.m.core, g);
+      this.flex.add(g);
+      this.stingers.push(g);
+    }
+    this.muzzle.position.set(0, 0, -0.32);
+    // Folded wings along the back (glassy, veined).
+    for (const sd of [-1, 1]) {
+      const w = this.add(wing(0.22, 0.06, this.rand, 1), this.m.sac);
+      w.rotation.set(Math.PI / 2, 0, sd * 0.5);
+      w.position.set(sd * 0.02, 0.06, 0.14);
+    }
+    this.setGrip(V(0, -0.03, 0.09), 0.1);
+    this.size = 0.9;
+    this.socket('barrel', V(0, 0, -0.3)); this.socket('sight', V(0, 0.07, -0.04)); this.socket('under', V(0, -0.035, -0.14)); this.socket('chamber', V(0.055, 0.0, 0.09));
+  }
+  protected pose(t: number, s: Pose, fire: number): void {
+    const r = s.reload;
+    // Burst: the three stingers pump in turn and the tymbal buckles.
+    this.stingers.forEach((g, i) => {
+      const pump = Math.exp(-Math.max(0, s.sinceFire - i * 0.04) * 30) * (s.sinceFire >= i * 0.04 ? 1 : 0);
+      const ext = r === null ? 1 : r < 0.3 ? 1 - smooth(r / 0.3) : smooth((r - 0.45 - i * 0.12) / 0.2);
+      g.position.z = -0.2 + pump * 0.025 + (1 - ext) * 0.12;
+      g.scale.setScalar(0.4 + 0.6 * ext);
+    });
+    this.tymbal.scale.set(1 - fire * 0.5, 1, 1);
+    this.flex.rotation.set(r === null ? 0 : bump(r, 0, 1) * 0.12, 0, r === null ? 0 : bump(r, 0, 1) * 0.4 + Math.sin(t * 30) * bump(r, 0.4, 0.9) * 0.02);
+  }
+}
+
+/** Cicadine (burst rifle): a beetle body whose wing-cases snap open with each burst; a fat larva cartridge feeds in underneath. */
+class Cicadine extends Body {
+  readonly id = 'cicadine';
+  readonly reloadStyle = 'magazine';
+  readonly kick: Kick = { back: 0.025, pitch: 0.12, roll: 0.03 };
+  readonly muzzleFx: MuzzleFx = 'spore';
+  readonly zooms = true;
+  private elytra: THREE.Group[] = [];
+  private larva: THREE.Group;
+  constructor(seed = 9) {
+    super(mix(ZONE7.lime, ORGANIC.amber, 0.5), seed);
+    this.flesh = this.add(lathe(0.4, (t) => 0.03 + Math.sin(Math.pow(t, 0.7) * Math.PI) * 0.02 - t * 0.008, 19).translate(0, 0, 0.18), this.m.fleshDeep);
+    // Wing-cases: two domed shells hinged along the spine.
+    for (const sd of [-1, 1]) {
+      const g = new THREE.Group();
+      g.position.set(sd * 0.004, 0.02, 0.16);
+      this.add(roughen(new THREE.SphereGeometry(0.07, 20, 12, 0, Math.PI / 2, 0, Math.PI).rotateY(sd > 0 ? -Math.PI / 4 : (Math.PI * 3) / 4).scale(0.85, 0.75, 2.2).translate(0, 0, -0.16), 0.0015, 90, sd + 2), this.m.boneDark, g);
+      this.flex.add(g);
+      this.elytra.push(g);
+    }
+    // Snout barrel: a proboscis with feeding ridges.
+    const b: THREE.BufferGeometry[] = [taperTube([V(0, 0.01, -0.2), V(0, 0.012, -0.36), V(0, 0.006, -0.5)], [0.016, 0.012, 0.008], 8, 6)];
+    for (let i = 0; i < 6; i++) b.push(new THREE.TorusGeometry(0.014 - i * 0.001, 0.0028, 4, 12).translate(0, 0.011, -0.24 - i * 0.04));
+    this.add(roughen(merge(b), 0.001, 120, 5), this.m.bone);
+    this.muzzle.position.set(0, 0.006, -0.51);
+    // Compound sighting eyes either side of the snout.
+    const eye = alienEye(mix(ZONE7.lime, ORGANIC.amber, 0.4), HIVE.bone);
+    for (const sd of [-1, 1]) { const e = this.add(new THREE.SphereGeometry(0.014, 14, 10).scale(1, 1, 1.3), eye); e.position.set(sd * 0.03, 0.03, -0.17); e.rotation.y = Math.PI; }
+    this.sight = new THREE.Object3D();
+    this.sight.name = 'sight';
+    this.sight.position.set(0, 0.07, 0.06);
+    this.flex.add(this.sight);
+    // Stock: hind legs folded back.
+    this.add(roughen(merge([-1, 1].map((sd) => taperTube([V(sd * 0.02, -0.01, 0.2), V(sd * 0.03, -0.02, 0.29), V(sd * 0.012, -0.04, 0.36)], [0.01, 0.009, 0.012], 6, 4))), 0.0015, 80, 6), this.m.bone);
+    this.larva = new THREE.Group();
+    this.larva.position.set(0, -0.05, -0.06);
+    const segs: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < 5; i++) segs.push(new THREE.SphereGeometry(0.016 - Math.abs(i - 2) * 0.002, 12, 8).translate(0, -i * 0.016, -i * 0.006));
+    this.add(merge(segs), this.m.sac, this.larva);
+    this.add(new THREE.SphereGeometry(0.009, 8, 6).scale(1, 4, 1).translate(0, -0.03, -0.012), this.m.core, this.larva);
+    this.flex.add(this.larva);
+    this.setGrip(V(0, -0.03, 0.1), 0.1);
+    this.socket('barrel', V(0, 0.006, -0.5)); this.socket('sight', V(0, 0.075, -0.02)); this.socket('under', V(0, -0.012, -0.3)); this.socket('chamber', V(0.05, 0.0, 0.06));
+  }
+  protected pose(t: number, s: Pose, fire: number): void {
+    const r = s.reload;
+    // Each burst flicks the wing-cases open; a reload props them wide while the larva is swapped.
+    const open = Math.max(fire * 0.6, r === null ? 0 : bump(r, 0.05, 0.95) * 0.9);
+    this.elytra.forEach((g, i) => { g.rotation.z = (i ? -1 : 1) * open * 0.7; });
+    const out = r === null ? 0 : r < 0.45 ? smooth((r - 0.1) / 0.25) : 1 - smooth((r - 0.55) / 0.25);
+    this.larva.position.set(0, -0.05 - out * 0.12, -0.06 + out * 0.03);
+    this.larva.rotation.x = out * (0.7 + Math.sin(t * 5) * 0.1);
+    this.flex.rotation.set(r === null ? 0 : bump(r, 0, 1) * 0.1, 0, r === null ? 0 : bump(r, 0, 1) * 0.4);
+  }
+}
+
+/** Bloomcannon (auto shotgun): a flower-head drum of sticky seed globs; the petals close round the spent head and open on a fresh one. */
+class Bloomcannon extends Body {
+  readonly id = 'bloomcannon';
+  readonly reloadStyle = 'magazine';
+  readonly kick: Kick = { back: 0.05, pitch: 0.22, roll: 0.07 };
+  readonly muzzleFx: MuzzleFx = 'bile';
+  private petals: THREE.Group[] = [];
+  private seeds: THREE.Group;
+  constructor(seed = 10) {
+    super(mix(PATH.viral, ORGANIC.amber, 0.45), seed);
+    this.flesh = this.add(lathe(0.36, (t) => 0.04 + Math.sin(Math.pow(t, 0.8) * Math.PI) * 0.028, 21).translate(0, 0, 0.16), this.m.fleshDeep);
+    // Stem barrel: a thick, fibrous stalk with root sinews down its length.
+    const st: THREE.BufferGeometry[] = [taperTube([V(0, 0, -0.18), V(0, 0.004, -0.28), V(0, 0, -0.34)], [0.03, 0.026, 0.03], 10, 4)];
+    for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; st.push(taperTube([V(Math.cos(a) * 0.03, Math.sin(a) * 0.03, -0.12), V(Math.cos(a) * 0.028, Math.sin(a) * 0.028, -0.24), V(Math.cos(a) * 0.034, Math.sin(a) * 0.034, -0.34)], [0.006, 0.005, 0.007], 5, 4)); }
+    this.add(roughen(merge(st), 0.0015, 90, 4), this.m.flesh);
+    // The flower head: a seed drum ringed with fleshy petals that peel back to fire.
+    this.seeds = new THREE.Group();
+    this.seeds.position.set(0, 0, -0.36);
+    this.add(new THREE.SphereGeometry(0.036, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2).rotateX(-Math.PI / 2).scale(1, 1, 0.5), this.m.sac, this.seeds);
+    const sd: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < 9; i++) { const a = i * 2.4, rr = 0.008 + Math.sqrt(i / 9) * 0.022; sd.push(new THREE.SphereGeometry(0.007, 8, 6).translate(Math.cos(a) * rr, Math.sin(a) * rr, -0.012)); }
+    this.add(merge(sd), this.m.core, this.seeds);
+    this.flex.add(this.seeds);
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2, g = new THREE.Group();
+      g.position.set(Math.cos(a) * 0.04, Math.sin(a) * 0.04, -0.34);
+      g.rotation.z = a - Math.PI / 2;
+      this.add(roughen(new THREE.SphereGeometry(0.04, 12, 8).scale(0.75, 0.14, 1.5).translate(0, 0, -0.05), 0.0015, 120, i), i % 2 ? this.m.flesh : this.m.bone, g);
+      this.flex.add(g);
+      this.petals.push(g);
+    }
+    this.muzzle.position.set(0, 0, -0.4);
+    this.setGrip(V(0, -0.035, 0.1), 0.11);
+    this.size = 1.15;
+    this.socket('barrel', V(0, 0, -0.42)); this.socket('sight', V(0, 0.075, -0.06)); this.socket('under', V(0, -0.04, -0.22)); this.socket('chamber', V(0.065, 0.0, 0.1));
+  }
+  protected pose(t: number, s: Pose, fire: number): void {
+    const r = s.reload;
+    // Petals flare on each shot; on reload they close round the spent head (0.1..0.4) and bloom open on a new one.
+    const closed = r === null ? 0 : r < 0.5 ? smooth((r - 0.05) / 0.3) : 1 - smooth((r - 0.6) / 0.3);
+    const flare = fire * 0.5 + Math.sin(t * 1.3) * 0.04;
+    for (const p of this.petals) p.rotation.x = 0.7 + flare - closed * 1.3;
+    this.seeds.scale.setScalar(r === null ? 1 + fire * 0.15 : r < 0.45 ? 1 - smooth((r - 0.2) / 0.2) * 0.999 : smooth((r - 0.45) / 0.35));
+    this.flex.rotation.set(r === null ? 0 : -bump(r, 0, 1) * 0.12, 0, r === null ? 0 : bump(r, 0, 1) * 0.35);
+  }
+}
+
 const BUILDERS: Record<WeaponId, (seed?: number) => Body> = {
   quillet: (s) => new Sidearm(s), hiveSpitter: (s) => new Smg(s), vertebraRifle: (s) => new Rifle(s),
   gulletScatter: (s) => new Shotgun(s), eyestalkMarksman: (s) => new Sniper(s), broodMortar: (s) => new Launcher(s),
+  marrowHand: (s) => new MarrowHand(s), stingerChoir: (s) => new StingerChoir(s), cicadine: (s) => new Cicadine(s), bloomcannon: (s) => new Bloomcannon(s),
 };
 
 export function hasWeaponBody(id: string): id is WeaponId { return id in BUILDERS; }
