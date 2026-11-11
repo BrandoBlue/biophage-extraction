@@ -401,7 +401,7 @@
 .vd-unlocks li em { font-style:normal; font-family:var(--display); color:var(--bone); }
 .vd-unlocks li.on { opacity:1; } .vd-unlocks li.on em { color:var(--amber); }
 .vd-mid { display:flex; flex-direction:column; }
-.vd-mid .mk-cards { flex:none; }
+.vd-mid .mk-cards { flex:0 1 auto; max-height:45%; min-height:0; overflow:auto; padding-right:calc(var(--u) * .3); }
 .vd-h { margin:calc(var(--u) * 1) 0 calc(var(--u) * .5); font-size:calc(var(--u) * 1.05); color:var(--bone); letter-spacing:.14em; }
 .vd-h small { margin-left:.6em; font-size:.7em; opacity:.55; letter-spacing:.04em; text-transform:none; font-weight:400; }
 .vd-contracts { flex:1; min-height:0; overflow:auto; display:grid; align-content:start; gap:calc(var(--u) * .5); padding-right:calc(var(--u) * .3); }
