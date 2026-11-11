@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { HIVE, ZONE7 } from '../render/palette';
+import { HIVE, ZONE7, ZONE7_SHADE } from '../render/palette';
+import { alienEye, bioNode, chitin, goreFluid, livingFlesh, membrane } from '../render/materials';
 import { groundHeight, mulberry32 } from '../world/zone7';
 import type { Abomination as AbominationData } from '../../data';
 import { hears, sees, type Noise } from './perception';
@@ -43,8 +44,7 @@ export interface AbominationContext {
 
 type State = 'idle' | 'alert' | 'chase' | 'windup' | 'lunge' | 'recover' | 'stagger' | 'dead';
 
-const wet = (color: THREE.Color, o: Partial<THREE.MeshPhysicalMaterialParameters> = {}) =>
-  new THREE.MeshPhysicalMaterial({ color, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.08, ...o });
+const hx = (c: THREE.Color) => `#${c.getHexString()}`;
 const glowMat = (c: THREE.Color, i = 2.4) => new THREE.MeshStandardMaterial({ color: COL.void, emissive: c, emissiveIntensity: i, roughness: 0.25 });
 const glass = (c: THREE.Color, opacity = 0.5) => new THREE.MeshPhysicalMaterial({
   color: c, transparent: true, opacity, roughness: 0.05, clearcoat: 1, emissive: c, emissiveIntensity: 0.35, depthWrite: false,
@@ -73,6 +73,7 @@ export class Abomination {
   private bell: THREE.Group | null = null;
   private throatMat: THREE.MeshStandardMaterial | null = null;
   private throat: THREE.Mesh | null = null;
+  private drool: THREE.Mesh | null = null;
   private tendrils: THREE.Group[] = [];
   private vocal: THREE.Mesh[] = [];
   private stateTime = 0;
@@ -114,6 +115,14 @@ export class Abomination {
     return m;
   }
 
+  /** Pulsing bio-node (materials.ts) whose brightness the animation drives like the plain glows. */
+  private node(c: THREE.Color, i: number, rate = 2.2): THREE.MeshStandardMaterial {
+    const m = bioNode(hx(c), rate);
+    m.emissiveIntensity = i;
+    this.glows.push({ mat: m, base: i });
+    return m;
+  }
+
   private sphere(bone: THREE.Object3D, local: THREE.Vector3, r: number, weak: boolean, pustule?: number): void {
     this.hitSpheres.push({ bone, local, r, weak, world: new THREE.Vector3(), pustule });
   }
@@ -121,70 +130,109 @@ export class Abomination {
   // ---------------------------------------------------------------- Needlemaw: lamprey x harvestman x comb jelly
   private buildNeedlemaw(): void {
     const r = this.rand;
-    const chitin = wet(COL.chitin);
-    const bone = wet(COL.bone, { roughness: 0.45, clearcoat: 0.6 });
-    const muscle = wet(COL.muscle, { roughness: 0.35 });
+    // Shared bio-materials (src/render/materials.ts) so creatures match the world and the viewmodel; the same
+    // programs are already compiled for those, so no new shaders.
+    const shell = chitin(hx(COL.chitin.clone().multiplyScalar(2.6)), ZONE7.cyan, 3.5);
+    const bone = chitin(HIVE.bone, ZONE7.magenta, 7);
+    const flesh = livingFlesh(ZONE7_SHADE.flesh, ZONE7.magenta, ZONE7.magenta, 9);
+    const raw = livingFlesh(hx(COL.muscle), ZONE7.magenta, ZONE7.violet, 16);
+    raw.side = THREE.DoubleSide;
     const s = 0.9 + r() * 0.2;
     this.body.scale.setScalar(s);
     this.body.position.y = 0.75;
 
-    // Muscular core.
-    const core = new THREE.Mesh(organic(new THREE.SphereGeometry(0.28, 24, 16), 0.02, 12, r() * 10), chitin);
+    // Wet flesh core under overlapping armour plates; the flanks stay bare and studded with infected nodules.
+    const core = new THREE.Mesh(organic(new THREE.SphereGeometry(0.28, 28, 18), 0.02, 12, r() * 10), flesh);
     core.scale.set(0.9, 0.75, 1.3);
     this.body.add(core);
+    const plates: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < 3; i++) {
+      const g = organic(new THREE.SphereGeometry(0.27 - i * 0.02, 20, 8, 0, Math.PI * 2, 0, Math.PI * 0.36), 0.008, 20, i + r());
+      g.scale(1.05, 0.8, 0.75);
+      g.rotateX(-0.25 + i * 0.12);
+      g.translate(0, 0.05 + i * 0.012, 0.16 - i * 0.16);
+      plates.push(g);
+    }
+    this.body.add(new THREE.Mesh(mergeGeometries(plates), shell));
+    const nodules: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < 7; i++) {
+      const side = i % 2 ? 1 : -1, z = 0.2 - i * 0.06;
+      nodules.push(new THREE.SphereGeometry(0.022 + r() * 0.02, 10, 8).translate(side * 0.235, -0.04 + r() * 0.08, z));
+    }
+    this.body.add(new THREE.Mesh(mergeGeometries(nodules), this.node(COL.lime, 0.7, 3.1)));
 
-    // Front: radial lamprey mouth, a fleshy funnel ringed with glassy needles.
+    // Front: radial lamprey mouth, a raw funnel ringed with bone teeth outside and glass needles within.
     const head = new THREE.Group();
     head.position.set(0, 0, 0.38);
-    const funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.16, 0.26, 20, 1, true), muscle);
+    const funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.13, 0.28, 24, 3, true), raw);
     funnel.rotation.x = Math.PI / 2;
     funnel.position.z = 0.08;
-    (funnel.material as THREE.MeshPhysicalMaterial).side = THREE.DoubleSide;
     head.add(funnel);
-    const lip = new THREE.Mesh(new THREE.TorusGeometry(0.235, 0.04, 10, 28), muscle);
+    const lip = new THREE.Mesh(organic(new THREE.TorusGeometry(0.235, 0.05, 12, 32), 0.012, 30, r()), flesh);
     lip.position.z = 0.21;
     head.add(lip);
-    const throatGlow = new THREE.Mesh(new THREE.CircleGeometry(0.15, 20), this.glow(COL.magenta, 3));
-    throatGlow.position.z = 0.0;
+    const throatGlow = new THREE.Mesh(new THREE.CircleGeometry(0.12, 20), this.glow(COL.magenta, 1.6));
+    throatGlow.position.z = -0.06;
     head.add(throatGlow);
     // Needle rings are merged into one mesh each (draw calls matter with packs); the ring splays open as a whole.
-    const needleMat = glass(COL.cyan, 0.75);
     const piv = new THREE.Object3D();
     for (let ring = 0; ring < 2; ring++) {
-      const n = ring === 0 ? 14 : 10;
+      const n = ring === 0 ? 16 : 11;
       const parts: THREE.BufferGeometry[] = [];
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2 + ring * 0.2;
-        const rad = ring === 0 ? 0.21 : 0.13;
-        const g = new THREE.ConeGeometry(0.014, 0.2 + r() * 0.1, 5);
+        const rad = ring === 0 ? 0.215 : 0.13;
+        const g = new THREE.ConeGeometry(ring === 0 ? 0.02 : 0.013, (ring === 0 ? 0.16 : 0.22) + r() * 0.1, 5);
         g.rotateX(Math.PI / 2);
         g.translate(0, 0, 0.09);
         piv.position.set(Math.cos(a) * rad, Math.sin(a) * rad, 0);
         piv.rotation.set(0, 0, a - Math.PI / 2);
-        piv.rotateX(-0.25);
+        piv.rotateX(ring === 0 ? -0.55 : -0.2); // outer teeth hook inward like a lamprey's
         piv.updateMatrix();
         g.applyMatrix4(piv.matrix);
         parts.push(g);
       }
       const ringGroup = new THREE.Group();
-      ringGroup.position.z = 0.2 - ring * 0.07;
-      ringGroup.add(new THREE.Mesh(mergeGeometries(parts), needleMat));
+      ringGroup.position.z = 0.2 - ring * 0.08;
+      ringGroup.add(new THREE.Mesh(mergeGeometries(parts), ring === 0 ? bone : glass(COL.cyan, 0.8)));
       head.add(ringGroup);
       this.needles.push(ringGroup);
     }
+    // A brow of mismatched eyes above the mouth, set in fleshy sockets, all staring down the gaze line.
+    const eyeMat = alienEye(ZONE7.lime, HIVE.bone);
+    const sockets: THREE.BufferGeometry[] = [];
+    const EYES = [[0.85, 0.07], [1.22, 0.09], [1.6, 0.105], [1.98, 0.085], [2.35, 0.065]];
+    for (const [a, er] of EYES) {
+      const x = Math.cos(a) * 0.3, y = Math.sin(a) * 0.3 * 0.85;
+      sockets.push(new THREE.SphereGeometry(er * 1.35, 12, 8).scale(1, 1, 0.6).translate(x, y, 0.1));
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(er, 20, 14), eyeMat);
+      eye.position.set(x, y, 0.1 + er * 0.55);
+      eye.rotation.set(-y * 0.8, Math.PI + x * 0.9, 0);
+      head.add(eye);
+    }
+    head.add(new THREE.Mesh(mergeGeometries(sockets), flesh));
     // Throat sac under the mouth: the weak point, flares on wind-up.
-    this.throatMat = this.glow(COL.magenta, 2.2);
-    this.throat = new THREE.Mesh(organic(new THREE.SphereGeometry(0.13, 16, 12), 0.01, 20, 2), this.throatMat);
+    this.throatMat = bioNode(ZONE7.magenta, 4);
+    this.throat = new THREE.Mesh(organic(new THREE.SphereGeometry(0.13, 18, 12), 0.012, 20, 2), this.throatMat);
     this.throat.position.set(0, -0.2, 0.05);
     head.add(this.throat);
+    // Drool: glowing strands sagging from the lower lip.
+    const drool: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < 4; i++) {
+      const a = -Math.PI / 2 + (i - 1.5) * 0.45, len = 0.12 + r() * 0.2;
+      const x = Math.cos(a) * 0.2, y = Math.sin(a) * 0.2;
+      drool.push(new THREE.CylinderGeometry(0.006, 0.01, len, 5).translate(x, y - len / 2, 0.22));
+      drool.push(new THREE.SphereGeometry(0.016, 8, 6).scale(1, 1.4, 1).translate(x, y - len, 0.22));
+    }
+    this.drool = new THREE.Mesh(mergeGeometries(drool), goreFluid(ZONE7.cyan));
+    head.add(this.drool);
     this.body.add(head);
 
-    // Back: ribbed comb-jelly bell, translucent, pulsing cyan.
+    // Back: ribbed comb-jelly bell, a veined membrane pulsing cyan.
     const bell = new THREE.Group();
     bell.position.set(0, 0.05, -0.32);
-    const dome = new THREE.Mesh(organic(new THREE.SphereGeometry(0.42, 28, 18, 0, Math.PI * 2, 0, Math.PI * 0.62), 0.015, 9, 4), glass(COL.cyan, 0.38));
+    const dome = new THREE.Mesh(organic(new THREE.SphereGeometry(0.42, 28, 18, 0, Math.PI * 2, 0, Math.PI * 0.62), 0.015, 9, 4), membrane(ZONE7.cyan, 0.5));
     dome.rotation.x = -Math.PI / 2 - 0.25;
-    dome.material.side = THREE.DoubleSide;
     bell.add(dome);
     const combMat = this.glow(COL.cyan, 2.6);
     const combs: THREE.BufferGeometry[] = [];
@@ -201,13 +249,14 @@ export class Abomination {
     comb.rotation.x = -Math.PI / 2 - 0.25;
     bell.add(comb);
     // Trailing frills from the bell rim.
+    const frill = membrane(ZONE7.violet, 0.7);
     for (let i = 0; i < 6; i++) {
       const tg = new THREE.Group();
       const a = (i / 6) * Math.PI * 2;
       tg.position.set(Math.cos(a) * 0.3, Math.sin(a) * 0.3 - 0.05, -0.32);
-      const ten = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.018, 0.5, 4), glass(COL.violet, 0.6));
+      const ten = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.022, 0.6, 5), frill);
       ten.rotation.x = Math.PI / 2;
-      ten.position.z = -0.25;
+      ten.position.z = -0.3;
       tg.add(ten);
       bell.add(tg);
       this.tendrils.push(tg);
@@ -215,31 +264,34 @@ export class Abomination {
     this.body.add(bell);
     this.bell = bell;
 
-    // Dorsal bone spurs.
-    for (let i = 0; i < 3; i++) {
-      const sp = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.18 + r() * 0.1, 6), bone);
-      sp.position.set(0, 0.2, 0.15 - i * 0.14);
-      sp.rotation.x = -0.6;
-      this.body.add(sp);
+    // Dorsal bone spurs, raked back.
+    const spurs: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < 5; i++) {
+      const g = new THREE.ConeGeometry(0.028 - i * 0.003, 0.2 + r() * 0.12 - i * 0.02, 6).translate(0, 0.1, 0);
+      g.rotateX(-0.7 - i * 0.08);
+      g.translate((i % 2 ? 1 : -1) * 0.03, 0.2 - i * 0.012, 0.2 - i * 0.11);
+      spurs.push(g);
     }
+    this.body.add(new THREE.Mesh(mergeGeometries(spurs), bone));
 
-    // Six long harvestman legs: knees high above the body, feet far out.
+    // Six long harvestman legs: armoured thighs, knees high above the body, bone needles for feet.
+    const shinGeo = new THREE.CylinderGeometry(0.006, 0.024, 1.25, 6);
+    const kneeGeo = mergeGeometries([new THREE.SphereGeometry(0.04, 10, 8), new THREE.ConeGeometry(0.015, 0.12, 5).translate(0, 0.08, 0)]);
     for (let i = 0; i < 6; i++) {
       const side = i < 3 ? -1 : 1;
       const row = i % 3;
       const hip = new THREE.Group();
       hip.position.set(side * 0.18, 0.02, 0.18 - row * 0.2);
       hip.rotation.set(0, side * (0.55 - row * 0.55), side * -0.55);
-      const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.035, 0.8, 6), chitin);
+      const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.04, 0.8, 7), shell);
       thigh.position.y = 0.4;
       hip.add(thigh);
       const knee = new THREE.Group();
       knee.position.y = 0.8;
       knee.rotation.z = side * 2.35;
-      const kj = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), bone);
-      const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.022, 1.25, 5), bone);
+      const shin = new THREE.Mesh(shinGeo, bone);
       shin.position.y = 0.62;
-      knee.add(kj, shin);
+      knee.add(new THREE.Mesh(kneeGeo, bone), shin);
       hip.add(knee);
       this.body.add(hip);
       this.legs.push({ hip, knee, phase: (i + row) % 2 === 0 ? 0 : Math.PI });
@@ -254,23 +306,31 @@ export class Abomination {
   // ---------------------------------------------------------------- Bile Cantor: siphonophore x vocal sac x pitcher plant
   private buildCantor(): void {
     const r = this.rand;
-    const muscle = wet(COL.muscle, { roughness: 0.35 });
-    const chitin = wet(COL.chitin);
+    const flesh = livingFlesh(ZONE7_SHADE.flesh, ZONE7.magenta, ZONE7.violet, 6);
+    const raw = livingFlesh(hx(COL.muscle), ZONE7.magenta, ZONE7.magenta, 10);
+    const shell = chitin(hx(COL.chitin.clone().multiplyScalar(2.6)), ZONE7.lime, 3);
+    const bone = chitin(HIVE.bone, ZONE7.violet, 6);
     const [lo, hi] = (this.t.hoverHeight as [number, number]) ?? [3, 6];
     this.hover = lo + r() * (hi - lo);
     this.body.position.y = this.hover;
     this.strafe = r() < 0.5 ? -1 : 1;
 
-    // The 3 m gas bladder, veined violet, light coming through.
+    // The 3 m gas bladder: veined violet membrane, light and organs showing through.
     const bladder = new THREE.Group();
-    const skin = new THREE.Mesh(organic(new THREE.SphereGeometry(1.5, 40, 28), 0.08, 3.5, r() * 9), new THREE.MeshPhysicalMaterial({
-      color: COL.violet, transparent: true, opacity: 0.4, roughness: 0.06, clearcoat: 1, emissive: COL.violet, emissiveIntensity: 0.35, side: THREE.DoubleSide, depthWrite: false,
-    }));
+    const skin = new THREE.Mesh(organic(new THREE.SphereGeometry(1.5, 40, 28), 0.08, 3.5, r() * 9), membrane(ZONE7.violet, 0.42));
     skin.scale.set(1, 0.82, 1.05);
+    skin.renderOrder = 1;
     bladder.add(skin);
-    const inner = new THREE.Mesh(organic(new THREE.IcosahedronGeometry(0.75, 3), 0.08, 5, 3), this.glow(COL.magenta, 0.9));
-    inner.position.y = 0.15;
+    const inner = new THREE.Mesh(organic(new THREE.IcosahedronGeometry(0.45, 3), 0.08, 5, 3), this.glow(COL.magenta, 0.55));
+    inner.position.y = 0.2;
     bladder.add(inner);
+    // A curled embryo of organs hanging in the gas: you can see what it is digesting.
+    const organs: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2 + r();
+      organs.push(organic(new THREE.SphereGeometry(0.22 + r() * 0.12, 16, 12), 0.03, 9, i).translate(Math.cos(a) * 0.55, -0.25 + r() * 0.3, Math.sin(a) * 0.55));
+    }
+    bladder.add(new THREE.Mesh(mergeGeometries(organs), flesh));
     const veinMat = this.glow(COL.violet, 2);
     const veins: THREE.BufferGeometry[] = [];
     for (let i = 0; i < 12; i++) {
@@ -281,20 +341,39 @@ export class Abomination {
         const w = a + Math.sin(k * 1.1 + i * 2) * 0.16;
         pts.push(new THREE.Vector3(Math.sin(phi) * Math.cos(w), Math.cos(phi) * 0.82, Math.sin(phi) * Math.sin(w)).multiplyScalar(1.52));
       }
-      veins.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.022, 4));
+      veins.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.026, 4));
     }
     bladder.add(new THREE.Mesh(mergeGeometries(veins), veinMat));
+    // One great eye breaks the skin at the front, ringed by a raw lid and lesser eyes.
+    const eyeMat = alienEye(ZONE7.magenta, HIVE.bone);
+    const eyeAt = new THREE.Vector3(0, -0.35, 1.38);
+    const bigEye = new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 22), eyeMat);
+    bigEye.position.copy(eyeAt);
+    bigEye.rotation.set(0.3, Math.PI, 0);
+    bladder.add(bigEye);
+    const lid = new THREE.Mesh(organic(new THREE.TorusGeometry(0.33, 0.1, 14, 32), 0.02, 14, 4), raw);
+    lid.position.copy(eyeAt).add(new THREE.Vector3(0, 0, 0.06));
+    lid.rotation.x = -0.3;
+    bladder.add(lid);
+    const smallEyeMat = alienEye(ZONE7.lime, HIVE.bone);
+    for (const [x, y, er] of [[-0.62, -0.1, 0.11], [0.58, -0.05, 0.13], [-0.4, -0.75, 0.09], [0.45, -0.8, 0.1]]) {
+      const e = new THREE.Mesh(new THREE.SphereGeometry(er, 18, 12), smallEyeMat);
+      const z = Math.sqrt(Math.max(0, 1.4 * 1.4 - x * x - y * y * 1.4)) * 1.02;
+      e.position.set(x, y - 0.3, z);
+      e.rotation.set(0.3 + y * 0.4, Math.PI + x * 0.7, 0);
+      bladder.add(e);
+    }
     this.body.add(bladder);
     this.bell = bladder;
 
     // Three song pustules on the flanks: the weak points.
     for (let i = 0; i < 3; i++) {
       const a = (i / 3) * Math.PI * 2 + 0.5;
-      const mat = glowMat(COL.lime, 3);
-      const p = new THREE.Mesh(organic(new THREE.SphereGeometry(0.26, 18, 12), 0.02, 18, i), mat);
+      const mat = bioNode(ZONE7.lime, 4 + i * 0.4);
+      const p = new THREE.Mesh(organic(new THREE.SphereGeometry(0.26, 20, 14), 0.02, 18, i), mat);
       p.position.set(Math.cos(a) * 1.35, -0.25, Math.sin(a) * 1.35);
       p.scale.set(1, 1.2, 1);
-      const collar = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.06, 8, 18), muscle);
+      const collar = new THREE.Mesh(organic(new THREE.TorusGeometry(0.25, 0.08, 10, 22), 0.015, 20, i), raw);
       collar.position.copy(p.position);
       collar.lookAt(0, -0.25, 0);
       bladder.add(p, collar);
@@ -302,19 +381,35 @@ export class Abomination {
       this.sphere(bladder, p.position.clone(), 0.34, true, i);
     }
 
-    // Throat cluster: vocal sacs and pitcher mouths beneath the bladder.
+    // Underside maw: a fleshy bulb ringed with hooked bone teeth, vocal sacs and pitcher mouths around it.
     const throat = new THREE.Group();
     throat.position.y = -1.2;
+    const bulb = new THREE.Mesh(organic(new THREE.SphereGeometry(0.5, 28, 18), 0.03, 8, 5), flesh);
+    bulb.scale.set(1, 0.6, 1);
+    bulb.position.y = 0.12;
+    throat.add(bulb);
+    const teeth: THREE.BufferGeometry[] = [];
+    const piv = new THREE.Object3D();
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2;
+      const g = new THREE.ConeGeometry(0.03, 0.22 + r() * 0.1, 5).translate(0, -0.1, 0);
+      piv.position.set(Math.cos(a) * 0.24, -0.12, Math.sin(a) * 0.24);
+      piv.rotation.set(0, -a, 0);
+      piv.rotateZ(Math.PI + 0.45);
+      piv.updateMatrix();
+      teeth.push(g.applyMatrix4(piv.matrix));
+    }
+    throat.add(new THREE.Mesh(mergeGeometries(teeth), bone));
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2;
-      const sac = new THREE.Mesh(organic(new THREE.SphereGeometry(0.2, 14, 10), 0.015, 16, i), wet(COL.muscle.clone().lerp(COL.magenta, 0.3), { roughness: 0.25 }));
-      sac.position.set(Math.cos(a) * 0.32, -0.1, Math.sin(a) * 0.32);
+      const sac = new THREE.Mesh(organic(new THREE.SphereGeometry(0.2, 16, 12), 0.015, 16, i), raw);
+      sac.position.set(Math.cos(a) * 0.45, -0.05, Math.sin(a) * 0.45);
       sac.scale.set(1, 1.3, 1);
       throat.add(sac);
       this.vocal.push(sac);
-      const pitcher = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.04, 0.45, 10, 1, true), chitin);
+      const pitcher = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.04, 0.45, 10, 1, true), shell);
       pitcher.material.side = THREE.DoubleSide;
-      pitcher.position.set(Math.cos(a + 0.6) * 0.2, -0.35, Math.sin(a + 0.6) * 0.2);
+      pitcher.position.set(Math.cos(a + 0.6) * 0.5, -0.3, Math.sin(a + 0.6) * 0.5);
       pitcher.rotation.set(Math.sin(a) * 0.5, 0, Math.cos(a) * 0.5);
       throat.add(pitcher);
       const lining = new THREE.Mesh(new THREE.CircleGeometry(0.09, 10), this.glow(COL.lime, 2.5));
@@ -322,9 +417,28 @@ export class Abomination {
       lining.rotation.x = Math.PI / 2;
       throat.add(lining);
     }
-    this.throat = new THREE.Mesh(organic(new THREE.SphereGeometry(0.28, 16, 12), 0.02, 14, 1), (this.throatMat = this.glow(COL.lime, 2)));
+    this.throatMat = bioNode(ZONE7.lime, 5);
+    this.throat = new THREE.Mesh(organic(new THREE.SphereGeometry(0.2, 16, 12), 0.02, 14, 1), this.throatMat);
     this.throat.position.y = -0.15;
     throat.add(this.throat);
+    // Viscera: loops of gut slung from the maw, dripping bile.
+    const guts: THREE.BufferGeometry[] = [];
+    const drips: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + 1;
+      const p0 = new THREE.Vector3(Math.cos(a) * 0.3, -0.05, Math.sin(a) * 0.3);
+      const p2 = new THREE.Vector3(Math.cos(a + 1.3) * 0.35, -0.05, Math.sin(a + 1.3) * 0.35);
+      const sag = 0.6 + r() * 0.5;
+      const mid = p0.clone().lerp(p2, 0.5).multiplyScalar(1.4).setY(-sag);
+      const curve = new THREE.CatmullRomCurve3([p0, p0.clone().lerp(mid, 0.5).setY(-sag * 0.7), mid, p2.clone().lerp(mid, 0.5).setY(-sag * 0.7), p2]);
+      guts.push(new THREE.TubeGeometry(curve, 24, 0.055, 7));
+      const len = 0.2 + r() * 0.35;
+      drips.push(new THREE.CylinderGeometry(0.008, 0.016, len, 5).translate(mid.x, mid.y - len / 2, mid.z));
+      drips.push(new THREE.SphereGeometry(0.03, 8, 6).scale(1, 1.4, 1).translate(mid.x, mid.y - len, mid.z));
+    }
+    throat.add(new THREE.Mesh(mergeGeometries(guts), raw));
+    this.drool = new THREE.Mesh(mergeGeometries(drips), goreFluid(ZONE7.lime));
+    throat.add(this.drool);
     this.body.add(throat);
 
     // Siphonophore fringe: long tendrils with glowing beads.
@@ -386,7 +500,7 @@ export class Abomination {
       const p = this.pustules[sphere.pustule];
       if (!p.popped) {
         p.hp -= amount;
-        if (p.hp <= 0) { p.popped = true; p.mesh.scale.setScalar(0.35); p.mat.emissive.copy(COL.violet); p.mat.emissiveIntensity = 0.3; }
+        if (p.hp <= 0) { p.popped = true; p.mesh.scale.setScalar(0.35); p.mat.emissive.copy(COL.violet); p.mat.emissiveIntensity = 0.15; }
       }
       const all = (this.t.weakPoint as { allPoppedKills?: boolean }).allPoppedKills;
       if (all && this.pustules.every((x) => x.popped)) this.biomass = 0;
@@ -575,8 +689,9 @@ export class Abomination {
       // Bell contracts on wind-up, pulses faster when hunting.
       const rate = this.engaged ? 7 : 2.5;
       if (this.bell) this.bell.scale.set(1 + Math.sin(time * rate) * 0.07 - wind * 0.15, 1 + Math.sin(time * rate) * 0.07 - wind * 0.15, 1 - Math.sin(time * rate) * 0.05);
-      if (this.throat && this.throatMat) { this.throat.scale.setScalar(1 + wind * 0.6); this.throatMat.emissiveIntensity = (2.2 + wind * 6) * revealBoost; }
+      if (this.throat && this.throatMat) { this.throat.scale.setScalar(1 + wind * 0.6); this.throatMat.emissiveIntensity = (0.9 + wind * 2.5) * revealBoost; }
       this.tendrils.forEach((tg, i) => { tg.rotation.y = Math.sin(time * 3 + i) * 0.3; });
+      if (this.drool) this.drool.scale.y = 1 + Math.sin(time * 1.7) * 0.15 + wind * 0.4;
       for (const g of this.glows) if (g.mat !== this.throatMat) g.mat.emissiveIntensity = g.base * (this.engaged ? 1.3 : 0.75) * revealBoost;
     } else {
       const wind = this.state === 'windup' ? Math.min(1, this.stateTime / this.t.windup) : 0;
@@ -586,8 +701,9 @@ export class Abomination {
       b.rotation.x = Math.cos(time * 0.6) * 0.05;
       if (this.bell) this.bell.scale.setScalar(1 + Math.sin(time * 1.6) * 0.025 + wind * 0.05);
       this.vocal.forEach((v, i) => v.scale.set(1 + Math.sin(time * 6 + i) * 0.15 * (0.4 + wind), 1.3 + Math.sin(time * 6 + i) * 0.25 * (0.4 + wind), 1));
-      for (const p of this.pustules) if (!p.popped) { p.mat.emissiveIntensity = (3 + wind * 7 + Math.sin(time * 4) * 0.5) * revealBoost; p.mesh.scale.set(1 + wind * 0.3, 1.2 + wind * 0.4, 1 + wind * 0.3); }
-      if (this.throat && this.throatMat) { this.throat.scale.setScalar(1 + wind * 0.8); this.throatMat.emissiveIntensity = (2 + wind * 6) * revealBoost; }
+      for (const p of this.pustules) if (!p.popped) { p.mat.emissiveIntensity = (1 + wind * 2.5 + Math.sin(time * 4) * 0.15) * revealBoost; p.mesh.scale.set(1 + wind * 0.3, 1.2 + wind * 0.4, 1 + wind * 0.3); }
+      if (this.throat && this.throatMat) { this.throat.scale.setScalar(1 + wind * 0.8); this.throatMat.emissiveIntensity = (0.8 + wind * 2.5) * revealBoost; }
+      if (this.drool) this.drool.scale.y = 1 + Math.sin(time * 1.3) * 0.2 + wind * 0.5;
       this.tendrils.forEach((tg, i) => { tg.rotation.x = Math.sin(time * 1.2 + i * 0.7) * 0.18 - this.velocity.z * 0.04; tg.rotation.z = Math.cos(time * 1.0 + i) * 0.18 + this.velocity.x * 0.04; });
     }
   }
