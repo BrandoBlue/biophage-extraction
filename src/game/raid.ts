@@ -649,6 +649,7 @@ export class Raid {
       damage: (n: number) => this.hurt(n, 'torso', 'debug', null),
       extractNow: () => { const ex = this.extract; this.player.position.set(ex.x, groundHeight(ex.x, ex.z), ex.z); },
       setTimeScale: (k: number) => { this.timeScale = k; },
+      setTimeLeft: (t: number) => { this.elapsed = RAID.raidTime - t; },
       give: (item: string, n = 1) => this.carried.add(item, n),
     };
   }
