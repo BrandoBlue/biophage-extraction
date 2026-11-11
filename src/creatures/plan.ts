@@ -49,7 +49,7 @@ export interface LimbSpec {
 }
 
 export type PartType =
-  | 'spike' | 'horn' | 'blade' | 'plate' | 'pustule' | 'node' | 'eye' | 'lid' | 'needleRing' | 'crystals'
+  | 'spike' | 'horn' | 'blade' | 'plate' | 'pustule' | 'node' | 'eye' | 'lid' | 'eyelids' | 'needleRing' | 'crystals'
   | 'fungus' | 'vent' | 'skull' | 'wing' | 'membraneDome' | 'cord' | 'lens' | 'frill' | 'sac' | 'cup';
 
 export interface PartSpec {

@@ -192,7 +192,9 @@ export function bilecantor(seed: number, stage = 0): BodyPlan {
   // Three song pustules on the flanks: the weak points.
   for (let i = 0; i < 3; i++) {
     const a = (i / 3) * Math.PI * 2 + 0.5;
-    b.part({ id: `pustule${i}`, type: 'pustule', bone: body, at: V(Math.cos(a) * 1.28, h - 0.3, Math.sin(a) * 1.28), dir: V(Math.cos(a), -0.2, Math.sin(a)), size: 0.24, material: 'glow', dynamic: true, weak: true });
+    // Bile sacs: translucent tissue with a small glowing core, not glowing discs (Rendering, player-view pass).
+    b.part({ id: `pustule${i}`, type: 'pustule', bone: body, at: V(Math.cos(a) * 1.28, h - 0.3, Math.sin(a) * 1.28), dir: V(Math.cos(a), -0.2, Math.sin(a)), size: 0.24, material: 'membrane', dynamic: true, weak: true });
+    b.part({ id: `pustule${i}core`, type: 'node', bone: body, at: V(Math.cos(a) * 1.33, h - 0.3, Math.sin(a) * 1.33), dir: V(Math.cos(a), -0.2, Math.sin(a)), size: 0.07, material: 'glow' });
     b.hit({ bone: body, at: V(Math.cos(a) * 1.35, h - 0.25, Math.sin(a) * 1.35), r: 0.34, weak: true, part: `pustule${i}` });
   }
   // Pitcher-plant mouths hanging under the throat, lit from inside.
@@ -236,7 +238,7 @@ function raw(k: number): THREE.Color { return tint(ZONE7.magenta, 0.5 * k).lerp(
 export function glasswalker(seed: number, stage = 0): BodyPlan {
   const r = rng(seed);
   const pal: Palette = {
-    flesh: mix(HIVE.bone, ZONE7.cyan, 0.3, 0.5), vein: dim(ZONE7.cyan, 0.28), rim: dim(ZONE7.magenta, 0.5),
+    flesh: mix(HIVE.bone, ZONE7.cyan, 0.3, 0.5), vein: dim(ZONE7.cyan, 0.28), rim: HIVE.bone,
     chitin: mix(HIVE.bone, ZONE7.cyan, 0.25, 0.6), chitinGlow: ZONE7.cyan, bone: mix(HIVE.bone, ZONE7.cyan, 0.1, 0.8),
     glow: ZONE7.cyan, fluid: HIVE.acid, membrane: ZONE7.cyan, iris: ZONE7.magenta, sclera: ZONE7_SHADE.rockDeep,
   };
@@ -327,11 +329,12 @@ export function oculimoth(seed: number, stage = 0): BodyPlan {
   const pal: Palette = {
     flesh: mix(ZONE7_SHADE.flesh, ZONE7.magenta, 0.15, 0.8), vein: dim(ZONE7.magenta, 0.4), rim: dim(ZONE7.lime, 0.5),
     chitin: mix(ZONE7.violet, ZONE7.void, 0.6), chitinGlow: ZONE7.magenta, bone: HIVE.bone,
-    glow: ZONE7.lime, fluid: ZONE7.lime, membrane: ZONE7.magenta, iris: ZONE7.lime, sclera: mix(HIVE.bone, ZONE7.magenta, 0.12),
+    glow: ZONE7.lime, fluid: ZONE7.lime, membrane: ZONE7.magenta, iris: mix(ZONE7.lime, PATH.melee, 0.55), sclera: mix(HIVE.bone, ZONE7.magenta, 0.12),
   };
-  const s = 0.9 + r() * 0.2;
+  // Big enough to read at 7 m: the eye and its wide veined wings are the silhouette (reference 04).
+  const s = (0.9 + r() * 0.2) * 1.6;
   const h = 3;
-  const b = new PlanBuilder('oculimoth', seed, stage, { locomotion: 'flyer', bodyHeight: h, radius: 0.3 * s, skinNoise: { amp: 0.004, freq: 40 }, skinResolution: 36, fleshScale: 18, palette: pal });
+  const b = new PlanBuilder('oculimoth', seed, stage, { locomotion: 'flyer', bodyHeight: h, radius: 0.3 * s, skinNoise: { amp: 0.009, freq: 26 }, skinResolution: 36, fleshScale: 18, palette: pal });
   const S = (x: number, y: number, z: number) => V(x * s, h + y * s, z * s);
   const body = b.bone('body', -1, V(0, h, 0));
   const thorax = b.bone('thorax', body, S(0, 0.02, -0.15));
@@ -342,14 +345,14 @@ export function oculimoth(seed: number, stage = 0): BodyPlan {
   b.part({ id: 'eye', type: 'eye', bone: body, at: S(0, 0, 0.025), dir: V(0, 0, 1), size: 0.118 * s, material: 'eye', dynamic: true, weak: true });
   // Aperture iris blades: a camera diaphragm of bone ringing the pupil (cephalopod meets machine).
   b.part({ id: 'aperture', type: 'needleRing', bone: body, at: S(0, 0, 0.095), dir: V(0, 0, 1), fwd: V(0, 1, 0), size: 0.115 * s, p: [9, 0.5, 1.6], material: 'bone' });
-  b.part({ id: 'lid', type: 'lid', bone: body, at: S(0, 0, 0.06), dir: V(0, 0, 1), size: 0.118 * s, material: 'flesh' });
+  b.part({ id: 'lid', type: 'eyelids', bone: body, at: S(0, 0, 0.025), dir: V(0, 0, 1), fwd: V(0, 1, 0), size: 0.118 * s, p: [0.34], material: 'flesh' });
   // Two pairs of veined moth wings.
   const wings = (pairs: [number, number, number, number][], stageN: number, prefix: string) => pairs.forEach(([mz, span, chord, sweep], k) => b.both((side, n) => {
     const id = `${prefix}${n}${k}`;
     b.limb({ id, kind: 'wing', bone: thorax, mount: S(side * 0.05, 0.05, mz), lengths: [0.04 * s], radii: [0.012 * s, 0.008 * s], style: 'tendril', material: 'chitin', rest: S(side * 1, 0.25, mz + sweep), pole: V(0, 0, 1), stage: stageN, severable: true });
     b.part({ id: `${id}m`, type: 'wing', bone: { limb: id, seg: 0 }, at: V(0, 0.02, 0), dir: V(0, 1, 0), fwd: V(0, 0, 1), size: span * s, p: [chord, k + 1], material: 'membrane', dynamic: true, stage: stageN });
   }));
-  wings([[-0.12, 0.42, 0.55, 0.15], [-0.2, 0.3, 0.7, -0.55]], 0, 'wing');
+  wings([[-0.12, 0.62, 0.6, 0.15], [-0.2, 0.45, 0.75, -0.55]], 0, 'wing');
   // Swiftlet saliva cords dangling from under the socket, beaded with glowing drops.
   for (let i = 0; i < 4; i++) {
     const x = (i - 1.5) * 0.05;

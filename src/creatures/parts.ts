@@ -167,6 +167,43 @@ export function vent(r: number, h: number): THREE.BufferGeometry {
 }
 
 /** Eye lid ring (flesh torus around an eye socket). */
+/**
+ * Upper and lower eyelids around an eye of radius r: front-hemisphere shells whose edges curve into an almond
+ * opening across local X, with a rolled lip along each edge. Local +Y is the gaze, local +Z is "up" (pass
+ * fwd = up when placing the part). `open` is the half-height of the opening at its centre, as a fraction of r.
+ */
+export function eyelids(r: number, open = 0.32): THREE.BufferGeometry {
+  const R = r * 1.07, parts: THREE.BufferGeometry[] = [];
+  const NU = 24, NV = 8;
+  for (const side of [1, -1]) {
+    const o = side > 0 ? open : open * 1.2;
+    const edge = (u: number) => side * o * (1 - u * u) * Math.sqrt(Math.max(0, 1 - u * u));
+    const pos: number[] = [], idx: number[] = [], lip: THREE.Vector3[] = [];
+    for (let i = 0; i <= NU; i++) {
+      const u = (i / NU) * 1.9 - 0.95;
+      const zMax = Math.sqrt(Math.max(0, 1 - u * u));
+      for (let j = 0; j <= NV; j++) {
+        const z = THREE.MathUtils.lerp(edge(u), side * zMax, j / NV);
+        const y = Math.sqrt(Math.max(0, 1 - u * u - z * z));
+        // Swell slightly toward the lip so the lid reads as a fold of skin.
+        const k = R * (1 + 0.05 * (1 - j / NV));
+        pos.push(u * k, y * k, z * k);
+        if (j === 0) lip.push(new THREE.Vector3(u * k, y * k + r * 0.02, z * k));
+      }
+    }
+    for (let i = 0; i < NU; i++) for (let j = 0; j < NV; j++) {
+      const a0 = i * (NV + 1) + j, a1 = a0 + NV + 1;
+      if (side > 0) idx.push(a0, a0 + 1, a1, a0 + 1, a1 + 1, a1); else idx.push(a0, a1, a0 + 1, a0 + 1, a1, a1 + 1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    parts.push(g, taperTube(lip, lip.map((_, i) => r * (0.05 + 0.06 * Math.sin((i / (lip.length - 1)) * Math.PI))), 6, 1));
+  }
+  return roughen(merge(parts), r * 0.025, 9 / r, 7);
+}
+
 export function lid(r: number): THREE.BufferGeometry {
   const g = new THREE.TorusGeometry(r * 1.02, r * 0.28, 6, 16);
   g.rotateX(Math.PI / 2);
@@ -199,19 +236,34 @@ export function skull(size: number, variant: number): THREE.BufferGeometry {
 
 /** Moth-like wing membrane spanning +Y (out from the root) with its chord along Z, slightly cambered along X. */
 export function wing(span: number, chord: number, rand: Rand, lobes = 1): THREE.BufferGeometry {
-  const shape = new THREE.Shape();
-  shape.moveTo(0, -chord * 0.1);
-  shape.bezierCurveTo(span * 0.3, -chord * 0.7, span * 0.85, -chord * (0.6 + rand() * 0.2), span, -chord * 0.15);
-  if (lobes > 1) shape.bezierCurveTo(span * 0.95, chord * 0.2, span * 0.7, chord * 0.05, span * 0.55, chord * 0.35);
-  shape.bezierCurveTo(span * 0.45, chord * 0.75, span * 0.15, chord * 0.55, 0, chord * 0.12);
-  shape.lineTo(0, -chord * 0.1);
-  const g = new THREE.ShapeGeometry(shape, 14);
-  const pos = g.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const sx = pos.getX(i), sy = pos.getY(i);
-    pos.setXYZ(i, Math.sin((sx / span) * Math.PI) * chord * 0.08, sx, sy);
+  // A gridded membrane (not a flat outline) so it can carry camber, vein corrugation that catches the light,
+  // and a scalloped trailing edge. Span runs along +Y, chord along Z, out-of-plane along X.
+  const NU = 22, NV = 12, seed = rand() * 10;
+  const pos: number[] = [], idx: number[] = [];
+  for (let i = 0; i <= NU; i++) {
+    const u = i / NU;
+    const base = Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.04)), 0.6);
+    const lead = chord * (0.12 + 0.38 * base);
+    // Trailing edge: broader, scalloped between the vein tips; a second lobe swells it near the tip.
+    let trail = chord * (0.1 + 0.62 * base * (1 - 0.35 * u));
+    if (lobes > 1) trail += chord * 0.35 * Math.exp(-Math.pow((u - 0.72) / 0.12, 2));
+    trail *= 1 - 0.07 * Math.abs(Math.sin(u * Math.PI * 5 + seed));
+    const sweep = -chord * 0.18 * u * u;
+    for (let j = 0; j <= NV; j++) {
+      const v = j / NV; // 0 leading edge .. 1 trailing edge
+      const z = sweep + THREE.MathUtils.lerp(-lead, trail, v);
+      const camber = Math.sin(Math.PI * v) * chord * 0.07 * (1 - u * 0.5);
+      const veins = Math.sin(v * Math.PI * 6 + u * 2.5 + seed) * chord * 0.012 * Math.sin(Math.PI * Math.min(1, u * 1.2));
+      pos.push(camber + veins + Math.sin(u * Math.PI) * chord * 0.05, u * span, z);
+    }
   }
-  g.deleteAttribute('uv');
+  for (let i = 0; i < NU; i++) for (let j = 0; j < NV; j++) {
+    const a0 = i * (NV + 1) + j, a1 = a0 + NV + 1;
+    idx.push(a0, a1, a0 + 1, a0 + 1, a1, a1 + 1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
   g.computeVertexNormals();
   return g;
 }

@@ -34,6 +34,11 @@ export interface GameEvents {
   harvestStart: { type: string; time: number };
   harvestProgress: { progress: number };
   harvestDone: { item: string; type: string };
+  /** Brood Heart nests (PvE AI). */
+  nestAwake: { id: string; type: string; label: string };
+  nestWave: { id: string; wave: number; of: number };
+  nestDamaged: { id: string; biomass: number; fraction: number; weakPoint: boolean };
+  nestDestroyed: { id: string; type: string; dna: number; container: string };
   extractStart: { label: string; time: number };
   extractProgress: { progress: number; timeLeft: number };
   extractCancel: Record<string, never>;
