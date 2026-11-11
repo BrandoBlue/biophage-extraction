@@ -17,7 +17,7 @@ import { shotFx } from './shotfx';
  * Final grade: chromatic aberration (rises with Neural Overload), split toning, vignette toward the
  * register's shadow colour, damage pulse, film grain. Runs in display space after tone mapping, like a LUT.
  */
-const GradeShader = {
+export const GradeShader = {
   uniforms: {
     tDiffuse: { value: null as THREE.Texture | null },
     uTime: { value: 0 },
