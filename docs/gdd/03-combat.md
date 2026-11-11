@@ -34,3 +34,14 @@ Slots 3 to 5 show locked mutation sockets (they fill with viruses and mutations 
 - Creatures show damage on the body: wound decals, glowing fluid spurts, popped pustules. Critical state: limping, leaking.
 - The player's own damage: screen-edge veins pulse red (red is reserved for damage), directional on the side of the hit.
 - Every enemy attack has a readable wind-up of at least 0.35 s with a glow or sound tell.
+
+## Controls (keyboard and mouse, Spore)
+| Action | Bind |
+| --- | --- |
+| Move / sprint / jump | WASD / Shift / Space |
+| Fire / aim | LMB / RMB |
+| Ego Charge | F or middle mouse |
+| Psych-Wave Pulse | 1 or Q |
+| Clot Gel | 2 |
+| Open Bio-Pod | hold E |
+| Regrow (reload) | R |
