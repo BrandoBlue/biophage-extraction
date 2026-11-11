@@ -309,7 +309,6 @@ export interface AiRules {
   flyer: { orbitRadius: Range; orbitSpeed: number; diveGap: number; faceHeight: number; flockRadius: number; calmHeight: Range; diveSpeed: number; diveTime: number; climbTime: number; screechTell: number; turnRate: number };
   tank: { turnRate: number; chargeTurnRate: number; hornReach: number; chargeRange: Range; chargeAimCone: number; chargeDistance: number; chargeKnockback: number; slamTrigger: number; slamWindup: number; recoverTime: number; approachFactor: number };
   nestSpawn: { ejectSpeed: number; ejectRadius: number; startAwareness: number };
-  habitats: { spread: number; kinds: Record<string, string[]> };
 }
 const stripDeep = (o: unknown): unknown => {
   if (Array.isArray(o) || o === null || typeof o !== 'object') return o;

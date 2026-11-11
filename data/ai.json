@@ -102,19 +102,5 @@
     "ejectSpeed": 6,
     "ejectRadius": 4,
     "startAwareness": 1
-  },
-  "habitats": {
-    "_note": "Where each kind lives (World layout habitat tags, most preferred first): grove, pool, interior, open, crater, ridge. Spawns and reinforcements come from these areas so players learn where each threat lives. spread: how far from an area's centre a spawn may sit, as a fraction of its radius. A kind with no matching area in a zone falls back to raid.json placement.",
-    "spread": 0.6,
-    "kinds": {
-      "needlemaw": ["grove", "crater"],
-      "bilecantor": ["ridge", "pool"],
-      "glasswalker": ["interior", "grove"],
-      "oculimoth": ["pool", "grove"],
-      "mournback": ["open"],
-      "titheWeaver": ["interior"],
-      "huskMimic": ["interior"],
-      "lumenGrazer": ["pool", "open"]
-    }
   }
 }
