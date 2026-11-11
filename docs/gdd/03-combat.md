@@ -21,7 +21,7 @@ A living spore gun, the host's first weapon. Fleshy body, three tracking eyes th
 - **Aim down sights:** the gun's eyes converge; spread drops from 1.6° to 0.35°. Cannot fire while sprinting.
 - **Ego Charge (alt fire):** the crystal fills 1 per hit, 2 per weak-point hit. At 30 it is ready (charge ring on the weapon panel). Release: 6 seeking spores, 30 damage each, 2.5 m bursts, fills Overload by 30. It is the answer to a Needlemaw pack or the finisher on a Cantor.
 
-Time to kill, close range body shots: Needlemaw about 0.6 s, Bile Cantor about 2 s. A magazine kills a 5-pack with no misses.
+Time to kill, close range body shots: Needlemaw about 0.75 s, Bile Cantor about 2 s. A magazine kills a 6-pack with no misses.
 
 ## Abilities
 Five HUD slots. Spore uses two.

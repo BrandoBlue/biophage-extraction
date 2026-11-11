@@ -6,7 +6,7 @@ Two creatures that play off each other: one rushes you, one makes you move. Each
 **Fantasy:** a pack of starving mouths that sprint at you on needle legs.
 **Body:** a low six-legged crawler, about 1 m long. Front half is a radial lamprey mouth ringed with translucent glassy needles; back half is a ribbed jellyfish-like bell that pulses cyan when it hunts. Legs are long, thin and jointed like a harvestman's, clicking on stone. **Weak point:** a bulging throat sac under the mouth that glows brighter as it winds up a lunge (×2).
 **Sources mixed:** lamprey, harvestman, comb jelly.
-**Behaviour:** packs of 3 to 5. Idle: feeding on fungus, bells dim. Alerted: one shrieks and the pack converges (alerts share to 20 m). Approaches in a zig-zag, then a lunge: 0.35 s wind-up (throat flares, bell contracts), leap at 14 m/s, bite 14. 1.3 s between lunges. Faster than a walking host (6.8 m/s vs 5.2), slower than a sprinting one, so the counter is to sprint to a choke point and turn.
+**Behaviour:** packs of 4 to 6, 75 Biomass each. Idle: feeding on fungus, bells dim. Alerted: one shrieks and the pack converges (alerts share to 20 m). Approaches in a zig-zag, then a lunge: 0.35 s wind-up (throat flares, bell contracts), leap at 14 m/s, bite 14. 1.3 s between lunges. Faster than a walking host (6.8 m/s vs 5.2), slower than a sprinting one, so the counter is to sprint to a choke point and turn.
 **Death:** the bell ruptures in a spray of cyan light, legs curl. Leaves a glowing corpse (harvestable in Larva). 5 DNA.
 
 ## Bile Cantor: slow hovering ranged spitter

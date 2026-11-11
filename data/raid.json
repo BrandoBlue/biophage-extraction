@@ -18,7 +18,7 @@
     "bearing": 20,
     "activatesAt": 0,
     "zoneRadius": 4,
-    "extractTime": 8,
+    "extractTime": 10,
     "cancelOnLeave": true,
     "pausedWhileDamagedFor": 0,
     "signalNoise": 40
@@ -34,10 +34,10 @@
   "spawnGroups": [
     {
       "type": "needlemaw",
-      "count": 2,
+      "count": 3,
       "radius": [
         0.3,
-        0.6
+        0.65
       ],
       "packed": true
     },
@@ -62,7 +62,7 @@
     },
     {
       "type": "bilecantor",
-      "count": 1,
+      "count": 2,
       "radius": [
         0.4,
         0.7
@@ -70,8 +70,8 @@
     }
   ],
   "reinforcements": {
-    "firstAt": 150,
-    "interval": 90,
+    "firstAt": 90,
+    "interval": 60,
     "maxAlive": 18,
     "wave": [
       {
@@ -83,8 +83,8 @@
     "spawnMinDistanceFromPlayer": 45
   },
   "pacing": {
-    "targetRushExtract": 90,
-    "targetFullRaid": 300
+    "targetRushExtract": 75,
+    "targetFullRaid": 240
   },
   "results": {
     "dnaOnDeath": 0,

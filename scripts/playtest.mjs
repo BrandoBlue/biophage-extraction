@@ -23,18 +23,21 @@ for (let run = 0; run < runs; run++) {
       for (const m of ['drawElements', 'drawArrays', 'drawElementsInstanced', 'drawArraysInstanced', 'drawRangeElements']) if (C.prototype[m]) C.prototype[m] = function () {};
     }
   });
+  page.on('console', (m) => { if (m.text().startsWith('PT ')) console.log(m.text()); });
   await page.goto(URL);
   await page.waitForFunction(() => window.__biophage?.frames > 3, null, { timeout: 90000 });
   const out = await page.evaluate(([mode, run, timeScale]) => new Promise((done) => {
-    const B = window.__biophage, d = B.debug;
+    const d = window.__biophage.debug;
+    let B = window.__biophage;
     d.setTimeScale(timeScale);
     d.begin();
     const engage = mode === 'rush' ? 14 : 32;
     let seed = 1234 + run * 7919;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     const log = { minBiomass: 1e9, damageTaken: 0, overloads: 0, heals: 0, firstContact: null, podAt: null, timeline: [] };
-    let lastBio = null, wasOver = false, lastSample = -1, stuck = 0, lastPos = null;
+    let lastGels = null, lastBio = null, wasOver = false, lastSample = -1, stuck = 0, lastPos = null;
     const tick = () => {
+      B = window.__biophage; // main.ts replaces this object every frame
       const s = B.state;
       if (s.phase === 'briefing') { requestAnimationFrame(tick); return; }
       if (s.phase !== 'raid') {
@@ -49,11 +52,14 @@ for (let run = 0; run < runs; run++) {
       const [px, , pz] = B.position;
       const alive = s.enemies.filter((e) => e.alive).map((e) => ({ ...e, dist: Math.hypot(e.position[0] - px, e.position[2] - pz) }));
       const threat = alive.filter((e) => e.dist < engage && (e.state !== 'idle' || mode !== 'rush')).sort((a, b) => a.dist - b.dist)[0];
-      if (Math.floor(t / 10) !== lastSample) { lastSample = Math.floor(t / 10); log.timeline.push([Math.round(t), Math.round(s.biomass), Math.round(s.overload), s.kills, alive.filter((e) => e.state !== 'idle').length]); }
-      if (s.biomass < 80 && s.carried.items.some((i) => i.item === 'clotGel')) { d.ability(2); log.heals++; }
+      if (Math.floor(t / 10) !== lastSample) { lastSample = Math.floor(t / 10); log.timeline.push([Math.round(t), Math.round(s.biomass), Math.round(s.overload), s.kills, alive.filter((e) => e.state !== 'idle').length]); console.log(`PT t=${Math.round(t)} bio=${Math.round(s.biomass)} ovl=${Math.round(s.overload)} kills=${s.kills} pos=${px.toFixed(0)},${pz.toFixed(0)} threat=${threat ? threat.kind + '@' + threat.dist.toFixed(0) + ':' + threat.state : '-'} frames=${B.frames}`); }
+      if (s.biomass < 80 && s.carried.items.some((i) => i.item === 'clotGel')) d.ability(2);
+      const gels = s.carried.items.filter((i) => i.item === 'clotGel').reduce((n, i) => n + i.count, 0);
+      if (lastGels !== null && gels < lastGels) log.heals += lastGels - gels;
+      lastGels = gels;
       if (threat) {
         if (log.firstContact === null) log.firstContact = Math.round(t);
-        const err = Math.min(1.2, threat.dist * 0.03);
+        const err = 0.5 + threat.dist * 0.05; // roughly a decent human: misses about half the spores at 20 m
         d.aimAt(threat.centre[0] + (rnd() - 0.5) * err, threat.centre[1] + (rnd() - 0.5) * err, threat.centre[2] + (rnd() - 0.5) * err);
         d.trigger(true);
         d.hold('KeyW', false); d.hold('ShiftLeft', false); d.hold('KeyE', false);

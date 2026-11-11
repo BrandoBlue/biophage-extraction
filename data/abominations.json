@@ -3,7 +3,7 @@
   "needlemaw": {
     "label": "Needlemaw",
     "role": "fast melee crawler",
-    "biomass": 60,
+    "biomass": 75,
     "speed": 6.8,
     "lungeSpeed": 14,
     "damage": 14,
@@ -22,8 +22,8 @@
       "loseInterest": 8
     },
     "packSize": [
-      3,
-      5
+      4,
+      6
     ],
     "staggerThreshold": 20,
     "dnaDrop": 5,

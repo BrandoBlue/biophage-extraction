@@ -1,6 +1,6 @@
 # Spore milestone: feature list and acceptance criteria
 
-**Goal:** a first playable Brandon opens from a link: drop onto a Zone 7 island as the Neuro-Infiltrator, fight two Abomination types with the Synapse Burster, loot a Bio-Pod, and extract or die. A full raid takes about 5 minutes.
+**Goal:** a first playable Brandon opens from a link: drop onto a Zone 7 island as the Neuro-Infiltrator, fight two Abomination types with the Synapse Burster, loot a Bio-Pod, and extract or die. A full raid takes about 2 to 4 minutes.
 
 **Exit criteria (whole milestone):**
 - [ ] A 5-minute raid can be finished both ways (EXTRACTED and HOST LOST) by a person with keyboard and mouse.
@@ -18,7 +18,7 @@
 | Ego Charge | Fills per hit/weak-point hit; at 30, alt fire launches 6 seeking spores and fills Overload 30 |
 | Psych-Wave Pulse, Clot Gel | Slot 1 and 2, costs and effects from `ABILITIES` |
 | Bio-Pod | Hold 1.5 s to open, roll with `rollContainer('bioPod', rng)`, add to carried list, emit noise |
-| Seed Spire extraction | 4 m zone, 8 s channel via `extractTimeFor`, resets on leave, emits 40 m noise; at end: EXTRACTED |
+| Seed Spire extraction | 4 m zone, 10 s channel via `extractTimeFor`, resets on leave, emits 40 m noise; at end: EXTRACTED |
 | Raid timer and collapse | 10:00, warning at 2:00 left, 25/s after 0:00 |
 | Results | EXTRACTED shows `haulValue(items, killDna)`; HOST LOST shows what was lost; "Deploy again" restarts |
 | Events | Emits `shot`, `hit {weakPoint, kill}`, `damaged {direction}`, `overload`, `pickup`, `extractStart/Progress/Done`, `death`, `noise {pos, radius}` for UI, AI, audio |
