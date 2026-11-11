@@ -43,3 +43,67 @@ The body can show an ambush through `Abomination.lurking` together with `brain.l
 | Husk Mimic | mimic | Walks up at a host's pace with no tell, as if it were another player. Inside its reveal distance it splits open (screech), then lunges. Shot, it drops the act at once. | The husk splits for 0.45 s | Treat any host walking straight at you as hostile |
 | Lumen Grazer | grazer | Drifts high and ignores hosts and noise until it is hurt. Then it panics: it hangs over the shooter while its glands flare, dives into a crushing slam, and repeats for its panic dives before it calms. | Lantern glands flare while it hovers overhead | Don't shoot it; if you do, run out from under it |
 | Tithe Weaver | weaver | Hovers near home, spinning strands. Hunting, it strings a strand across a running host's path and spits from 12 to 18 m. A strand roots whoever walks through it and calls every creature near the web. | A fresh strand across your path | Watch your feet, shoot strands, kill the weaver to drop its web |
+
+## Brood Heart wave director
+`WaveDirector` (`src/ai/nest.ts`) is timing only: dormant until a host is within `activationRadius`, first wave after `firstWaveDelay`, then every `waveInterval` for `maxWaves`, never more than `maxAliveFromNest` of its brood alive (the overflow trickles out as the brood dies). Spawns are flung outward from the heart and hunt immediately. The raid owns the heart's body, damage and Brood Cache.
+
+## Integration
+`createBrain(kind, id, x, z, seed, radius)` builds the brain for a kind. Each frame the Abomination fills a `BrainWorld` (host view, noises, allies, the raid's `tokensFor(creatures)` pool), calls `brain.step(dt, world)`, copies `brain.body` to its root and the outputs onto `Creature.drive`, and turns `brain.events` into raid callbacks (melee, spit, screech, slam). Damage calls `brain.hurt()`, stagger calls `brain.stagger()`, death calls `brain.kill()`.
+
+## The Reliquary (Glowmire Isle boss)
+`ReliquaryBrain` (`src/ai/reliquary.ts`) runs the boss in `data/bosses.json` (spec: `docs/gdd/08-zones-and-bosses.md`). Dormant until a host comes within `wakeRadius` of the bowl or wounds it; waking starts the zone-wide song (`songRadius`). Phase from `bossPhase()`; every attack has a wind-up the body shows (`windup`, `strike`, `rear`).
+| Phase | Moves | Tell | Counter |
+| --- | --- | --- | --- |
+| Stalk | Holds 5 m, turns slowly with its bone shell (×0.2 from a 120° front arc). Leg stamp lands where you stood when it began; rib sweep hits the front arc; brood drops every 25 s from 8 s after waking | Stamp 0.9 s, sweep 1.1 s, sac 0.8 s | Step off the marked spot, flank, pop the brood sac (stops drops) |
+| Bloom | Holds 10 m. Rears for 1.4 s and vents a spore cloud; the hearts stay exposed 4 s. Hymn ring to 30 m (jump it); breaks cover within 12 m | Rear-up, hymn 1.0 s, cover 1.2 s | Burst the hearts during the vent, jump the ring, sever legs (each −15% speed) |
+| Collapse | Drags itself fast: forelimb lunge (×2.5 for 0.6 s), tendril grab within 10 m pins for 2 s; the light pool floods to 70% of the bowl over 90 s. Body takes ×1.5 | Lunge 0.7 s, grab 0.8 s | Keep moving, stay out of 10 m when the tendrils coil |
+Enrage at 7:00: the pool fills the bowl; only the ledge is safe.
+
+**In raids** `RaidBoss` (`src/game/boss.ts`) joins the brain, Creature's body (`src/creatures/reliquary.ts`) and World's bowl (`ArenaInfo`), and the raid spawns it whenever the zone has a `reliquaryBowl`.
+- Biomass 3600; hearts ×2.5 only while the cage is open; brood sac ×1.5 (bursting it stops drops); legs from bloom on (each 250, severing slows it). Shell hits from the front arc in stalk do ×0.2, collapse body hits ×1.5.
+- A shot takes an exposed weak point if it reaches it within 2 m of the body surface, so you can't hit hearts through the whole body.
+- Stamp hits inside its radius where you stood; sweep hits the front arc in range; the hymn ring hits once as its front passes unless your feet are above its height (jump, or stand on the ledge); grab pins you (no movement) for 2 s or until you deal 80 to it; the vent lays a spore cloud; cover break smashes pillars within reach; brood drops spawn Needlemaws from the sac.
+- The flood burns the bowl floor out to the pool radius; the ledge is safe.
+- Kill: 400 DNA, the Reliquary Cage container, `bossKilled` for contracts, and the Reliquary Heart to cut out (hold E for 6 s, noise 40 m).
+- Bus events: `bossAwake`, `bossPhase`, `bossEnraged`, `bossAttack`, `bossDamaged`, `bossPartDestroyed`, `bossCoverBroken`, `bossDefeated`. HUD boss bar shows `The Reliquary · PHASE`.
+
+## The Pale Vigil (Glowmire Isle, Fungal Cave boss)
+`src/ai/vigil.ts` (`PaleVigilBrain`) is renderer-free and takes every number from `bosses.json` `paleVigil`. It makes no sound at all; the only tell is the lure going still.
+- **Dormant:** it hangs over its spot and wakes when a host comes within `wakeRadius`, or when it is shot.
+- **hang:** it crawls the ceiling at `ceilingSpeed` to park its lure over where the host is *heading* (1.5 s ahead).
+  - Standing under it (`triggerUnderLure`) earns the drop: the lure holds dead still for the wind-up (`lureStill`), it falls, crouches for 1.5 s, then climbs back.
+  - Coming within `snatch.range` earns a grab (pin, lift, freed by damage).
+  - `lurePull()` gives the Overload per second a host within range takes; the raid checks line of sight.
+  - Losing the lure forces stalk.
+- **stalk:** on the floor and dim.
+  - Seen from the front, it swings wide round the host; it only lunges from the `fromBehindArc` blind cone, and rakes up close.
+  - After each attack it climbs into the roof (`vanish`), stays `hiddenFor` s, and drops back `reappear`ing 6 m behind the host.
+  - With every limb cut off it can't climb. Each lost limb slows it by `slowPerSevered`.
+- **unravel:** it charges. The shriek opens the chest with the spines out (`spinesExposed`).
+  - Ceiling collapse warns (`collapseWarn`, dust) `warning` s before each `chunk` lands: one on the host, the rest scattered.
+  - Frenzy lunges chain `chain` times.
+- **Enrage:** at `enrage.after` the ceiling keeps falling every 6 s.
+- **Raid wiring:** this lands once Creature's body is in, with the same pattern as `src/game/boss.ts` (hit spheres: lure, spines, limbs).
+
+
+## The Warden of the Long Seed (the Wreck's reactor chamber)
+`src/ai/warden.ts` (`WardenBrain`) is renderer-free. Attack numbers come from `bosses.json` `warden`, and movement, wake and tells from `ai.json` `warden`.
+- **Wake:** `wake.trigger` is `'approach'` for now, so it wakes when a host enters the chamber or comes within `wake.radius`. Switch it to `'power'` once Gameplay's ship-power objective exists (`input.powered`), or call `wake()`.
+- **tend:**
+  - The head crawls the walls and ceiling (`surface` and `up` feed the body's `drive.surface` and `drive.up`) and re-perches every `perchTime` s. Half the time it perches on the ceiling over the host, otherwise high on the nearest wall.
+  - Root spear: the head rears back, then the spear lands where the host was *heading* (`spearLead`), so moving dodges it.
+  - Embryo swarm: Oculimoths are born from the pods after a `birthTell`.
+  - Plates soak body fire (`plateMultiplier`). `vent(i)` opens seam i for `seamOpenTime` s.
+- **overheat:** it drops to the floor at `holdDistance` and its seams stay open.
+  - Steam burst around the head after `steamTell`.
+  - Catwalk collapse near the host (World's hook).
+  - A faster spear.
+- **meltdown:** the reactor charges for the full 3 s wind-up (`windup` and `rear` swell), then pulses through the chamber. Only cover blocks it.
+- **Enrage:** the reactor pulses every `enragePulseEvery` s.
+- **In a raid** (`src/game/warden.ts` `RaidWarden`, wired in `raid.ts`): it uses World's `WardenArena` (`structures.warden`).
+  - Shooting a coolant valve's wheel vents it. The plume shows, and the seam with the same index cracks for `seamOpenTime` s.
+  - Seed pods are always weak points (×2, 300 Biomass each, and they shatter). Seams take ×3 while they are open.
+  - The pulse comes from the core. `SOLIDS.blocked` between the core's skin and the host's chest decides cover, so the four shield pillars save you.
+  - Catwalk events bring down the nearest standing catwalk, and anyone on it falls.
+  - The swarm spawns at the body's `birthPoint`, clamped inside the chamber.
+  - When it dies, the spoils drop on the floor under it.
