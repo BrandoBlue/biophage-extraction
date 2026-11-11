@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   ABILITIES, ABOMINATIONS, CLASSES, HOST, LOOT, RAID, WEAPONS,
-  extractTimeFor, haulValue, projectileDamage, rollContainer,
+  extractTimeFor, haulValue, layoutPosition, projectileDamage, rollContainer,
 } from '../data';
 import { mulberry32 } from '../src/world/zone7';
 
@@ -70,6 +70,20 @@ describe('Spore balance targets (docs/gdd/03-combat.md)', () => {
   it('spawn and extract sit on opposite sides of the pocket', () => {
     const diff = Math.abs(((RAID.extract.bearing - RAID.spawn.bearing + 540) % 360) - 180);
     expect(diff).toBeGreaterThan(150);
+  });
+});
+
+describe('raid layout', () => {
+  it('maps bearings to world axes (0 = -Z, 90 = +X)', () => {
+    const [nx, nz] = layoutPosition({ radius: 1, bearing: 0 }, 10);
+    expect(nx).toBeCloseTo(0); expect(nz).toBeCloseTo(-10);
+    const [ex, ez] = layoutPosition({ radius: 0.5, bearing: 90 }, 10);
+    expect(ex).toBeCloseTo(5); expect(ez).toBeCloseTo(0);
+  });
+  it('puts spawn and extract more than 200 m apart on the full pocket', () => {
+    const [sx, sz] = layoutPosition(RAID.spawn);
+    const [ex, ez] = layoutPosition(RAID.extract);
+    expect(Math.hypot(ex - sx, ez - sz)).toBeGreaterThan(200);
   });
 });
 

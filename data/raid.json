@@ -1,5 +1,5 @@
 {
-  "_note": "Spore raid rules. Times in seconds, distances in metres. Layout positions are fractions of the playable radius from the island centre (0 = centre, 1 = rim) plus a bearing in degrees, so World & Level can scale the pocket freely. See docs/gdd/05-raid-and-extraction.md.",
+  "_note": "Spore raid rules. Times in seconds, distances in metres. Layout positions are fractions of the playable radius from the island centre (0 = centre, 1 = rim) plus a compass bearing in degrees (0 = north = -Z, 90 = east = +X, clockwise from above; position = (sin(b) * r, cos(b) * -r) in x, z), so World & Level can scale the pocket freely. See docs/gdd/05-raid-and-extraction.md.",
   "raidTime": 600,
   "zoneCollapse": { "warningAt": 120, "damagePerSecondAfterTimeout": 25 },
   "playableRadius": 150,

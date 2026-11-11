@@ -178,3 +178,13 @@ export function rollContainer(id: string, rand: () => number): { item: string; c
 export function haulValue(items: { item: string; count: number }[], killDna = 0): number {
   return items.reduce((s, { item, count }) => s + LOOT.items[item].value * count, killDna);
 }
+
+/**
+ * World x, z of a raid layout placement (fraction of radius + compass bearing).
+ * 0° = north = −Z, 90° = east = +X. Pass the actual walkable radius if the island is smaller.
+ */
+export function layoutPosition(p: Placement, radius = RAID.playableRadius): [number, number] {
+  const b = (p.bearing * Math.PI) / 180;
+  const r = p.radius * radius;
+  return [Math.sin(b) * r, -Math.cos(b) * r];
+}

@@ -3,7 +3,7 @@
 Numbers in `data/raid.json` and `data/loot.json`.
 
 ## The pocket
-A single Zone 7 floating island, about 300 m across (playable radius 150 m), edges falling into the void. Positions in the data are fractions of the radius plus a compass bearing, so World & Level can reshape the island without breaking design.
+A single Zone 7 floating island, about 300 m across (playable radius 150 m), edges falling into the void. Positions in the data are fractions of the radius plus a compass bearing (0° = north = −Z, 90° = east = +X), so World & Level can reshape the island without breaking design.
 
 | Feature | Where | Notes |
 | --- | --- | --- |
