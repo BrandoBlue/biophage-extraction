@@ -4,6 +4,7 @@ import { HIVE, ORGANIC, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { alienEye, bioNode, chitin, livingFlesh, membrane } from '../render/materials';
 import { blade, horn, merge, plate, rng, roughen, spike, taperTube, vent, wing } from './parts';
 import { meshSdf, type SdfPrim } from './sdf';
+import { mutation } from '../render/dissolve';
 
 /**
  * Playable host bodies for the Hive menu, host select and results screens (Art Bible creature rule 1,
@@ -558,4 +559,73 @@ export class HostBody {
 /** The host body for a class (Hive menu, host select, results), grown into `evolution` when it has its own body. */
 export function createHostBody(classId: ClassId, evolution?: string | null): HostBody {
   return new HostBody(classId, evolution);
+}
+
+/**
+ * The evolution scene (Hive, after the player evolves): the host shudders and swells as the change takes hold,
+ * then its body burns away bottom-up along a glowing front while the evolved body knits in right behind it.
+ * Add `root` to the scene where the host stands, call `evolve(id)`, and `update(dt)` every frame (the render
+ * pipeline advances the dissolve itself). `done` fires once the new body stands alone.
+ */
+export class EvolutionStage {
+  /** Seconds of shudder before the burn starts, and of the burn-and-regrow. */
+  static readonly SHUDDER = 0.9;
+  static readonly GROW = 3.2;
+  readonly root = new THREE.Group();
+  body: HostBody;
+  private leaving: HostBody | null = null;
+  private shudder = -1;
+  private onDone: (() => void) | undefined;
+  /** 'idle', 'shudder' (old body trembling), 'growing' (dissolve-swap running). */
+  phase: 'idle' | 'shudder' | 'growing' = 'idle';
+
+  /** `prepare` runs on each new body before it is shown (the viewer's software-rendering simplifier). */
+  constructor(readonly classId: ClassId, evolution?: string | null, private prepare?: (root: THREE.Object3D) => void) {
+    this.body = createHostBody(classId, evolution);
+    this.prepare?.(this.body.root);
+    this.root.add(this.body.root);
+  }
+
+  evolve(evolution: string, done?: () => void): void {
+    if (this.phase !== 'idle') return;
+    this.leaving = this.body;
+    this.body = createHostBody(this.classId, evolution);
+    this.prepare?.(this.body.root);
+    this.body.root.visible = false;
+    this.root.add(this.body.root);
+    this.onDone = done;
+    this.shudder = 0;
+    this.phase = 'shudder';
+  }
+
+  update(dt: number): void {
+    this.body.update(dt);
+    const old = this.leaving;
+    if (!old) return;
+    old.update(dt);
+    if (this.phase === 'shudder') {
+      this.shudder += dt;
+      const k = Math.min(1, this.shudder / EvolutionStage.SHUDDER), t = this.shudder;
+      // Convulsions that build: a hard tremor, and the body swelling against itself.
+      old.root.position.set(Math.sin(t * 71) * 0.012 * k, 0, Math.sin(t * 53 + 1) * 0.012 * k);
+      old.root.rotation.set(Math.sin(t * 37) * 0.03 * k, Math.sin(t * 23) * 0.05 * k, Math.sin(t * 41) * 0.03 * k);
+      old.root.scale.setScalar(1 + k * k * 0.05 + Math.sin(t * 19) * 0.01 * k);
+      if (k >= 1) {
+        this.phase = 'growing';
+        this.body.root.visible = true;
+        this.root.updateMatrixWorld(true);
+        mutation.swap(old.root, this.body.root, {
+          duration: EvolutionStage.GROW,
+          // A dim ember front, not a neon line: the dissolve shader multiplies its colour up at the edge.
+          colour: hex(new THREE.Color(ORGANIC.amber).lerp(new THREE.Color(ORGANIC.wetFleshDeep), 0.3).multiplyScalar(0.28)),
+          done: () => {
+            old.root.removeFromParent();
+            this.leaving = null;
+            this.phase = 'idle';
+            this.onDone?.();
+          },
+        });
+      }
+    }
+  }
 }

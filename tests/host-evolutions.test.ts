@@ -48,3 +48,27 @@ describe('host evolutions', () => {
     expect(b.max.z - b.min.z).toBeGreaterThan(base.max.z - base.min.z);
   }, 30000);
 });
+
+describe('evolution scene', () => {
+  it('shudders, burns the old body away while the evolved one grows in, then stands alone', async () => {
+    const { EvolutionStage } = await import('../src/creatures/hosts');
+    const { mutation } = await import('../src/render/dissolve');
+    const { bioTime } = await import('../src/render/materials');
+    const scene = new THREE.Scene();
+    const stage = new EvolutionStage('neuroInfiltrator');
+    scene.add(stage.root);
+    let done = false;
+    stage.evolve('neuroHound', () => { done = true; });
+    expect(stage.phase).toBe('shudder');
+    expect(stage.body.evolution).toBe('neuroHound');
+    const step = (secs: number) => { for (let t = 0; t < secs; t += 1 / 30) { bioTime.value += 1 / 30; stage.update(1 / 30); mutation.update(); } };
+    step(EvolutionStage.SHUDDER + 0.1);
+    expect(stage.phase).toBe('growing');
+    expect(stage.root.children.length).toBe(2);
+    step(EvolutionStage.GROW + 0.2);
+    expect(done).toBe(true);
+    expect(stage.phase).toBe('idle');
+    expect(stage.root.children.length).toBe(1);
+    expect(stage.root.children[0]).toBe(stage.body.root);
+  }, 30000);
+});
