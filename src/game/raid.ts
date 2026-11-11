@@ -11,6 +11,8 @@ import type { Noise } from './perception';
 import { Player } from './player';
 import { Projectiles, segmentSphere, type Projectile } from './projectiles';
 import { BioPod, Hazards, SeedSpire } from './props';
+import { gore } from '../render/gore';
+import { HIVE, ZONE7 } from '../render/palette';
 import { NeuralOverload, Biomass } from './vitals';
 import { SynapseBurster, projectileLooks } from './weapon';
 
@@ -70,6 +72,8 @@ export class Raid {
   pipeline: PipelineHooks = {};
 
   private rand = mulberry32(2026);
+  private raycaster = new THREE.Raycaster();
+  private lastDecal = new Map<number, number>();
   private noises: Noise[] = [];
   private trigger = false;
   private aimHeld = false;
@@ -280,21 +284,57 @@ export class Raid {
     }
     this.sinceHit = 0;
     this.player.addTrauma(Math.min(0.6, applied / 40));
+    if (applied >= 3 && from) {
+      // The host's own blood: a spray in front of the camera toward the attacker (red is reserved for player damage).
+      const eye = this.player.eyePosition.clone();
+      const toward = from.clone().sub(eye); toward.y = 0; toward.normalize();
+      const at = eye.addScaledVector(toward, 0.7).add(new THREE.Vector3(0, -0.35, 0));
+      gore.burst(this.scene, { point: at, normal: toward.clone().negate().setY(0.4), colour: HIVE.danger, count: Math.min(60, 10 + applied * 2), speed: 3.5 });
+      const p = this.player.position;
+      gore.splat(this.scene, { point: new THREE.Vector3(p.x, groundHeight(p.x, p.z), p.z), normal: new THREE.Vector3(0, 1, 0), size: 0.6 + applied / 30, colour: HIVE.danger });
+    }
     this.pipeline.hitPulse?.(Math.min(1, applied / 30));
     this.bus.emit('damaged', { amount: applied, biomass: this.biomass.current, zone, source, direction });
     if (this.biomass.dead) this.lose(source);
   }
 
+  /**
+   * Wound VFX from Rendering's gore library: a glowing splat that sticks to the creature mesh that was hit
+   * (decals follow it as it moves) plus a droplet spray. Decals are throttled per creature to keep CPU cost flat.
+   */
+  private wound(c: Abomination, at: THREE.Vector3, dir: THREE.Vector3 | null, weak: boolean): void {
+    const colour = `#${c.fluid.getHexString()}`;
+    const back = (dir ?? new THREE.Vector3(0, -1, 0)).clone().normalize();
+    gore.burst(this.scene, { point: at, normal: back.clone().negate(), colour, count: weak ? 34 : 16, speed: weak ? 7 : 4.5 });
+    const now = this.elapsed;
+    if (now - (this.lastDecal.get(c.id) ?? -1) < 0.15) return;
+    this.lastDecal.set(c.id, now);
+    this.raycaster.set(at.clone().addScaledVector(back, -0.8), back);
+    this.raycaster.far = 2;
+    const hit = this.raycaster.intersectObject(c.root, true).find((h) => (h.object as THREE.Mesh).isMesh && h.object.name !== 'gore-splat' && h.face);
+    if (!hit) return;
+    const normal = hit.face!.normal.clone().transformDirection(hit.object.matrixWorld);
+    gore.splat(this.scene, { point: hit.point, normal, target: hit.object as THREE.Mesh, size: weak ? 0.45 : 0.3, colour });
+  }
+
   private damageCreature(c: Abomination, amount: number, weak: boolean, dir: THREE.Vector3 | null, at: THREE.Vector3, _source: string, sphere?: HitSphere): void {
     if (!c.alive) return;
     const kill = c.damage(amount, dir, sphere);
-    this.fx.bleed(at, dir ?? new THREE.Vector3(0, -1, 0), c.fluid, weak ? 18 : 8);
+    this.fx.bleed(at, dir ?? new THREE.Vector3(0, -1, 0), c.fluid, weak ? 12 : 5);
+    this.wound(c, at, dir, weak);
     this.bus.emit('hit', { target: c.kind, id: c.id, damage: amount, weakPoint: weak, kill, position: { x: at.x, y: at.y, z: at.z } });
     if (kill) {
       this.kills++;
       const dna = ABOMINATIONS[c.kind].dnaDrop;
       this.carried.dna += dna;
       this.fx.burst(c.centre.clone(), c.fluid, c.kind === 'bilecantor' ? 1.8 : 1);
+      // Death: a big fountain and a glowing pool where the body falls.
+      const colour = `#${c.fluid.getHexString()}`;
+      const big = c.kind === 'bilecantor';
+      gore.burst(this.scene, { point: c.centre.clone(), colour, count: big ? 160 : 90, speed: big ? 10 : 8 });
+      const g = new THREE.Vector3(c.position.x, groundHeight(c.position.x, c.position.z), c.position.z);
+      gore.splat(this.scene, { point: g, normal: new THREE.Vector3(0, 1, 0), size: big ? 5 : 2.6, colour });
+      this.lastDecal.delete(c.id);
       if (c.kind === 'bilecantor') {
         const cloud = ABOMINATIONS.bilecantor.deathCloud as { radius: number; duration: number; damagePerSecond: number; overloadPerSecond: number };
         this.hazards.deathCloud(c.position.x, c.centre.y - 1.5, c.position.z, cloud.radius, cloud.damagePerSecond, cloud.overloadPerSecond, cloud.duration);
@@ -583,6 +623,7 @@ export class Raid {
     if (pr.owner === 'enemy') {
       const pool = ABOMINATIONS.bilecantor.acidPool as { radius: number; damagePerSecond: number; duration: number };
       this.hazards.acidPool(at.x, at.z, pool.radius, pool.damagePerSecond, pool.duration);
+      gore.burst(this.scene, { point: at, colour: ZONE7.lime, count: 30, speed: 5 });
       this.fx.impact(at, GORE.limeFluid, 20, 6);
       return;
     }
@@ -625,7 +666,7 @@ export class Raid {
       carried: this.carried.snapshot(), extractProgress: this.extract.progress,
       extractPosition: [this.extract.x, this.extract.z], pods: this.pods.map((q) => ({ id: q.id, position: [q.position.x, q.position.z], opened: q.opened })),
       enemies: this.creatures.map((c) => ({ id: c.id, kind: c.kind, alive: c.alive, state: c.state, biomass: c.biomass, position: [c.position.x, c.position.y, c.position.z], centre: [c.centre.x, c.centre.y, c.centre.z] })),
-      result: this.result,
+      result: this.result, gore: gore.stats(),
     };
   }
 

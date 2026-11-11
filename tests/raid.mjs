@@ -90,6 +90,8 @@ try {
   await call('clearAim');
   s = await state();
   if (!killed || s.kills < 1) await fail(`Needlemaw survived ${shotFrames} frames of fire (kills ${s.kills}, ammo ${s.ammo})`);
+  if (!(s.gore?.splats > 0) || !(s.gore?.bursts >= 0)) await fail(`no gore splats after a kill: ${JSON.stringify(s.gore)}`);
+  log(`gore live: ${s.gore.splats} splats, ${s.gore.bursts} bursts`);
   log(`killed a Needlemaw; kills ${s.kills}, kill DNA ${s.carried.dna}, biomass ${Math.round(s.biomass)}`);
 
   // Clear the island so the rest of the script is deterministic.
