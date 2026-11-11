@@ -94,6 +94,8 @@ type Pose = WeaponPose & { equip: number };
 interface Mats { flesh: THREE.MeshPhysicalMaterial; fleshDeep: THREE.MeshPhysicalMaterial; bone: THREE.MeshPhysicalMaterial; boneDark: THREE.MeshPhysicalMaterial; sac: THREE.MeshStandardMaterial; core: THREE.MeshStandardMaterial }
 
 function materials(glow: string): Mats {
+  // Grounded and eerie (Art Bible): chambers glow a dull, warm, living light with only a hint of the gun's hue.
+  glow = mix(glow, ORGANIC.amber, 0.6);
   return {
     flesh: livingFlesh(mix(ORGANIC.wetFlesh, ORGANIC.wetFleshDeep, 0.45), ORGANIC.vein, ORGANIC.mist, 14),
     fleshDeep: livingFlesh(mix(ORGANIC.wetFleshDeep, HIVE.background, 0.25), ORGANIC.vein, ORGANIC.mist, 18),
@@ -353,7 +355,7 @@ abstract class Body implements WeaponBody {
     this.kick = { back: feel.push, pitch: THREE.MathUtils.degToRad(feel.kick) * 0.6, roll: feel.shake * 0.25 };
     // ln(100)/settle: the spring envelope falls to ~1% by the class's settle time.
     this.omega = 4.6 / (feel.settle * 0.55);
-    this.fxColour = glow;
+    this.fxColour = mix(glow, ORGANIC.amber, 0.6);
     this.gun.add(this.flex);
     this.m = materials(glow);
     this.cores.push(this.m.core);

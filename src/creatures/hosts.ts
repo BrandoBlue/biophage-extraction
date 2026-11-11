@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { ClassId } from '../../data';
-import { HIVE, ORGANIC, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
+import { HIVE, ORGANIC, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { alienEye, bioNode, chitin, livingFlesh, membrane } from '../render/materials';
 import { blade, horn, merge, plate, rng, roughen, spike, taperTube, wing } from './parts';
 import { meshSdf, type SdfPrim } from './sdf';
@@ -47,7 +47,8 @@ const BUILDS: Record<ClassId, Build> = {
       r: { pelvis: 0.14, waist: 0.075, chest: [0.17, 0.19, 0.13], arm: 0.04, fore: 0.032, thigh: 0.065, shin: 0.04 },
       cranium: [0.15, 0.15, 0.22],
     },
-    skin: { base: mix(HIVE.panel, HIVE.bone, 0.3), vein: mix(HIVE.acid, ZONE7.cyan, 0.5), rim: ZONE7.cyan }, bone: mix(HIVE.bone, HIVE.panel, 0.2), glow: ZONE7.cyan,
+    // Grey, sutured chitin-skin; the only colour is a cold glint in the eyes.
+    skin: { base: mix(mix(HIVE.bone, ORGANIC.wetFleshDeep, 0.55), ORGANIC.mist, 0.15), vein: ORGANIC.vein, rim: ORGANIC.mist }, bone: mix(HIVE.bone, ORGANIC.wetFleshDeep, 0.25), glow: mix(ZONE7.cyan, ORGANIC.mist, 0.65),
   },
   // Reference 02, left: taller and thinner still, small head, blade forearms, wings.
   venomWraith: {
@@ -58,7 +59,8 @@ const BUILDS: Record<ClassId, Build> = {
       r: { pelvis: 0.12, waist: 0.06, chest: [0.15, 0.18, 0.12], arm: 0.034, fore: 0.028, thigh: 0.055, shin: 0.034 },
       cranium: [0.11, 0.12, 0.2],
     },
-    skin: { base: mix(mix(HIVE.panel, ZONE7_SHADE.rockDeep, 0.35), HIVE.bone, 0.3), vein: HIVE.acid, rim: mix(HIVE.bone, HIVE.acid, 0.25) }, bone: mix(HIVE.bone, HIVE.panel, 0.35), glow: HIVE.acid,
+    // Bruise-dark wasp hide; venom glands are the only light on it.
+    skin: { base: mix(mix(ORGANIC.wetFleshDeep, ZONE7_SHADE.rockDeep, 0.35), HIVE.bone, 0.18), vein: mix(HIVE.acid, ORGANIC.vein, 0.75), rim: ORGANIC.mist }, bone: mix(HIVE.bone, ORGANIC.wetFleshDeep, 0.4), glow: mix(HIVE.acid, ORGANIC.amber, 0.6),
   },
   // Reference 02, right: hunched mass, head slung low between huge shoulders, long heavy arms.
   goreBehemoth: {
@@ -70,7 +72,7 @@ const BUILDS: Record<ClassId, Build> = {
       cranium: [0.11, 0.1, 0.13],
     },
     // Raw dark muscle, not a red balloon: the bone does the talking.
-    skin: { base: mix(ORGANIC.wetFleshDeep, HIVE.danger, 0.18), vein: ORGANIC.amber, rim: HIVE.bone }, bone: mix(HIVE.bone, ZONE7_SHADE.rockDeep, 0.25), glow: PATH.melee,
+    skin: { base: mix(ORGANIC.wetFleshDeep, HIVE.danger, 0.18), vein: ORGANIC.amber, rim: HIVE.bone }, bone: mix(HIVE.bone, ZONE7_SHADE.rockDeep, 0.25), glow: ORGANIC.amber,
   },
 };
 
@@ -242,7 +244,7 @@ export class HostBody {
         bl.rotation.set(Math.PI * 0.95, s * 0.15, s * 0.05);
         this.root.add(bl);
         for (let i = 0; i < 2; i++) {
-          const w = new THREE.Mesh(wing(1.05 - i * 0.25, 0.32, rand, 1 + i), membrane(mix(HIVE.bone, HIVE.acid, 0.3), 0.4));
+          const w = new THREE.Mesh(wing(1.05 - i * 0.25, 0.32, rand, 1 + i), membrane(mix(HIVE.bone, ORGANIC.mist, 0.35), 0.4));
           const g = new THREE.Group();
           g.position.copy(T(f.chest, s)).add(V(0.06 * s, 0.1 - i * 0.12, -f.r.chest[2] * 0.8));
           w.rotation.set(0, s < 0 ? Math.PI : 0, 0);
@@ -299,7 +301,7 @@ export class HostBody {
       }
       const ch = T(f.chest);
       for (let i = 0; i < 3; i++) plateAt(ch.clone().add(V(0, 0.27 - i * 0.16, -0.31 - i * 0.02)), V(0, 0.8 - i * 0.3, -1), 0.26 - i * 0.03, 0.17, 0.08);
-      this.root.add(new THREE.Mesh(roughen(merge(bones), 0.006, 30, 4), chitin(b.bone, hex(new THREE.Color(PATH.melee).multiplyScalar(0.08)), 6)));
+      this.root.add(new THREE.Mesh(roughen(merge(bones), 0.006, 30, 4), chitin(b.bone, hex(new THREE.Color(ORGANIC.amber).multiplyScalar(0.08)), 6)));
     }
     this.root.traverse((o) => { (o as THREE.Mesh).castShadow = true; });
     // Stand exactly on y = 0 whatever the frame's feet do.
