@@ -63,8 +63,9 @@
 .organic .h-id { display:flex; align-items:center; gap:calc(var(--u) * .7); }
 .organic .h-id .lvl { font-size:calc(var(--u) * .7); letter-spacing:.26em; color:var(--lab); }
 .organic .eye { --iris:var(--acid); --dilate:.4; position:relative; width:calc(var(--u) * 1.9); height:calc(var(--u) * 1.9); border-radius:50%; display:grid; place-items:center;
-  box-shadow:inset 0 0 0 1px var(--hair), 0 0 calc(var(--u) * .8) color-mix(in srgb, var(--iris) 18%, transparent); transition:box-shadow .3s; }
-.organic .eye .iris { width:62%; height:62%; border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle, color-mix(in srgb, var(--iris) 70%, var(--bone)), color-mix(in srgb, var(--iris) 40%, var(--background)));
+  box-shadow:inset 0 0 0 1px var(--hair), 0 0 calc(var(--u) * .6) color-mix(in srgb, var(--iris) 8%, transparent); transition:box-shadow .3s; }
+.organic .eye { background:radial-gradient(circle at 40% 35%, color-mix(in srgb, var(--bone) 70%, var(--background)), color-mix(in srgb, var(--bone) 40%, var(--wetFleshDeep)) 65%, color-mix(in srgb, var(--wetFleshDeep) 70%, var(--background)) 100%); }
+.organic .eye .iris { width:62%; height:62%; border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle, color-mix(in srgb, var(--iris) 22%, var(--mist)), color-mix(in srgb, var(--iris) 16%, var(--background)));
   transition:background .8s; animation:look 7s infinite ease-in-out; }
 .organic .eye .pupil { width:calc(var(--dilate) * 100%); height:calc(var(--dilate) * 100%); border-radius:50%; background:var(--background); transition:all .25s; }
 .organic .eye.hurt { box-shadow:inset 0 0 0 1px var(--danger), 0 0 calc(var(--u) * 1) color-mix(in srgb, var(--danger) 35%, transparent); }
@@ -81,11 +82,12 @@
 .organic .h-bar .fill, .organic .h-bar .ghost { position:absolute; left:0; top:0; bottom:0; width:100%; border-radius:99px; }
 .organic .h-bar .fill { transition:width .18s ease-out; }
 .organic .h-bar .ghost { background:color-mix(in srgb, var(--danger) 55%, var(--bone)); opacity:.75; }
-.organic .h-bar.biomass .fill { background:linear-gradient(90deg, color-mix(in srgb, var(--acid) 35%, var(--bone)), color-mix(in srgb, var(--acid) 70%, var(--bone))); }
+/* Grounded and eerie: a sickly bone fill at rest; bright colour is saved for low health and danger. */
+.organic .h-bar.biomass .fill { background:linear-gradient(90deg, color-mix(in srgb, var(--acid) 8%, var(--mist)), color-mix(in srgb, var(--acid) 18%, color-mix(in srgb, var(--bone) 60%, var(--mist)))); }
 .organic .h-bar.biomass.low .fill { background:var(--danger); animation:hud-breathe .9s ease-in-out infinite; }
 .organic .h-bar.biomass.low .value { color:var(--danger); }
 .organic .h-bar.neural .trk { height:calc(var(--u) * .28); }
-.organic .h-bar.neural .fill { background:linear-gradient(90deg, color-mix(in srgb, var(--path-viral) 35%, var(--mist)), var(--path-viral)); }
+.organic .h-bar.neural .fill { background:linear-gradient(90deg, color-mix(in srgb, var(--path-viral) 22%, var(--mist)), color-mix(in srgb, var(--path-viral) 55%, var(--mist))); }
 .organic .h-bar.neural.hot .fill { animation:hud-hot .35s infinite alternate; } .organic .h-bar.neural.hot .value { color:var(--path-viral); }
 .organic .h-bar.neural.over .fill { background:var(--magenta); } .organic .h-bar.neural.over .value { color:var(--magenta); }
 .organic .h-virus { display:flex; gap:.5em; align-items:center; margin-left:auto; padding:.2em .8em .2em .3em; border-radius:99px;
