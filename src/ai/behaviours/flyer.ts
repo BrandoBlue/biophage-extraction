@@ -11,6 +11,7 @@ const FACE = AI.flyer.faceHeight;
 
 export class FlyerBrain extends Brain {
   protected readonly turnRate = AI.flyer.turnRate;
+  protected readonly dodges = true;
   private theta = this.rand() * Math.PI * 2;
   private orbitDir = this.rand() < 0.5 ? -1 : 1;
   private ring = AI.flyer.orbitRadius[0] + this.rand() * (AI.flyer.orbitRadius[1] - AI.flyer.orbitRadius[0]);
@@ -19,7 +20,7 @@ export class FlyerBrain extends Brain {
   private pecked = false;
   private readonly band = (this.data.flightHeight as Range | undefined) ?? [2, 10];
 
-  protected cruiseAltitude(): number { return this.cruise; }
+  protected cruiseAltitude(): number { return this.roost ?? this.cruise; }
 
   step(dt: number, w: BrainWorld): void {
     this.screechCd = Math.max(0, this.screechCd - dt);

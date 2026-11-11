@@ -2,6 +2,10 @@
 
 Every tuning change to `data/*.json`, newest first, with the reason.
 
+## The Pale Vigil (2026-11-11, Brandon: harder, scarier, more bosses)
+- bosses.json: `paleVigil`, Glowmire's second boss in the fungal caves. 2400 Biomass, a silent ceiling-hanger with a lure; phases hang, stalk and unravel; enrage at 360 s.
+- loot.json: Vigil Lure (organ catalyst) and the Vigil's Cocoon container. progression.json xp.kill.paleVigil 900. zones.json glowmireIsle `bosses`. contracts.json: the Archivist's *The Light Under the Cliff*.
+
 ## Weapons and habitats (2026-11-11, after Brandon's second playtest)
 - weapons.json: 15 new guns across sidearm, SMG, rifle, shotgun, marksman, sniper, launcher, beam and relic. The Synapse Burster keeps every Spore number and gains the shared schema fields.
 - loot.json: weapon and ammo items. Four feeds (Spore, Needle, Shard, Bolt). Guns and feeds added to the Bio-Pod, cargo crate, sealed locker, Brood cache and Gene Bloom tables. The Reliquary Hymn is guaranteed from the Reliquary Cage. Bio-Pod odds for non-weapon loot drop slightly because the table grew.

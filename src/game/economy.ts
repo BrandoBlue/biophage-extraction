@@ -13,7 +13,8 @@ export const MILESTONES = ['spore', 'larva', 'host', 'hive', 'apex'] as const;
 export type Milestone = (typeof MILESTONES)[number];
 /** The milestone this build ships. Build bumps it with each release. */
 export const CURRENT_MILESTONE: Milestone = 'larva';
-const reached = (m: string, now: Milestone = CURRENT_MILESTONE): boolean => {
+/** True when milestone `m` is at or before this build's milestone. */
+export const reachedMilestone = (m: string, now: Milestone = CURRENT_MILESTONE): boolean => {
   const i = MILESTONES.indexOf(m as Milestone);
   return i >= 0 && i <= MILESTONES.indexOf(now);
 };
@@ -62,7 +63,7 @@ export function normaliseEconomy(raw: Partial<EconomyState> | undefined): Econom
 export const repPoints = (p: Profile, v: VendorId): number => p.economy.rep[v] ?? 0;
 export const repLevel = (p: Profile, v: VendorId): number => vendorRepLevel(repPoints(p, v));
 /** Vendors open in this build (the Gullet Broker trades through the Flesh Market until Host). */
-export const openVendors = (): VendorId[] => (Object.keys(VENDORS) as VendorId[]).filter((v) => reached(VENDORS[v].milestone) && VENDORS[v].stock);
+export const openVendors = (): VendorId[] => (Object.keys(VENDORS) as VendorId[]).filter((v) => reachedMilestone(VENDORS[v].milestone) && VENDORS[v].stock);
 
 /** Trading earns 1 rep point per 100 DNA (vendors.json note). Fractions accumulate. */
 const REP_PER_DNA = 1 / 100;
@@ -137,7 +138,7 @@ export type ContractState = 'done' | 'active' | 'available' | 'locked' | 'coming
 
 export function contractState(p: Profile, id: string): ContractState {
   const c = contractById(id);
-  if (!c || !reached(c.milestone) || !reached(VENDORS[c.vendor].milestone)) return 'coming';
+  if (!c || !reachedMilestone(c.milestone) || !reachedMilestone(VENDORS[c.vendor].milestone)) return 'coming';
   if (p.economy.contracts.done.includes(id)) return 'done';
   if (p.economy.contracts.active[c.vendor] === id) return 'active';
   return (c.requires ?? []).every((r) => p.economy.contracts.done.includes(r)) ? 'available' : 'locked';
@@ -283,7 +284,7 @@ export function zoneAccess(p: Profile, id: string, hostLevel = 0, built?: readon
   const z = ZONES[id];
   if (!z) return { state: 'coming', reason: 'unknown zone' };
   if (built && !built.includes(id)) return { state: 'coming', reason: 'its map is still growing' };
-  if (!reached(z.milestone) || !z.raidTime) return { state: 'coming', reason: `arrives in ${z.milestone[0].toUpperCase()}${z.milestone.slice(1)}` };
+  if (!reachedMilestone(z.milestone) || !z.raidTime) return { state: 'coming', reason: `arrives in ${z.milestone[0].toUpperCase()}${z.milestone.slice(1)}` };
   if (z.access === 'open' || p.economy.unlocks.includes(`zone:${id}`)) return { state: 'open' };
   const reasons: string[] = [];
   for (const alt of z.access.split(/\s+or\s+/)) {

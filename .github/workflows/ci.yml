@@ -21,21 +21,23 @@ jobs:
           fetch-depth: 2
       # Actions minutes are a budget on a private repo, and the raid suites cost ~20 runner-minutes each.
       # main runs every suite. A PR runs smoke, raid and creatures only if it touches the game or its tests;
-      # raid-release (the same raid against the single-file build) runs on main only, smoke still checks that file on PRs.
+      # raid-release and raid-hive-release (the same raids against the single-file build) run on main only, smoke still checks that file on PRs.
       - name: Pick browser suites
         id: suites
         run: |
           smoke='{"name":"smoke","run":"npm run smoke && npm run smoke:release && npm run budget"}'
           raid='{"name":"raid","run":"npm run smoke:raid","timeout":50}'
           raidrel='{"name":"raid-release","run":"npm run smoke:raid:release","timeout":50}'
+          raidhive='{"name":"raid-hive","run":"npm run smoke:raid:hive","timeout":50}'
+          raidhiverel='{"name":"raid-hive-release","run":"npm run smoke:raid:hive:release","timeout":50}'
           creatures='{"name":"creatures","run":"npm run smoke:creatures"}'
           if [ "${{ github.event_name }}" != "pull_request" ]; then
-            suites="[$smoke,$raid,$raidrel,$creatures]"
+            suites="[$smoke,$raid,$raidrel,$raidhive,$raidhiverel,$creatures]"
           else
             changed=$(git diff --name-only HEAD^1 HEAD)
             echo "$changed"
             if echo "$changed" | grep -qvE '^(docs/|README\.md$|CLAUDE\.md$|assets/LICENSES\.md$)'; then
-              suites="[$smoke,$raid,$creatures]"
+              suites="[$smoke,$raid,$raidhive,$creatures]"
             else
               suites="[$smoke]"
             fi

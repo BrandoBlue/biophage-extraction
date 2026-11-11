@@ -9,6 +9,7 @@ import { CLASSES, itemDef, LOOT, MARKET, marketPrice, PROFILE, stashRowCost, typ
 import { footprint, ItemGrid, stackLimit, type Placed } from './grid';
 import type { CarriedSnapshot, Loadout } from './inventory';
 import { earnedPerk, newEconomy, normaliseEconomy, type EconomyState } from './economy';
+import { newHive, normaliseHive, type HiveState } from './hive';
 
 export interface RaidRecord { raids: number; extracts: number; deaths: number; kills: number }
 
@@ -26,6 +27,8 @@ export interface Profile {
   marketMood: number;
   /** Vendor reputation, contracts, unlocks and the raid-select zone (src/game/economy.ts). */
   economy: EconomyState;
+  /** The Hive Body: organ levels, Spore Garden clock, Gestation Vat job (src/game/hive.ts). */
+  hive: HiveState;
 }
 
 /** Key/value store; `localStorage` in the browser, a Map in tests or when storage is blocked. */
@@ -76,6 +79,7 @@ export function newProfile(): Profile {
     schemaVersion: PROFILE.schemaVersion, dna: PROFILE.newProfile.dna, stash: stash.snapshot(), stashRows: PROFILE.stash.rowsBase,
     gutPouchLevel: 0, cavity: [], gutPouch: [], stats: { raids: 0, extracts: 0, deaths: 0, kills: 0 }, host: 'neuroInfiltrator', marketMood: MARKET.mood.start,
     economy: newEconomy(),
+    hive: newHive(),
   };
 }
 
@@ -90,6 +94,7 @@ function normalise(raw: Partial<Profile>): Profile {
     cavity: Array.isArray(raw.cavity) ? raw.cavity : [],
     gutPouch: Array.isArray(raw.gutPouch) ? raw.gutPouch : [],
     economy: normaliseEconomy(raw.economy),
+    hive: normaliseHive(raw.hive),
   };
   p.stashRows = Math.min(PROFILE.stash.rowExpansion.maxRows, Math.max(PROFILE.stash.rowsBase, Math.floor(Number(p.stashRows) || 0)));
   p.gutPouchLevel = Math.min(PROFILE.gutPouch.upgrades.length, Math.max(0, Math.floor(Number(p.gutPouchLevel) || 0)));

@@ -295,7 +295,7 @@ describe('economy, zones and bosses (docs/gdd/07, 08)', () => {
       expect(b.phases[0].from).toBe(1);
       expect(b.phases[b.phases.length - 1].to).toBe(0);
       for (let i = 1; i < b.phases.length; i++) expect(b.phases[i].from).toBe(b.phases[i - 1].to);
-      expect(ZONES[b.zone]?.boss, id).toBe(id);
+      expect([ZONES[b.zone]?.boss, ...(ZONES[b.zone]?.bosses ?? [])], id).toContain(id);
       expect(bossPhase(id, 1).id).toBe(b.phases[0].id);
       expect(bossPhase(id, 0.01).id).toBe(b.phases[b.phases.length - 1].id);
       if (b.rewards.container) expect(LOOT.containers[b.rewards.container]).toBeDefined();
@@ -307,6 +307,18 @@ describe('economy, zones and bosses (docs/gdd/07, 08)', () => {
     const t = BOSSES.reliquary.biomass / dps;
     expect(t).toBeGreaterThan(20);
     expect(t).toBeLessThan(BOSSES.reliquary.enrage.after / 4);
+  });
+  it('the Pale Vigil is a shorter fight than the Reliquary but still well over a magazine, and its lure is the best weak point', () => {
+    const gun = WEAPONS.synapseBurster;
+    const dps = gun.damage * gun.fireRate * (gun.magazine / gun.fireRate) / (gun.magazine / gun.fireRate + gun.reloadTime);
+    const v = BOSSES.paleVigil;
+    const t = v.biomass / dps;
+    expect(t).toBeGreaterThan(15);
+    expect(t).toBeLessThan(v.enrage.after / 4);
+    expect(v.biomass).toBeLessThan(BOSSES.reliquary.biomass);
+    const mults = Object.values(v.weakPoints).map((w) => (w.multiplier as number | undefined) ?? 1);
+    expect(v.weakPoints.lure.multiplier).toBe(Math.max(...mults));
+    expect(ZONES.glowmireIsle.landmarks).toContain(v.arena.landmark as string);
   });
   it('zones are ordered, name real creatures, and every zone container exists', () => {
     const orders = Object.values(ZONES).map((z) => z.order).sort();
