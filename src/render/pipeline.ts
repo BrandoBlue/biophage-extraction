@@ -85,6 +85,25 @@ export function detectQuality(renderer: THREE.WebGLRenderer): Quality {
   return /swiftshader|llvmpipe|software/i.test(name) ? 'low' : 'high';
 }
 
+/**
+ * SwiftShader JIT-compiles every shader on its first draw, so the first frame's cost is mostly
+ * shader size. On the software tier, drop the physical-material extras (clearcoat, sheen,
+ * iridescence) and switch the bio noise to its short form (BIO_LOW in GLSL_NOISE).
+ */
+export function simplifyForSoftware(root: THREE.Object3D): number {
+  let n = 0;
+  root.traverse((o) => {
+    const mats = (o as THREE.Mesh).material;
+    for (const m of Array.isArray(mats) ? mats : mats ? [mats] : []) {
+      if (m instanceof THREE.MeshPhysicalMaterial && (m.clearcoat || m.sheen || m.iridescence)) {
+        m.clearcoat = 0; m.sheen = 0; m.iridescence = 0;
+      }
+      if (!m.defines?.BIO_LOW) { m.defines = { ...(m.defines ?? {}), BIO_LOW: 1 }; m.needsUpdate = true; n++; }
+    }
+  });
+  return n;
+}
+
 export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, camera: THREE.Camera, presetName: keyof typeof GRADE_PRESETS = 'zone7'): Pipeline {
   installHeightFog();
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -150,7 +169,7 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
       grade.uniforms.uTime.value = bioTime.value;
       grade.uniforms.uHit.value = hit;
       grade.uniforms.uOverload.value = overload;
-      if (!baked) bakeSky();
+      if (!baked) { bakeSky(); if (quality === 'low') simplifyForSoftware(scene); }
       gore.update();
       renderPass.camera = pipeline.overrideCamera ?? camera;
       if (ao) ao.syncCamera(renderPass.camera);
