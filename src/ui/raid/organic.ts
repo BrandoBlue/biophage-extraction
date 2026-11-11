@@ -88,6 +88,18 @@ export function barFrame(kind: 'biomass' | 'neural'): string {
   </svg>`;
 }
 
+/** Boss sinew: a long bone rail with knuckled ends and hooked spurs, flesh caps at both ends. viewBox 600 x 40. */
+export function bossFrame(): string {
+  const u = `s${uid++}`;
+  return `<svg class="org-frame" viewBox="0 0 600 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${defs(u)}
+    <g filter="url(#wet${u})">
+      <path d="M24 10 L576 10 C588 10 596 16 598 20 C596 24 588 30 576 30 L24 30 C12 30 4 24 2 20 C4 16 12 10 24 10Z" fill="none" stroke="url(#bn${u})" stroke-width="2.4"/>
+      <path d="M2 20 C4 14 12 8 22 8 C18 14 18 26 22 32 C12 32 4 26 2 20Z M598 20 C596 14 588 8 578 8 C582 14 582 26 578 32 C588 32 596 26 598 20Z" fill="url(#fl${u})"/>
+      ${[120, 240, 360, 480].map((x) => `<path d="M${x} 9 c2 -5 6 -7 9 -8 c-2 3 -3 6 -3 8Z M${x - 6} 31 c-2 4 -5 6 -8 7 c2 -3 3 -5 3 -7Z" fill="url(#bn${u})"/>`).join('')}
+    </g>
+  </svg>`;
+}
+
 /** Chitin plate behind the five ability slots, with a banner tab on top for the active ability name. viewBox 420 x 110. */
 export function slotsFrame(): string {
   const u = `a${uid++}`;

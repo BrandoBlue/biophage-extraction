@@ -158,3 +158,21 @@
 .cav-help { position:absolute; left:50%; bottom:calc(var(--u) * 1); transform:translateX(-50%); display:flex; gap:calc(var(--u) * 2); font-size:calc(var(--u) * .85); white-space:nowrap; }
 .cav-help kbd { font:inherit; color:var(--magenta); }
 .cav-overlay .item-tip { border-color:var(--magenta); }
+
+/* Boss bar (Brood Heart, later the Reliquary): bone sinew, deep flesh fill, a pale ghost for damage taken, wave notches. Never neon. */
+.organic .h-boss { margin-top:calc(var(--u) * .7); width:calc(var(--u) * 34); }
+.organic .h-boss.hidden { display:none; }
+.organic .h-boss .bh { display:flex; justify-content:space-between; align-items:baseline; padding:0 calc(var(--u) * 1.4); margin-bottom:calc(var(--u) * .15);
+  font-family:"Chakra Petch", sans-serif; text-shadow:0 0 6px var(--void), 0 0 2px var(--void); }
+.organic .h-boss .bh b { font-size:calc(var(--u) * 1); letter-spacing:.22em; color:var(--bone); font-weight:600; }
+.organic .h-boss .bh span { font-size:calc(var(--u) * .78); letter-spacing:.14em; color:color-mix(in srgb, var(--bone) 65%, transparent); }
+.organic .h-boss .bt { position:relative; height:calc(var(--u) * 2); }
+.organic .h-boss .trk { position:absolute; left:4%; right:4%; top:30%; bottom:30%; overflow:hidden; background:color-mix(in srgb, var(--void) 88%, transparent); }
+.organic .h-boss .fill, .organic .h-boss .ghost { position:absolute; left:0; top:0; bottom:0; width:100%; }
+.organic .h-boss .ghost { background:color-mix(in srgb, var(--bone) 28%, transparent); }
+.organic .h-boss .fill { transition:width .15s;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--danger) 45%, var(--bone)), color-mix(in srgb, var(--danger) 75%, var(--shade-flesh)) 45%, color-mix(in srgb, var(--danger) 35%, var(--void))); }
+.organic .h-boss .fill::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(95deg, transparent 0 14px, color-mix(in srgb, var(--void) 25%, transparent) 14px 16px); }
+.organic .h-boss.low .fill { animation:hud-hot .6s infinite alternate; }
+.organic .h-boss .notches i { position:absolute; top:-1px; bottom:-1px; width:2px; margin-left:-1px; z-index:2; background:color-mix(in srgb, var(--bone) 70%, transparent); }
+.organic .h-boss .notches i.past { background:color-mix(in srgb, var(--bone) 25%, transparent); }

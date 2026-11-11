@@ -230,8 +230,8 @@
 .raidfacts { display:grid; grid-template-columns:repeat(4, 1fr); gap:calc(var(--u) * .5); margin:calc(var(--u) * .8) 0 0; }
 .raidfacts div { padding:calc(var(--u) * .35) calc(var(--u) * .5); background:color-mix(in srgb, var(--background) 60%, transparent); border-left:2px solid color-mix(in srgb, var(--acid) 45%, transparent); }
 .raidfacts dt { font-size:calc(var(--u) * .7); opacity:.65; } .raidfacts dd { margin:0; font-size:calc(var(--u) * 1.3); font-family:"Chakra Petch", sans-serif; }
-.raid-info .mods { list-style:none; margin:0; padding:0; display:grid; gap:calc(var(--u) * .4); }
-.raid-info .mods li { line-height:1.2; display:grid; grid-template-columns:auto 1fr; column-gap:.6em; font-size:calc(var(--u) * 1); padding:calc(var(--u) * .35) calc(var(--u) * .5); background:color-mix(in srgb, var(--background) 55%, transparent); }
+.raid-info .mods { list-style:none; margin:0; padding:0; display:grid; gap:calc(var(--u) * .25); }
+.raid-info .mods li { line-height:1.2; display:grid; grid-template-columns:auto 1fr; column-gap:.6em; font-size:calc(var(--u) * .92); padding:calc(var(--u) * .22) calc(var(--u) * .5); background:color-mix(in srgb, var(--background) 55%, transparent); }
 .raid-info .mods li .glyph { grid-row:1 / span 2; width:calc(var(--u) * 1.8); height:calc(var(--u) * 1.8); }
 .raid-info .mods li span { font-size:.85em; opacity:.75; text-transform:none; letter-spacing:.01em; }
 .raid-info .mods .danger { color:var(--danger); } .raid-info .mods .lime { color:var(--lime); } .raid-info .mods .cyan { color:var(--path-dna); } .raid-info .mods .violet { color:var(--path-viral); }
@@ -333,3 +333,20 @@
 .mk-sell .cap { display:flex; justify-content:space-between; margin-top:calc(var(--u) * .8); font-size:calc(var(--u) * 1); }
 .mk-sell .cap b { color:var(--path-dna); }
 .mk-closed { left:50%; top:40%; transform:translateX(-50%); }
+
+/* Zone roster (zones.json) across the top of raid select, in travel order. Locked zones say what opens them. */
+#hive[data-tab=raid] .hv-title { display:none; }
+.scr-raid .zones { position:absolute; top:calc(var(--u) * 8.2); left:50%; transform:translateX(-50%); display:flex; gap:calc(var(--u) * .6); z-index:2; }
+.scr-raid .zone { display:flex; align-items:center; gap:calc(var(--u) * .7); min-width:calc(var(--u) * 12.5); padding:calc(var(--u) * .45) calc(var(--u) * .9); text-align:left;
+  background:color-mix(in srgb, var(--background) 78%, transparent); border:1px solid color-mix(in srgb, var(--bone) 22%, transparent);
+  clip-path:polygon(calc(var(--u) * .6) 0, 100% 0, 100% calc(100% - calc(var(--u) * .6)), calc(100% - calc(var(--u) * .6)) 100%, 0 100%, 0 calc(var(--u) * .6)); }
+.scr-raid .zone em { font-style:normal; font-family:"Chakra Petch", sans-serif; font-size:calc(var(--u) * 1.5); color:color-mix(in srgb, var(--bone) 55%, transparent); min-width:1.4em; text-align:center; }
+.scr-raid .zone b { display:block; font-size:calc(var(--u) * .82); letter-spacing:.12em; color:var(--bone); font-weight:600; white-space:nowrap; }
+.scr-raid .zone small { display:flex; align-items:center; gap:.5em; margin-top:.15em; font-size:calc(var(--u) * .66); letter-spacing:.1em; color:color-mix(in srgb, var(--bone) 60%, transparent); white-space:nowrap; }
+.scr-raid .zone .pips { display:flex; gap:2px; } .scr-raid .zone .pips i { width:calc(var(--u) * .7); height:calc(var(--u) * .28); background:color-mix(in srgb, var(--bone) 18%, transparent); }
+.scr-raid .zone .pips i.on { background:color-mix(in srgb, var(--danger) 70%, var(--bone)); }
+.scr-raid .zone.on { border-color:color-mix(in srgb, var(--bone) 60%, transparent); background:color-mix(in srgb, var(--panel) 70%, transparent); }
+.scr-raid .zone.on em { color:var(--acid); }
+.scr-raid .zone.locked { opacity:.55; } .scr-raid .zone.locked:hover { opacity:.8; }
+.scr-raid .zone.locked b { color:color-mix(in srgb, var(--bone) 70%, transparent); }
+.raid-info .mods .bone { color:var(--bone); }

@@ -3,7 +3,7 @@ import { CLASSES, LOOT, VIRUSES } from '../data';
 import { DRAWN_ITEMS, itemIcon } from '../src/ui/icons';
 import { ALL_COLOURS } from '../src/render/palette';
 import { hostPortrait } from '../src/ui/hosts';
-import { classTraits, raidPlan } from '../src/ui/hive/screens';
+import { classTraits, LIVE_ZONE, raidPlan, zoneAccess, zoneRoster } from '../src/ui/hive/screens';
 import { firstFit, fits, virusText } from '../src/ui/hive/grid';
 import { gridSize, usage } from '../src/ui/hive/model';
 import { getSettings, DEFAULT_SETTINGS, SETTINGS_KEY } from '../src/ui/settings';
@@ -127,5 +127,23 @@ describe('Hive stage', () => {
     expect(st.due(1, false)).toBe(true);
     expect(st.due(10, true)).toBe(false);
     expect(st.due(1 + STAGE.testFrameMs, true)).toBe(true);
+  });
+  it('stays off until the host is ready, and in automated runs until the menu has settled', () => {
+    const st = new HiveStage({} as Pipeline);
+    expect(st.set(true, 'neuroInfiltrator', 1.6, 0, true)).toBe(false);
+    expect(st.set(true, 'neuroInfiltrator', 1.6, STAGE.testSettleMs - 1, true)).toBe(false);
+    expect(st.set(false, 'neuroInfiltrator', 1.6, STAGE.testSettleMs, true)).toBe(false);
+    expect(st.active).toBe(false);
+  });
+});
+
+describe('Zone roster', () => {
+  it('lists every zone in travel order with the live zone open and the rest saying what opens them', () => {
+    const r = zoneRoster();
+    expect(r.map((z) => z.order)).toEqual([...r.map((z) => z.order)].sort((a, b) => a - b));
+    expect(r.find((z) => z.id === LIVE_ZONE)?.open).toBe(true);
+    for (const z of r.filter((x) => !x.open)) expect(z.access).not.toBe('OPEN');
+    expect(zoneAccess('contract signalInTheWreck (Archivist)')).toMatch(/^CONTRACT · /);
+    expect(zoneAccess('open')).toBe('OPEN');
   });
 });
