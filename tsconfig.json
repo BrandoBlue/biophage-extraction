@@ -10,5 +10,5 @@
     "lib": ["ES2022", "DOM"],
     "types": ["vite/client"]
   },
-  "include": ["src", "tests", "data"]
+  "include": ["src", "tests", "data", "mocks"]
 }
