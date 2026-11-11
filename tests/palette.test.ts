@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_COLOURS } from '../src/render/palette';
-import { groundHeight, mulberry32 } from '../src/world/zone7';
+import { FLAT_SPOTS, groundHeight, ISLAND_RADIUS, mulberry32 } from '../src/world/zone7';
 import classes from '../data/classes.json';
 
 describe('art bible palette', () => {
@@ -14,9 +14,12 @@ describe('zone 7', () => {
     const a = mulberry32(7), b = mulberry32(7);
     expect([a(), a(), a()]).toEqual([b(), b(), b()]);
   });
-  it('has a walkable centre and falls away at the rim', () => {
-    expect(Math.abs(groundHeight(0, 0))).toBeLessThan(3);
-    expect(groundHeight(70, 0)).toBeLessThan(-5);
+  it('keeps gameplay spots flat and falls away at the rim', () => {
+    for (const s of FLAT_SPOTS) {
+      const h = groundHeight(s.x, s.z);
+      for (let a = 0; a < 8; a++) expect(Math.abs(groundHeight(s.x + Math.cos(a) * s.radius * 0.8, s.z + Math.sin(a) * s.radius * 0.8) - h), s.name).toBeLessThan(0.3);
+    }
+    expect(groundHeight(ISLAND_RADIUS * 1.1, 0)).toBeLessThan(-5);
   });
 });
 

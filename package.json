@@ -8,6 +8,7 @@
     "preview": "vite preview --port 4173 --strictPort",
     "test": "vitest run",
     "smoke": "node tests/smoke.mjs",
+    "lookdev": "node tests/lookdev.mjs",
     "check": "npm run release && npm test && npm run smoke && npm run smoke:release && npm run budget",
     "release": "npm run build && node scripts/bundle-single.mjs",
     "smoke:release": "node tests/smoke.mjs --release",
