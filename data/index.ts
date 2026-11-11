@@ -6,6 +6,8 @@ import classesJson from './classes.json';
 import hostJson from './host.json';
 import weaponsJson from './weapons.json';
 import habitatsJson from './habitats.json';
+import modsJson from './mods.json';
+import weaponFeelJson from './weapon-feel.json';
 import abilitiesJson from './abilities.json';
 import abominationsJson from './abominations.json';
 import lootJson from './loot.json';
@@ -87,6 +89,17 @@ export interface WeaponDef {
   charge?: { time: number; minFraction: number; overloadPerShot?: number; fanDegrees?: number };
   selfDamage?: boolean;
   dropsFrom?: string;
+  /** Graft sockets the gun exposes; a gun with ads: false has no sight socket. */
+  modSlots: ModSlot[];
+  /** Class signature weapon: grown in the Hive Armoury once the host reaches this level as that class. */
+  unlock?: { class: ClassId; level: number };
+}
+
+export type ModSlot = 'barrel' | 'sight' | 'under' | 'chamber';
+export interface ModDef {
+  label: string; slot: ModSlot; rarity: Rarity; look: string;
+  effects: { mult?: Record<string, number>; set?: Record<string, unknown>; special?: { id: string; [param: string]: unknown } };
+  fits?: WeaponClass[];
 }
 
 /** Sustained damage per second at full magazine, before falloff and weak points (bursts and charge-up included, reload excluded). */
@@ -154,7 +167,7 @@ export interface Abomination {
   [tunable: string]: unknown;
 }
 
-export type ItemKind = 'consumable' | 'currency' | 'mutagen' | 'virus' | 'tech' | 'organ' | 'weapon' | 'ammo';
+export type ItemKind = 'consumable' | 'currency' | 'mutagen' | 'virus' | 'tech' | 'organ' | 'weapon' | 'ammo' | 'mod';
 export interface Item { label: string; kind: ItemKind; value: number; size: Range; stack: number; inertUntil?: string }
 export interface LootEntry { item: string; weight: number; count: Range }
 export interface Container {
@@ -189,6 +202,8 @@ export interface Nest {
 export interface ProfileRules {
   storageKey: string;
   schemaVersion: number;
+  /** Carried guns beyond the innate starter; equipped guns are lost on death. */
+  weaponSlots: number;
   newProfile: { dna: number; stash: { item: string; count: number }[] };
   stash: { gridColumns: number; rowsBase: number; rowExpansion: { rows: number; baseCost: number; costGrowth: number; maxRows: number } };
   gutPouch: { size: Range; upgrades: { size: Range; cost: number }[] };
@@ -539,3 +554,30 @@ export function habitatGroups(zone: string, kind: string, milestone: string): Ha
   const at = order.indexOf(milestone);
   return (HABITATS.zones[zone]?.[kind]?.groups ?? []).filter((g) => !g.milestone || order.indexOf(g.milestone) <= at);
 }
+
+/** Weapon mods (living grafts), keyed by item id. */
+export const MODS = strip<Record<string, ModDef>>(modsJson);
+/** Can this mod go on this gun? Same socket, and the gun's class if the mod is picky. */
+export function modFits(mod: ModDef, w: WeaponDef): boolean {
+  return w.modSlots.includes(mod.slot) && (!mod.fits || mod.fits.includes(w.class));
+}
+
+/** Every way to get a weapon: class unlock, containers, vendors (with rep), boss drop. */
+export function weaponSources(id: string): { unlock?: { class: ClassId; level: number }; containers: string[]; vendors: { vendor: string; rep: number; price: number }[]; boss?: string } {
+  const w = WEAPONS[id];
+  const containers = Object.entries(LOOT.containers)
+    .filter(([, c]) => c.table.some((e) => e.item === id) || c.guaranteed.some((g) => g.item === id)).map(([k]) => k);
+  const vendors = Object.entries(VENDORS).flatMap(([vid, v]) => (v.stock ?? []).filter((s) => s.item === id).map((s) => ({ vendor: vid, rep: s.rep, price: s.price })));
+  return { unlock: w?.unlock, containers, vendors, boss: w?.dropsFrom };
+}
+
+export interface ReloadBeat { at: number; pose: string; cue: string }
+export interface FireFeel { kick: number; shake: number; push: number; settle: number; flash: number }
+export interface WeaponFeel {
+  reload: Record<'magazine' | 'perShell' | 'regrow', { beats: ReloadBeat[]; emptyExtraPose?: string; cancelAt?: number; openAndCloseTime?: number }>;
+  fire: Record<WeaponClass, FireFeel>;
+  idle: { breathe: { period: number; amplitude: number }; twitchEvery: Range; note: string };
+  impact: { hitMarkerTime: number; weakPointHitMarkerScale: number; fleshDecalLife: number; note: string };
+}
+/** Firing and reload feel per weapon class and reload style (Design; read by Gameplay and Creature). */
+export const WEAPON_FEEL = stripDeep(weaponFeelJson) as WeaponFeel;

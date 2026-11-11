@@ -1,5 +1,5 @@
 {
-  "_note": "Weapon roster. Living bio-weapons, projectiles not hitscan. Distances m, times s, damage per projectile (per pellet when pellets > 1). fireRate = shots/s (inside a burst for burst weapons; burstDelay = gap between bursts). reload.style picks the animation: magazine (swap a sac), perShell (feed one at a time), regrow (heals in place). ads: false = no zoom at all; zoom is the FOV divisor (1.25 a sight, 3+ a scope); scope true draws the scope overlay. ammo = feed item id in loot.json, null = never needs ammo. handling.moveSpeed multiplies class speed while held. synapseBurster keeps its Spore fields (reloadTime, adsTime, burst, egoCharge) for src/game/raid.ts. See docs/gdd/09-weapons-and-habitats.md.",
+  "_note": "Weapon roster. Living bio-weapons, projectiles not hitscan. Distances m, times s, damage per projectile (per pellet when pellets > 1). fireRate = shots/s (inside a burst for burst weapons; burstDelay = gap between bursts). reload.style picks the animation: magazine (swap a sac), perShell (feed one at a time), regrow (heals in place). ads: false = no zoom at all; zoom is the FOV divisor (1.25 a sight, 3+ a scope); scope true draws the scope overlay. ammo = feed item id in loot.json, null = never needs ammo. handling.moveSpeed multiplies class speed while held. synapseBurster keeps its Spore fields (reloadTime, adsTime, burst, egoCharge) for src/game/raid.ts. See docs/gdd/09-weapons-and-habitats.md. modSlots: graft sockets (barrel, sight, under, chamber); see mods.json. unlock {class, level}: a class signature weapon, grown in the Hive Armoury once that class reaches the level (progression.json armoury).",
   "synapseBurster": {
     "label": "Synapse Burster",
     "class": "carbine",
@@ -72,7 +72,13 @@
     "handling": {
       "equipTime": 0.5,
       "moveSpeed": 1
-    }
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
   },
   "quillet": {
     "label": "Quillet",
@@ -121,7 +127,13 @@
     "handling": {
       "equipTime": 0.3,
       "moveSpeed": 1
-    }
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
   },
   "marrowHand": {
     "label": "Marrow Hand",
@@ -170,7 +182,17 @@
     "handling": {
       "equipTime": 0.35,
       "moveSpeed": 1
-    }
+    },
+    "unlock": {
+      "class": "venomWraith",
+      "level": 6
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
   },
   "hiveSpitter": {
     "label": "Hive Spitter",
@@ -214,7 +236,12 @@
     "handling": {
       "equipTime": 0.4,
       "moveSpeed": 1.03
-    }
+    },
+    "modSlots": [
+      "barrel",
+      "under",
+      "chamber"
+    ]
   },
   "stingerChoir": {
     "label": "Stinger Choir",
@@ -265,7 +292,17 @@
     "handling": {
       "equipTime": 0.4,
       "moveSpeed": 1.02
-    }
+    },
+    "unlock": {
+      "class": "venomWraith",
+      "level": 3
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
   },
   "vertebraRifle": {
     "label": "Vertebra Rifle",
@@ -314,7 +351,13 @@
     "handling": {
       "equipTime": 0.6,
       "moveSpeed": 0.97
-    }
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
   },
   "cicadine": {
     "label": "Cicadine",
@@ -365,7 +408,17 @@
     "handling": {
       "equipTime": 0.55,
       "moveSpeed": 0.98
-    }
+    },
+    "unlock": {
+      "class": "neuroInfiltrator",
+      "level": 3
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
   },
   "gulletScatter": {
     "label": "Gullet Scatter",
@@ -409,7 +462,16 @@
     "handling": {
       "equipTime": 0.5,
       "moveSpeed": 0.98
-    }
+    },
+    "unlock": {
+      "class": "goreBehemoth",
+      "level": 3
+    },
+    "modSlots": [
+      "barrel",
+      "under",
+      "chamber"
+    ]
   },
   "bloomcannon": {
     "label": "Bloomcannon",
@@ -453,7 +515,16 @@
     "handling": {
       "equipTime": 0.6,
       "moveSpeed": 0.95
-    }
+    },
+    "unlock": {
+      "class": "goreBehemoth",
+      "level": 6
+    },
+    "modSlots": [
+      "barrel",
+      "under",
+      "chamber"
+    ]
   },
   "eyestalkMarksman": {
     "label": "Eyestalk Marksman",
@@ -502,7 +573,17 @@
     "handling": {
       "equipTime": 0.7,
       "moveSpeed": 0.95
-    }
+    },
+    "unlock": {
+      "class": "neuroInfiltrator",
+      "level": 6
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
   },
   "leviathanQuill": {
     "label": "Leviathan Quill",
@@ -552,7 +633,17 @@
     "handling": {
       "equipTime": 0.9,
       "moveSpeed": 0.9
-    }
+    },
+    "unlock": {
+      "class": "venomWraith",
+      "level": 10
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
   },
   "broodMortar": {
     "label": "Brood Mortar",
@@ -601,7 +692,16 @@
       "equipTime": 0.8,
       "moveSpeed": 0.92
     },
-    "selfDamage": true
+    "selfDamage": true,
+    "unlock": {
+      "class": "goreBehemoth",
+      "level": 10
+    },
+    "modSlots": [
+      "barrel",
+      "under",
+      "chamber"
+    ]
   },
   "tumorLauncher": {
     "label": "Tumor Launcher",
@@ -657,7 +757,13 @@
       "equipTime": 0.8,
       "moveSpeed": 0.93
     },
-    "selfDamage": true
+    "selfDamage": true,
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
   },
   "lumenLance": {
     "label": "Lumen Lance",
@@ -711,7 +817,17 @@
       "time": 0.9,
       "minFraction": 0.35,
       "overloadPerShot": 6
-    }
+    },
+    "unlock": {
+      "class": "neuroInfiltrator",
+      "level": 10
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
   },
   "reliquaryHymn": {
     "label": "Reliquary Hymn",
@@ -767,7 +883,13 @@
       "fanDegrees": 9,
       "overloadPerShot": 4
     },
-    "dropsFrom": "reliquary"
+    "dropsFrom": "reliquary",
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
   },
   "coreburner": {
     "label": "Coreburner",
@@ -820,6 +942,12 @@
       "equipTime": 0.8,
       "moveSpeed": 0.93
     },
-    "dropsFrom": "warden"
+    "dropsFrom": "warden",
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
   }
 }
