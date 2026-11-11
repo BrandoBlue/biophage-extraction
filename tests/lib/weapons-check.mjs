@@ -1,5 +1,5 @@
 // Living weapon roster in a real raid (Gameplay): swap, aim and zoom, fire modes, a per-shell reload fed from an
-// ammo item, a sticky round's fuse, and a found weapon going into a free slot. Called from tests/raid.mjs part 2
+// ammo item, a sticky round's fuse, a found weapon going into a free slot, and a graft. Run by `npm run smoke:weapons`
 // (and runnable on its own: `node tests/weapons.mjs`). All waits are on simulated frames.
 import { readFileSync } from 'node:fs';
 import { freezeAndScreenshot } from './harness.mjs';

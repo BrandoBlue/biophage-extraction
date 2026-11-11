@@ -30,14 +30,15 @@ jobs:
           raidrel='{"name":"raid-release","run":"npm run smoke:raid:release","timeout":50}'
           raidhive='{"name":"raid-hive","run":"npm run smoke:raid:hive","timeout":50}'
           raidhiverel='{"name":"raid-hive-release","run":"npm run smoke:raid:hive:release","timeout":50}'
+          weapons='{"name":"weapons","run":"npm run smoke:weapons","timeout":35}'
           creatures='{"name":"creatures","run":"npm run smoke:creatures"}'
           if [ "${{ github.event_name }}" != "pull_request" ]; then
-            suites="[$smoke,$raid,$raidrel,$raidhive,$raidhiverel,$creatures]"
+            suites="[$smoke,$raid,$raidrel,$raidhive,$raidhiverel,$creatures,$weapons]"
           else
             changed=$(git diff --name-only HEAD^1 HEAD)
             echo "$changed"
             if echo "$changed" | grep -qvE '^(docs/|README\.md$|CLAUDE\.md$|assets/LICENSES\.md$)'; then
-              suites="[$smoke,$raid,$raidhive,$creatures]"
+              suites="[$smoke,$raid,$raidhive,$creatures,$weapons]"
             else
               suites="[$smoke]"
             fi

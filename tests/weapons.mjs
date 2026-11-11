@@ -1,5 +1,4 @@
-// The weapon roster on its own (the same check runs inside `npm run smoke:raid:hive`):
-//   npm run build && node tests/weapons.mjs
+// The living weapon roster in a real raid: npm run smoke:weapons (after npm run build).
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
