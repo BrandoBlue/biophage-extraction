@@ -11,6 +11,8 @@ const POSES = {
   vista: { at: [10, -30], eye: 2.5, yaw: 0.25, pitch: 0.16 },
   gore: { at: [-41, 113], eye: 1.7, yaw: -0.35, pitch: -0.35, gore: [[-39.5, 108.5], [-37, 109.5, '#B6FF3B']] },
   weapon: { main: true },
+  fire: { main: true, fire: [-38, 1.2, 100] },
+  shots: { at: [-15.5, 77], eye: 1.6, yaw: 1.3, pitch: -0.05, shots: [-20.3, 81.2, -24, 70] },
   creatures: { at: [-20, 80], eye: 1.5, yaw: -0.1, pitch: 0.16, creatures: [-19.5, 74.5, 0.25] },
   needlemaw: { at: [-20.6, 76.6], eye: 1.0, yaw: 0.22, pitch: -0.1, nohud: true, creatures: [-19.5, 74.5, 0.35] },
   cantor: { at: [-15.8, 74.6], eye: 2.0, yaw: 0.05, pitch: 0.42, nohud: true, creatures: [-19.5, 74.5, 0.1] },
@@ -45,6 +47,8 @@ try {
     for (const n of (process.env.HIDE || '').split(',').filter(Boolean)) await page.evaluate((x) => window.__biophageLookdev.show(x, false), n);
     for (const g of pose.gore ?? []) await page.evaluate(([x, z, c]) => window.__biophageLookdev.gore(x, z, c), g);
     await page.evaluate((h) => { const e = document.getElementById('hud'); if (e) e.style.visibility = h ? 'hidden' : ''; }, !!pose.nohud);
+    if (pose.fire) await page.evaluate(([x, y, z]) => { const d = window.__biophage.debug; d.begin(); d.aimAt(x, y, z); d.trigger(true); }, pose.fire);
+    if (pose.shots) await page.evaluate((a) => window.__biophageLookdev.shots(...a), pose.shots);
     if (pose.creatures) await page.evaluate(([x, z, f]) => window.__biophageLookdev.creatures(x, z, f), pose.creatures);
     if (pose.mutate) await page.evaluate(([x, z]) => window.__biophageLookdev.mutateDemo(x, z), pose.mutate);
     if (process.env.RAW) await page.evaluate(() => window.__biophageLookdev.raw(true));

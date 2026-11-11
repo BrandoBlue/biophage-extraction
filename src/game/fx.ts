@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { groundHeight, mulberry32 } from '../world/zone7';
 import { HIVE, ZONE7 } from '../render/palette';
+import { shotFx } from '../render/shotfx';
 
 /** Colours derived from the Art Bible palette (never raw hex here). */
 export const GORE = {
@@ -101,6 +102,7 @@ export class Fx {
 
   /** Small burst where a spore lands. */
   impact(at: THREE.Vector3, colour: THREE.Color, n = 8, speed = 6): void {
+    shotFx.flash(this.scene, at, colour, 0.35 + n * 0.035);
     for (let i = 0; i < n; i++) {
       tmpV.set(this.r(), this.rand() * 0.8 + 0.2, this.r()).normalize().multiplyScalar(speed * (0.4 + this.rand()));
       this.sparks.spawn(at, tmpV, colour, 0.05 + this.rand() * 0.05, 0.25 + this.rand() * 0.3, { drag: 4, grav: 6, stretch: 0.08 });

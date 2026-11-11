@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { HIVE, ZONE7 } from '../render/palette';
 import { mulberry32 } from '../world/zone7';
 import { alienEye, bioNode, chitin, livingFlesh, membrane } from '../render/materials';
+import { glowTexture } from '../render/shotfx';
 
 const hex = (c: THREE.Color) => `#${c.getHexString()}`;
 
@@ -53,7 +54,8 @@ export class SynapseBursterView {
   private chamberCore: THREE.Mesh;
   private chamberMat: THREE.MeshStandardMaterial;
   private egoMat: THREE.MeshStandardMaterial;
-  private flash: THREE.Mesh;
+  private flash: THREE.Group;
+  private flashLight: THREE.PointLight;
   private flashLife = 0;
   private kick = 0;
   private sway = new THREE.Vector2();
@@ -190,9 +192,26 @@ export class SynapseBursterView {
     this.muzzle.position.set(0, 0, -0.34);
     g.add(this.muzzle);
 
-    this.flash = new THREE.Mesh(new THREE.IcosahedronGeometry(0.06, 1), new THREE.MeshBasicMaterial({ color: C.acid, transparent: true, opacity: 0, toneMapped: false, depthWrite: false }));
+    // Muzzle burst: a hot glow, a four-point star and a short beam streak down the barrel line, plus a light
+    // that throws acid green over the gun and the ground for a frame. The light always exists (intensity 0 at
+    // rest) so firing never changes the light count and never recompiles shaders.
+    this.flash = new THREE.Group();
     this.flash.position.z = -0.37;
+    const add = { blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false, transparent: true } as const;
+    const burst = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: C.acid.clone().lerp(new THREE.Color(1, 1, 1), 0.3).multiplyScalar(3), ...add }));
+    burst.scale.setScalar(0.22);
+    const star = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.05), new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.acid.clone().multiplyScalar(3), side: THREE.DoubleSide, ...add }));
+    const star2 = star.clone();
+    star2.rotation.z = Math.PI / 2;
+    const streak = new THREE.Mesh(new THREE.PlaneGeometry(0.035, 2.2).rotateX(-Math.PI / 2).translate(0, 0, -1.1), new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.acid.clone().multiplyScalar(2.2), side: THREE.DoubleSide, ...add }));
+    const streak2 = streak.clone();
+    streak2.rotation.z = Math.PI / 2;
+    this.flash.add(burst, star, star2, streak, streak2);
+    this.flash.visible = false;
     g.add(this.flash);
+    this.flashLight = new THREE.PointLight(HIVE.acid, 0, 6, 2);
+    this.flashLight.position.z = -0.45;
+    g.add(this.flashLight);
 
     // Alien host hand: dark chitin fingers wrapped under the grip.
     const handMat = chitin(hex(C.skin.clone().multiplyScalar(2.2)), ZONE7.lime, 14);
@@ -309,8 +328,9 @@ export class SynapseBursterView {
     }
 
     this.flashLife = Math.max(0, this.flashLife - dt);
-    const fm = this.flash.material as THREE.MeshBasicMaterial;
-    fm.opacity = this.flashLife > 0 ? 0.9 : 0;
-    this.flash.scale.setScalar(this.flashLife > 0 ? 0.8 + Math.random() * 0.6 : 0.001);
+    const on = this.flashLife > 0;
+    this.flash.visible = on;
+    if (on) { this.flash.scale.setScalar(0.8 + Math.random() * 0.5); this.flash.rotation.z = Math.random() * Math.PI; }
+    this.flashLight.intensity = on ? 3.5 * (this.flashLife / 0.06) : 0;
   }
 }

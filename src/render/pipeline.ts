@@ -10,6 +10,7 @@ import { BioAOPass } from './ao';
 import { installHeightFog } from './fog';
 import { gore } from './gore';
 import { mutation } from './dissolve';
+import { shotFx } from './shotfx';
 
 /**
  * Final grade: chromatic aberration (rises with Neural Overload), split toning, vignette toward the
@@ -177,6 +178,7 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
       if (!baked) { bakeSky(); if (quality === 'low') simplifyForSoftware(scene); }
       gore.update();
       mutation.update();
+      shotFx.update();
       const active = pipeline.overrideScene ?? scene;
       if (quality === 'low' && !simplified.has(active)) { simplified.add(active); simplifyForSoftware(active); }
       renderPass.scene = active;
