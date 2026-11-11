@@ -257,6 +257,34 @@ try {
     if (s.nests[0].state !== 'destroyed' || s.pods.length !== pods + 1) await fail(`Brood Heart kill did not drop a Brood Cache: ${JSON.stringify(s.nests[0])}`);
     log(`Brood Heart woke, sent wave ${s.nests[0].wave} (${s.nests[0].brood} spawn), died and dropped a Brood Cache`);
   }
+  // The Reliquary (PvE AI): walking into World's bowl wakes it, the boss bar names it, and killing it drops the
+  // Reliquary Cage and leaves a heart to cut out.
+  s = await state();
+  if (s.boss && s.arena) {
+    const a = s.arena;
+    await call('teleport', a.x, a.z);
+    await call('aimAt', s.boss.centre[0], s.boss.centre[1], s.boss.centre[2]);
+    for (let i = 0; i < 60; i++) { await frames(2); s = await state(); if (s.boss.state === 'awake') break; }
+    if (s.boss.state !== 'awake') await fail(`the Reliquary did not wake: ${JSON.stringify(s.boss)}`);
+    await page.waitForFunction(() => /RELIQUARY/i.test(document.querySelector('#hud .h-boss:not(.hidden) .bh')?.textContent ?? ''), null, { timeout: 30000 })
+      .catch(() => fail('the boss bar did not name the Reliquary'));
+    await frames(20);
+    s = await state();
+    await call('aimAt', s.boss.centre[0], s.boss.centre[1], s.boss.centre[2]);
+    await freezeAndScreenshot(page, 'tests/out/raid-boss.png', { resume: true });
+    const pods = s.pods.length;
+    await call('hitBoss', 1e6, null);
+    await frames(2);
+    s = await state();
+    if (s.boss.state !== 'dead' || s.pods.length !== pods + 1 || !s.log.bosses.includes('reliquary')) await fail(`Reliquary kill: ${JSON.stringify({ boss: s.boss, pods: s.pods.length, bosses: s.log.bosses })}`);
+    await call('killAll');
+    await call('teleport', s.boss.position[0] + 3, s.boss.position[2]);
+    await call('hold', 'KeyE', true);
+    for (let i = 0; i < 80; i++) { await frames(3); s = await state(); if (s.boss.harvested) break; }
+    await call('hold', 'KeyE', false);
+    if (!s.boss.harvested) await fail('could not harvest the Reliquary Heart');
+    log(`the Reliquary woke, died, dropped the Reliquary Cage and gave up its heart`);
+  }
   await call('killAll');
   await call('setTimeScale', 8);
   // Brood Cache: the container PvE AI's Brood Heart drops on death always holds a Brood Heart Seed.
