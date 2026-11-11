@@ -330,6 +330,28 @@ try {
   const heartIn = [...s.carried.items, ...((await call('openContainer'))?.items ?? [])];
   if (!heartIn.some((i) => i.item === 'reliquaryHeart')) await fail(`harvesting the Reliquary gave no Reliquary Heart: ${JSON.stringify({ heartIn, heart: s.pods.find((q) => q.id === 'reliquary-harvest'), phase: s.phase, result: s.result })}`);
   log(`Reliquary killed: +${s.carried.dna - dnaBefore} DNA, Reliquary Cage dropped, Reliquary Heart harvested`);
+  // The Pale Vigil (PvE AI): it hangs silent in World's Fungal Cave lair; walking in wakes it and the boss bar names it.
+  s = await state();
+  if (s.vigil) {
+    const L = s.vigil.lair;
+    await call('killAll');
+    await call('setTimeScale', 3);
+    await call('teleport', L.x + 6, L.z + 6);
+    for (let i = 0; i < 60; i++) { await frames(2); s = await state(); if (s.vigil.state === 'awake') break; }
+    if (s.vigil.state !== 'awake') await fail(`the Pale Vigil did not wake: ${JSON.stringify(s.vigil)}`);
+    await page.waitForFunction(() => /PALE VIGIL/i.test(document.querySelector('#hud .h-boss:not(.hidden) .bh')?.textContent ?? ''), null, { timeout: 30000 })
+      .catch(() => fail('the boss bar did not name the Pale Vigil'));
+    s = await state();
+    await call('aimAt', s.vigil.centre[0], s.vigil.centre[1], s.vigil.centre[2]);
+    await frames(4);
+    await freezeAndScreenshot(page, 'tests/out/raid-vigil.png', { resume: true });
+    const dnaV = s.carried.dna;
+    await call('hitVigil', 1e6, null);
+    await frames(2);
+    s = await state();
+    if (s.vigil.state !== 'dead' || !s.log.bosses.includes('paleVigil') || s.carried.dna <= dnaV || s.vigil.lair.sealed.some(Boolean)) await fail(`the Pale Vigil kill did not pay out or left the cave sealed: ${JSON.stringify({ vigil: s.vigil, bosses: s.log.bosses })}`);
+    log(`Pale Vigil woke in the Fungal Cave and was killed: +${s.carried.dna - dnaV} DNA`);
+  }
   await call('killAll');
   await call('setTimeScale', 8);
   // Brood Cache: the container PvE AI's Brood Heart drops on death always holds a Brood Heart Seed.
@@ -348,7 +370,13 @@ try {
   for (let i = 0; i < 40; i++) { await frames(2); s = await state(); if (s.grenades === 0) break; }
   if (s.grenades !== 0) await fail('grenade never exploded');
   await call('melee');
-  await call('give', 'heartHusk', 1);
+  // The raid's loot is random: if the cavities are full, throw stacks out until the Husk fits.
+  for (let i = 0; i < 12 && (await call('give', 'heartHusk', 1)) > 0; i++) {
+    s = await state();
+    const junk = s.carried.items.find((x) => x.item !== 'heartHusk');
+    if (!junk) break;
+    await call('discard', junk.item, junk.count);
+  }
   await call('damage', 10000);
   await frames(2);
   s = await state();

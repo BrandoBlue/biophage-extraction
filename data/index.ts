@@ -7,6 +7,7 @@ import hostJson from './host.json';
 import weaponsJson from './weapons.json';
 import habitatsJson from './habitats.json';
 import modsJson from './mods.json';
+import onlineJson from './online.json';
 import weaponFeelJson from './weapon-feel.json';
 import abilitiesJson from './abilities.json';
 import abominationsJson from './abominations.json';
@@ -522,6 +523,10 @@ export interface Zone {
   structures?: string[]; landmarks?: string[]; creatures?: string[]; nests?: string[]; boss?: string | null;
   /** Every boss in the zone when it has more than one; `boss` stays the headline boss. */
   bosses?: string[];
+  /** Depth layers (the Marrow Pit): creature HP and damage and loot tier step up with depth below the rim. */
+  layers?: { id: string; depth: Range; landmarks: string[]; hpMultiplier: number; damageMultiplier: number; lootTier: number; containers?: Record<string, number>; light: string }[];
+  threatScaling?: { model: string; areas?: Record<string, number>; see?: string };
+  reference?: string;
   lootFocus?: string; containers?: Record<string, number>; mechanics?: Record<string, unknown>; extracts?: string; why: string; see?: string;
 }
 
@@ -604,3 +609,27 @@ export interface WeaponFeel {
 }
 /** Firing and reload feel per weapon class and reload style (Design; read by Gameplay and Creature). */
 export const WEAPON_FEEL = stripDeep(weaponFeelJson) as WeaponFeel;
+
+export interface OnlineRules {
+  raid: { maxHosts: number; squadSize: Range; minHumansBeforeBots: number; botsFillTo: number; lateJoinUntil: number; spawnSeparation: number; spawnProtection: number };
+  matchmaking: { byZone: boolean; queueMaxSeconds: number; gearScoreBands: number[]; widenAfter: number; note: string };
+  squad: {
+    sharedScannerPings: boolean; pingTypes: string[];
+    downedState: { bleedOut: number; crawlSpeed: number; canBeExecuted: boolean };
+    revive: { time: number; biomassFraction: number; maxPerRaid: number };
+    friendlyFireMultiplier: number; sharedExtract: boolean; lootRule: string; partyLeaderPicksZone: boolean;
+  };
+  vault: { columns: number; rows: number; members: string; withdrawLimitPerDay: number | null; note: string };
+  pvp: { headMultiplier: number; lootCavities: boolean; stealCarriedKillDna: number; extractVisibleOnScanner: boolean; killFeed: boolean; note: string };
+  network: { tickRate: number; clientInterpolation: number; lagCompensation: number; serverAuthoritative: string[]; reconnectWindow: number };
+  bots: { replaceRivalsWithHumans: boolean; note: string };
+}
+/** Online play rules (Hive milestone). */
+export const ONLINE = stripDeep(onlineJson) as OnlineRules;
+
+/** Pit depth layer for a depth in metres below the rim (zones with `layers`). */
+export function depthLayer(zone: string, depth: number): { id: string; depth: Range; hpMultiplier: number; damageMultiplier: number; lootTier: number } | undefined {
+  const layers = ZONES[zone]?.layers;
+  if (!layers) return undefined;
+  return layers.find((l) => depth >= l.depth[0] && depth < l.depth[1]) ?? layers[layers.length - 1];
+}

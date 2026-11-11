@@ -3,7 +3,7 @@ import {
   ABILITIES, ABOMINATIONS, CLASSES, HOST, KITS, LOOT, MARKET, NESTS, PROFILE, PROGRESSION, RAID, RIVALS, SYNAPSE, VIRAL_LAB, VIRUSES, WEAPONS,
   itemDef, levelForXp, marketPrice, nodeMutagenCost,
   BOSSES, CONTRACTS, HIVE_ORGANS, RECIPES, VENDORS, VENDOR_REP_THRESHOLDS, ZONES, bossPhase, vendorBuyPrice, vendorRepLevel,
-  HABITATS, MODS, WEAPON_FEEL, RARITIES, modFits, weaponSources, ZONE_SITES, habitatGroups, sustainedDps, type HabitatWhere, type WeaponDef,
+  HABITATS, MODS, ONLINE, depthLayer, WEAPON_FEEL, RARITIES, modFits, weaponSources, ZONE_SITES, habitatGroups, sustainedDps, type HabitatWhere, type WeaponDef,
   extractTimeFor, haulValue, layoutPosition, stashRowCost, projectileDamage, rollContainer,
 } from '../data';
 import { mulberry32 } from '../src/world/zone7';
@@ -321,8 +321,8 @@ describe('economy, zones and bosses (docs/gdd/07, 08)', () => {
     expect(ZONES.glowmireIsle.landmarks).toContain(v.arena.landmark as string);
   });
   it('zones are ordered, name real creatures, and every zone container exists', () => {
-    const orders = Object.values(ZONES).map((z) => z.order).sort();
-    expect(orders).toEqual([1, 2, 3, 4, 5]);
+    const orders = Object.values(ZONES).map((z) => z.order).sort((a, b) => a - b);
+    expect(orders).toEqual(orders.map((_, i) => i + 1));
     for (const z of Object.values(ZONES)) {
       for (const c of z.creatures ?? []) expect(ABOMINATIONS[c], c).toBeDefined();
       for (const c of Object.keys(z.containers ?? {})) expect(LOOT.containers[c], c).toBeDefined();
@@ -490,5 +490,66 @@ describe('weapon roster and habitats (docs/gdd/09)', () => {
     }
     expect(habitatGroups('longSeedWreck', 'huskMimic', 'larva')).toHaveLength(0);
     expect(habitatGroups('longSeedWreck', 'huskMimic', 'host')).toHaveLength(2);
+  });
+});
+
+describe('new zones, Apex and online (docs/gdd/10, apex-milestone, hive-milestone)', () => {
+  const NEW = ['ochreReach', 'marrowPit', 'weepingFen'];
+
+  it('each new zone has a boss, a home for every creature, containers placed to match, and landmarks for every home', () => {
+    for (const z of NEW) {
+      const zone = ZONES[z];
+      expect(zone, z).toBeDefined();
+      expect(BOSSES[zone.boss as string]?.zone, z).toBe(z);
+      expect(HABITATS.zones[z], z).toBeDefined();
+      expect(HABITATS.loot[z], z).toBeDefined();
+      expect(zone.landmarks).toContain(BOSSES[zone.boss as string].arena.landmark as string);
+    }
+  });
+
+  it('every boss arena names a landmark of its zone, and every boss drops a harvest catalyst that exists', () => {
+    for (const [id, b] of Object.entries(BOSSES)) {
+      if (b.arena.landmark) expect(ZONES[b.zone].landmarks ?? [], id).toContain(b.arena.landmark as string);
+      expect(itemDef(b.rewards.harvest.item), id).toBeDefined();
+      expect(PROGRESSION.xp.kill[id as keyof typeof PROGRESSION.xp.kill], id).toBeGreaterThan(0);
+    }
+  });
+
+  it('the Marrow Pit gets harder and richer with every layer, with no gaps in depth', () => {
+    const layers = ZONES.marrowPit.layers!;
+    expect(layers[0].depth[0]).toBe(0);
+    for (let i = 1; i < layers.length; i++) {
+      expect(layers[i].depth[0]).toBe(layers[i - 1].depth[1]);
+      expect(layers[i].hpMultiplier).toBeGreaterThan(layers[i - 1].hpMultiplier);
+      expect(layers[i].damageMultiplier).toBeGreaterThan(layers[i - 1].damageMultiplier);
+      expect(layers[i].lootTier).toBeGreaterThan(layers[i - 1].lootTier);
+    }
+    expect(depthLayer('marrowPit', 5)?.id).toBe('rim');
+    expect(depthLayer('marrowPit', 239)?.id).toBe('deep');
+    const perLayer: Record<string, number> = {};
+    for (const l of layers) for (const [c, n] of Object.entries(l.containers ?? {})) perLayer[c] = (perLayer[c] ?? 0) + n;
+    expect(perLayer).toEqual(ZONES.marrowPit.containers);
+  });
+
+  it('zone contracts unlock the new zones, and every Apex evolution has a body, a stat change and a catalyst from a boss', () => {
+    for (const z of NEW) expect(CONTRACTS.some((c) => c.reward.unlock === `zone:${z}`), z).toBe(true);
+    const bossDrops = new Set(Object.values(BOSSES).map((b) => b.rewards.harvest.item));
+    for (const list of Object.values(PROGRESSION.evolutions)) for (const e of list as { id: string; milestone: string; body: string; statDelta?: object; grants?: object; cost: { items: { item: string }[] } }[]) {
+      expect(e.body.length, e.id).toBeGreaterThan(150);
+      expect(e.statDelta, e.id).toBeDefined();
+      expect(e.grants, e.id).toBeDefined();
+      for (const i of e.cost.items) expect(itemDef(i.item), `${e.id} ${i.item}`).toBeDefined();
+      if (e.milestone === 'apex') expect(e.cost.items.some((i) => bossDrops.has(i.item)), e.id).toBe(true);
+    }
+  });
+
+  it('online rules hold together', () => {
+    expect(ONLINE.raid.maxHosts).toBe(12);
+    expect(ONLINE.raid.squadSize[1]).toBe(3);
+    expect(ONLINE.raid.botsFillTo).toBeLessThanOrEqual(ONLINE.raid.maxHosts);
+    expect(ONLINE.squad.friendlyFireMultiplier).toBeLessThan(1);
+    expect(ONLINE.pvp.headMultiplier).toBeGreaterThan(1);
+    const bands = ONLINE.matchmaking.gearScoreBands;
+    expect(bands).toEqual([...bands].sort((a, b) => a - b));
   });
 });

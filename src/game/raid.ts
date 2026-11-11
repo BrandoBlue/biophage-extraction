@@ -14,7 +14,9 @@ import { Grenade, huskRules, Mine, throwVelocity } from './gear';
 import type { Noise } from './perception';
 import { hostVisibility } from '../ai';
 import { BroodNest } from './nest';
-import { RaidBoss } from './boss';
+import { RaidBoss, type HostStrike } from './boss';
+import { RaidVigil } from './vigil';
+import type { VigilHit } from '../creatures/palevigil';
 import type { ReliquaryHit } from '../creatures/reliquary';
 import { liquidLight } from '../render/materials';
 import { BroodHeart } from '../creatures/broodheart';
@@ -101,6 +103,8 @@ export class Raid {
   readonly nests: BroodNest[] = [];
   /** The zone boss in its arena (PvE AI): the Reliquary in World's bowl. Null when the zone has none. */
   readonly boss: RaidBoss | null = null;
+  /** The Pale Vigil hanging in World's Fungal Cave lair (PvE AI). Null when the zone has no lair. */
+  readonly vigil: RaidVigil | null = null;
   private bossPool: THREE.Mesh | null = null;
   readonly fx: Fx;
   readonly projectiles: Projectiles;
@@ -214,6 +218,10 @@ export class Raid {
       this.bossPool.position.set(this.arena.pool.x, this.arena.floorY + 0.12, this.arena.pool.z);
       this.bossPool.visible = false;
       scene.add(this.bossPool);
+    }
+    if (structures?.lair && BOSSES.paleVigil) {
+      this.vigil = new RaidVigil(structures.lair, scene, Math.floor(this.rand() * 1e6));
+      scene.add(this.vigil.body.root);
     }
 
     const [sx, sz] = [layout.spawn.x, layout.spawn.z];
@@ -630,6 +638,10 @@ export class Raid {
         const core = this.boss.centre(new THREE.Vector3()), dmg = q.g.damageAt(Math.max(0, core.distanceTo(at) - this.boss.body.body.radius));
         if (dmg > 0) this.damageBoss(dmg, null, at, core);
       }
+      if (this.vigil?.alive && !this.vigil.brain.hidden) {
+        const core = this.vigil.centre(new THREE.Vector3()), dmg = q.g.damageAt(Math.max(0, core.distanceTo(at) - 1));
+        if (dmg > 0) this.damageVigil(dmg, null, core);
+      }
       const self = p.position.distanceTo(at);
       if (self <= q.g.r.radius) { this.overload.add(q.g.r.overload); this.hurt(q.g.damageAt(self) * 0.5, 'torso', 'own grenade', at); }
       this.bus.emit('explosion', { item: 'neuroSpikeGrenade', position: { x: at.x, y: at.y, z: at.z } });
@@ -790,7 +802,7 @@ export class Raid {
     // Movement and Overload.
     p.canSprint = !this.overload.overloaded && this.useLeft <= 0;
     p.slowed = this.useLeft > 0 ? Number(ABILITIES.clotGel.movementMultiplierWhileUsing ?? 0.6) : 1;
-    p.speedMultiplier = (this.injection.injecting ? VIRUS_RULES.injectMovementMultiplier : 1) * (this.boss && this.boss.pinned > 0 ? 0 : 1);
+    p.speedMultiplier = (this.injection.injecting ? VIRUS_RULES.injectMovementMultiplier : 1) * (this.boss && this.boss.pinned > 0 ? 0 : 1) * (this.vigil && this.vigil.pinned > 0 ? 0 : 1);
     const mods = virusModifiers(this.injection.active);
     p.sprintBoost = mods.sprint;
     p.footstepScale = mods.footstep;
@@ -905,6 +917,7 @@ export class Raid {
     for (const c of this.creatures) c.update(dt, ctx);
     if (live) this.updateNests(dt);
     if (this.boss) this.updateBoss(dt, live);
+    if (this.vigil) this.updateVigil(dt, live);
     creatureGore.update(dt);
     this.hostArm.update(dt);
     this.harvestFx.update(dt);
@@ -1109,19 +1122,7 @@ export class Raid {
       }
       if (e.type !== 'wake' && e.type !== 'phase' && e.type !== 'enrage') this.bus.emit('bossAttack', { boss: b.id, attack: e.type });
     }
-    for (const s of f.strikes) {
-      this.hurt(s.damage, 'torso', s.source === 'light pool' ? 'the light pool' : `${b.t.label} ${s.source}`, s.from);
-      if (s.knock && s.from) {
-        const d = new THREE.Vector3(p.position.x - s.from.x, 0, p.position.z - s.from.z);
-        if (d.lengthSq() < 1e-6) d.set(Math.sin(b.brain.body.yaw), 0, Math.cos(b.brain.body.yaw));
-        d.normalize();
-        p.velocity.x += d.x * s.knock; p.velocity.z += d.z * s.knock;
-        p.velocity.y = Math.max(p.velocity.y, s.knock * 0.45);
-        p.grounded = false;
-        p.addTrauma(Math.min(0.8, s.knock / 12));
-      }
-      if (s.pin) p.addTrauma(0.5);
-    }
+    for (const s of f.strikes) this.bossStrike(s, s.source === 'light pool' ? 'the light pool' : `${b.t.label} ${s.source}`, b.brain.body.yaw);
     for (const s of f.brood) {
       if (!ABOMINATIONS[s.type]) continue;
       const c = this.addCreature(s.type as AbominationKind, s.x, s.z);
@@ -1141,6 +1142,79 @@ export class Raid {
       this.bossPool.visible = r > this.arena!.pool.radius;
       if (this.bossPool.visible) this.bossPool.scale.setScalar(r);
     }
+  }
+
+  /** A boss hit on the host: damage, knockback away from `from` (or along `yaw`), and a shake. */
+  private bossStrike(s: HostStrike, source: string, yaw: number): void {
+    const p = this.player;
+    this.hurt(s.damage, 'torso', source, s.from);
+    if (s.knock && s.from) {
+      const d = new THREE.Vector3(p.position.x - s.from.x, 0, p.position.z - s.from.z);
+      if (d.lengthSq() < 1e-6) d.set(Math.sin(yaw), 0, Math.cos(yaw));
+      d.normalize();
+      p.velocity.x += d.x * s.knock; p.velocity.z += d.z * s.knock;
+      p.velocity.y = Math.max(p.velocity.y, s.knock * 0.45);
+      p.grounded = false;
+      p.addTrauma(Math.min(0.8, s.knock / 12));
+    }
+    if (s.pin && s.damage > 1) p.addTrauma(0.5);
+  }
+
+  // ------------------------------------------------------------------ cave boss (the Pale Vigil)
+  private updateVigil(dt: number, live: boolean): void {
+    const v = this.vigil!, p = this.player, L = v.lair;
+    const fwd = p.forward(new THREE.Vector3());
+    const fl = Math.hypot(fwd.x, fwd.z) || 1;
+    const host = {
+      x: p.position.x, y: p.position.y, z: p.position.z, vx: p.velocity.x, vz: p.velocity.z,
+      alive: live, hidden: this.elapsed < RAID.spawn.safeTime, visibility: 1, forward: { x: fwd.x / fl, z: fwd.z / fl },
+    };
+    const f = v.update(dt, host);
+    if (f.overload > 0) this.overload.add(f.overload);
+    const floor = (x: number, z: number) => new THREE.Vector3(x, L.floorY + 0.15, z);
+    for (const e of f.events) {
+      switch (e.type) {
+        case 'wake': this.bus.emit('bossAwake', { boss: v.id, label: v.t.label, songRadius: 0 }); break;
+        case 'phase': this.bus.emit('bossPhase', { boss: v.id, phase: e.id }); p.addTrauma(0.4); this.fx.burst(v.centre(new THREE.Vector3()), GORE.violetFluid, 2); break;
+        case 'enrage':
+          // Web-roots seal the cave mouths until it dies.
+          for (const m of L.entrances) m.seal();
+          this.bus.emit('bossEnraged', { boss: v.id });
+          break;
+        case 'drop': this.fx.ring(floor(e.at.x, e.at.z), GORE.bone, e.radius, 0.4); this.noise(floor(e.at.x, e.at.z), 25, 'boss'); p.addTrauma(0.45); break;
+        case 'shriek': this.fx.ring(floor(v.position.x, v.position.z), GORE.violetFluid, e.radius, 0.7); this.noise(v.position, e.radius * 2, 'boss'); p.addTrauma(0.6); break;
+        case 'collapseWarn': this.fx.ring(floor(e.at.x, e.at.z), GORE.bone, e.radius, e.warning); break;
+        case 'chunk':
+          this.fx.burst(floor(e.at.x, e.at.z).add(new THREE.Vector3(0, 1, 0)), GORE.bone, 2);
+          gore.burst(this.scene, { point: floor(e.at.x, e.at.z).add(new THREE.Vector3(0, 0.5, 0)), colour: HIVE.bone, count: 40, speed: 6 });
+          this.noise(floor(e.at.x, e.at.z), 20, 'boss');
+          if (Math.hypot(p.position.x - e.at.x, p.position.z - e.at.z) < 8) p.addTrauma(0.35);
+          break;
+        default: break;
+      }
+      if (e.type !== 'wake' && e.type !== 'phase' && e.type !== 'enrage' && e.type !== 'chunk' && e.type !== 'collapseWarn') this.bus.emit('bossAttack', { boss: v.id, attack: e.type });
+    }
+    for (const s of f.strikes) this.bossStrike(s, `${v.t.label} ${s.source}`, v.brain.body.yaw);
+  }
+
+  /** Damages the Pale Vigil. Returns true on a weak-point hit. */
+  private damageVigil(amount: number, sphere: VigilHit | null, at: THREE.Vector3): boolean {
+    const v = this.vigil;
+    if (!v?.alive) return false;
+    const r = v.damage(amount, sphere);
+    this.fx.impact(at, r.weak ? GORE.limeFluid : GORE.bone, r.weak ? 12 : 5);
+    this.bus.emit('bossDamaged', { boss: v.id, biomass: v.biomass, fraction: v.fraction, weakPoint: r.weak, part: sphere?.tag ?? 'body' });
+    if (r.popped) this.bus.emit('bossPartDestroyed', { boss: v.id, part: r.popped });
+    if (r.killed) {
+      const rw = v.t.rewards, c = v.position, L = v.lair;
+      for (const m of L.entrances) m.unseal();
+      this.kills++;
+      this.noise(c, HOST.noiseRadius.egoCharge, 'boss');
+      this.bossKilled(v.id, c.x, c.z);
+      const container = rw.container && LOOT.containers[rw.container] ? rw.container : null;
+      this.bus.emit('bossDefeated', { boss: v.id, dna: rw.dna, container });
+    }
+    return r.weak;
   }
 
   /** Damages the boss. Returns true on a weak-point hit. */
@@ -1185,6 +1259,10 @@ export class Raid {
       const phase = b.brain.phase.id.toUpperCase();
       return { label: `${b.t.label} · ${b.brain.enraged ? 'ENRAGED' : phase}`, fraction: b.fraction, wave: 0, waves: 0 };
     }
+    const v = this.vigil;
+    if (v?.awake && Math.hypot(v.position.x - p.x, v.position.z - p.z) <= v.lair.radius * 1.6) {
+      return { label: `${v.t.label} · ${v.brain.enraged ? 'ENRAGED' : v.brain.phase.id.toUpperCase()}`, fraction: v.fraction, wave: 0, waves: 0 };
+    }
     for (const n of this.nests) {
       if (n.state !== 'active' && n.state !== 'spent') continue;
       if (Math.hypot(n.position.x - p.x, n.position.z - p.z) > n.t.activationRadius * 1.5) continue;
@@ -1222,6 +1300,14 @@ export class Raid {
     for (const n of this.nests) {
       const h = n.hit(a, b);
       if (h && h.t < (nestHit?.t ?? bestT)) nestHit = { n, ...h };
+    }
+    const vh = this.vigil?.hit(a, b) ?? null;
+    if (vh && vh.t < (nestHit?.t ?? bestT) && vh.t < (this.boss?.hit(a, b)?.t ?? Infinity)) {
+      const point = a.clone().lerp(b, vh.t);
+      const dmg = pr.kind === 'ego' ? pr.damage : projectileDamage(this.weapon.w, point.distanceTo(pr.origin), 1);
+      const weak = this.damageVigil(dmg, vh.sphere, point);
+      if (pr.kind === 'spore') this.weapon.credit(weak);
+      return { point, t: vh.t };
     }
     const bh = this.boss?.hit(a, b) ?? null;
     if (bh && bh.t < (nestHit?.t ?? bestT)) {
@@ -1364,6 +1450,7 @@ export class Raid {
       enemies: this.creatures.map((c) => ({ id: c.id, kind: c.kind, alive: c.alive, state: c.state, biomass: c.biomass, position: [c.position.x, c.position.y, c.position.z], centre: [c.centre.x, c.centre.y, c.centre.z] })),
       result: this.result, gore: gore.stats(),
       boss: this.boss ? { state: this.boss.brain.state, phase: this.boss.brain.phase.id, action: this.boss.brain.action, biomass: this.boss.biomass, fraction: this.boss.fraction, hearts: [...this.boss.hearts], sac: this.boss.sac, legs: [...this.boss.legs], pinned: this.boss.pinned, pool: this.boss.poolRadius, position: [this.boss.position.x, this.boss.position.y, this.boss.position.z], centre: this.boss.centre(new THREE.Vector3()).toArray() } : null,
+      vigil: this.vigil ? { state: this.vigil.brain.state, phase: this.vigil.brain.phase.id, action: this.vigil.brain.action, hidden: this.vigil.brain.hidden, hang: this.vigil.brain.hang, biomass: this.vigil.biomass, fraction: this.vigil.fraction, lure: this.vigil.lure, spines: [...this.vigil.spines], limbs: [...this.vigil.limbs], pinned: this.vigil.pinned, position: this.vigil.position.toArray(), centre: this.vigil.centre(new THREE.Vector3()).toArray(), lair: { x: this.vigil.lair.x, z: this.vigil.lair.z, floorY: this.vigil.lair.floorY, radius: this.vigil.lair.radius, exit: this.vigil.lair.exit, sealed: this.vigil.lair.entrances.map((m) => m.sealed) } } : null,
       arena: this.arena ? { x: this.arena.x, z: this.arena.z, radius: this.arena.radius, floorY: this.arena.floorY, entrances: this.arena.entrances, pillars: this.arena.pillars.map((q) => ({ id: q.id, broken: q.broken })) } : null,
       nests: this.nests.map((n) => ({ id: n.id, state: n.state, biomass: n.biomass, wave: n.wave, brood: n.brood.size, position: [n.position.x, n.position.z] })),
       reviving: this.reviveLeft > 0, grenades: this.grenades.length, mines: this.mines.length, virus: this.injection.active, injecting: this.injection.pending, parasites: this.parasites.length, harvested: [...this.harvested], maxBiomass: this.biomass.max,
@@ -1396,6 +1483,13 @@ export class Raid {
         const at = s ? s.world.clone() : b.centre(new THREE.Vector3());
         return this.damageBoss(amount, s, this.player.position, at);
       },
+      /** Damages the Pale Vigil directly: a tagged sphere ('lure', 'spine', 'limb', 'body') or null for a blast. */
+      hitVigil: (amount: number, tag: string | null = null, index = 0) => {
+        const v = this.vigil;
+        if (!v) return null;
+        const s = tag ? v.body.hitSpheres.find((h) => h.tag === tag && h.index === index) ?? null : null;
+        return this.damageVigil(amount, s, s ? s.world.clone() : v.centre(new THREE.Vector3()));
+      },
       killAll: () => { for (const c of this.creatures) if (c.alive) this.damageCreature(c, 1e6, false, null, c.centre, 'debug'); },
       damage: (n: number) => this.hurt(n, 'torso', 'debug', null),
       extractNow: () => { const ex = this.extract; this.player.position.set(ex.x, groundHeight(ex.x, ex.z), ex.z); },
@@ -1406,6 +1500,8 @@ export class Raid {
       grenade: () => this.throwGrenade(),
       mine: () => this.placeMine(),
       pouch: (item: string, n = 1) => this.carried.pouch.add(item, n),
+      /** Throws `n` of `item` out of the cavities (tests making room); returns how many went. */
+      discard: (item: string, n = 1) => this.carried.cavity.remove(item, n),
       /** Drops a container at the host's feet (offset 1.2 m on x); returns its id. */
       dropContainer: (type: string) => this.dropContainer(type, this.player.position.x - 1.2, this.player.position.z).id,
       openContainer: () => this.openContainer(),
