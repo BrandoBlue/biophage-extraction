@@ -12,8 +12,36 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    outputs:
+      suites: ${{ steps.suites.outputs.suites }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The PR merge commit and its base parent, so the suite picker can see what the PR changed.
+          fetch-depth: 2
+      # Actions minutes are a budget on a private repo, and the raid suites cost ~20 runner-minutes each.
+      # main runs every suite. A PR runs smoke, raid and creatures only if it touches the game or its tests;
+      # raid-release (the same raid against the single-file build) runs on main only, smoke still checks that file on PRs.
+      - name: Pick browser suites
+        id: suites
+        run: |
+          smoke='{"name":"smoke","run":"npm run smoke && npm run smoke:release && npm run budget"}'
+          raid='{"name":"raid","run":"npm run smoke:raid","timeout":50}'
+          raidrel='{"name":"raid-release","run":"npm run smoke:raid:release","timeout":50}'
+          creatures='{"name":"creatures","run":"npm run smoke:creatures"}'
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            suites="[$smoke,$raid,$raidrel,$creatures]"
+          else
+            changed=$(git diff --name-only HEAD^1 HEAD)
+            echo "$changed"
+            if echo "$changed" | grep -qvE '^(docs/|README\.md$|CLAUDE\.md$|assets/LICENSES\.md$)'; then
+              suites="[$smoke,$raid,$creatures]"
+            else
+              suites="[$smoke]"
+            fi
+          fi
+          echo "suites=$suites" >> "$GITHUB_OUTPUT"
+          echo "Browser suites: $suites"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -48,7 +76,7 @@ jobs:
       - run: npm ci
       - run: npm test
 
-  # Headless browser suites run in parallel, each with its own time budget. Add new suites here.
+  # Headless browser suites run in parallel, each with its own time budget. The build job picks which ones run.
   browser:
     needs: build
     runs-on: ubuntu-latest
@@ -58,17 +86,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: smoke
-            run: npm run smoke && npm run smoke:release && npm run budget
-          - name: raid
-            run: npm run smoke:raid
-            timeout: 50
-          - name: raid-release
-            run: npm run smoke:raid:release
-            timeout: 50
-          - name: creatures
-            run: npm run smoke:creatures
+        # The suite list lives in the build job's "Pick browser suites" step. Add new suites there.
+        include: ${{ fromJSON(needs.build.outputs.suites) }}
     name: browser (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v4
