@@ -128,6 +128,13 @@ describe('Hive stage', () => {
     expect(st.due(10, true)).toBe(false);
     expect(st.due(1 + STAGE.testFrameMs, true)).toBe(true);
   });
+  it('stays off until the host is ready, and in automated runs until the menu has settled', () => {
+    const st = new HiveStage({} as Pipeline);
+    expect(st.set(true, 'neuroInfiltrator', 1.6, 0, true)).toBe(false);
+    expect(st.set(true, 'neuroInfiltrator', 1.6, STAGE.testSettleMs - 1, true)).toBe(false);
+    expect(st.set(false, 'neuroInfiltrator', 1.6, STAGE.testSettleMs, true)).toBe(false);
+    expect(st.active).toBe(false);
+  });
 });
 
 describe('Zone roster', () => {

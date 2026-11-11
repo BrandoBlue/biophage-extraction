@@ -92,9 +92,7 @@ function bootRaid(): void {
     // The main menu draws the 3D Hive lab with the host on its pedestal; other Hive screens cover the whole view, so
     // the 3D frame behind them is skipped (the loop and frame counter keep running). The first frames always render
     // the raid scene so its shaders compile at boot, not on the DEPLOY click.
-    const lab = frames >= 3 && menu.wantsStage;
-    stage.set(lab, profile.host, camera.aspect);
-    menu.stageLive(lab);
+    menu.stageLive(stage.set(frames >= 3 && menu.wantsStage, profile.host, camera.aspect));
     stage.update(dt);
     if (!menu.visible || frames < 3 || stage.due()) pipeline.render(dt);
     frames++;
