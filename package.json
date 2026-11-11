@@ -9,10 +9,12 @@
     "test": "vitest run",
     "smoke": "node tests/smoke.mjs",
     "lookdev": "node tests/lookdev.mjs",
-    "check": "npm run release && npm test && npm run smoke && npm run smoke:release && npm run budget",
+    "check": "npm run release && npm test && npm run smoke && npm run smoke:release && npm run budget && npm run smoke:raid && npm run smoke:raid:release",
     "release": "npm run build && node scripts/bundle-single.mjs",
     "smoke:release": "node tests/smoke.mjs --release",
-    "budget": "node tests/budget.mjs"
+    "budget": "node tests/budget.mjs",
+    "smoke:raid": "node tests/raid.mjs",
+    "smoke:raid:release": "node tests/raid.mjs --release"
   },
   "repository": {
     "type": "git",

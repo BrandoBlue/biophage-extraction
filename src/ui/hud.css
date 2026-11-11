@@ -20,3 +20,118 @@ html, body { margin:0; height:100%; overflow:hidden; background:var(--bg); color
   box-shadow:0 0 24px rgba(108,255,74,.35); }
 #prompt small { display:block; margin-top:6px; font-size:10px; color:var(--bone); opacity:.8; }
 #prompt.hidden { display:none; }
+
+/* ---------------------------------------------------------------- Spore raid HUD (Gameplay Engineering interim).
+   Colour variables are set at runtime from src/render/palette.ts by src/ui/raid-hud.ts. */
+#hud.raid #brand { top:auto; bottom:6px; right:20px; font-size:10px; opacity:.6; }
+#hud.raid.briefing > :not(#prompt):not(#brand) { opacity:.35; }
+#hud.raid #vitals { left:24px; bottom:22px; width:420px; grid-template-columns:96px 1fr; grid-template-rows:auto auto; column-gap:14px; align-items:end; }
+#hud.raid #vitals .eye { grid-row:1 / span 2; }
+#hud.raid .bar label { display:flex; justify-content:space-between; font-size:12px; text-shadow:0 0 6px var(--acid); }
+#hud.raid .bar label .value { color:var(--bone); }
+#hud.raid .track { height:14px; border-color:color-mix(in srgb, var(--bone) 60%, transparent);
+  box-shadow: inset 0 0 8px #000, 0 0 0 3px color-mix(in srgb, var(--magenta) 18%, transparent); background:color-mix(in srgb, var(--void) 80%, transparent); }
+#hud.raid .bar.hot .fill.violet { animation:hot .35s infinite alternate; }
+#hud.raid .bar.over .fill.violet { background:var(--magenta); box-shadow:0 0 18px var(--magenta); }
+@keyframes hot { to { filter:brightness(1.7); } }
+
+.eye { --dilate:.4; position:relative; width:92px; height:92px; border-radius:50%;
+  background:radial-gradient(circle at 40% 35%, var(--bone), color-mix(in srgb, var(--bone) 55%, var(--magenta)) 60%, color-mix(in srgb, var(--magenta) 40%, #000) 100%);
+  box-shadow:0 0 0 4px color-mix(in srgb, var(--magenta) 45%, #000), 0 0 0 7px color-mix(in srgb, var(--bone) 35%, transparent), 0 0 22px color-mix(in srgb, var(--magenta) 60%, transparent);
+  display:grid; place-items:center; }
+.eye .iris { width:52%; height:52%; border-radius:50%; background:radial-gradient(circle, var(--lime), var(--acid) 45%, color-mix(in srgb, var(--acid) 30%, #000) 100%);
+  display:grid; place-items:center; box-shadow:0 0 14px var(--acid); animation:look 5s infinite ease-in-out; }
+.eye .pupil { width:calc(var(--dilate) * 100%); height:calc(var(--dilate) * 100%); border-radius:50%; background:#000; transition:all .2s; }
+.eye.alarm .iris, .eye.over .iris { animation:twitch .08s infinite; }
+.eye.hurt { box-shadow:0 0 0 4px var(--danger), 0 0 0 7px color-mix(in srgb, var(--bone) 35%, transparent), 0 0 26px var(--danger); }
+.eye .lvl { position:absolute; bottom:-16px; font-size:9px; color:var(--acid); letter-spacing:.12em; }
+@keyframes look { 0%,100% { transform:translate(0,0); } 30% { transform:translate(6px,-3px); } 60% { transform:translate(-5px,2px); } }
+@keyframes twitch { 0% { transform:translate(2px,-1px); } 50% { transform:translate(-2px,2px); } 100% { transform:translate(1px,1px); } }
+
+.scanner { position:absolute; left:18px; top:14px; width:220px; text-align:center; }
+.scanner canvas { width:200px; height:200px; filter:drop-shadow(0 0 10px color-mix(in srgb, var(--acid) 50%, transparent)); }
+.scanner label { display:block; font-size:11px; color:var(--acid); margin-top:2px; }
+
+.topbar { position:absolute; top:14px; left:50%; transform:translateX(-50%); text-align:center; }
+.topbar .timer { font-size:26px; color:var(--bone); text-shadow:0 0 10px var(--violet); padding:2px 22px; border:1px solid color-mix(in srgb, var(--acid) 60%, transparent);
+  background:color-mix(in srgb, var(--background) 70%, transparent); clip-path:polygon(10px 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,10px 100%,0 50%); }
+.topbar .timer.collapse { color:var(--danger); border-color:var(--danger); animation:hot .5s infinite alternate; }
+.topbar .objective { margin-top:6px; font-size:11px; color:var(--lime); }
+
+.slots { position:absolute; bottom:22px; left:50%; transform:translateX(-50%); display:flex; gap:10px; }
+.slot { position:relative; width:64px; height:64px; border:1px solid var(--acid); background:color-mix(in srgb, var(--panel) 75%, transparent);
+  box-shadow:0 0 10px color-mix(in srgb, var(--acid) 40%, transparent); display:grid; place-items:center; overflow:hidden; }
+.slot .name { font-size:8px; text-align:center; padding:0 3px; color:var(--bone); z-index:1; }
+.slot .count { position:absolute; top:3px; right:5px; font-size:10px; color:var(--lime); z-index:1; }
+.slot kbd { position:absolute; bottom:-1px; font:inherit; font-size:9px; color:var(--acid); z-index:1; }
+.slot .cd { position:absolute; left:0; right:0; bottom:0; background:color-mix(in srgb, #000 60%, transparent); }
+.slot.locked { opacity:.35; border-color:color-mix(in srgb, var(--bone) 40%, transparent); box-shadow:none; }
+.slot.dim { filter:saturate(.3) brightness(.7); }
+.slot.active { border-color:var(--cyan); box-shadow:0 0 16px var(--cyan); }
+
+.weapon { position:absolute; right:24px; bottom:24px; width:300px; height:96px; padding:10px 14px; box-sizing:border-box;
+  background:linear-gradient(90deg, transparent, color-mix(in srgb, var(--panel) 85%, transparent)); border-right:2px solid var(--acid); }
+.weapon .wname { font-size:12px; color:var(--acid); }
+.weapon .ammo { font-size:16px; margin-top:6px; color:var(--bone); }
+.weapon .ammo b { font-size:34px; color:var(--bone); text-shadow:0 0 10px var(--acid); }
+.weapon .ammo.low b { color:var(--danger); text-shadow:0 0 10px var(--danger); }
+.weapon .ammo small { font-size:11px; color:var(--acid); }
+.weapon .ego { position:absolute; right:10px; top:8px; width:80px; height:80px; display:grid; place-items:center; }
+.weapon .ego svg { position:absolute; inset:0; transform:rotate(-90deg); }
+.weapon .ego circle { fill:none; stroke-width:7; }
+.weapon .ego .track { stroke:color-mix(in srgb, var(--bone) 18%, transparent); }
+.weapon .ego .fill { stroke:var(--cyan); filter:drop-shadow(0 0 4px var(--cyan)); transition:stroke-dashoffset .15s; }
+.weapon .ego span { font-size:9px; text-align:center; color:var(--cyan); }
+.weapon .ego.ready span { color:var(--bone); text-shadow:0 0 8px var(--cyan); animation:hot .3s infinite alternate; }
+
+.loot { position:absolute; right:20px; top:44px; width:240px; display:grid; gap:4px; justify-items:end; }
+.loot .chip { font-size:10px; padding:3px 10px 3px 6px; background:color-mix(in srgb, var(--panel) 80%, transparent); border:1px solid var(--path-dna); display:flex; gap:6px; align-items:center; }
+.loot .chip i { width:8px; height:8px; border-radius:50%; background:var(--path-dna); box-shadow:0 0 6px var(--path-dna); }
+.loot .chip.virus { border-color:var(--path-viral); } .loot .chip.virus i { background:var(--path-viral); box-shadow:0 0 6px var(--path-viral); }
+.loot .chip.mutagen i { background:var(--lime); } .loot .chip.organ { border-color:var(--magenta); } .loot .chip.organ i { background:var(--magenta); }
+.loot .chip.consumable i { background:var(--acid); }
+.loot .haul { font-size:10px; color:var(--lime); margin-top:2px; }
+
+.interact { position:absolute; left:50%; top:60%; transform:translateX(-50%); text-align:center; font-size:12px; color:var(--cyan); }
+.interact .bar { width:220px; height:5px; margin:6px auto 0; background:color-mix(in srgb, var(--cyan) 20%, transparent); }
+.interact .bar div { height:100%; background:var(--cyan); box-shadow:0 0 8px var(--cyan); }
+.extract-ring { position:absolute; left:50%; top:50%; width:150px; height:150px; margin:-75px; display:grid; place-items:center; align-content:center; color:var(--lime); }
+.extract-ring svg { position:absolute; inset:0; transform:rotate(-90deg); }
+.extract-ring circle { fill:none; stroke-width:3; }
+.extract-ring .track { stroke:color-mix(in srgb, var(--lime) 20%, transparent); }
+.extract-ring .fill { stroke:var(--lime); filter:drop-shadow(0 0 6px var(--lime)); }
+.extract-ring span { font-size:10px; } .extract-ring b { font-size:24px; }
+.hidden { display:none !important; }
+
+.hitmarker { position:absolute; left:50%; top:50%; width:22px; height:22px; margin:-11px; opacity:0; }
+.hitmarker::before, .hitmarker::after { content:''; position:absolute; left:50%; top:0; width:2px; height:100%; margin-left:-1px; background:var(--bone); transform:rotate(45deg); box-shadow:0 0 6px var(--bone); }
+.hitmarker::after { transform:rotate(-45deg); }
+.hitmarker.on { opacity:1; }
+.hitmarker.weak::before, .hitmarker.weak::after { background:var(--lime); box-shadow:0 0 10px var(--lime); }
+.hitmarker.kill { transform:scale(1.6); }
+.hitmarker.kill::before, .hitmarker.kill::after { background:var(--magenta); box-shadow:0 0 12px var(--magenta); }
+
+.vein { position:absolute; opacity:0; pointer-events:none; }
+.vein.n { left:0; right:0; top:0; height:22%; background:linear-gradient(to bottom, color-mix(in srgb, var(--danger) 70%, transparent), transparent); }
+.vein.s { left:0; right:0; bottom:0; height:22%; background:linear-gradient(to top, color-mix(in srgb, var(--danger) 70%, transparent), transparent); }
+.vein.e { top:0; bottom:0; right:0; width:18%; background:linear-gradient(to left, color-mix(in srgb, var(--danger) 70%, transparent), transparent); }
+.vein.w { top:0; bottom:0; left:0; width:18%; background:linear-gradient(to right, color-mix(in srgb, var(--danger) 70%, transparent), transparent); }
+
+.toast { position:absolute; left:50%; top:26%; transform:translateX(-50%); font-size:15px; opacity:0; transition:opacity .2s; color:var(--acid); text-shadow:0 0 10px currentColor; white-space:nowrap; }
+.toast.on { opacity:1; } .toast.violet { color:var(--viral); } .toast.cyan { color:var(--cyan); } .toast.danger { color:var(--danger); } .toast.lime { color:var(--lime); }
+
+.results { position:fixed; inset:0; display:grid; place-items:center; background:radial-gradient(circle, color-mix(in srgb, var(--background) 55%, transparent), var(--background)); z-index:5; }
+.results .panel { width:min(560px, 90vw); padding:28px 34px; background:color-mix(in srgb, var(--panel) 88%, transparent); border:1px solid var(--acid);
+  clip-path:polygon(16px 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%,0 16px); box-shadow:0 0 40px color-mix(in srgb, var(--acid) 30%, transparent); }
+.results .panel.lost { border-color:var(--danger); }
+.results h1 { margin:0; font-size:46px; letter-spacing:.14em; color:var(--acid); text-shadow:0 0 20px var(--acid); }
+.results .lost h1 { color:var(--danger); text-shadow:0 0 20px var(--danger); }
+.results .sub { text-transform:none; letter-spacing:.02em; opacity:.8; font-size:14px; }
+.results h2 { font-size:12px; color:var(--acid); margin:18px 0 6px; }
+.results ul { list-style:none; margin:0; padding:0; display:grid; gap:4px; font-size:13px; }
+.results li { display:flex; justify-content:space-between; border-bottom:1px solid color-mix(in srgb, var(--acid) 18%, transparent); padding:3px 0; }
+.results .total { display:flex; justify-content:space-between; margin-top:12px; font-size:18px; color:var(--cyan); }
+.results .stats { margin-top:6px; font-size:11px; opacity:.7; }
+.results .cta { margin-top:22px; float:right; font:inherit; letter-spacing:.12em; font-size:16px; padding:12px 26px; cursor:pointer; color:var(--background);
+  background:linear-gradient(var(--acid), color-mix(in srgb, var(--acid) 60%, #000)); border:none; box-shadow:0 0 20px var(--acid); }
+.results .cta small { display:block; font-size:8px; color:var(--danger); margin-top:4px; }

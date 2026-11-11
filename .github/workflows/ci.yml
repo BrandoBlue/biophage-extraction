@@ -28,6 +28,10 @@ jobs:
         run: npm run smoke:release
       - name: Size and load budget
         run: npm run budget
+      - name: Scripted raid (fight, loot, extract, death)
+        run: npm run smoke:raid
+      - name: Scripted raid (single-file build)
+        run: npm run smoke:raid:release
       - name: Smoke screenshots and metrics
         uses: actions/upload-artifact@v4
         if: always()
