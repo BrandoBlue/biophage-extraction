@@ -27,7 +27,13 @@ Headless tests take screenshots with `freezeAndScreenshot` from `tests/lib/harne
 loop first; a plain `page.screenshot` can time out on slow CI runners.
 
 CI builds once, then runs unit tests and each browser suite (smoke, raid, raid-release, creatures) as parallel jobs with
-their own 35 min limit (raid suites 50 min, set per entry with `timeout:`); add a new browser suite as one more `matrix` entry in `.github/workflows/ci.yml`.
+their own 35 min limit (raid suites 50 min, set per entry with `timeout`). Actions minutes are a monthly budget on a private
+repo, so the build job's "Pick browser suites" step chooses what runs: main runs every suite; a PR that touches the game
+runs smoke, raid and creatures (raid-release runs on main only); a docs-only PR runs smoke. Add a new browser suite in
+that step.
+
+If Actions is unavailable (minutes used up or billing), nothing merges unless Brandon says so. If he allows merging on local
+checks, follow "Merging on local checks" below.
 
 CI also uploads, per PR, the smoke screenshots and a **playable build** zip (`biophage-playable-<sha>`).
 
@@ -46,3 +52,15 @@ The 60 fps at 1080p target needs a real GPU, so CI cannot measure it. CI logs so
 ## Bug bash
 At the end of each iteration the Build thread plays the release end to end against the iteration's exit criteria
 in `docs/PLAN.md`, and files one GitHub issue per bug, labelled with the owning department.
+
+## Merging on local checks (only when Brandon allows it while Actions is down)
+1. Bring the PR up to date with main (merge main into the branch) so the check runs on what will land.
+2. On that exact head commit, from a clean checkout: `npm ci && npm run check`. It must pass end to end (release, unit,
+   smoke, smoke:release, budget, raid, creatures, raid:release).
+3. Paste into the PR body: the head sha, `npm run check: PASS`, the date, and the smoke line from `tests/out/smoke-preview.json`.
+   Attach `tests/out/smoke.png`.
+4. Merge one PR at a time. After each merge, the next PR merges main and re-runs step 2; never merge two PRs on checks
+   made against different bases.
+5. Build re-runs `npm run check` on main after each merge and republishes the play link. If main breaks, revert the
+   PR first, then fix.
+6. When Actions returns, the first main run is the confirmation; anything red goes back to its department.
