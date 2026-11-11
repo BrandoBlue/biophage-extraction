@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { HIVE, PATH, ZONE7 } from '../render/palette';
+import { HIVE, ORGANIC, PATH, ZONE7 } from '../render/palette';
 import { bioNode, bioTime, chitin, livingFlesh } from '../render/materials';
 import { mutation } from '../render/dissolve';
 import { gore } from '../render/gore';
@@ -21,6 +21,8 @@ export type VirusLook = 'plagueStalkerStrain' | 'adrenalineVirus' | 'splicedPara
 export const VIRUS_LOOKS: VirusLook[] = ['plagueStalkerStrain', 'adrenalineVirus', 'splicedParasites'];
 
 const LENGTH = 0.36;
+/** Fit of the arm under the Synapse Burster's grip (viewmodel gun-group space). */
+export const ARM_FIT = { x: 0, y: -0.02, z: 0.08, rx: 1.35, ry: 0.1, rz: -0.35 };
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 const hex = (c: THREE.Color) => `#${c.getHexString()}`;
 
@@ -78,6 +80,53 @@ function veinGeometry(seed: number, count: number, radius: number, swell = 0): T
   return merge(parts);
 }
 
+/**
+ * The gripping hand, below the wrist (-Y): a long palm, three jointed fingers curled around the gun's grip
+ * (which runs along local X, just in front of the palm at -Z) and an opposed thumb over the top.
+ */
+const FINGERS = [-0.026, 0, 0.026];
+function fingerPath(x: number, i: number): THREE.Vector3[] {
+  const len = 1 - Math.abs(i - 1) * 0.12;
+  const c = V(x, -0.11 - i * 0.004, -0.05), r = 0.042 * len;
+  const pts = [V(x * 0.9, -0.085, -0.004)];
+  for (let k = 1; k <= 4; k++) {
+    const a = Math.PI * 0.5 + (k / 4) * Math.PI * 1.05;
+    pts.push(V(x, c.y + Math.sin(a) * -r, c.z + Math.cos(a) * -r));
+  }
+  return pts;
+}
+function handGeometry(): THREE.BufferGeometry {
+  const prims: SdfPrim[] = [
+    { shape: 'ellipsoid', a: V(0, -0.045, 0), radii: V(0.044, 0.055, 0.026), bone: 0 },
+    { shape: 'cone', a: V(0, 0.01, 0), b: V(0, -0.075, -0.005), ra: 0.036, rb: 0.03, blend: 0.02, bone: 0 },
+    // Knuckle ridge.
+    { shape: 'cone', a: V(-0.036, -0.088, -0.004), b: V(0.036, -0.088, -0.004), ra: 0.014, rb: 0.014, blend: 0.012, bone: 0, tint: new THREE.Color(1.3, 1.25, 1.15) },
+  ];
+  const palm = meshSdf(prims, 1, { resolution: 28, noise: { amp: 0.001, freq: 160, seed: 9 } }).geometry;
+  const parts: THREE.BufferGeometry[] = [];
+  FINGERS.forEach((x, i) => parts.push(taperTube(fingerPath(x, i), [0.012, 0.011, 0.0095, 0.008, 0.006], 7, 3)));
+  // Thumb: from the inner side of the palm over the top of the grip.
+  parts.push(taperTube([V(-0.04, -0.02, -0.01), V(-0.055, -0.05, -0.03), V(-0.05, -0.075, -0.055), V(-0.035, -0.09, -0.07)], [0.013, 0.011, 0.009, 0.007], 7, 3));
+  const fingers = merge(parts);
+  // The SDF palm carries vertex colours; give the fingers plain white ones so one material serves both.
+  fingers.setAttribute('color', new THREE.Float32BufferAttribute(new Array(fingers.attributes.position.count * 3).fill(1), 3));
+  // merge() keeps positions and normals only; rebuild the colours in the same order.
+  const out = merge([palm, fingers]);
+  const cols: number[] = [];
+  for (const g of [palm, fingers]) { const c = g.attributes.color; for (let i = 0; i < c.count; i++) cols.push(c.getX(i), c.getY(i), c.getZ(i)); }
+  out.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  return out;
+}
+/** Hooked claws on the finger tips and the thumb. */
+function clawGeometry(): THREE.BufferGeometry[] {
+  const out: THREE.BufferGeometry[] = [];
+  const tipOf = (pts: THREE.Vector3[]) => { const c = new THREE.CatmullRomCurve3(pts); return { at: c.getPointAt(1), dir: c.getTangentAt(1) }; };
+  const ends = FINGERS.map((x, i) => tipOf(fingerPath(x, i)));
+  ends.push(tipOf([V(-0.04, -0.02, -0.01), V(-0.055, -0.05, -0.03), V(-0.05, -0.075, -0.055), V(-0.035, -0.09, -0.07)]));
+  for (const e of ends) out.push(spike(0.04, 0.007, 0.55).applyMatrix4(new THREE.Matrix4().compose(e.at, new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), e.dir), V(1, 1, 1))));
+  return out;
+}
+
 interface Larva { root: THREE.Group; segs: THREE.Mesh[]; base: THREE.Vector3; normal: THREE.Vector3; phase: number }
 
 export class HostArm {
@@ -107,18 +156,20 @@ export class HostArm {
     this.veins = [];
     this.pustules = [];
     this.larvae = [];
-    const base = new THREE.Color(ZONE7.void).lerp(new THREE.Color(HIVE.panel), 0.5).lerp(new THREE.Color(HIVE.bone), 0.18);
+    // ORGANIC hide (Rendering's palette): deep wet flesh greyed toward mist, not neon.
+    const base = new THREE.Color(ORGANIC.wetFleshDeep).lerp(new THREE.Color(ORGANIC.mist), 0.3);
     const swell = virus === 'adrenalineVirus' ? 0.06 : 0;
     // Adrenaline turns the skin translucent and amber-veined; the others keep the host's teal-grey hide.
     const skin = virus === 'adrenalineVirus'
       ? livingFlesh(hex(base.clone().lerp(new THREE.Color(PATH.melee), 0.18)), hex(new THREE.Color(PATH.melee).multiplyScalar(0.9)), PATH.melee, 26)
-      : livingFlesh(hex(base), hex(new THREE.Color(virus === 'plagueStalkerStrain' ? PATH.viral : HIVE.acid).multiplyScalar(0.35)), ZONE7.cyan, 26);
+      : livingFlesh(hex(base), hex(new THREE.Color(virus === 'plagueStalkerStrain' ? PATH.viral : ORGANIC.vein).multiplyScalar(0.35)), ORGANIC.mist, 26);
     skin.vertexColors = true;
     if (virus === 'adrenalineVirus') { skin.transparent = true; skin.opacity = 0.88; }
     g.add(new THREE.Mesh(forearmGeometry(swell), skin));
+    g.add(new THREE.Mesh(handGeometry(), skin));
 
     // Chitin bracers and a couple of wrist spurs: the Infiltrator's armour.
-    const plates = chitin(hex(base.clone().multiplyScalar(1.6)), HIVE.acid, 30);
+    const plates = chitin(hex(base.clone().lerp(new THREE.Color(HIVE.bone), 0.35)), ORGANIC.amber, 30);
     const r = rng(11), plateGeo: THREE.BufferGeometry[] = [];
     for (let i = 0; i < 4; i++) {
       const y = 0.05 + i * 0.07;
@@ -128,6 +179,7 @@ export class HostArm {
       plateGeo.push(ring);
     }
     for (let i = 0; i < 2; i++) plateGeo.push(spike(0.05, 0.007, 0.4).rotateX(-0.9).translate(-0.02 + i * 0.03, 0.02, 0.035));
+    plateGeo.push(...clawGeometry());
     g.add(new THREE.Mesh(merge(plateGeo), plates));
 
     if (virus === 'plagueStalkerStrain') {
@@ -235,12 +287,12 @@ export function attachToViewmodel(view: { root: THREE.Object3D; arm?: THREE.Obje
     ?? (view.root.children.find((o) => o instanceof THREE.Group && o !== arm.root) as THREE.Group | undefined);
   if (!parent) return false;
   if (wrist) {
-    // Cylinder +Y runs up the forearm toward the elbow; its base end sits at the hand.
-    const axis = V(0, 1, 0).applyQuaternion(wrist.quaternion);
-    arm.root.position.copy(wrist.position).addScaledVector(axis, -0.15);
-    arm.root.quaternion.copy(wrist.quaternion);
-    arm.root.scale.setScalar(1.05);
-    wrist.visible = false;
+    // The host's own hand grips the gun: hide the stand-in palm, fingers and wrist, put our wrist just behind
+    // the grip and angle the forearm steeply down and back so it leaves the frame (the hand is what shows).
+    for (const o of parent.children) if (o !== arm.root && (o as THREE.Mesh).isMesh) o.visible = false;
+    arm.root.position.set(ARM_FIT.x, ARM_FIT.y, ARM_FIT.z);
+    arm.root.rotation.set(ARM_FIT.rx, ARM_FIT.ry, ARM_FIT.rz);
+    arm.root.scale.setScalar(1);
   } else {
     arm.root.position.set(0.04, -0.3, 0.12);
     arm.root.rotation.set(0.9, 0, -0.3);
