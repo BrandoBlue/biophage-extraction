@@ -1,32 +1,27 @@
 import * as THREE from 'three';
-import { HIVE, ZONE7, ZONE7_SHADE } from '../render/palette';
-import { alienEye, bioNode, chitin, goreFluid, livingFlesh, membrane } from '../render/materials';
 import { groundHeight, mulberry32 } from '../world/zone7';
 import type { Abomination as AbominationData } from '../../data';
 import { hears, sees, type Noise } from './perception';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { organic } from './viewmodel';
+import { Creature } from '../creatures/creature';
+import { creatureGore } from '../creatures/gore';
+import type { SpeciesId } from '../creatures/plan';
 
 /**
- * Spore's two Abominations (docs/gdd/04-abominations.md), built procedurally until Creature & Mutation ships the
- * body-plan generator (src/creatures) and PvE AI takes over behaviour (src/ai). Gameplay talks to them only through
- * this class: update(), damage(), hit spheres and callbacks in AbominationContext.
+ * Abominations in a raid. The body is Creature & Mutation's procedural generator (src/creatures): a skinned,
+ * IK-walking creature with weak points, severable limbs and glowing gore. The behaviour below is the interim
+ * Spore state machine generalised to the five Larva kinds until PvE AI (src/ai) takes it over. Gameplay talks
+ * to them only through this class: update(), damage(), hit spheres and callbacks in AbominationContext.
  */
 
-export type AbominationKind = 'needlemaw' | 'bilecantor';
+export type AbominationKind = SpeciesId;
 
-const COL = {
-  chitin: new THREE.Color(ZONE7.violet).multiplyScalar(0.16).lerp(new THREE.Color(ZONE7.void), 0.4),
-  bone: new THREE.Color(HIVE.bone),
-  muscle: new THREE.Color(ZONE7.magenta).multiplyScalar(0.4).lerp(new THREE.Color(HIVE.danger), 0.3),
-  cyan: new THREE.Color(ZONE7.cyan),
-  magenta: new THREE.Color(ZONE7.magenta),
-  lime: new THREE.Color(ZONE7.lime),
-  violet: new THREE.Color(ZONE7.violet),
-  void: new THREE.Color(ZONE7.void),
-};
-
-export interface HitSphere { local: THREE.Vector3; r: number; weak: boolean; world: THREE.Vector3; bone: THREE.Object3D; pustule?: number }
+export interface HitSphere {
+  local: THREE.Vector3; r: number; weak: boolean; world: THREE.Vector3; bone: THREE.Object3D;
+  /** Bile Cantor song pustule index. */
+  pustule?: number;
+  /** Limb this sphere sits on: enough damage there shoots it off (cosmetic). */
+  limb?: string;
+}
 
 export interface AbominationContext {
   player: THREE.Vector3;
@@ -44,21 +39,19 @@ export interface AbominationContext {
 
 type State = 'idle' | 'alert' | 'chase' | 'windup' | 'lunge' | 'recover' | 'stagger' | 'dead';
 
-const hx = (c: THREE.Color) => `#${c.getHexString()}`;
-const glowMat = (c: THREE.Color, i = 2.4) => new THREE.MeshStandardMaterial({ color: COL.void, emissive: c, emissiveIntensity: i, roughness: 0.25 });
-const glass = (c: THREE.Color, opacity = 0.5) => new THREE.MeshPhysicalMaterial({
-  color: c, transparent: true, opacity, roughness: 0.05, clearcoat: 1, emissive: c, emissiveIntensity: 0.35, depthWrite: false,
-});
-
 let nextId = 1;
 
-interface Leg { hip: THREE.Group; knee: THREE.Group; phase: number }
 interface Pustule { mesh: THREE.Mesh; mat: THREE.MeshStandardMaterial; hp: number; popped: boolean }
+
+/** Turn rate (rad/s) per kind: small things whip around, the tank does not. */
+const TURN: Record<AbominationKind, number> = { needlemaw: 8, bilecantor: 2, glasswalker: 5, oculimoth: 10, mournback: 1.4 };
+/** Shape variants per species: instances share SDF meshes and shader programs, packs still vary. */
+const VARIANTS = 3;
 
 export class Abomination {
   readonly id = nextId++;
   readonly root = new THREE.Group();
-  readonly body = new THREE.Group();
+  readonly creature: Creature;
   readonly hitSpheres: HitSphere[] = [];
   biomass: number;
   state: State = 'idle';
@@ -67,28 +60,20 @@ export class Abomination {
   /** Seconds left of Psych-Wave reveal (outlined and pinned on the scanner). */
   revealed = 0;
   readonly pustules: Pustule[] = [];
-  private glows: { mat: THREE.MeshStandardMaterial; base: number }[] = [];
-  private legs: Leg[] = [];
-  private needles: THREE.Group[] = [];
-  private bell: THREE.Group | null = null;
-  private throatMat: THREE.MeshStandardMaterial | null = null;
-  private throat: THREE.Mesh | null = null;
-  private drool: THREE.Mesh | null = null;
-  private tendrils: THREE.Group[] = [];
-  private vocal: THREE.Mesh[] = [];
   private stateTime = 0;
   private cooldown = 0;
-  private gait = 0;
   private flinch = 0;
   private recentDamage = 0;
   private wander = new THREE.Vector3();
   private lostFor = 0;
   private deadFor = 0;
-  private fallV = 0;
   private hover = 0;
   private strafe = 1;
+  private lastHit = 0;
+  private limbDamage = new Map<string, number>();
   private rand: () => number;
   readonly home: THREE.Vector3;
+  private readonly melee: boolean;
 
   constructor(readonly kind: AbominationKind, readonly t: AbominationData, x: number, z: number, seed: number) {
     this.biomass = t.biomass;
@@ -96,8 +81,29 @@ export class Abomination {
     this.home = new THREE.Vector3(x, 0, z);
     this.root.position.set(x, groundHeight(x, z), z);
     this.yaw = this.rand() * Math.PI * 2;
-    this.root.add(this.body);
-    if (kind === 'needlemaw') this.buildNeedlemaw(); else this.buildCantor();
+    this.root.rotation.y = this.yaw;
+    this.melee = kind !== 'bilecantor';
+    this.creature = new Creature(kind, 1 + (seed % VARIANTS), 0);
+    this.creature.ground = groundHeight;
+    this.root.add(this.creature.root);
+    const fly = (t.flightHeight ?? t.hoverHeight) as [number, number] | undefined;
+    if (fly) { this.hover = fly[0] + this.rand() * (fly[1] - fly[0]); this.creature.drive.altitude = this.hover; }
+    this.strafe = this.rand() < 0.5 ? -1 : 1;
+    this.root.updateMatrixWorld(true);
+    this.creature.plant();
+
+    // Hit spheres: body spheres first (centre = the first), then weak points and limbs.
+    const hits = [...this.creature.rig.hits].sort((a, b) => rank(a.spec) - rank(b.spec));
+    for (const h of hits) {
+      const part = h.spec.part;
+      const pustule = part?.startsWith('pustule') ? Number(part.slice(7)) : undefined;
+      const limb = part && this.creature.rig.limbs.has(part) ? part : undefined;
+      this.hitSpheres.push({ local: h.local, r: h.spec.r, weak: h.spec.weak, world: h.world, bone: h.bone, pustule, limb });
+    }
+    for (const p of this.creature.rig.parts.values()) {
+      if (!p.spec.id.startsWith('pustule')) continue;
+      this.pustules[Number(p.spec.id.slice(7))] = { mesh: p.mesh, mat: p.mesh.material as THREE.MeshStandardMaterial, hp: Number((t.weakPoint as { biomassEach?: number }).biomassEach ?? 45), popped: false };
+    }
     this.pickWander();
   }
 
@@ -106,363 +112,8 @@ export class Abomination {
   get centre(): THREE.Vector3 { return this.hitSpheres[0].world; }
   get removable(): boolean { return this.state === 'dead' && this.deadFor > 40; }
   get engaged(): boolean { return this.state !== 'idle' && this.state !== 'dead'; }
-  get radius(): number { return this.kind === 'needlemaw' ? 0.7 : 1.5; }
-  get fluid(): THREE.Color { return this.kind === 'needlemaw' ? COL.cyan.clone() : COL.violet.clone().lerp(COL.magenta, 0.2); }
-
-  private glow(c: THREE.Color, i: number): THREE.MeshStandardMaterial {
-    const m = glowMat(c, i);
-    this.glows.push({ mat: m, base: i });
-    return m;
-  }
-
-  /** Pulsing bio-node (materials.ts) whose brightness the animation drives like the plain glows. */
-  private node(c: THREE.Color, i: number, rate = 2.2): THREE.MeshStandardMaterial {
-    const m = bioNode(hx(c), rate);
-    m.emissiveIntensity = i;
-    this.glows.push({ mat: m, base: i });
-    return m;
-  }
-
-  private sphere(bone: THREE.Object3D, local: THREE.Vector3, r: number, weak: boolean, pustule?: number): void {
-    this.hitSpheres.push({ bone, local, r, weak, world: new THREE.Vector3(), pustule });
-  }
-
-  // ---------------------------------------------------------------- Needlemaw: lamprey x harvestman x comb jelly
-  private buildNeedlemaw(): void {
-    const r = this.rand;
-    // Shared bio-materials (src/render/materials.ts) so creatures match the world and the viewmodel; the same
-    // programs are already compiled for those, so no new shaders.
-    const shell = chitin(hx(COL.chitin.clone().multiplyScalar(2.6)), ZONE7.cyan, 3.5);
-    const bone = chitin(HIVE.bone, ZONE7.magenta, 7);
-    const flesh = livingFlesh(ZONE7_SHADE.flesh, ZONE7.magenta, ZONE7.magenta, 9);
-    const raw = livingFlesh(hx(COL.muscle), ZONE7.magenta, ZONE7.violet, 16);
-    raw.side = THREE.DoubleSide;
-    const s = 0.9 + r() * 0.2;
-    this.body.scale.setScalar(s);
-    this.body.position.y = 0.75;
-
-    // Wet flesh core under overlapping armour plates; the flanks stay bare and studded with infected nodules.
-    const core = new THREE.Mesh(organic(new THREE.SphereGeometry(0.28, 28, 18), 0.02, 12, r() * 10), flesh);
-    core.scale.set(0.9, 0.75, 1.3);
-    this.body.add(core);
-    const plates: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 3; i++) {
-      const g = organic(new THREE.SphereGeometry(0.27 - i * 0.02, 20, 8, 0, Math.PI * 2, 0, Math.PI * 0.36), 0.008, 20, i + r());
-      g.scale(1.05, 0.8, 0.75);
-      g.rotateX(-0.25 + i * 0.12);
-      g.translate(0, 0.05 + i * 0.012, 0.16 - i * 0.16);
-      plates.push(g);
-    }
-    this.body.add(new THREE.Mesh(mergeGeometries(plates), shell));
-    const nodules: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 7; i++) {
-      const side = i % 2 ? 1 : -1, z = 0.2 - i * 0.06;
-      nodules.push(new THREE.SphereGeometry(0.022 + r() * 0.02, 10, 8).translate(side * 0.235, -0.04 + r() * 0.08, z));
-    }
-    this.body.add(new THREE.Mesh(mergeGeometries(nodules), this.node(COL.lime, 0.7, 3.1)));
-
-    // Front: radial lamprey mouth, a raw funnel ringed with bone teeth outside and glass needles within.
-    const head = new THREE.Group();
-    head.position.set(0, 0, 0.38);
-    const funnel = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.13, 0.28, 24, 3, true), raw);
-    funnel.rotation.x = Math.PI / 2;
-    funnel.position.z = 0.08;
-    head.add(funnel);
-    const lip = new THREE.Mesh(organic(new THREE.TorusGeometry(0.235, 0.05, 12, 32), 0.012, 30, r()), flesh);
-    lip.position.z = 0.21;
-    head.add(lip);
-    const throatGlow = new THREE.Mesh(new THREE.CircleGeometry(0.12, 20), this.glow(COL.magenta, 1.6));
-    throatGlow.position.z = -0.06;
-    head.add(throatGlow);
-    // Needle rings are merged into one mesh each (draw calls matter with packs); the ring splays open as a whole.
-    const piv = new THREE.Object3D();
-    for (let ring = 0; ring < 2; ring++) {
-      const n = ring === 0 ? 16 : 11;
-      const parts: THREE.BufferGeometry[] = [];
-      for (let i = 0; i < n; i++) {
-        const a = (i / n) * Math.PI * 2 + ring * 0.2;
-        const rad = ring === 0 ? 0.215 : 0.13;
-        const g = new THREE.ConeGeometry(ring === 0 ? 0.02 : 0.013, (ring === 0 ? 0.16 : 0.22) + r() * 0.1, 5);
-        g.rotateX(Math.PI / 2);
-        g.translate(0, 0, 0.09);
-        piv.position.set(Math.cos(a) * rad, Math.sin(a) * rad, 0);
-        piv.rotation.set(0, 0, a - Math.PI / 2);
-        piv.rotateX(ring === 0 ? -0.55 : -0.2); // outer teeth hook inward like a lamprey's
-        piv.updateMatrix();
-        g.applyMatrix4(piv.matrix);
-        parts.push(g);
-      }
-      const ringGroup = new THREE.Group();
-      ringGroup.position.z = 0.2 - ring * 0.08;
-      ringGroup.add(new THREE.Mesh(mergeGeometries(parts), ring === 0 ? bone : glass(COL.cyan, 0.8)));
-      head.add(ringGroup);
-      this.needles.push(ringGroup);
-    }
-    // A brow of mismatched eyes above the mouth, set in fleshy sockets, all staring down the gaze line.
-    const eyeMat = alienEye(ZONE7.lime, HIVE.bone);
-    const sockets: THREE.BufferGeometry[] = [];
-    const EYES = [[0.85, 0.07], [1.22, 0.09], [1.6, 0.105], [1.98, 0.085], [2.35, 0.065]];
-    for (const [a, er] of EYES) {
-      const x = Math.cos(a) * 0.3, y = Math.sin(a) * 0.3 * 0.85;
-      sockets.push(new THREE.SphereGeometry(er * 1.35, 12, 8).scale(1, 1, 0.6).translate(x, y, 0.1));
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(er, 20, 14), eyeMat);
-      eye.position.set(x, y, 0.1 + er * 0.55);
-      eye.rotation.set(-y * 0.8, Math.PI + x * 0.9, 0);
-      head.add(eye);
-    }
-    head.add(new THREE.Mesh(mergeGeometries(sockets), flesh));
-    // Throat sac under the mouth: the weak point, flares on wind-up.
-    this.throatMat = bioNode(ZONE7.magenta, 4);
-    this.throat = new THREE.Mesh(organic(new THREE.SphereGeometry(0.13, 18, 12), 0.012, 20, 2), this.throatMat);
-    this.throat.position.set(0, -0.2, 0.05);
-    head.add(this.throat);
-    // Drool: glowing strands sagging from the lower lip.
-    const drool: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 4; i++) {
-      const a = -Math.PI / 2 + (i - 1.5) * 0.45, len = 0.12 + r() * 0.2;
-      const x = Math.cos(a) * 0.2, y = Math.sin(a) * 0.2;
-      drool.push(new THREE.CylinderGeometry(0.006, 0.01, len, 5).translate(x, y - len / 2, 0.22));
-      drool.push(new THREE.SphereGeometry(0.016, 8, 6).scale(1, 1.4, 1).translate(x, y - len, 0.22));
-    }
-    this.drool = new THREE.Mesh(mergeGeometries(drool), goreFluid(ZONE7.cyan));
-    head.add(this.drool);
-    this.body.add(head);
-
-    // Back: ribbed comb-jelly bell, a veined membrane pulsing cyan.
-    const bell = new THREE.Group();
-    bell.position.set(0, 0.05, -0.32);
-    const dome = new THREE.Mesh(organic(new THREE.SphereGeometry(0.42, 28, 18, 0, Math.PI * 2, 0, Math.PI * 0.62), 0.015, 9, 4), membrane(ZONE7.cyan, 0.5));
-    dome.rotation.x = -Math.PI / 2 - 0.25;
-    bell.add(dome);
-    const combMat = this.glow(COL.cyan, 2.6);
-    const combs: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      const pts: THREE.Vector3[] = [];
-      for (let k = 0; k <= 10; k++) {
-        const phi = (k / 10) * Math.PI * 0.6;
-        pts.push(new THREE.Vector3(Math.sin(phi) * Math.cos(a), Math.cos(phi), Math.sin(phi) * Math.sin(a)).multiplyScalar(0.425));
-      }
-      combs.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 14, 0.012, 4));
-    }
-    const comb = new THREE.Mesh(mergeGeometries(combs), combMat);
-    comb.rotation.x = -Math.PI / 2 - 0.25;
-    bell.add(comb);
-    // Trailing frills from the bell rim.
-    const frill = membrane(ZONE7.violet, 0.7);
-    for (let i = 0; i < 6; i++) {
-      const tg = new THREE.Group();
-      const a = (i / 6) * Math.PI * 2;
-      tg.position.set(Math.cos(a) * 0.3, Math.sin(a) * 0.3 - 0.05, -0.32);
-      const ten = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.022, 0.6, 5), frill);
-      ten.rotation.x = Math.PI / 2;
-      ten.position.z = -0.3;
-      tg.add(ten);
-      bell.add(tg);
-      this.tendrils.push(tg);
-    }
-    this.body.add(bell);
-    this.bell = bell;
-
-    // Dorsal bone spurs, raked back.
-    const spurs: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 5; i++) {
-      const g = new THREE.ConeGeometry(0.028 - i * 0.003, 0.2 + r() * 0.12 - i * 0.02, 6).translate(0, 0.1, 0);
-      g.rotateX(-0.7 - i * 0.08);
-      g.translate((i % 2 ? 1 : -1) * 0.03, 0.2 - i * 0.012, 0.2 - i * 0.11);
-      spurs.push(g);
-    }
-    this.body.add(new THREE.Mesh(mergeGeometries(spurs), bone));
-
-    // Six long harvestman legs: armoured thighs, knees high above the body, bone needles for feet.
-    const shinGeo = new THREE.CylinderGeometry(0.006, 0.024, 1.25, 6);
-    const kneeGeo = mergeGeometries([new THREE.SphereGeometry(0.04, 10, 8), new THREE.ConeGeometry(0.015, 0.12, 5).translate(0, 0.08, 0)]);
-    for (let i = 0; i < 6; i++) {
-      const side = i < 3 ? -1 : 1;
-      const row = i % 3;
-      const hip = new THREE.Group();
-      hip.position.set(side * 0.18, 0.02, 0.18 - row * 0.2);
-      hip.rotation.set(0, side * (0.55 - row * 0.55), side * -0.55);
-      const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.04, 0.8, 7), shell);
-      thigh.position.y = 0.4;
-      hip.add(thigh);
-      const knee = new THREE.Group();
-      knee.position.y = 0.8;
-      knee.rotation.z = side * 2.35;
-      const shin = new THREE.Mesh(shinGeo, bone);
-      shin.position.y = 0.62;
-      knee.add(new THREE.Mesh(kneeGeo, bone), shin);
-      hip.add(knee);
-      this.body.add(hip);
-      this.legs.push({ hip, knee, phase: (i + row) % 2 === 0 ? 0 : Math.PI });
-    }
-
-    this.sphere(this.body, new THREE.Vector3(0, 0, 0), 0.42 * s, false);
-    this.sphere(head, new THREE.Vector3(0, 0, 0.1), 0.28 * s, false);
-    this.sphere(bell, new THREE.Vector3(0, 0, -0.1), 0.38 * s, false);
-    this.sphere(head, new THREE.Vector3(0, -0.2, 0.05), 0.16 * s, true);
-  }
-
-  // ---------------------------------------------------------------- Bile Cantor: siphonophore x vocal sac x pitcher plant
-  private buildCantor(): void {
-    const r = this.rand;
-    const flesh = livingFlesh(ZONE7_SHADE.flesh, ZONE7.magenta, ZONE7.violet, 6);
-    const raw = livingFlesh(hx(COL.muscle), ZONE7.magenta, ZONE7.magenta, 10);
-    const shell = chitin(hx(COL.chitin.clone().multiplyScalar(2.6)), ZONE7.lime, 3);
-    const bone = chitin(HIVE.bone, ZONE7.violet, 6);
-    const [lo, hi] = (this.t.hoverHeight as [number, number]) ?? [3, 6];
-    this.hover = lo + r() * (hi - lo);
-    this.body.position.y = this.hover;
-    this.strafe = r() < 0.5 ? -1 : 1;
-
-    // The 3 m gas bladder: veined violet membrane, light and organs showing through.
-    const bladder = new THREE.Group();
-    const skin = new THREE.Mesh(organic(new THREE.SphereGeometry(1.5, 40, 28), 0.08, 3.5, r() * 9), membrane(ZONE7.violet, 0.42));
-    skin.scale.set(1, 0.82, 1.05);
-    skin.renderOrder = 1;
-    bladder.add(skin);
-    const inner = new THREE.Mesh(organic(new THREE.IcosahedronGeometry(0.45, 3), 0.08, 5, 3), this.glow(COL.magenta, 0.55));
-    inner.position.y = 0.2;
-    bladder.add(inner);
-    // A curled embryo of organs hanging in the gas: you can see what it is digesting.
-    const organs: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2 + r();
-      organs.push(organic(new THREE.SphereGeometry(0.22 + r() * 0.12, 16, 12), 0.03, 9, i).translate(Math.cos(a) * 0.55, -0.25 + r() * 0.3, Math.sin(a) * 0.55));
-    }
-    bladder.add(new THREE.Mesh(mergeGeometries(organs), flesh));
-    const veinMat = this.glow(COL.violet, 2);
-    const veins: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2;
-      const pts: THREE.Vector3[] = [];
-      for (let k = 0; k <= 10; k++) {
-        const phi = 0.15 + (k / 10) * Math.PI * 0.8;
-        const w = a + Math.sin(k * 1.1 + i * 2) * 0.16;
-        pts.push(new THREE.Vector3(Math.sin(phi) * Math.cos(w), Math.cos(phi) * 0.82, Math.sin(phi) * Math.sin(w)).multiplyScalar(1.52));
-      }
-      veins.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.026, 4));
-    }
-    bladder.add(new THREE.Mesh(mergeGeometries(veins), veinMat));
-    // One great eye breaks the skin at the front, ringed by a raw lid and lesser eyes.
-    const eyeMat = alienEye(ZONE7.magenta, HIVE.bone);
-    const eyeAt = new THREE.Vector3(0, -0.35, 1.38);
-    const bigEye = new THREE.Mesh(new THREE.SphereGeometry(0.34, 32, 22), eyeMat);
-    bigEye.position.copy(eyeAt);
-    bigEye.rotation.set(0.3, Math.PI, 0);
-    bladder.add(bigEye);
-    const lid = new THREE.Mesh(organic(new THREE.TorusGeometry(0.33, 0.1, 14, 32), 0.02, 14, 4), raw);
-    lid.position.copy(eyeAt).add(new THREE.Vector3(0, 0, 0.06));
-    lid.rotation.x = -0.3;
-    bladder.add(lid);
-    const smallEyeMat = alienEye(ZONE7.lime, HIVE.bone);
-    for (const [x, y, er] of [[-0.62, -0.1, 0.11], [0.58, -0.05, 0.13], [-0.4, -0.75, 0.09], [0.45, -0.8, 0.1]]) {
-      const e = new THREE.Mesh(new THREE.SphereGeometry(er, 18, 12), smallEyeMat);
-      const z = Math.sqrt(Math.max(0, 1.4 * 1.4 - x * x - y * y * 1.4)) * 1.02;
-      e.position.set(x, y - 0.3, z);
-      e.rotation.set(0.3 + y * 0.4, Math.PI + x * 0.7, 0);
-      bladder.add(e);
-    }
-    this.body.add(bladder);
-    this.bell = bladder;
-
-    // Three song pustules on the flanks: the weak points.
-    for (let i = 0; i < 3; i++) {
-      const a = (i / 3) * Math.PI * 2 + 0.5;
-      const mat = bioNode(ZONE7.lime, 4 + i * 0.4);
-      const p = new THREE.Mesh(organic(new THREE.SphereGeometry(0.26, 20, 14), 0.02, 18, i), mat);
-      p.position.set(Math.cos(a) * 1.35, -0.25, Math.sin(a) * 1.35);
-      p.scale.set(1, 1.2, 1);
-      const collar = new THREE.Mesh(organic(new THREE.TorusGeometry(0.25, 0.08, 10, 22), 0.015, 20, i), raw);
-      collar.position.copy(p.position);
-      collar.lookAt(0, -0.25, 0);
-      bladder.add(p, collar);
-      this.pustules.push({ mesh: p, mat, hp: Number((this.t.weakPoint as { biomassEach?: number }).biomassEach ?? 45), popped: false });
-      this.sphere(bladder, p.position.clone(), 0.34, true, i);
-    }
-
-    // Underside maw: a fleshy bulb ringed with hooked bone teeth, vocal sacs and pitcher mouths around it.
-    const throat = new THREE.Group();
-    throat.position.y = -1.2;
-    const bulb = new THREE.Mesh(organic(new THREE.SphereGeometry(0.5, 28, 18), 0.03, 8, 5), flesh);
-    bulb.scale.set(1, 0.6, 1);
-    bulb.position.y = 0.12;
-    throat.add(bulb);
-    const teeth: THREE.BufferGeometry[] = [];
-    const piv = new THREE.Object3D();
-    for (let i = 0; i < 14; i++) {
-      const a = (i / 14) * Math.PI * 2;
-      const g = new THREE.ConeGeometry(0.03, 0.22 + r() * 0.1, 5).translate(0, -0.1, 0);
-      piv.position.set(Math.cos(a) * 0.24, -0.12, Math.sin(a) * 0.24);
-      piv.rotation.set(0, -a, 0);
-      piv.rotateZ(Math.PI + 0.45);
-      piv.updateMatrix();
-      teeth.push(g.applyMatrix4(piv.matrix));
-    }
-    throat.add(new THREE.Mesh(mergeGeometries(teeth), bone));
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2;
-      const sac = new THREE.Mesh(organic(new THREE.SphereGeometry(0.2, 16, 12), 0.015, 16, i), raw);
-      sac.position.set(Math.cos(a) * 0.45, -0.05, Math.sin(a) * 0.45);
-      sac.scale.set(1, 1.3, 1);
-      throat.add(sac);
-      this.vocal.push(sac);
-      const pitcher = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.04, 0.45, 10, 1, true), shell);
-      pitcher.material.side = THREE.DoubleSide;
-      pitcher.position.set(Math.cos(a + 0.6) * 0.5, -0.3, Math.sin(a + 0.6) * 0.5);
-      pitcher.rotation.set(Math.sin(a) * 0.5, 0, Math.cos(a) * 0.5);
-      throat.add(pitcher);
-      const lining = new THREE.Mesh(new THREE.CircleGeometry(0.09, 10), this.glow(COL.lime, 2.5));
-      lining.position.copy(pitcher.position).add(new THREE.Vector3(0, -0.22, 0));
-      lining.rotation.x = Math.PI / 2;
-      throat.add(lining);
-    }
-    this.throatMat = bioNode(ZONE7.lime, 5);
-    this.throat = new THREE.Mesh(organic(new THREE.SphereGeometry(0.2, 16, 12), 0.02, 14, 1), this.throatMat);
-    this.throat.position.y = -0.15;
-    throat.add(this.throat);
-    // Viscera: loops of gut slung from the maw, dripping bile.
-    const guts: THREE.BufferGeometry[] = [];
-    const drips: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 3; i++) {
-      const a = (i / 3) * Math.PI * 2 + 1;
-      const p0 = new THREE.Vector3(Math.cos(a) * 0.3, -0.05, Math.sin(a) * 0.3);
-      const p2 = new THREE.Vector3(Math.cos(a + 1.3) * 0.35, -0.05, Math.sin(a + 1.3) * 0.35);
-      const sag = 0.6 + r() * 0.5;
-      const mid = p0.clone().lerp(p2, 0.5).multiplyScalar(1.4).setY(-sag);
-      const curve = new THREE.CatmullRomCurve3([p0, p0.clone().lerp(mid, 0.5).setY(-sag * 0.7), mid, p2.clone().lerp(mid, 0.5).setY(-sag * 0.7), p2]);
-      guts.push(new THREE.TubeGeometry(curve, 24, 0.055, 7));
-      const len = 0.2 + r() * 0.35;
-      drips.push(new THREE.CylinderGeometry(0.008, 0.016, len, 5).translate(mid.x, mid.y - len / 2, mid.z));
-      drips.push(new THREE.SphereGeometry(0.03, 8, 6).scale(1, 1.4, 1).translate(mid.x, mid.y - len, mid.z));
-    }
-    throat.add(new THREE.Mesh(mergeGeometries(guts), raw));
-    this.drool = new THREE.Mesh(mergeGeometries(drips), goreFluid(ZONE7.lime));
-    throat.add(this.drool);
-    this.body.add(throat);
-
-    // Siphonophore fringe: long tendrils with glowing beads.
-    const beadMat = this.glow(COL.cyan, 2.2);
-    const tenMat = glass(COL.magenta, 0.55);
-    for (let i = 0; i < 14; i++) {
-      const tg = new THREE.Group();
-      const a = (i / 14) * Math.PI * 2 + r() * 0.2;
-      const rr = 0.6 + r() * 0.6;
-      tg.position.set(Math.cos(a) * rr, -1.0, Math.sin(a) * rr);
-      const len = 1.6 + r() * 1.8;
-      const ten = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.03, len, 5), tenMat);
-      ten.position.y = -len / 2;
-      tg.add(ten);
-      const beads: THREE.BufferGeometry[] = [];
-      for (let b = 1; b <= 3; b++) beads.push(new THREE.SphereGeometry(0.035, 6, 5).translate(0, -len * (b / 3.2), 0));
-      tg.add(new THREE.Mesh(mergeGeometries(beads), beadMat));
-      this.body.add(tg);
-      this.tendrils.push(tg);
-    }
-
-    this.sphere(bladder, new THREE.Vector3(0, 0, 0), 1.35, false);
-    this.sphere(throat, new THREE.Vector3(0, -0.1, 0), 0.5, false);
-  }
+  get radius(): number { return this.creature.plan.radius; }
+  get fluid(): THREE.Color { return new THREE.Color(this.creature.plan.palette.fluid); }
 
   // ---------------------------------------------------------------- Behaviour
   private pickWander(): void {
@@ -491,16 +142,36 @@ export class Abomination {
   /** Applies damage. `sphere` is the hit sphere struck, if any. Returns true if this killed the creature. */
   damage(amount: number, dir: THREE.Vector3 | null, sphere?: HitSphere): boolean {
     if (!this.alive) return false;
+    // Mournback: the bone shield turns most damage from the front (weak points excepted).
+    const armour = this.t.frontArmour as { arc: number; multiplier: number } | undefined;
+    if (armour && dir && !sphere?.weak) {
+      const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
+      const toShooter = new THREE.Vector3(-dir.x, 0, -dir.z).normalize();
+      if (fwd.dot(toShooter) > Math.cos(THREE.MathUtils.degToRad(armour.arc / 2))) amount *= armour.multiplier;
+    }
     this.biomass -= amount;
     this.flinch = Math.min(1, this.flinch + amount / 40);
     this.recentDamage += amount;
-    if (dir && this.kind === 'needlemaw') this.velocity.addScaledVector(dir, Math.min(4, amount / 10));
+    if (dir && (this.kind === 'needlemaw' || this.kind === 'oculimoth')) this.velocity.addScaledVector(dir, Math.min(4, amount / 10));
+    this.lastHit = amount;
     this.alert();
+    // Limb hits: enough damage on one limb shoots it off (the creature fights on without it).
+    if (sphere?.limb && this.root.parent) {
+      const d = (this.limbDamage.get(sphere.limb) ?? 0) + amount;
+      this.limbDamage.set(sphere.limb, d);
+      if (d >= this.t.biomass * 0.3) creatureGore.sever(this.root.parent, this.creature, sphere.limb, (dir ?? new THREE.Vector3()).clone().multiplyScalar(4));
+    }
     if (sphere?.pustule !== undefined) {
       const p = this.pustules[sphere.pustule];
       if (!p.popped) {
         p.hp -= amount;
-        if (p.hp <= 0) { p.popped = true; p.mesh.scale.setScalar(0.35); p.mat.emissive.copy(COL.violet); p.mat.emissiveIntensity = 0.15; }
+        if (p.hp <= 0) {
+          p.popped = true;
+          p.mesh.userData.popped = true;
+          p.mesh.scale.setScalar(0.35);
+          p.mat.emissive.set(this.creature.plan.palette.fluid);
+          p.mat.emissiveIntensity = 0.15;
+        }
       }
       const all = (this.t.weakPoint as { allPoppedKills?: boolean }).allPoppedKills;
       if (all && this.pustules.every((x) => x.popped)) this.biomass = 0;
@@ -516,7 +187,16 @@ export class Abomination {
   private die(): void {
     this.setState('dead');
     this.deadFor = 0;
-    this.fallV = 0;
+    this.creature.die();
+    // Death gore: small fliers burst apart; a heavy killing blow takes a limb with it.
+    const scene = this.root.parent;
+    if (!scene) return;
+    if (this.kind === 'oculimoth') creatureGore.burstAll(scene, this.creature, new THREE.Vector3(0, 2, 0));
+    else if (this.lastHit >= 30) {
+      const limbs = [...this.creature.rig.limbs.values()].filter((l) => !l.severed && l.spec.severable);
+      const l = limbs[Math.floor(this.rand() * limbs.length)];
+      if (l) creatureGore.sever(scene, this.creature, l.spec.id, new THREE.Vector3(0, 3, 0));
+    }
   }
 
   update(dt: number, ctx: AbominationContext): void {
@@ -552,16 +232,17 @@ export class Abomination {
       case 'alert':
         face = toPlayer;
         if (this.stateTime <= dt + 1e-6) ctx.onAlert(this);
-        if (this.stateTime > (this.kind === 'needlemaw' ? 0.3 : 0.5)) this.setState('chase');
+        if (this.stateTime > (this.melee ? 0.3 : 0.5)) this.setState('chase');
         break;
       case 'chase': {
         face = toPlayer;
         if (!ctx.playerAlive || ctx.playerHidden) { this.setState('idle'); break; }
         if (contact) this.lostFor = 0; else if ((this.lostFor += dt) > t.perception.loseInterest) { this.lostFor = 0; this.home.copy(pos); this.setState('idle'); break; }
-        if (this.kind === 'needlemaw') {
+        if (this.melee) {
           wantSpeed = t.speed;
-          // Zig-zag approach.
-          const side = new THREE.Vector3(-toPlayer.z, 0, toPlayer.x).multiplyScalar(Math.sin(this.stateTime * 4 + this.id) * 0.55 * Math.min(1, dist / 8));
+          // Zig-zag approach (the small ones weave hard, the tank comes straight on).
+          const weave = this.kind === 'mournback' ? 0 : this.kind === 'glasswalker' ? 0.25 : 0.55;
+          const side = new THREE.Vector3(-toPlayer.z, 0, toPlayer.x).multiplyScalar(Math.sin(this.stateTime * 4 + this.id) * weave * Math.min(1, dist / 8));
           face = toPlayer.clone().add(side).normalize();
           if (dist < t.attackRange * 1.8 && this.cooldown === 0) this.setState('windup');
         } else {
@@ -580,8 +261,8 @@ export class Abomination {
       case 'windup':
         face = toPlayer;
         if (this.stateTime >= windup) {
-          if (this.kind === 'needlemaw') {
-            this.velocity.copy(toPlayer).multiplyScalar(Number(t.lungeSpeed ?? 14));
+          if (this.melee) {
+            this.velocity.copy(toPlayer).multiplyScalar(Number(t.lungeSpeed ?? t.chargeSpeed ?? 10));
             this.velocity.y = 0;
             this.setState('lunge');
           } else {
@@ -593,11 +274,11 @@ export class Abomination {
         break;
       case 'lunge':
         face = toPlayer;
-        if (dist < t.attackRange * 0.75 && this.stateTime < 0.35 && this.cooldown === 0) {
+        if (dist < t.attackRange * 0.75 && this.stateTime < this.lungeTime && this.cooldown === 0) {
           ctx.onMelee(this, t.damage);
           this.cooldown = t.cooldown;
         }
-        if (this.stateTime > 0.35) { this.cooldown = Math.max(this.cooldown, t.cooldown * 0.7); this.setState('recover'); }
+        if (this.stateTime > this.lungeTime) { this.cooldown = Math.max(this.cooldown, t.cooldown * 0.7); this.setState('recover'); }
         break;
       case 'recover':
         face = toPlayer;
@@ -613,10 +294,10 @@ export class Abomination {
       const target = Math.atan2(face.x, face.z);
       let d = target - this.yaw;
       d = Math.atan2(Math.sin(d), Math.cos(d));
-      const turn = this.kind === 'needlemaw' ? 8 : 2;
+      const turn = TURN[this.kind];
       this.yaw += THREE.MathUtils.clamp(d, -turn * dt, turn * dt);
     }
-    if (this.kind === 'needlemaw' && this.state !== 'lunge') {
+    if (this.melee && this.state !== 'lunge') {
       const fwd = new THREE.Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw));
       const desired = fwd.multiplyScalar(wantSpeed * (1 - this.flinch * 0.7) * (this.state === 'stagger' ? 0 : 1));
       this.velocity.x = THREE.MathUtils.damp(this.velocity.x, desired.x, 7, dt);
@@ -636,7 +317,7 @@ export class Abomination {
       const d = Math.hypot(dx, dz), min = this.radius + o.radius;
       if (d > 0.001 && d < min) { pos.x += (dx / d) * (min - d) * 0.5; pos.z += (dz / d) * (min - d) * 0.5; }
     }
-    if (this.kind === 'needlemaw') {
+    if (this.melee) {
       const min = this.radius + 0.35;
       if (dist < min && dist > 0.001) { pos.x -= toPlayer.x * (min - dist); pos.z -= toPlayer.z * (min - dist); }
     }
@@ -647,11 +328,18 @@ export class Abomination {
     if (r > edge) { pos.x *= edge / r; pos.z *= edge / r; }
     pos.y = groundHeight(pos.x, pos.z);
     this.root.rotation.y = this.yaw;
-    this.animate(dt, Math.hypot(this.velocity.x, this.velocity.z));
+    this.animate(dt, ctx, dist);
+  }
+
+  /** Lunge or charge length: long enough to cover the strike range at lunge speed. */
+  private get lungeTime(): number {
+    const speed = Number(this.t.lungeSpeed ?? this.t.chargeSpeed ?? 10);
+    return THREE.MathUtils.clamp((this.t.attackRange * 2) / speed, 0.3, 0.9);
   }
 
   private spit(ctx: AbominationContext): void {
-    const from = this.throat!.getWorldPosition(new THREE.Vector3());
+    const throat = this.creature.rig.bones.find((b) => b.name === 'throat') ?? this.creature.rig.bones[0];
+    const from = throat.getWorldPosition(new THREE.Vector3());
     from.y -= 0.3;
     const proj = (this.t.projectile as { speed: number; gravity: number; leadTarget: number }) ?? { speed: 22, gravity: 9.8, leadTarget: 0.5 };
     const g = proj.gravity;
@@ -668,64 +356,35 @@ export class Abomination {
     ctx.onSpit(this, from, vel);
   }
 
-  private animate(dt: number, speed: number): void {
-    const time = performance.now() * 0.001 + this.id * 1.7;
-    const revealBoost = this.revealed > 0 ? 1.8 : 1;
-    if (this.kind === 'needlemaw') {
-      this.gait += dt * (speed * 2.4 + 0.4);
-      const stride = Math.min(1, speed / 4);
-      for (const l of this.legs) {
-        const ph = this.gait + l.phase;
-        l.hip.rotation.x = Math.sin(ph) * 0.4 * stride;
-        l.knee.rotation.x = Math.max(0, Math.cos(ph)) * 0.35 * stride;
-      }
-      const wind = this.state === 'windup' ? Math.min(1, this.stateTime / this.t.windup) : this.state === 'lunge' ? 1 : 0;
-      const b = this.body;
-      b.rotation.x = -wind * 0.45 + Math.sin(this.gait * 2) * 0.05 * stride - this.flinch * 0.4;
-      b.position.y = 0.75 + wind * 0.15 + Math.abs(Math.sin(this.gait * 2)) * 0.06 * stride;
-      b.rotation.z = this.state === 'stagger' ? Math.sin(time * 30) * 0.15 : 0;
-      const open = wind > 0 ? 1 : this.state === 'alert' ? 0.7 : 0.15 + Math.sin(time * 2.4) * 0.1;
-      for (const n of this.needles) n.scale.set(0.8 + open * 0.5, 0.8 + open * 0.5, 1.1 - open * 0.3);
-      // Bell contracts on wind-up, pulses faster when hunting.
-      const rate = this.engaged ? 7 : 2.5;
-      if (this.bell) this.bell.scale.set(1 + Math.sin(time * rate) * 0.07 - wind * 0.15, 1 + Math.sin(time * rate) * 0.07 - wind * 0.15, 1 - Math.sin(time * rate) * 0.05);
-      if (this.throat && this.throatMat) { this.throat.scale.setScalar(1 + wind * 0.6); this.throatMat.emissiveIntensity = (0.9 + wind * 2.5) * revealBoost; }
-      this.tendrils.forEach((tg, i) => { tg.rotation.y = Math.sin(time * 3 + i) * 0.3; });
-      if (this.drool) this.drool.scale.y = 1 + Math.sin(time * 1.7) * 0.15 + wind * 0.4;
-      for (const g of this.glows) if (g.mat !== this.throatMat) g.mat.emissiveIntensity = g.base * (this.engaged ? 1.3 : 0.75) * revealBoost;
-    } else {
-      const wind = this.state === 'windup' ? Math.min(1, this.stateTime / this.t.windup) : 0;
-      const b = this.body;
-      b.position.y = this.hover + Math.sin(time * 0.9) * 0.25 - this.flinch * 0.4;
-      b.rotation.z = Math.sin(time * 0.7) * 0.06 + (this.state === 'stagger' ? Math.sin(time * 25) * 0.08 : 0);
-      b.rotation.x = Math.cos(time * 0.6) * 0.05;
-      if (this.bell) this.bell.scale.setScalar(1 + Math.sin(time * 1.6) * 0.025 + wind * 0.05);
-      this.vocal.forEach((v, i) => v.scale.set(1 + Math.sin(time * 6 + i) * 0.15 * (0.4 + wind), 1.3 + Math.sin(time * 6 + i) * 0.25 * (0.4 + wind), 1));
-      for (const p of this.pustules) if (!p.popped) { p.mat.emissiveIntensity = (1 + wind * 2.5 + Math.sin(time * 4) * 0.15) * revealBoost; p.mesh.scale.set(1 + wind * 0.3, 1.2 + wind * 0.4, 1 + wind * 0.3); }
-      if (this.throat && this.throatMat) { this.throat.scale.setScalar(1 + wind * 0.8); this.throatMat.emissiveIntensity = (0.8 + wind * 2.5) * revealBoost; }
-      if (this.drool) this.drool.scale.y = 1 + Math.sin(time * 1.3) * 0.2 + wind * 0.5;
-      this.tendrils.forEach((tg, i) => { tg.rotation.x = Math.sin(time * 1.2 + i * 0.7) * 0.18 - this.velocity.z * 0.04; tg.rotation.z = Math.cos(time * 1.0 + i) * 0.18 + this.velocity.x * 0.04; });
+  private animate(dt: number, ctx: AbominationContext, dist: number): void {
+    const c = this.creature, d = c.drive;
+    d.velocity.copy(this.velocity).setY(0);
+    d.excite = this.engaged ? 1 : 0.25;
+    d.windup = this.state === 'windup' ? Math.min(1, this.stateTime / this.t.windup) : this.state === 'lunge' ? 1 : 0;
+    d.reveal = this.revealed > 0 ? 1.8 : 1;
+    d.look = this.engaged ? ctx.player.clone().setY(ctx.player.y + 1.5) : null;
+    d.strike = d.windup > 0 ? ctx.player.clone().setY(ctx.player.y + 1.1) : null;
+    if (this.kind === 'oculimoth') {
+      // Swoop down to head height to peck, climb back to its patrol height otherwise.
+      const want = this.engaged && dist < 8 ? 1.4 : this.hover;
+      d.altitude = THREE.MathUtils.damp(d.altitude ?? this.hover, want, 3, dt);
+    } else if (this.kind === 'bilecantor') {
+      d.altitude = this.hover - this.flinch * 0.4;
     }
+    if (this.state === 'stagger') this.creature.root.rotation.z = Math.sin(this.stateTime * 30) * 0.08;
+    else this.creature.root.rotation.z = 0;
+    c.update(dt);
   }
 
   private animateDeath(dt: number): void {
     this.deadFor += dt;
-    const k = Math.min(1, this.deadFor / 0.7);
-    const b = this.body;
-    if (this.kind === 'needlemaw') {
-      b.rotation.z = THREE.MathUtils.lerp(0, 2.7, k * k);
-      b.position.y = THREE.MathUtils.lerp(0.75, 0.25, k);
-      for (const l of this.legs) { l.hip.rotation.x = Math.sin(this.deadFor * 28) * 0.3 * (1 - k); l.knee.rotation.x = 1.1 * k; }
-      if (this.bell) this.bell.scale.setScalar(Math.max(0.25, 1 - k * 0.75));
-    } else {
-      // The bladder tears and the body drops.
-      if (b.position.y > 0.6) { this.fallV += 12 * dt; b.position.y = Math.max(0.6, b.position.y - this.fallV * dt); }
-      b.rotation.x = THREE.MathUtils.lerp(0, 0.5, k);
-      if (this.bell) this.bell.scale.set(1 - k * 0.55, Math.max(0.2, 1 - k * 0.75), 1 - k * 0.4);
-      this.tendrils.forEach((tg) => { tg.rotation.x = THREE.MathUtils.lerp(tg.rotation.x, 1.2, k * 0.1); });
-    }
-    for (const g of this.glows) g.mat.emissiveIntensity = Math.max(0.05, g.mat.emissiveIntensity - dt * 1.2);
-    for (const p of this.pustules) p.mat.emissiveIntensity = Math.max(0.05, p.mat.emissiveIntensity - dt * 2);
+    this.creature.update(dt);
     if (this.deadFor > 30) this.root.position.y -= dt * 0.12;
   }
+}
+
+function rank(h: { weak: boolean; part?: string; bone: unknown }): number {
+  if (!h.weak && !h.part && typeof h.bone === 'number') return 0;
+  if (h.weak) return 1;
+  return 2;
 }

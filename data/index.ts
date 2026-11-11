@@ -23,6 +23,7 @@ import contractsJson from './contracts.json';
 import hiveJson from './hive.json';
 import bossesJson from './bosses.json';
 import zonesJson from './zones.json';
+import aiJson from './ai.json';
 
 export type Range = [number, number];
 
@@ -217,6 +218,28 @@ export const VIRUSES = Object.fromEntries(Object.entries(virusData).filter(([k])
 export const NESTS = strip<Record<string, Nest>>(nestsJson);
 export const PROFILE = strip<ProfileRules>(profileJson);
 
+/** PvE AI tuning (owned by PvE AI & Encounters): archetype per Abomination kind and how each archetype hunts. */
+export type Archetype = 'swarm' | 'spitter' | 'stalker' | 'flyer' | 'tank';
+export interface AiRules {
+  archetypes: Record<string, Archetype>;
+  awareness: { suspicious: number; sightRate: number; closeSight: number; peripheralFactor: number; noiseGain: number; noiseImpulse: number; loudNoiseGain: number; decayRate: number; investigateTime: number; senseHz: number };
+  light: { base: number; still: number; crouched: number; sprinting: number; muzzleFlash: number; flashTime: number; minimum: number };
+  tokens: { melee: number; ranged: number; holdTime: number };
+  wander: { radius: number; speedFactor: number; pause: Range };
+  separation: number;
+  swarm: { ringRadius: Range; flankBias: number; weaveFrequency: number; weaveAmount: number; feintChance: number; lungeTime: number; recoverTime: number; turnRate: number };
+  spitter: { strafeFlipChance: number; strafeAmount: number; hoverBob: number; retreatBelow: number; recoverTime: number; turnRate: number };
+  stalker: { stalkRange: number; stalkSpeedFactor: number; freezeWhenWatched: number; flankAngle: number; chargeTime: number; strikeRecover: number; fadeDistance: number; fadeTime: number; turnRate: number };
+  flyer: { orbitRadius: Range; orbitSpeed: number; diveGap: number; faceHeight: number; flockRadius: number; calmHeight: Range; diveSpeed: number; diveTime: number; climbTime: number; screechTell: number; turnRate: number };
+  tank: { turnRate: number; chargeTurnRate: number; hornReach: number; chargeRange: Range; chargeAimCone: number; chargeDistance: number; chargeKnockback: number; slamTrigger: number; slamWindup: number; recoverTime: number; approachFactor: number };
+  nestSpawn: { ejectSpeed: number; ejectRadius: number; startAwareness: number };
+}
+const stripDeep = (o: unknown): unknown => {
+  if (Array.isArray(o) || o === null || typeof o !== 'object') return o;
+  return Object.fromEntries(Object.entries(o).filter(([k]) => k !== '_note').map(([k, v]) => [k, stripDeep(v)]));
+};
+export const AI = stripDeep(aiJson) as AiRules;
+
 /** DNA cost of the next stash row expansion, given rows already bought. Infinity at the cap. */
 export function stashRowCost(rowsBought: number): number {
   const e = PROFILE.stash.rowExpansion;
@@ -256,7 +279,7 @@ export function rollContainer(id: string, rand: () => number): { item: string; c
 
 /** Total DNA value of a haul (items plus kill DNA). */
 export function haulValue(items: { item: string; count: number }[], killDna = 0): number {
-  return items.reduce((s, { item, count }) => s + LOOT.items[item].value * count, killDna);
+  return items.reduce((s, { item, count }) => s + (itemDef(item)?.value ?? 0) * count, killDna);
 }
 
 /**
