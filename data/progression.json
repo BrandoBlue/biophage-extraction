@@ -12,7 +12,8 @@
       "huskMimic": 40,
       "lumenGrazer": 300,
       "reliquary": 1000,
-      "warden": 1500
+      "warden": 1500,
+      "paleVigil": 900
     },
     "extract": 200,
     "extractPerHaulDna": 0.25,

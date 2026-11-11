@@ -177,6 +177,37 @@
       ]
     },
     {
+      "id": "lightUnderTheCliff",
+      "vendor": "archivist",
+      "milestone": "larva",
+      "title": "The Light Under the Cliff",
+      "brief": "Something in the fungal caves keeps a light burning where nothing should. The Archivist wants it, still warm.",
+      "objectives": [
+        {
+          "type": "killBoss",
+          "boss": "paleVigil"
+        },
+        {
+          "type": "extractWith",
+          "item": "vigilLure",
+          "count": 1
+        }
+      ],
+      "reward": {
+        "dna": 1000,
+        "rep": 220,
+        "items": [
+          {
+            "item": "nightEye",
+            "count": 1
+          }
+        ]
+      },
+      "requires": [
+        "eyesInTheGlass"
+      ]
+    },
+    {
       "id": "wakeTheWarden",
       "vendor": "archivist",
       "milestone": "host",
