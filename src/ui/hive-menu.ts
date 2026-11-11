@@ -4,6 +4,7 @@
  * debrief. main.ts keeps the same small surface it had with the interim menu: construct, hide, say, visible,
  * plus showResults for the debrief.
  */
+import { BUILT_ZONES } from '../world/zones';
 import { CLASSES, MARKET, PROFILE, VENDOR_REP_THRESHOLDS, VENDORS, vendorBuyPrice } from '../../data';
 import type { ClassId, VendorId } from '../../data';
 import {
@@ -55,8 +56,9 @@ export class HiveMenu {
       vendorSell: (v, zone, index, count) => { const paid = vendorSell(p, v as VendorId, zone, index, count); if (paid) onChange(); return paid; },
       acceptContract: (id) => { const ok = acceptContract(p, id); if (ok) onChange(); return ok; },
       abandonContract: (v) => { const ok = abandonContract(p, v as VendorId); if (ok) onChange(); return ok; },
-      zones: () => zoneList(p),
-      selectZone: (id) => { const ok = selectZone(p, id); if (ok) onChange(); return ok; },
+      // Zones whose map World has not built yet read as 'coming' instead of quietly loading Glowmire.
+      zones: () => zoneList(p, 0, BUILT_ZONES),
+      selectZone: (id) => { const ok = selectZone(p, id, 0, BUILT_ZONES); if (ok) onChange(); return ok; },
     };
     this.ui = new HiveUI(root, () => this.view(), actions, {
       pickHost: (id) => this.pickHost(id),
