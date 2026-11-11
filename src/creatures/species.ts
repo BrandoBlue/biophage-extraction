@@ -30,15 +30,15 @@ export function naturalise(p: Palette): Palette {
   const boneDark = mix(HIVE.bone, ORGANIC.wetFleshDeep, 0.55);
   return {
     ...p,
-    flesh: mix(p.flesh, ORGANIC.wetFlesh, 0.7, 0.85),
+    flesh: mix(p.flesh, ORGANIC.wetFlesh, 0.85, 0.85),
     vein: mix(p.vein, ORGANIC.vein, 0.75),
     rim: mix(p.rim, ORGANIC.mist, 0.85, 0.75),
-    chitin: mix(p.chitin, boneDark, 0.8, 0.75),
-    chitinGlow: mix(p.chitinGlow, ORGANIC.amber, 0.7, 0.6),
+    chitin: mix(p.chitin, boneDark, 0.92, 0.75),
+    chitinGlow: mix(p.chitinGlow, ORGANIC.amber, 0.85, 0.5),
     bone: mix(p.bone, boneDark, 0.3),
-    glow: mix(p.glow, ORGANIC.amber, 0.75, 0.8),
+    glow: mix(p.glow, ORGANIC.amber, 0.8, 0.75),
     fluid: mix(p.fluid, ORGANIC.vein, 0.7),
-    membrane: mix(p.membrane, ORGANIC.mist, 0.7, 0.8),
+    membrane: mix(p.membrane, ORGANIC.mist, 0.85, 0.8),
     iris: mix(p.iris, ORGANIC.amber, 0.35),
   };
 }
@@ -85,7 +85,7 @@ function mutate(b: PlanBuilder, stage: number, opts: {
     const pts = [...opts.dorsal.map((p) => ({ p, d: V(0, -1, 0) })), ...opts.flank.flatMap((p) => [{ p, d: V(-1, -0.3, 0) }, { p: V(-p.x, p.y, p.z), d: V(1, -0.3, 0) }])];
     pts.forEach(({ p, d }, i) => {
       const s = b.surf(p.clone().add(V((r() - 0.5) * 0.1 * opts.nodeSize * 10, 0, (r() - 0.5) * 0.1 * opts.nodeSize * 10)), d);
-      b.part({ id: `m1-node${i}`, type: 'node', bone: s.bone, at: s.at, dir: s.normal, size: opts.nodeSize * (0.7 + r() * 0.6), material: 'glow', stage: 1 });
+      b.part({ id: `m1-node${i}`, type: 'node', bone: s.bone, at: s.at, dir: s.normal, size: opts.nodeSize * (0.7 + r() * 0.6), material: i % 3 === 0 ? 'glow' : 'raw', stage: 1 }); // mostly wet tumour clusters, a few lit
     });
   }
   if (stage >= 2) {
