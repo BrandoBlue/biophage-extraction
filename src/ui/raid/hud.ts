@@ -10,7 +10,7 @@
 import { Reticle } from './reticle';
 import { def as itemOf } from '../items';
 import './hud.css';
-import { VIRUSES, VIRUS_RULES } from '../../../data';
+import { BOSSES, VIRUSES, VIRUS_RULES, bossPhase } from '../../../data';
 import { HIVE, PATH, ZONE7 } from '../../render/palette';
 import { applyTheme } from '../theme';
 import { glyph, itemIcon, KIND_COLOUR } from '../icons';
@@ -332,10 +332,23 @@ export class OrganicHud {
     const gw = parseFloat(q.bossGhost.style.width || '100');
     q.bossGhost.style.width = `${Math.max(f * 100, gw - dt * 18)}%`;
     q.boss.classList.toggle('low', f < 0.25);
-    const key = `${b.label}|${b.wave}|${b.waves}`;
+    // Zone bosses (data/bosses.json) show their phase and notch the bar where the next phase begins;
+    // nests show waves instead.
+    const id = b.id ?? Object.keys(BOSSES).find((k) => BOSSES[k].label === b.label);
+    const phases = !b.waves && id && BOSSES[id]?.phases?.length ? BOSSES[id].phases : null;
+    const phase = phases ? bossPhase(id!, f) : null;
+    const key = `${b.label}|${b.wave}|${b.waves}|${phase?.id ?? ''}`;
     if (key === this.bossKey) return;
+    const phaseChanged = !!phase && this.bossKey.startsWith(`${b.label}|`) && !this.bossKey.endsWith(`|${phase.id}`);
     this.bossKey = key;
     q.bossName.textContent = b.label.toUpperCase();
+    if (phases && phase) {
+      const n = phases.indexOf(phase) + 1;
+      q.bossWave.textContent = `${phase.id.toUpperCase()} · ${n}/${phases.length}`;
+      q.bossNotches.innerHTML = phases.slice(0, -1).map((p, i) => `<i style="left:${p.to * 100}%"${i < n - 1 ? ' class="past"' : ''}></i>`).join('');
+      if (phaseChanged) pulse(q.boss, 'phase');
+      return;
+    }
     q.bossWave.textContent = b.waves ? `WAVE ${b.wave}/${b.waves}` : '';
     q.bossNotches.innerHTML = Array.from({ length: Math.max(0, b.waves - 1) }, (_, i) => `<i style="left:${((i + 1) / b.waves) * 100}%"${i < b.wave - 1 ? ' class="past"' : ''}></i>`).join('');
   }
