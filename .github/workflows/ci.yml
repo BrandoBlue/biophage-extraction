@@ -73,7 +73,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
+      # The browser comes from Playwright's CDN (cached); system libraries normally come from apt.
+      # GitHub's Ubuntu image already ships Chrome and its libraries, so an apt outage must not fail the run:
+      # try install-deps, and if the mirrors are down carry on with the image's libraries.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - run: npx playwright install chromium
+      - name: Browser system libraries (best effort)
+        run: timeout 300 npx playwright install-deps chromium || echo "::warning::apt unavailable, using the runner image's libraries"
       - uses: actions/download-artifact@v4
         with:
           name: build
