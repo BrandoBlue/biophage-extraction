@@ -111,3 +111,39 @@ describe('creature under a moving parent', () => {
     expect(body.y - 12).toBeLessThan(c.plan.bodyHeight * 1.4);
   });
 });
+
+describe('behaviour drive (PvE AI seam)', () => {
+  it('camo fades the body and restores it; screech and slam pulse and decay', () => {
+    const c = new Creature('glasswalker', 4, 0);
+    c.update(1 / 30);
+    const flesh = c.rig.materials.flesh;
+    const base = flesh.opacity;
+    c.drive.camo = 0.1;
+    c.update(1 / 30);
+    expect(flesh.transparent).toBe(true);
+    expect(flesh.opacity).toBeLessThan(base * 0.2);
+    c.drive.camo = 1;
+    c.update(1 / 30);
+    expect(flesh.opacity).toBe(base);
+    const y0 = c.rig.bones[0].position.y;
+    c.drive.slam = 1;
+    c.update(0.1);
+    expect(c.rig.bones[0].position.y).toBeGreaterThan(y0); // rears first
+    c.drive.screech = 1;
+    for (let i = 0; i < 30; i++) c.update(1 / 30);
+    expect(c.drive.slam).toBe(0);
+    expect(c.drive.screech).toBe(0);
+  });
+
+  it('counts legs and reports severed limbs', async () => {
+    const { creatureGore } = await import('../src/creatures/gore');
+    const c = new Creature('mournback', 3, 0);
+    c.update(1 / 30);
+    const legs = c.legsIntact;
+    const cut: string[] = [];
+    c.onLimbSevered = (id) => cut.push(id);
+    expect(creatureGore.sever(new THREE.Scene(), c, 'legL0')).toBe(true);
+    expect(cut).toContain('legL0');
+    expect(c.legsIntact).toBe(legs - 1);
+  });
+});
