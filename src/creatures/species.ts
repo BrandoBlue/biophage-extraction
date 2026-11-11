@@ -181,6 +181,12 @@ export function bilecantor(seed: number, stage = 0): BodyPlan {
     b.skin({ shape: 'ellipsoid', a: at, radii: V(0.22, 0.28, 0.22), blend: 0.12, bone: sb, tint: tint(ZONE7.magenta, 0.6).lerp(col('#ffffff'), 0.5) });
   }
   b.skin({ shape: 'ellipsoid', a: V(0, h - 1.42, 0), radii: V(0.28, 0.2, 0.28), blend: 0.1, bone: throat, tint: raw(1.2) });
+  // A ring of lidless eyes around the throat stalk, watching every direction (360° sight in the GDD).
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    const hit = b.surf(V(Math.cos(a) * 1.2, h - 0.75, Math.sin(a) * 1.2), V(-Math.cos(a), -0.15, -Math.sin(a)));
+    b.part({ id: `eye${i}`, type: 'eye', bone: throat, at: hit.at.clone().addScaledVector(hit.normal, -0.03), dir: hit.normal.clone().add(V(0, -0.4, 0)), size: 0.075 + (i % 3) * 0.015, material: 'eye', dynamic: true });
+  }
   // The translucent, veined gas bladder.
   b.part({ id: 'bladder', type: 'membraneDome', bone: body, at: V(0, h - 0.95, 0), dir: V(0, 1, 0), size: 1.5, p: [0.92, 0.82], material: 'membrane', dynamic: true });
   // Three song pustules on the flanks: the weak points.
