@@ -1,0 +1,27 @@
+/* Item grids, drag ghost and item tooltips: shared by the Hive stash and the in-raid cavities. */
+.grid { --cell:calc(var(--u) * 3.6); position:relative; width:calc(var(--cell) * var(--cols)); height:calc(var(--cell) * var(--rows)); touch-action:none; }
+.grid .cells { position:absolute; inset:0; display:grid; grid-template-columns:repeat(var(--cols), 1fr); grid-template-rows:repeat(var(--rows), 1fr); }
+.grid .cells i { border:1px solid color-mix(in srgb, var(--acid) 14%, transparent); background:color-mix(in srgb, var(--background) 55%, transparent); box-shadow:inset 0 0 6px color-mix(in srgb, var(--background) 90%, transparent); }
+.grid .item { position:absolute; left:calc(var(--cell) * var(--x)); top:calc(var(--cell) * var(--y)); width:calc(var(--cell) * var(--w)); height:calc(var(--cell) * var(--h)); box-sizing:border-box; padding:2px;
+  background:radial-gradient(ellipse at 50% 45%, color-mix(in srgb, var(--kc) 22%, transparent), color-mix(in srgb, var(--panel) 70%, transparent) 75%);
+  border:1px solid color-mix(in srgb, var(--kc) 65%, transparent); cursor:grab; transition:box-shadow .12s, filter .12s; }
+.grid .item:hover { box-shadow:0 0 calc(var(--u) * .9) color-mix(in srgb, var(--kc) 70%, transparent), inset 0 0 calc(var(--u) * .9) color-mix(in srgb, var(--kc) 30%, transparent); z-index:2; }
+.grid .item .icon { width:100%; height:100%; display:block; pointer-events:none; }
+.grid .item.lifted { opacity:.25; }
+.grid .item.selected { outline:2px solid var(--path-viral); box-shadow:0 0 calc(var(--u) * 1) var(--path-viral); }
+.grid .hint-box { position:absolute; display:none; pointer-events:none; left:calc(var(--cell) * var(--x)); top:calc(var(--cell) * var(--y)); width:calc(var(--cell) * var(--w)); height:calc(var(--cell) * var(--h)); box-sizing:border-box; z-index:3; }
+.grid .hint-box.on { display:block; }
+.grid .hint-box.fit { background:color-mix(in srgb, var(--acid) 22%, transparent); border:2px solid var(--acid); box-shadow:0 0 12px var(--acid); }
+.grid .hint-box.stack { background:color-mix(in srgb, var(--path-dna) 22%, transparent); border:2px solid var(--path-dna); }
+.grid .hint-box.blocked { background:color-mix(in srgb, var(--danger) 25%, transparent); border:2px solid var(--danger); }
+.drag-ghost { position:absolute; left:0; top:0; pointer-events:none; z-index:20; display:none; filter:drop-shadow(0 6px 10px var(--background)) drop-shadow(0 0 8px var(--acid)); }
+.drag-ghost.on { display:block; } .drag-ghost .icon { width:100%; height:100%; }
+.item-tip { position:absolute; z-index:19; width:calc(var(--u) * 19); padding:calc(var(--u) * .7) calc(var(--u) * .9); display:none; pointer-events:none; text-transform:none; letter-spacing:.02em; font-size:calc(var(--u) * .95);
+  background:color-mix(in srgb, var(--background) 94%, transparent); border:1px solid var(--acid); box-shadow:0 0 calc(var(--u) * 1.4) color-mix(in srgb, var(--acid) 25%, transparent); }
+.item-tip.on { display:block; }
+.item-tip .tt-head { display:flex; justify-content:space-between; align-items:baseline; border-bottom:1px solid var(--kc); padding-bottom:.3em; margin-bottom:.3em; }
+.item-tip .tt-head b { color:var(--kc); font-family:"Chakra Petch", sans-serif; font-size:1.15em; text-transform:uppercase; }
+.item-tip .tt-head span { font-size:.8em; opacity:.7; text-transform:uppercase; }
+.item-tip .tt-row { display:flex; justify-content:space-between; } .item-tip .tt-row span { opacity:.6; }
+.item-tip p { margin:.4em 0 0; } .item-tip .gain { color:var(--acid); } .item-tip .cost { color:var(--danger); } .item-tip .hint { opacity:.6; font-size:.9em; }
+.k-consumable { --kc:var(--acid); } .k-currency { --kc:var(--path-dna); } .k-mutagen { --kc:var(--lime); } .k-virus { --kc:var(--path-viral); } .k-tech { --kc:var(--cyan); } .k-organ { --kc:var(--magenta); }
