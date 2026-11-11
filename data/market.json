@@ -1,5 +1,5 @@
 {
-  "_note": "The Flesh Market (Host): a cyber-organic vendor in the Hive. Sells contraband for DNA, buys any item at value × buyRate. Stock rotates every real-time day (seeded by date). Appetite: feeding it organs it craves raises its mood, which lowers prices; selling it what it hates sours it.",
+  "_note": "The Flesh Market (Host): a cyber-organic vendor in the Hive. Sells contraband for DNA, buys any item at value \u00d7 buyRate. Stock rotates every real-time day (seeded by date). Appetite: feeding it organs it craves raises its mood, which lowers prices; selling it what it hates sours it.",
   "vendor": {
     "label": "The Gullet Broker",
     "brief": "A vast, sessile organism grown into the Hive wall: a translucent gullet three storeys tall with a choir of small human-sized hands reaching out of it to hand you goods, an iris of cybernetic lenses where a face should be, and a payment slit that swallows DNA. It speaks through a dozen throats at once, slightly out of sync. It is pleased by organs and offended by tech."
@@ -101,7 +101,9 @@
         2
       ],
       "stack": 1,
-      "effect": "on death, revive once with 50% Biomass after 3 s; the husk bursts out of your back"
+      "effect": "on death, revive once with 50% Biomass after 3 s; the husk bursts out of your back",
+      "reviveDelay": 3,
+      "reviveFraction": 0.5
     }
   }
 }

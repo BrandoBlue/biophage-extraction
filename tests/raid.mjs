@@ -204,6 +204,20 @@ try {
   await call('begin');
   await frames(2);
   await call('give', 'synapseLens', 1);
+  // Flesh Market gear: a grenade explodes after its fuse; a Heart Husk turns the first death into a revive.
+  await call('give', 'neuroSpikeGrenade', 1);
+  if (!(await call('grenade'))) await fail('could not throw a Neuro-Spike Grenade');
+  for (let i = 0; i < 40; i++) { await frames(2); s = await state(); if (s.grenades === 0) break; }
+  if (s.grenades !== 0) await fail('grenade never exploded');
+  await call('melee');
+  await call('give', 'heartHusk', 1);
+  await call('damage', 10000);
+  await frames(2);
+  s = await state();
+  if (s.phase !== 'raid' || !s.reviving) await fail(`Heart Husk did not catch the death: ${s.phase}, reviving ${s.reviving}`);
+  for (let i = 0; i < 40; i++) { await frames(2); s = await state(); if (!s.reviving) break; }
+  if (s.reviving || !(s.biomass > 0)) await fail(`Heart Husk revive did not finish: biomass ${s.biomass}`);
+  log(`Heart Husk revived the host at ${Math.round(s.biomass)} Biomass`);
   await call('damage', 10000);
   await frames(3);
   s = await state();

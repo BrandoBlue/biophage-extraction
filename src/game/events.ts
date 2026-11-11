@@ -34,6 +34,14 @@ export interface GameEvents {
   harvestStart: { type: string; time: number };
   harvestProgress: { progress: number };
   harvestDone: { item: string; type: string };
+  /** Melee strike (kit melee); `hit` is the creature id or null on a whiff. */
+  melee: { id: string; hit: number | null };
+  /** Flesh Market gear: thrown or placed, then detonated. */
+  gearUsed: { item: string };
+  explosion: { item: string; position: Vec3Like };
+  /** Heart Husk: lethal damage turned into a delayed revive. */
+  reviving: { time: number };
+  revived: { biomass: number };
   extractStart: { label: string; time: number };
   extractProgress: { progress: number; timeLeft: number };
   extractCancel: Record<string, never>;
