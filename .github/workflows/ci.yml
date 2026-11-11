@@ -3,10 +3,13 @@ on:
   pull_request:
   push:
     branches: [main]
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -15,12 +18,27 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - run: npm run build
-      - run: npm test
-      - run: npm run smoke
-      - uses: actions/upload-artifact@v4
+      - name: Type-check, build and pack the single-file release
+        run: npm run release
+      - name: Unit tests
+        run: npm test
+      - name: Smoke test (served build)
+        run: npm run smoke
+      - name: Smoke test (single-file build opened from disk)
+        run: npm run smoke:release
+      - name: Size and load budget
+        run: npm run budget
+      - name: Smoke screenshots and metrics
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: smoke-screenshot
+          name: smoke-screenshots
           path: tests/out/
           if-no-files-found: ignore
+      # Every PR gets a playable build: download the zip, unzip, double-click biophage-*.html.
+      - name: Playable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: biophage-playable-${{ github.sha }}
+          path: release/biophage-*.html
+          retention-days: 30

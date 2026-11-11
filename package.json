@@ -8,7 +8,10 @@
     "preview": "vite preview --port 4173 --strictPort",
     "test": "vitest run",
     "smoke": "node tests/smoke.mjs",
-    "check": "npm run build && npm test && npm run smoke"
+    "check": "npm run release && npm test && npm run smoke && npm run smoke:release && npm run budget",
+    "release": "npm run build && node scripts/bundle-single.mjs",
+    "smoke:release": "node tests/smoke.mjs --release",
+    "budget": "node tests/budget.mjs"
   },
   "repository": {
     "type": "git",
