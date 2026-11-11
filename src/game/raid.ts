@@ -155,9 +155,7 @@ export class Raid {
 
     RAID.containers.forEach((c, i) => {
       const [x, z] = layoutPosition(c, this.playable);
-      const pod = new BioPod(`${c.type}-${i}`, c.type, x, z);
-      this.pods.push(pod);
-      scene.add(pod.root);
+      this.dropContainer(c.type, x, z, `${c.type}-${i}`);
     });
 
     const [sx, sz] = layoutPosition(RAID.spawn, this.playable);
@@ -1016,6 +1014,19 @@ export class Raid {
     };
   }
 
+  /**
+   * Places a lootable container (any id in data/loot.json containers) on the ground: its contents roll from the
+   * loot table when it is first opened, through the same hold-E and transfer flow as the map's pods. PvE AI's
+   * Brood Heart calls this with 'broodCache' when it dies.
+   */
+  dropContainer(type: string, x: number, z: number, id = `${type}-drop-${this.pods.length}`): BioPod {
+    if (!LOOT.containers[type]) throw new Error(`unknown container ${type}`);
+    const pod = new BioPod(id, type, x, z);
+    this.pods.push(pod);
+    this.scene.add(pod.root);
+    return pod;
+  }
+
   /** State for tests/raid.mjs and tooling. */
   testState(): Record<string, unknown> {
     return {
@@ -1055,6 +1066,9 @@ export class Raid {
       grenade: () => this.throwGrenade(),
       mine: () => this.placeMine(),
       pouch: (item: string, n = 1) => this.carried.pouch.add(item, n),
+      /** Drops a container at the host's feet (offset 1.2 m on x); returns its id. */
+      dropContainer: (type: string) => this.dropContainer(type, this.player.position.x - 1.2, this.player.position.z).id,
+      openContainer: () => this.openContainer(),
       /** Injects the first carried vial of `item` (cavities, then pouch). */
       inject: (item: string) => {
         for (const zone of ['cavity', 'pouch'] as const) {

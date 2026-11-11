@@ -204,6 +204,16 @@ try {
   await call('begin');
   await frames(2);
   await call('give', 'synapseLens', 1);
+  // Brood Cache: the container PvE AI's Brood Heart drops on death always holds a Brood Heart Seed.
+  const cacheId = await call('dropContainer', 'broodCache');
+  await frames(1);
+  await call('hold', 'KeyE', true);
+  for (let i = 0; i < 60; i++) { await frames(3); s = await state(); if (s.pods.find((q) => q.id === cacheId)?.opened) break; }
+  await call('hold', 'KeyE', false);
+  if (!s.pods.find((q) => q.id === cacheId)?.opened) await fail('Brood Cache did not open while holding E');
+  const inCache = (await call('openContainer'))?.items ?? [];
+  if (![...s.carried.items, ...inCache].some((i) => i.item === 'broodHeartSeed')) await fail(`Brood Cache had no Brood Heart Seed: carried ${JSON.stringify(s.carried.items)} cache ${JSON.stringify(inCache)}`);
+  log(`Brood Cache opened: ${[...s.carried.items, ...inCache].map((i) => `${i.count}x ${i.item}`).join(', ')}`);
   // Flesh Market gear: a grenade explodes after its fuse; a Heart Husk turns the first death into a revive.
   await call('give', 'neuroSpikeGrenade', 1);
   if (!(await call('grenade'))) await fail('could not throw a Neuro-Spike Grenade');
