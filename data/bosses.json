@@ -468,5 +468,669 @@
       }
     },
     "respawn": "every raid"
+  },
+  "sandwidow": {
+    "label": "The Sandwidow",
+    "zone": "ochreReach",
+    "milestone": "host",
+    "brief": "The mother of every Dunewake: a 25 m segmented sand-swimmer with a body like a dune given muscle. Most of the fight she is under the sand, and the crater floor heaves where she moves. When she surfaces, a crown of fused jaw-plates splits open into six petals around a throat ringed with pale egg sacs, the only soft things on her. Grit pours off her in sheets. No neon: sand, bone, a wet pink throat.",
+    "size": {
+      "length": 25,
+      "surfaceHeight": 6
+    },
+    "biomass": 4200,
+    "arena": {
+      "shape": "impact crater",
+      "diameter": 80,
+      "depth": 10,
+      "landmark": "skyfallCrater",
+      "entrances": 3,
+      "hardCover": 6,
+      "debrisPillars": 4,
+      "exitWithin": 90
+    },
+    "dormantUntil": "a host steps onto the crater floor",
+    "songRadius": 120,
+    "wakeRadius": 40,
+    "songLoops": false,
+    "weakPoints": {
+      "throatSacs": {
+        "count": 4,
+        "biomassEach": 400,
+        "multiplier": 2.5,
+        "exposedWhile": "surfaced"
+      },
+      "jawPetals": {
+        "count": 6,
+        "biomassEach": 200,
+        "severedFrom": "erupt",
+        "onSevered": "her bite does 15% less each"
+      }
+    },
+    "phases": [
+      {
+        "id": "circle",
+        "from": 1.0,
+        "to": 0.65,
+        "speed": 9,
+        "turnRate": 1.2,
+        "holdDistance": 0,
+        "attacks": {
+          "undertow": {
+            "damage": 30,
+            "radius": 5,
+            "windup": 1.2,
+            "cooldown": 6,
+            "note": "the sand sinks into a funnel under the host, then she bites up through it"
+          },
+          "broodCall": {
+            "spawn": {
+              "type": "dunewake",
+              "count": 4
+            },
+            "cooldown": 25,
+            "firstDelay": 10,
+            "windup": 1.0
+          },
+          "surface": {
+            "every": 18,
+            "duration": 6,
+            "note": "she breaches to breathe: throat sacs exposed"
+          }
+        },
+        "note": "she circles under the sand; keep moving and stay on the debris pillars, shoot the sacs when she breaches"
+      },
+      {
+        "id": "erupt",
+        "from": 0.65,
+        "to": 0.3,
+        "speed": 7,
+        "turnRate": 1.0,
+        "holdDistance": 8,
+        "attacks": {
+          "breach": {
+            "damage": 55,
+            "radius": 6,
+            "windup": 1.0,
+            "cooldown": 9,
+            "note": "bursts out under the host and arcs across the crater"
+          },
+          "sandBlast": {
+            "damage": 20,
+            "coneDegrees": 50,
+            "range": 25,
+            "blindDuration": 2,
+            "cooldown": 12,
+            "windup": 0.8
+          },
+          "broodCall": {
+            "spawn": {
+              "type": "dunewake",
+              "count": 5
+            },
+            "cooldown": 20,
+            "firstDelay": 6,
+            "windup": 1.0
+          }
+        },
+        "note": "she stays up longer between dives; jaw petals can be severed"
+      },
+      {
+        "id": "drown",
+        "from": 0.3,
+        "to": 0.0,
+        "speed": 10,
+        "turnRate": 1.6,
+        "holdDistance": 0,
+        "bodyDamageMultiplier": 1.3,
+        "attacks": {
+          "quicksand": {
+            "floorFraction": 0.6,
+            "slowMultiplier": 0.4,
+            "damagePerSecond": 6,
+            "note": "the crater floor turns to sucking sand"
+          },
+          "thrash": {
+            "damage": 45,
+            "radius": 8,
+            "windup": 0.6,
+            "cooldown": 4
+          }
+        },
+        "note": "she drags the crater down with her; fight from the pillars and the rim"
+      }
+    ],
+    "enrage": {
+      "after": 480,
+      "effect": "the whole crater floor becomes quicksand; only the debris pillars are safe"
+    },
+    "rewards": {
+      "dna": 550,
+      "xp": 1200,
+      "container": "widowClutch",
+      "harvest": {
+        "item": "widowEgg",
+        "time": 6,
+        "noise": 45
+      }
+    },
+    "respawn": "every raid"
+  },
+  "nethermaw": {
+    "label": "The Nethermaw",
+    "zone": "marrowPit",
+    "milestone": "host",
+    "brief": "The thing at the bottom of the pit: a brain-coral mass the size of a house grown into the floor, its folds slowly pulsing with a sick green light that lights the whole shaft from below. In the middle is a mouth with no lips, rimmed with cilia, that breathes the updraft. Roots from it run up the walls; everything in the pit is its. It does not move; the pit moves for it. No neon: the green is the only light, dim and sickly.",
+    "size": {
+      "diameter": 14,
+      "height": 8
+    },
+    "biomass": 6000,
+    "arena": {
+      "shape": "pit floor",
+      "diameter": 50,
+      "landmark": "undermouth",
+      "ledges": 3,
+      "rootColumns": 4,
+      "exitWithin": 0,
+      "exitNote": "the updraft extract at its centre opens when it dies"
+    },
+    "dormantUntil": "a host reaches the deep layer",
+    "songRadius": 240,
+    "wakeRadius": 60,
+    "songLoops": true,
+    "stationary": true,
+    "weakPoints": {
+      "lobes": {
+        "count": 5,
+        "biomassEach": 500,
+        "multiplier": 2.5,
+        "exposedWhile": "a lobe swells to pulse"
+      },
+      "rootColumns": {
+        "count": 4,
+        "biomassEach": 400,
+        "onDestroyed": "its pulses lose 20% damage each"
+      }
+    },
+    "phases": [
+      {
+        "id": "breathe",
+        "from": 1.0,
+        "to": 0.6,
+        "speed": 0,
+        "turnRate": 0,
+        "holdDistance": 0,
+        "attacks": {
+          "updraftPull": {
+            "pullSpeed": 3,
+            "radius": 30,
+            "note": "the mouth breathes in; walkways sway, loose hosts slide toward it"
+          },
+          "spawnHollowed": {
+            "spawn": {
+              "type": "hollowed",
+              "count": 2
+            },
+            "cooldown": 30,
+            "firstDelay": 10,
+            "windup": 2
+          },
+          "sporePulse": {
+            "damage": 20,
+            "overload": 15,
+            "radius": 50,
+            "windup": 1.5,
+            "cooldown": 12,
+            "note": "a lobe swells and glows before each pulse"
+          }
+        },
+        "note": "shoot each lobe as it swells; break the root columns to weaken the pulses"
+      },
+      {
+        "id": "dream",
+        "from": 0.6,
+        "to": 0.25,
+        "speed": 0,
+        "turnRate": 0,
+        "holdDistance": 0,
+        "attacks": {
+          "falseLight": {
+            "fakeExtractGlows": 3,
+            "note": "it shows lights that look like the extract: they are traps that pulse"
+          },
+          "whisper": {
+            "overloadPerSecond": 4,
+            "radius": 60
+          },
+          "wallRoots": {
+            "damage": 35,
+            "range": 40,
+            "windup": 0.9,
+            "cooldown": 6,
+            "note": "roots burst from the walls at walkway height"
+          }
+        },
+        "note": "it gets into your head: false extract lights, overload creep; trust the map, not the glow"
+      },
+      {
+        "id": "swallow",
+        "from": 0.25,
+        "to": 0.0,
+        "speed": 0,
+        "turnRate": 0,
+        "holdDistance": 0,
+        "bodyDamageMultiplier": 1.5,
+        "attacks": {
+          "inhale": {
+            "pullSpeed": 7,
+            "radius": 35,
+            "damagePerSecondInMouth": 40
+          },
+          "collapseWalkways": {
+            "every": 10,
+            "note": "the lowest walkway ring tears loose"
+          }
+        },
+        "note": "the floor tilts into the mouth; get high and pour fire into the open throat"
+      }
+    ],
+    "enrage": {
+      "after": 540,
+      "effect": "permanent inhale at full pull; the bottom walkways go"
+    },
+    "rewards": {
+      "dna": 800,
+      "xp": 1800,
+      "container": "nethermawHeart",
+      "harvest": {
+        "item": "nethermawLobe",
+        "time": 7,
+        "noise": 50
+      }
+    },
+    "respawn": "every raid"
+  },
+  "mireRegent": {
+    "label": "The Mire Regent",
+    "zone": "weepingFen",
+    "milestone": "host",
+    "brief": "A bloated amphibious thing the size of a barge that lives under the black pool: a frog's mouth wide as a door, a soft pale belly hung with pearls of something it has grown, and two long arms like drowned branches. Eyes on the tops of its head only, so it watches the surface from below. When it rises, water sheets off moss and slime. No neon: black water, pale belly, moss, a faint glow in the pearls.",
+    "size": {
+      "length": 14,
+      "height": 5
+    },
+    "biomass": 4600,
+    "arena": {
+      "shape": "deep pool ringed with roots",
+      "diameter": 55,
+      "landmark": "regentPool",
+      "rootIslands": 6,
+      "waterDepth": "chest deep, deep centre",
+      "exitWithin": 80
+    },
+    "dormantUntil": "a host wades into the pool",
+    "songRadius": 100,
+    "wakeRadius": 25,
+    "songLoops": true,
+    "weakPoints": {
+      "pearls": {
+        "count": 5,
+        "biomassEach": 300,
+        "multiplier": 2.5,
+        "exposedWhile": "rearing"
+      },
+      "eyes": {
+        "count": 2,
+        "multiplier": 2.0,
+        "onHit": "it dives early"
+      }
+    },
+    "phases": [
+      {
+        "id": "lurk",
+        "from": 1.0,
+        "to": 0.6,
+        "speed": 3,
+        "turnRate": 0.8,
+        "holdDistance": 0,
+        "attacks": {
+          "dragUnder": {
+            "damage": 25,
+            "pin": 2.5,
+            "damagePerSecond": 10,
+            "freedByDamage": 100,
+            "range": 6,
+            "windup": 0.6,
+            "cooldown": 12,
+            "note": "an arm rises out of the water and pulls a host under"
+          },
+          "ripple": {
+            "damage": 15,
+            "radius": 10,
+            "windup": 0.8,
+            "cooldown": 8
+          },
+          "callBrood": {
+            "spawn": {
+              "type": "mirebrood",
+              "count": 8
+            },
+            "cooldown": 30,
+            "firstDelay": 10,
+            "windup": 1
+          }
+        },
+        "note": "stay on the root islands; shoot the arm to free a teammate"
+      },
+      {
+        "id": "rise",
+        "from": 0.6,
+        "to": 0.3,
+        "speed": 4,
+        "turnRate": 1.0,
+        "holdDistance": 10,
+        "attacks": {
+          "bellySlam": {
+            "damage": 50,
+            "radius": 8,
+            "windup": 1.2,
+            "cooldown": 10
+          },
+          "tongue": {
+            "damage": 40,
+            "range": 20,
+            "pull": true,
+            "windup": 0.7,
+            "cooldown": 8
+          },
+          "mossCloud": {
+            "radius": 12,
+            "damagePerSecond": 6,
+            "overloadPerSecond": 6,
+            "duration": 5,
+            "cooldown": 15,
+            "windup": 1.0
+          }
+        },
+        "note": "it rears up out of the pool: the pearls are exposed"
+      },
+      {
+        "id": "drown",
+        "from": 0.3,
+        "to": 0.0,
+        "speed": 5,
+        "turnRate": 1.4,
+        "holdDistance": 0,
+        "bodyDamageMultiplier": 1.3,
+        "attacks": {
+          "flood": {
+            "waterRises": 1.5,
+            "overSeconds": 60,
+            "note": "the pool spills; the islands shrink"
+          },
+          "thrash": {
+            "damage": 45,
+            "radius": 7,
+            "windup": 0.6,
+            "cooldown": 4
+          }
+        },
+        "note": "the fen floods; high ground and pearls"
+      }
+    ],
+    "enrage": {
+      "after": 480,
+      "effect": "the islands go under; water everywhere drains Biomass 4/s"
+    },
+    "rewards": {
+      "dna": 600,
+      "xp": 1300,
+      "container": "regentHoard",
+      "harvest": {
+        "item": "regentPearl",
+        "time": 5,
+        "noise": 35
+      }
+    },
+    "respawn": "every raid"
+  },
+  "hymnal": {
+    "label": "The Hymnal",
+    "zone": "hollowChoir",
+    "milestone": "apex",
+    "brief": "At the bottom of the Hollow Choir: a cathedral-sized throat of stone and flesh whose walls are lined with thousands of vocal cords strung like harp strings. It has no body to shoot, only the cords and the four 'cantors' (hanging larynx organs) that conduct them. Sound is light here: every noise you make lights you up for it.",
+    "size": {
+      "height": 40
+    },
+    "biomass": 7000,
+    "arena": {
+      "shape": "vertical cave cathedral",
+      "diameter": 45,
+      "height": 40,
+      "landmark": "choirFloor",
+      "ledges": 4,
+      "exitWithin": 100
+    },
+    "dormantUntil": "any noise louder than a walk on the choir floor",
+    "songRadius": 300,
+    "wakeRadius": 45,
+    "songLoops": true,
+    "stationary": true,
+    "weakPoints": {
+      "cantors": {
+        "count": 4,
+        "biomassEach": 900,
+        "multiplier": 2.5
+      },
+      "cords": {
+        "count": 24,
+        "biomassEach": 60,
+        "onDestroyed": "that wall stops lighting you up"
+      }
+    },
+    "phases": [
+      {
+        "id": "listen",
+        "from": 1.0,
+        "to": 0.6,
+        "speed": 0,
+        "turnRate": 0,
+        "holdDistance": 0,
+        "attacks": {
+          "soundLance": {
+            "damage": 45,
+            "windup": 0.5,
+            "cooldown": 3,
+            "targets": "the loudest host"
+          },
+          "echoSwarm": {
+            "spawn": {
+              "type": "oculimoth",
+              "count": 6
+            },
+            "cooldown": 25,
+            "firstDelay": 10,
+            "windup": 1
+          }
+        },
+        "note": "move quiet, shoot the cantors from the dark"
+      },
+      {
+        "id": "chorus",
+        "from": 0.6,
+        "to": 0.25,
+        "speed": 0,
+        "turnRate": 0,
+        "holdDistance": 0,
+        "attacks": {
+          "resonance": {
+            "damage": 25,
+            "overload": 20,
+            "radius": 45,
+            "windup": 2,
+            "cooldown": 14
+          },
+          "shatter": {
+            "stalactites": 5,
+            "damage": 50,
+            "radius": 3,
+            "warning": 1.2,
+            "cooldown": 12
+          }
+        },
+        "note": "the whole cathedral sings; stalactites fall"
+      },
+      {
+        "id": "silence",
+        "from": 0.25,
+        "to": 0.0,
+        "speed": 0,
+        "turnRate": 0,
+        "holdDistance": 0,
+        "bodyDamageMultiplier": 1.3,
+        "attacks": {
+          "deadAir": {
+            "note": "all light goes out; only gunfire lights the room for 1 s"
+          },
+          "soundLance": {
+            "damage": 60,
+            "windup": 0.3,
+            "cooldown": 2,
+            "targets": "the loudest host"
+          }
+        },
+        "note": "pitch dark; every shot gives you away"
+      }
+    ],
+    "enrage": {
+      "after": 600,
+      "effect": "constant resonance"
+    },
+    "rewards": {
+      "dna": 1200,
+      "xp": 2500,
+      "harvest": {
+        "item": "hymnalTongue",
+        "time": 8,
+        "noise": 60
+      }
+    },
+    "respawn": "every raid"
+  },
+  "boneTide": {
+    "label": "The Bone Tide",
+    "zone": "ossuaryReef",
+    "milestone": "apex",
+    "brief": "The squad raid boss: a coral-reef colony organism hundreds of metres long that migrates across the dry sea floor in low gravity, carrying a forest of bone coral on its back. You fight it as it moves: climb onto it, crack open its four buried hearts, and get off before it reaches the void edge. Built for squads; a solo host can only harvest from its trail.",
+    "size": {
+      "length": 300,
+      "height": 40
+    },
+    "biomass": 40000,
+    "arena": {
+      "shape": "a moving creature crossing an open reef",
+      "landmark": "tidePath",
+      "lengthTravelled": 900,
+      "exitWithin": 150
+    },
+    "dormantUntil": "it rises from the reef floor at minute 8 of the raid",
+    "songRadius": 1000,
+    "wakeRadius": 0,
+    "songLoops": true,
+    "moving": true,
+    "weakPoints": {
+      "hearts": {
+        "count": 4,
+        "biomassEach": 6000,
+        "multiplier": 2.0,
+        "exposedWhile": "the coral over it is broken"
+      },
+      "coralPlates": {
+        "count": 12,
+        "biomassEach": 800
+      }
+    },
+    "phases": [
+      {
+        "id": "migrate",
+        "from": 1.0,
+        "to": 0.5,
+        "speed": 2.5,
+        "turnRate": 0.1,
+        "holdDistance": 0,
+        "attacks": {
+          "shrugOff": {
+            "damage": 40,
+            "radius": 12,
+            "windup": 1.5,
+            "cooldown": 15
+          },
+          "reefSpawn": {
+            "spawn": {
+              "type": "needlemaw",
+              "count": 6
+            },
+            "cooldown": 20,
+            "firstDelay": 15,
+            "windup": 1
+          }
+        },
+        "note": "climb on, break plates, find the hearts"
+      },
+      {
+        "id": "breach",
+        "from": 0.5,
+        "to": 0.15,
+        "speed": 3.5,
+        "turnRate": 0.2,
+        "holdDistance": 0,
+        "attacks": {
+          "rollover": {
+            "damage": 80,
+            "windup": 4,
+            "cooldown": 40,
+            "note": "it rolls; anything on top must hold on or fall"
+          },
+          "boneRain": {
+            "damage": 30,
+            "radius": 4,
+            "count": 10,
+            "warning": 1.5,
+            "cooldown": 18
+          }
+        },
+        "note": "it fights back; it rolls"
+      },
+      {
+        "id": "sink",
+        "from": 0.15,
+        "to": 0.0,
+        "speed": 4,
+        "turnRate": 0.2,
+        "holdDistance": 0,
+        "attacks": {
+          "dive": {
+            "after": 60,
+            "note": "it dives into the void edge; whoever is still on it goes with it"
+          }
+        },
+        "note": "last minute: kill the last heart and jump"
+      }
+    ],
+    "enrage": {
+      "after": 900,
+      "effect": "it reaches the void edge and dives"
+    },
+    "rewards": {
+      "dna": 3000,
+      "xp": 5000,
+      "harvest": {
+        "item": "tideHeart",
+        "time": 8,
+        "noise": 80
+      }
+    },
+    "respawn": "once per raid, squad raids only"
   }
 }

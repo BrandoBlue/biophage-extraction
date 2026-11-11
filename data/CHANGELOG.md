@@ -2,6 +2,15 @@
 
 Every tuning change to `data/*.json`, newest first, with the reason.
 
+## Three new zones, Apex and online (2026-11-11, Brandon: everything now)
+- zones.json: `ochreReach`, `weepingFen` and `marrowPit` (orders 4–6, with depth `layers` for the pit). The Hollow Choir and Ossuary Reef move to orders 7–8 and get sizes, landmarks, creatures and bosses.
+- abominations.json: nine creatures (Dunewake, Bristleback, Shroudling, Cablecrawler, Veilwing, the Hollowed, Fenstalker, Mirebrood, Mistwader), introducedIn host.
+- bosses.json: the Sandwidow, the Nethermaw, the Mire Regent; Apex: the Hymnal, the Bone Tide.
+- loot.json: 15 organs and catalysts, 3 tech items, the Undermouth Spore; containers Settler Locker, Pit Crate, Deep Cache, Root Hollow, Drowned Pod Locker and three boss hoards.
+- habitats.json: homes and loot placement for all five zones; the Glowmire Glasswalker fallback is removed now that the fungal caves exist.
+- contracts.json: three zone-unlock contracts and three boss contracts. progression.json: kill XP; Apex evolutions get stat changes, grants, full body briefs, and new-boss catalysts.
+- online.json (new): the Hive milestone's online rules.
+
 ## The Pale Vigil (2026-11-11, Brandon: harder, scarier, more bosses)
 - bosses.json: `paleVigil`, Glowmire's second boss in the fungal caves. 2400 Biomass, a silent ceiling-hanger with a lure; phases hang, stalk and unravel; enrage at 360 s.
 - loot.json: Vigil Lure (organ catalyst) and the Vigil's Cocoon container. progression.json xp.kill.paleVigil 900. zones.json glowmireIsle `bosses`. contracts.json: the Archivist's *The Light Under the Cliff*.
