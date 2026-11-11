@@ -98,7 +98,7 @@ function bootRaid(): void {
   resize();
 
   const prompt = document.querySelector<HTMLElement>('#prompt')!;
-  document.querySelector('#build')!.textContent = `v${pkg.version} · SPORE`;
+  document.querySelector('#build')!.textContent = `v${pkg.version} · LARVA`;
   document.addEventListener('pointerlockchange', () => prompt.classList.toggle('hidden', document.pointerLockElement === canvas));
 
   let frames = 0;

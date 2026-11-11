@@ -247,5 +247,10 @@
         }
       }
     ]
+  },
+  "armoury": {
+    "_note": "Class signature weapons (weapons.json unlock): once the host reaches the level as that class, the Hive Armoury grows copies for DNA. A grown copy is an ordinary item: carried into a raid it can be lost.",
+    "priceFraction": 0.6,
+    "growTime": 0
   }
 }

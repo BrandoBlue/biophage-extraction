@@ -51,6 +51,67 @@ Most guns eat a **feed**: Spore Feed Sacs, Needle Quivers, Shard Clutches or Bol
 - **Spread while moving:** marksman guns punish moving shots (×1.6 to ×2.0).
 - **Falloff:** shotguns drop to 25% damage by 15 to 18 m. Marksman guns keep 70 to 80% out to their range.
 
+## How you get a gun
+Every gun reaches you in one or more of four ways. `weaponSources(id)` in `data/index.ts` returns them all.
+1. **Class signature (levelling).** Each class has three signature guns, unlocked at host levels 3, 6 and 10 while you play that class. Once a gun is unlocked, the **Hive Armoury** grows copies for DNA at 60% of its value (`progression.json` `armoury`). A grown copy is an ordinary item: take it into a raid and you can lose it.
+   | Class | Level 3 | Level 6 | Level 10 |
+   | --- | --- | --- | --- |
+   | Neuro-Infiltrator | Cicadine | Eyestalk Marksman | Lumen Lance |
+   | Venom-Wraith | Stinger Choir | Marrow Hand | Leviathan Quill |
+   | Gore-Behemoth | Gullet Scatter | Bloomcannon | Brood Mortar |
+2. **Found** in containers, as listed in the roster table.
+3. **Bought** from vendors, gated by reputation.
+4. **Torn from a boss.** Relics come only from bosses.
+
+The loadout is the innate starter plus **two weapon slots** (`profile.json` `weaponSlots`). Equipped guns and their mods are lost on death. The starter is never lost.
+
+## Mods: living grafts
+Mods bud onto a gun's four sockets, which are visible on the model:
+- **barrel**
+- **sight** (only guns that zoom have one)
+- **under**
+- **chamber**
+
+The numbers are in `data/mods.json`:
+- `effects.mult` multiplies a weapon field by its dotted path.
+- `effects.set` replaces a field.
+- `effects.special` is a behaviour Gameplay implements: acid, seek, leech, splinter or weakPointGlow.
+
+A mod stays on its gun and is lost with it, so modding your best gun raises the stakes of taking it in.
+
+| Mod | Socket | Rarity | Effect | Where it comes from |
+| --- | --- | --- | --- | --- |
+| Lamprey Mouth | barrel | common | hip spread ×0.8, ADS spread ×0.85 | Bio-Pods; Archivist; Vat: 3 Needlemaw glands |
+| Hush Gill | barrel | uncommon | gunfire noise ×0.5, projectile speed ×0.9 | Archivist rep 2; Vat: 3 Oculimoth eyes |
+| Barb Crown | barrel | rare | damage ×1.1, recoil ×1.15 | cargo crates; Mother Clot rep 3 |
+| Pupil Bud | sight | common | zoom ×1.25, ADS time ×1.1 | Bio-Pods; Archivist |
+| Night Eye | sight | rare | zoom ×1.5, weak points glow to 40 m | sealed lockers; Archivist rep 3; Vat: 2 Glasswalker lenses |
+| Stalk Eye | sight | epic | turns a carbine, rifle or marksman gun into a 3× scope | sealed lockers |
+| Tendon Brace | under | common | recoil ×0.75 | Bio-Pods; Mother Clot |
+| Light Bone | under | uncommon | faster swap and ADS, +3% move speed | cargo crates; Archivist rep 2 |
+| Cling Root | under | uncommon | moving spread ×0.8 | Mother Clot rep 2 |
+| Quick Gullet | chamber | common | reload ×0.75 | Bio-Pods; Mother Clot |
+| Swollen Sac | chamber | uncommon | magazine ×1.5, reload ×1.15 | cargo crates |
+| Acid Strain | chamber | rare | hits apply 3 acid DPS for 3 s | Brood caches; Vat: 2 Cantor song sacs |
+| Seeker Strain | chamber | epic | shots curve gently toward targets within 6 m | Gene Blooms; the Reliquary's cage |
+| Leech Strain | chamber | epic | 4% of damage dealt heals Biomass | Brood caches; Gullet Broker (Host) |
+| Splinter Strain | chamber | epic | weak-point hits burst into 3 bone shards | sealed lockers |
+
+Each mod has a `look` line, so the graft reads on the gun from across a room.
+
+## Firing and reloading must feel alive
+Brandon wants much better weapon animation and firing. The numbers are in `data/weapon-feel.json`:
+- **Reload beats.** Each reload style is a short sequence of poses, each with a sound cue, timed as fractions of the reload. The model and the arm must hit every pose:
+  - magazine: tear the spent sac free (it keeps twitching on the ground), press a fresh one in, the feed tentacles grab it, the eyes reopen.
+  - perShell: the jaw opens, you thumb a shell in, it gulps. You can cancel into a shot.
+  - regrow: the gun curls up, tissue visibly swells in pulses, then it flexes open.
+- **Fire feel per class:**
+  - camera kick, screen shake, how far the gun body pushes back, and settle time
+  - an organic muzzle bloom (a spray, never a star)
+  - the scale runs from SMGs (a light, fast chatter) up to shotguns and snipers (a heavy shove)
+- **Idle.** Every gun breathes, and rarer guns twitch more often.
+- **Impact.** Hit-markers and wound VFX only; weak-point hits get a bigger marker. Never damage numbers.
+
 ## Habitats: every creature lives somewhere
 No creature appears at a random point any more. `data/habitats.json` gives each species a **home** in each zone, and the `where` field says where that home is:
 - `landmark`: a named landmark.
@@ -105,8 +166,8 @@ In the Long Seed, the crates are in the holds and the lockers are in the warrens
 ## Department asks
 | Department | Build |
 | --- | --- |
-| Gameplay Engineering | A data-driven weapon engine for the schema above; feed items as ammo; spawning from `HABITATS` via `habitatGroups(zone, kind, milestone)` instead of `spawnGroups`; reinforcements walk in from homes. |
-| Creature & Mutation | One living model per weapon from its `fantasy` line, a reload animation per `reload.style`, an eye-scope overlay for `scope: true`, rarity readable on the model. |
+| Gameplay Engineering | A data-driven weapon engine for the schema above; feed items as ammo; two weapon slots; mods applied from `MODS` (`modFits`); the Armoury for class signature guns; reload beats and fire feel from `WEAPON_FEEL`; spawning from `HABITATS` via `habitatGroups(zone, kind, milestone)` instead of `spawnGroups`; reinforcements walk in from homes. |
+| Creature & Mutation | One living model per weapon from its `fantasy` line, with four visible graft sockets and a model per mod from its `look`; reload animations that hit every beat in `weapon-feel.json`, plus idle breathing, an eye-scope overlay for `scope: true`, rarity readable on the model. |
 | PvE AI & Encounters | `roam` leash per home; a Glasswalker that hatches on approach; Husk Mimics disguised as crates (Host); reinforcements path in from a home. |
 | World & Level | Places for every home: the fungal caves, the north-east grove, the rim falls, the tower top floor; container placement as listed. |
-| UI & HUD | Weapon cards (class, rarity, zoom or not, reload style, ammo), the ammo count by feed type, weapon stock in vendor screens. |
+| UI & HUD | Weapon cards (class, rarity, zoom or not, reload style, ammo, sources), a mod bench (drag a mod onto a socket, show the stat change), the Hive Armoury (signature guns by class and level), the ammo count by feed type, weapon and mod stock in vendor screens. |

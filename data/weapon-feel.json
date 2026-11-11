@@ -1,0 +1,159 @@
+{
+  "_note": "How firing and reloading should FEEL (docs/gdd/09). Reload beats are fractions of the weapon's reload time (perShell: of each shell's time), in order; each beat is a pose the model and arm must hit, with a sound cue. Fire feel per weapon class: kick = camera pitch kick in degrees per shot, shake = screen shake 0-1, push = how far the gun body recoils back in metres, settle = seconds to return, flash = muzzle bloom size in metres (organic spray, not a star). Gameplay and Creature read these; tune here.",
+  "reload": {
+    "magazine": {
+      "beats": [
+        {
+          "at": 0.0,
+          "pose": "arm tilts, spent sac twitches",
+          "cue": "wet squelch"
+        },
+        {
+          "at": 0.2,
+          "pose": "host tears the spent sac free; it falls and twitches on the ground for 2 s",
+          "cue": "rip"
+        },
+        {
+          "at": 0.5,
+          "pose": "fresh sac pressed in; feed tentacles grab it",
+          "cue": "suck"
+        },
+        {
+          "at": 0.8,
+          "pose": "gun shudders, eyes reopen, ready",
+          "cue": "click of chitin"
+        }
+      ],
+      "emptyExtraPose": "host slaps the gun's flank to wake it"
+    },
+    "perShell": {
+      "beats": [
+        {
+          "at": 0.0,
+          "pose": "throat/cylinder opens",
+          "cue": "jaw creak"
+        },
+        {
+          "at": 0.4,
+          "pose": "one shell pushed in by thumb",
+          "cue": "gulp"
+        },
+        {
+          "at": 0.9,
+          "pose": "throat closes round it",
+          "cue": "soft clack"
+        }
+      ],
+      "cancelAt": 0.9,
+      "openAndCloseTime": 0.25
+    },
+    "regrow": {
+      "beats": [
+        {
+          "at": 0.0,
+          "pose": "gun curls inward, eyes close",
+          "cue": "low hum"
+        },
+        {
+          "at": 0.5,
+          "pose": "new tissue swells visibly along the body, glow builds in pulses",
+          "cue": "heartbeat"
+        },
+        {
+          "at": 0.95,
+          "pose": "gun uncurls and flexes",
+          "cue": "exhale"
+        }
+      ]
+    }
+  },
+  "fire": {
+    "sidearm": {
+      "kick": 1.2,
+      "shake": 0.08,
+      "push": 0.03,
+      "settle": 0.12,
+      "flash": 0.15
+    },
+    "smg": {
+      "kick": 0.35,
+      "shake": 0.05,
+      "push": 0.015,
+      "settle": 0.06,
+      "flash": 0.12
+    },
+    "carbine": {
+      "kick": 0.45,
+      "shake": 0.06,
+      "push": 0.02,
+      "settle": 0.08,
+      "flash": 0.15
+    },
+    "rifle": {
+      "kick": 0.7,
+      "shake": 0.1,
+      "push": 0.03,
+      "settle": 0.1,
+      "flash": 0.2
+    },
+    "shotgun": {
+      "kick": 3.5,
+      "shake": 0.35,
+      "push": 0.09,
+      "settle": 0.3,
+      "flash": 0.4
+    },
+    "marksman": {
+      "kick": 2.2,
+      "shake": 0.2,
+      "push": 0.06,
+      "settle": 0.25,
+      "flash": 0.25
+    },
+    "sniper": {
+      "kick": 5,
+      "shake": 0.45,
+      "push": 0.12,
+      "settle": 0.5,
+      "flash": 0.35
+    },
+    "launcher": {
+      "kick": 3,
+      "shake": 0.3,
+      "push": 0.1,
+      "settle": 0.4,
+      "flash": 0.3
+    },
+    "beam": {
+      "kick": 1.5,
+      "shake": 0.25,
+      "push": 0.04,
+      "settle": 0.3,
+      "flash": 0.5
+    },
+    "relic": {
+      "kick": 1.2,
+      "shake": 0.2,
+      "push": 0.04,
+      "settle": 0.2,
+      "flash": 0.35
+    }
+  },
+  "idle": {
+    "breathe": {
+      "period": 3.2,
+      "amplitude": 0.004
+    },
+    "twitchEvery": [
+      6,
+      14
+    ],
+    "note": "every gun breathes; rarer guns twitch more often (relic twice as often as common)"
+  },
+  "impact": {
+    "hitMarkerTime": 0.12,
+    "weakPointHitMarkerScale": 1.4,
+    "fleshDecalLife": 20,
+    "note": "no damage numbers ever; hit-markers and wound VFX only"
+  }
+}

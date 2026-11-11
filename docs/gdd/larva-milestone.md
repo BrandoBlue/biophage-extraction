@@ -92,6 +92,9 @@ Full spec in [09](09-weapons-and-habitats.md).
 - [ ] Guns and feeds drop from containers and sell at Mother Clot and the Archivist; the Reliquary Hymn drops from the Reliquary.
 - [ ] **Habitats**: Glowmire and Long Seed creatures spawn only at their homes (`HABITATS`, `habitatGroups`); reinforcements walk in from a home.
 - [ ] Containers placed as in `HABITATS.loot`.
+- [ ] **Mods** on four graft sockets, from loot, vendors and the Vat; a mod bench in the Hive.
+- [ ] **Armoury**: Neuro-Infiltrator signature guns unlock at host levels 3, 6 and 10.
+- [ ] Reload and fire feel to `weapon-feel.json`: every reload beat visible, a kick per class.
 
 ## Out of scope for Larva
 Wraith and Behemoth playable, Genetic Synapse tree, Viral Lab integration, Flesh Market, rival host bots, multiplayer.

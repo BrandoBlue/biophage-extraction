@@ -3,7 +3,7 @@ import {
   ABILITIES, ABOMINATIONS, CLASSES, HOST, KITS, LOOT, MARKET, NESTS, PROFILE, PROGRESSION, RAID, RIVALS, SYNAPSE, VIRAL_LAB, VIRUSES, WEAPONS,
   itemDef, levelForXp, marketPrice, nodeMutagenCost,
   BOSSES, CONTRACTS, HIVE_ORGANS, RECIPES, VENDORS, VENDOR_REP_THRESHOLDS, ZONES, bossPhase, vendorBuyPrice, vendorRepLevel,
-  HABITATS, RARITIES, ZONE_SITES, habitatGroups, sustainedDps, type HabitatWhere, type WeaponDef,
+  HABITATS, MODS, WEAPON_FEEL, RARITIES, modFits, weaponSources, ZONE_SITES, habitatGroups, sustainedDps, type HabitatWhere, type WeaponDef,
   extractTimeFor, haulValue, layoutPosition, stashRowCost, projectileDamage, rollContainer, weaponSpec,
 } from '../data';
 import { mulberry32 } from '../src/world/zone7';
@@ -389,6 +389,55 @@ describe('weapon roster and habitats (docs/gdd/09)', () => {
       expect(CLASSES.neuroInfiltrator.biomass / sustainedDps(w), id).toBeGreaterThanOrEqual(0.6);
       expect(sustainedDps(w), id).toBeGreaterThanOrEqual(30);
       expect(w.damage * w.pellets, id).toBeLessThan(CLASSES.neuroInfiltrator.biomass); // no one-shot body kills
+    }
+  });
+
+  it('class signature weapons: three per class, at real levels, and every gun has a way in', () => {
+    for (const c of Object.keys(CLASSES)) {
+      const sig = roster.filter(([, w]) => w.unlock?.class === c);
+      expect(sig.length, c).toBeGreaterThanOrEqual(3);
+    }
+    for (const [id, w] of roster) {
+      if (w.unlock) {
+        expect(CLASSES[w.unlock.class], id).toBeDefined();
+        expect(w.unlock.level, id).toBeGreaterThanOrEqual(2);
+        expect(w.unlock.level, id).toBeLessThanOrEqual(PROGRESSION.levels.length);
+      }
+      if (id === 'synapseBurster') continue;
+      const s = weaponSources(id);
+      expect(Boolean(s.unlock) || s.containers.length > 0 || s.vendors.length > 0 || Boolean(s.boss), id).toBe(true);
+    }
+    expect(PROFILE.weaponSlots).toBeGreaterThanOrEqual(1);
+  });
+
+  it('mods: real items in real slots, every mod obtainable, every effect path exists on some gun', () => {
+    const get = (o: unknown, path: string) => path.split('.').reduce<unknown>((a, k) => (a && typeof a === 'object' ? (a as Record<string, unknown>)[k] : undefined), o);
+    const fromContainers = new Set(Object.values(LOOT.containers).flatMap((c) => [...c.table.map((e) => e.item), ...c.guaranteed.map((g) => g.item)]));
+    const fromVendors = new Set(Object.values(VENDORS).flatMap((v) => (v.stock ?? []).map((x) => x.item)));
+    const fromRecipes = new Set(Object.values(RECIPES).map((r) => r.output.item));
+    for (const [id, m] of Object.entries(MODS)) {
+      expect(itemDef(id)?.kind, id).toBe('mod');
+      expect(['barrel', 'sight', 'under', 'chamber'], id).toContain(m.slot);
+      expect(fromContainers.has(id) || fromVendors.has(id) || fromRecipes.has(id), `${id} obtainable`).toBe(true);
+      expect(roster.some(([, w]) => modFits(m, w)), `${id} fits something`).toBe(true);
+      for (const [path, k] of Object.entries(m.effects.mult ?? {})) {
+        expect(k, id).toBeGreaterThan(0);
+        if (path.startsWith('noise.')) continue; // the host's gunfire noise, not a weapon field
+        expect(roster.some(([, w]) => typeof get(w, path) === 'number'), `${id}: ${path}`).toBe(true);
+      }
+    }
+    for (const [id, w] of roster) {
+      expect(w.modSlots.includes('sight'), id).toBe(w.ads !== false);
+      expect(w.modSlots, id).toEqual(expect.arrayContaining(['barrel', 'under', 'chamber']));
+    }
+  });
+
+  it('every weapon class has fire feel and every reload style has ordered beats', () => {
+    for (const [id, w] of roster) expect(WEAPON_FEEL.fire[w.class], id).toBeDefined();
+    for (const [style, r] of Object.entries(WEAPON_FEEL.reload)) {
+      const at = r.beats.map((b) => b.at);
+      expect(at, style).toEqual([...at].sort((a, b) => a - b));
+      expect(Math.max(...at), style).toBeLessThan(1);
     }
   });
 

@@ -50,6 +50,8 @@ Owned by the Game Design department. Short living docs, one per system. **Every 
 | `data/contracts.json` | Contract chains and objectives | Gameplay, UI |
 | `data/hive.json` | Hive Body organs and Gestation recipes | Gameplay, UI |
 | `data/zones.json` | Zone roster: access, raid time, structures, foes, loot focus | World, AI, UI, Gameplay |
+| `data/mods.json` | Weapon mods: living grafts per socket | Gameplay, Creatures, UI |
+| `data/weapon-feel.json` | Reload beats and firing feel per class | Gameplay, Creatures, Audio |
 | `data/habitats.json` | Where each species lives per zone; deliberate container placement | AI, World, Gameplay |
 | `data/bosses.json` | The Reliquary and the Warden: phases, weak points, arenas, rewards | Creatures, AI, World, Gameplay |
 

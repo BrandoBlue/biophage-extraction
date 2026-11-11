@@ -437,6 +437,156 @@
         1
       ],
       "stack": 8
+    },
+    "lampreyMouth": {
+      "label": "Lamprey Mouth",
+      "kind": "mod",
+      "value": 60,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "hushGill": {
+      "label": "Hush Gill",
+      "kind": "mod",
+      "value": 140,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "barbCrown": {
+      "label": "Barb Crown",
+      "kind": "mod",
+      "value": 300,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "pupilBud": {
+      "label": "Pupil Bud",
+      "kind": "mod",
+      "value": 60,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "nightEye": {
+      "label": "Night Eye",
+      "kind": "mod",
+      "value": 300,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "stalkEye": {
+      "label": "Stalk Eye",
+      "kind": "mod",
+      "value": 650,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "tendonBrace": {
+      "label": "Tendon Brace",
+      "kind": "mod",
+      "value": 60,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "lightBone": {
+      "label": "Light Bone",
+      "kind": "mod",
+      "value": 140,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "clingRoot": {
+      "label": "Cling Root",
+      "kind": "mod",
+      "value": 140,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "quickGullet": {
+      "label": "Quick Gullet",
+      "kind": "mod",
+      "value": 60,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "swollenSac": {
+      "label": "Swollen Sac",
+      "kind": "mod",
+      "value": 140,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "acidStrain": {
+      "label": "Acid Strain",
+      "kind": "mod",
+      "value": 300,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "seekerStrain": {
+      "label": "Seeker Strain",
+      "kind": "mod",
+      "value": 650,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "leechStrain": {
+      "label": "Leech Strain",
+      "kind": "mod",
+      "value": 650,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "splinterStrain": {
+      "label": "Splinter Strain",
+      "kind": "mod",
+      "value": 650,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
     }
   },
   "containers": {
@@ -555,6 +705,38 @@
             1,
             1
           ]
+        },
+        {
+          "item": "lampreyMouth",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "pupilBud",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "tendonBrace",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "quickGullet",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
         }
       ]
     },
@@ -649,6 +831,22 @@
             2,
             4
           ]
+        },
+        {
+          "item": "acidStrain",
+          "weight": 4,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "leechStrain",
+          "weight": 2,
+          "count": [
+            1,
+            1
+          ]
         }
       ]
     },
@@ -723,6 +921,14 @@
         {
           "item": "seedKey",
           "weight": 6,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "seekerStrain",
+          "weight": 8,
           "count": [
             1,
             1
@@ -816,6 +1022,30 @@
           "count": [
             4,
             8
+          ]
+        },
+        {
+          "item": "stalkEye",
+          "weight": 4,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "splinterStrain",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "nightEye",
+          "weight": 4,
+          "count": [
+            1,
+            1
           ]
         }
       ]
@@ -930,6 +1160,30 @@
             1,
             1
           ]
+        },
+        {
+          "item": "lightBone",
+          "weight": 4,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "swollenSac",
+          "weight": 4,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "barbCrown",
+          "weight": 2,
+          "count": [
+            1,
+            1
+          ]
         }
       ]
     },
@@ -979,6 +1233,14 @@
         },
         {
           "item": "lumenLance",
+          "weight": 2,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "seekerStrain",
           "weight": 2,
           "count": [
             1,

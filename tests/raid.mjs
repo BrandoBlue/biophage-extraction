@@ -292,13 +292,32 @@ try {
   if (s.phase !== 'raid') await fail(`Deploy did not start the raid (${s.phase})`);
   await call('killAll'); // a quiet island for the scripted checks
   await call('setTimeScale', 3);
-  // Boss rewards (bosses.json): a Reliquary kill banks its DNA, drops the Reliquary Cage and a hold-E Reliquary Heart.
+  // The Reliquary (PvE AI's fight, Gameplay's rewards): walking into World's bowl wakes it, the boss bar names it;
+  // killing it banks its DNA, drops the Reliquary Cage and leaves the Reliquary Heart to cut out with E.
   s = await state();
   const dnaBefore = s.carried.dna;
-  await call('bossKilled', 'reliquary'); // at the host's feet
-  await frames(1);
-  s = await state();
-  if (!s.log.bosses.includes('reliquary') || !s.pods.some((q) => q.id === 'reliquaryCage-reliquary') || s.carried.dna <= dnaBefore) await fail(`Reliquary kill gave no rewards: ${JSON.stringify({ log: s.log, dna: s.carried.dna })}`);
+  if (s.boss && s.arena) {
+    const a = s.arena;
+    await call('teleport', a.x, a.z);
+    await call('aimAt', s.boss.centre[0], s.boss.centre[1], s.boss.centre[2]);
+    for (let i = 0; i < 60; i++) { await frames(2); s = await state(); if (s.boss.state === 'awake') break; }
+    if (s.boss.state !== 'awake') await fail(`the Reliquary did not wake: ${JSON.stringify(s.boss)}`);
+    await page.waitForFunction(() => /RELIQUARY/i.test(document.querySelector('#hud .h-boss:not(.hidden) .bh')?.textContent ?? ''), null, { timeout: 30000 })
+      .catch(() => fail('the boss bar did not name the Reliquary'));
+    await frames(20);
+    s = await state();
+    await call('aimAt', s.boss.centre[0], s.boss.centre[1], s.boss.centre[2]);
+    await freezeAndScreenshot(page, 'tests/out/raid-boss.png', { resume: true });
+    await call('hitBoss', 1e6, null);
+    await frames(2);
+    s = await state();
+    if (s.boss.state !== 'dead') await fail(`the Reliquary did not die: ${JSON.stringify(s.boss)}`);
+  } else {
+    await call('bossKilled', 'reliquary'); // no arena in this zone: pay out at the host's feet
+    await frames(1);
+    s = await state();
+  }
+  if (!s.log.bosses.includes('reliquary') || !s.pods.some((q) => q.id === 'reliquaryCage-reliquary') || s.carried.dna <= dnaBefore) await fail(`Reliquary kill gave no rewards: ${JSON.stringify({ bosses: s.log.bosses, pods: s.pods.map((q) => q.id), dna: s.carried.dna })}`);
   const heart = s.pods.find((q) => q.id === 'reliquary-harvest');
   if (!heart) await fail('the Reliquary Heart is not harvestable');
   await call('teleport', heart.position[0] - 1.2, heart.position[1]);
@@ -309,7 +328,7 @@ try {
   for (let i = 0; i < 60; i++) { await call('killAll'); await frames(1); s = await state(); if (s.pods.find((q) => q.id === 'reliquary-harvest')?.opened || s.phase !== 'raid') break; } // the cut's noise draws packs in: keep clearing them
   await call('hold', 'KeyE', false);
   const heartIn = [...s.carried.items, ...((await call('openContainer'))?.items ?? [])];
-  if (!heartIn.some((i) => i.item === 'reliquaryHeart')) await fail(`harvesting the Reliquary gave no Reliquary Heart: ${JSON.stringify({ heartIn, heart: s.pods.find((q) => q.id === 'reliquary-harvest'), at: await page.evaluate(() => window.__biophage.position), phase: s.phase, result: s.result })}`);
+  if (!heartIn.some((i) => i.item === 'reliquaryHeart')) await fail(`harvesting the Reliquary gave no Reliquary Heart: ${JSON.stringify({ heartIn, heart: s.pods.find((q) => q.id === 'reliquary-harvest'), phase: s.phase, result: s.result })}`);
   log(`Reliquary killed: +${s.carried.dna - dnaBefore} DNA, Reliquary Cage dropped, Reliquary Heart harvested`);
   await call('killAll');
   await call('setTimeScale', 8);
