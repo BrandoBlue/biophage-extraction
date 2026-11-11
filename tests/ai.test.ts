@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ABOMINATIONS, AI, NESTS } from '../data';
 import {
-  AttackTokens, Awareness, WaveDirector, archetypeOf, createBrain, hostVisibility, sightRate,
+  AttackTokens, Awareness, WaveDirector, WebField, archetypeOf, createBrain, hostVisibility, sightRate,
   type AIEvent, type Brain, type BrainWorld, type HostView,
 } from '../src/ai';
 import type { Noise } from '../src/game/perception';
@@ -45,7 +45,7 @@ describe('archetypes', () => {
       expect(ABOMINATIONS[k], k).toBeDefined();
       expect(AI.archetypes[k], k).toBeDefined();
     }
-    expect(new Set(Object.values(AI.archetypes))).toEqual(new Set(['swarm', 'spitter', 'stalker', 'flyer', 'tank']));
+    expect(new Set(Object.values(AI.archetypes))).toEqual(new Set(['swarm', 'spitter', 'stalker', 'flyer', 'tank', 'mimic', 'grazer', 'weaver']));
     for (const k of Object.keys(AI.archetypes)) expect(ABOMINATIONS[k], k).toBeDefined();
     expect(archetypeOf('glasswalker')).toBe('stalker');
   });
@@ -481,5 +481,79 @@ describe('menace: the stare, the fanned search, the ambush, the wounded retreat'
       return 60 - b.body.z;
     };
     expect(run(M.wounded.limpBelow - 0.01)).toBeLessThan(run(1) * 0.9);
+  });
+});
+
+describe('Host-milestone creatures: Husk Mimic, Lumen Grazer, Tithe Weaver', () => {
+  it('maps the new kinds to their own archetypes', () => {
+    expect(archetypeOf('huskMimic')).toBe('mimic');
+    expect(archetypeOf('lumenGrazer')).toBe('grazer');
+    expect(archetypeOf('titheWeaver')).toBe('weaver');
+  });
+
+  it('a Husk Mimic walks up like a host with no tell, splits open inside its reveal distance, then lunges', () => {
+    const m = hunting(at('huskMimic', 1, 0, 16));
+    const reveal = (ABOMINATIONS.huskMimic.disguise as { revealDistance: number }).revealDistance;
+    let maxSpeed = 0, windupWhileActing = 0;
+    const s = simulate([m], 8, host(), { each: () => {
+      if (m.phase === 'act') { maxSpeed = Math.max(maxSpeed, m.speed); windupWhileActing = Math.max(windupWhileActing, m.windup); }
+    } });
+    expect(maxSpeed).toBeLessThanOrEqual(ABOMINATIONS.huskMimic.speed * AI.mimic.walkFactor + 0.01);
+    expect(windupWhileActing).toBe(0);
+    const rv = s.events.find((e) => e.e.type === 'reveal');
+    expect(rv?.e).toMatchObject({ how: 'disguise' });
+    expect(s.events.some((e) => e.e.type === 'melee' && e.t > rv!.t)).toBe(true);
+    // It split open no further out than its reveal distance.
+    expect(reveal).toBeGreaterThan(ABOMINATIONS.huskMimic.attackRange);
+  });
+
+  it('a shot Husk Mimic drops the act at once', () => {
+    const m = hunting(at('huskMimic', 2, 0, 25));
+    simulate([m], 0.5, host());
+    m.hurt();
+    const s = simulate([m], 0.1, host());
+    expect(s.events.some((e) => e.e.type === 'reveal')).toBe(true);
+    expect(m.phase).not.toBe('act');
+  });
+
+  it('a Lumen Grazer ignores hosts until hurt, then dives on them and calms after its dives', () => {
+    const g = at('lumenGrazer', 3, 0, 20);
+    simulate([g], 5, host({ x: 0, z: 18 }), { noises: [{ x: 0, z: 18, radius: 60 }] });
+    expect(g.mode).toBe('calm');
+    expect(g.body.altitude).toBeGreaterThan(AI.grazer.idleHeight * 0.5);
+    g.hurt();
+    const dives = (ABOMINATIONS.lumenGrazer.temperament as { panicDives: number }).panicDives;
+    const s = simulate([g], 60, host({ x: 0, z: 0 }));
+    const slams = s.events.filter((e) => e.e.type === 'slam');
+    expect(slams.length).toBe(dives);
+    expect(slams[0].e).toMatchObject({ damage: ABOMINATIONS.lumenGrazer.damage, radius: ABOMINATIONS.lumenGrazer.attackRange });
+    simulate([g], (ABOMINATIONS.lumenGrazer.temperament as { calmAfter: number }).calmAfter + 2, host({ x: 0, z: 0 }));
+    expect(g.mode).toBe('calm');
+  });
+
+  it('a Tithe Weaver strings webs round its home, strands across a running host\'s path, and spits from range', () => {
+    const w = at('titheWeaver', 4, 0, 0);
+    w.setHome(0, 0, { roam: 10 });
+    const calm = simulate([w], 30, host({ x: 200, z: 200, visibility: 0.3, forward: null }));
+    expect(calm.events.filter((e) => e.e.type === 'web').length).toBeGreaterThan(2);
+    const hunt = hunting(at('titheWeaver', 5, 0, 15));
+    const s = simulate([hunt], 12, host({ vx: 5 }), { move: (h, _t, dt) => { h.x += 5 * dt; } });
+    expect(s.events.some((e) => e.e.type === 'spit')).toBe(true);
+    const webs = s.events.filter((e) => e.e.type === 'web');
+    expect(webs.length).toBeGreaterThan(0);
+  });
+
+  it('web strands root a host that walks through them and break; a dead weaver\'s web can be cleared', () => {
+    const f = new WebField();
+    f.add(1, { x: -5, z: 3 }, { x: 5, z: 3 }, 15, 6);
+    expect(f.tripped({ x: 0, z: 0 }, { x: 0, z: 1 })).toEqual([]);
+    expect(f.tripped({ x: 0, z: 2.5 }, { x: 0, z: 3.5 }).length).toBe(1);
+    expect(f.strands.length).toBe(0);
+    for (let i = 0; i < 8; i++) f.add(2, { x: i, z: 0 }, { x: i, z: 5 }, 15, 6);
+    expect(f.strands.length).toBe(6);
+    expect(f.clear(2).length).toBe(6);
+    const s = f.add(3, { x: 0, z: 0 }, { x: 1, z: 0 }, 15).strand;
+    expect(f.damage(s.id, 10)).toBe(false);
+    expect(f.damage(s.id, 10)).toBe(true);
   });
 });

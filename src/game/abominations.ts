@@ -47,6 +47,8 @@ export interface AbominationContext {
   onScreech?(a: Abomination, radius: number): void;
   /** It burst from its tank or dropped its disguise (PvE AI habitats): play the burst, make the noise. */
   onReveal?(a: Abomination, how: 'hatch' | 'disguise' | 'ambush'): void;
+  /** A Tithe Weaver strung a web strand between two ground points. */
+  onWeb?(a: Abomination, from: { x: number; z: number }, to: { x: number; z: number }): void;
 }
 
 /** Coarse state for HUD, tests and debug (derived from the brain). */
@@ -344,6 +346,7 @@ export class Abomination {
           }
           break;
         case 'reveal': ctx.onReveal?.(this, e.how); break;
+        case 'web': ctx.onWeb?.(this, e.from, e.to); break;
         case 'charge': case 'notice': case 'dodge': break; // read by audio through the bus later
       }
     }
