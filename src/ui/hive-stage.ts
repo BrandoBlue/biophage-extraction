@@ -15,7 +15,7 @@ import type { Pipeline } from '../render/pipeline';
  * starting yaw give a slow three-quarter view like the reference portrait. The fill is a soft bone light that follows
  * the camera, so the host's face never turns into the dark.
  */
-export const STAGE = { dist: 7, eyeY: 1.9, lookY: 1.55, spin: 0.12, yaw: 0.35, fill: 22, testFrameMs: 2500 };
+export const STAGE = { dist: 7, eyeY: 1.9, lookY: 1.55, spin: 0.12, yaw: 0.35, fill: 22, testFrameMs: 2500, testSettleMs: 5000 };
 
 export class HiveStage {
   private lab: HiveLab | null = null;
@@ -27,22 +27,27 @@ export class HiveStage {
 
   constructor(private pipeline: Pipeline) {}
 
-  /** Turns the stage on with this host on the pedestal, or off. Cheap to call every frame. */
-  set(on: boolean, host: ClassId, aspect: number): void {
+  private ready: ClassId | null = null;
+  private preparing: ClassId | null = null;
+  private wantSince: number | null = null;
+
+  /**
+   * Turns the stage on with this host on the pedestal, or off. Cheap to call every frame. The lab and the host body
+   * are built and their shaders compiled off the frame (compileAsync), so turning on never stalls the menu; until
+   * then it stays off and the 2D specimen shows. Returns whether the stage is drawing.
+   */
+  set(on: boolean, host: ClassId, aspect: number, now = performance.now(), automated = navigator.webdriver): boolean {
+    // Automated runs on software rendering compile slowly: only start once the menu has stayed up a while, so a test
+    // that clicks straight through the menu never waits on the lab.
+    if (!on) this.wantSince = null;
+    else this.wantSince ??= now;
+    on = on && now - this.wantSince! >= (automated ? STAGE.testSettleMs : 0) && this.ensure(host);
     if (on) {
-      if (!this.lab) {
-        this.lab = createHiveLab();
-        this.lab.scene.add(this.fill);
-        if (this.pipeline.quality === 'high') this.lab.bakeEnvironment(this.pipeline.renderer);
-      }
-      if (this.body?.classId !== host) {
-        this.body = createHostBody(host);
-        this.lab.place(this.body.root);
-      }
-      if (this.lab.camera.aspect !== aspect) { this.lab.camera.aspect = aspect; this.lab.camera.updateProjectionMatrix(); }
+      const lab = this.lab!;
+      if (lab.camera.aspect !== aspect) { lab.camera.aspect = aspect; lab.camera.updateProjectionMatrix(); }
       if (!this.active) {
-        this.pipeline.overrideScene = this.lab.scene;
-        this.pipeline.overrideCamera = this.lab.camera;
+        this.pipeline.overrideScene = lab.scene;
+        this.pipeline.overrideCamera = lab.camera;
         this.pipeline.setPreset('hive');
       }
     } else if (this.active) {
@@ -51,6 +56,38 @@ export class HiveStage {
       this.pipeline.setPreset('zone7');
     }
     this.active = on;
+    return on;
+  }
+
+  /** True once this host stands ready on the pedestal; otherwise starts getting it ready. */
+  private ensure(host: ClassId): boolean {
+    if (this.ready === host) return true;
+    if (this.preparing !== host) {
+      this.preparing = host;
+      void this.prepare(host).catch(() => { this.preparing = null; });
+    }
+    return false;
+  }
+
+  private async prepare(host: ClassId): Promise<void> {
+    await new Promise((r) => setTimeout(r, 0));
+    if (this.preparing !== host) return;
+    const r = this.pipeline.renderer as THREE.WebGLRenderer & { compileAsync?: (s: THREE.Object3D, c: THREE.Camera, t?: THREE.Scene) => Promise<unknown> };
+    if (!this.lab) {
+      const lab = createHiveLab();
+      lab.scene.add(this.fill);
+      if (this.pipeline.quality === 'high') lab.bakeEnvironment(this.pipeline.renderer);
+      await r.compileAsync?.(lab.scene, lab.camera);
+      this.lab = lab;
+    }
+    const lab = this.lab;
+    const body = createHostBody(host);
+    // Compile the new body with the lab's lights while the old body (if any) stays on the pedestal.
+    await r.compileAsync?.(body.root, lab.camera, lab.scene);
+    if (this.preparing !== host) return;
+    lab.place(body.root);
+    this.body = body;
+    this.ready = host;
   }
 
   /**

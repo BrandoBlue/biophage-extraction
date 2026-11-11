@@ -10,7 +10,7 @@ import { VIRUSES, VIRUS_RULES } from '../../../data';
 import { HIVE, PATH, ZONE7 } from '../../render/palette';
 import { applyTheme } from '../theme';
 import { glyph, itemIcon, KIND_COLOUR } from '../icons';
-import { barFrame, scannerFrame, slotsFrame, socketFrame, timerFrame, weaponFrame } from './organic';
+import { barFrame, bossFrame, scannerFrame, slotsFrame, socketFrame, timerFrame, weaponFrame } from './organic';
 import type { HudView } from './model';
 
 type Bus = { on(type: string, fn: (e: never) => void): () => void };
@@ -50,6 +50,7 @@ export class OrganicHud {
   private mutateLeft = 0;
   private bannerLeft = 0;
   private lootKey = '';
+  private bossKey = '';
 
   constructor(root: HTMLElement, bus?: Bus) {
     applyTheme();
@@ -60,6 +61,8 @@ export class OrganicHud {
       <div class="h-top">
         <div class="h-timer">${timerFrame()}<b data-q="timer">10:00</b></div>
         <div class="h-objective" data-q="objective"></div>
+        <div class="h-boss hidden" data-q="boss"><div class="bh"><b data-q="bossName"></b><span data-q="bossWave"></span></div>
+          <div class="bt">${bossFrame()}<div class="trk"><div class="ghost" data-q="bossGhost"></div><div class="fill" data-q="bossFill"></div><div class="notches" data-q="bossNotches"></div></div></div></div>
       </div>
       <div class="h-quest"><h4>${glyph('spire')}OBJECTIVES</h4><ul data-q="quests"></ul>
         <div class="h-haul"><span>HAUL</span><b data-q="haul">0</b><span>KILL DNA</span><b data-q="dna">0</b></div>
@@ -125,6 +128,9 @@ export class OrganicHud {
     on<{ virus: string }>('virusInjected', (e) => this.mutate(e.virus));
     on<{ item: string }>('harvestDone', (e) => this.say(`CUT OUT ${(itemOf(e.item)?.label ?? e.item).toUpperCase()}`, 'cyan'));
     on<{ id: string; slot: number }>('ability', () => { this.bannerLeft = 1.4; });
+    on<{ label: string }>('nestAwake', (e) => this.say(`${e.label.toUpperCase()} STIRS`, 'danger', 3));
+    on<{ wave: number; of: number }>('nestWave', (e) => this.say(`BROOD WAVE ${e.wave} OF ${e.of}`, 'danger', 2.5));
+    on<{ dna: number }>('nestDestroyed', (e) => this.say(`THE HEART BURSTS · +${e.dna} DNA · BROOD CACHE EXPOSED`, 'lime', 4));
   }
 
   /** Mutation flash: the screen edges bloom in the strain's colour while the arms dissolve-grow. */
@@ -249,8 +255,27 @@ export class OrganicHud {
     this.mutateLeft = Math.max(0, this.mutateLeft - dt);
     if (this.mutateLeft <= 0) q.mutate.classList.remove('on');
 
+    this.updateBoss(dt, s.boss ?? null);
     this.drawScanner(s);
     if (s.phase !== this.lastPhase) this.lastPhase = s.phase;
+  }
+
+  /** Boss bar under the objective: bone-and-flesh sinew, a pale damage ghost, one notch per brood wave. */
+  private updateBoss(dt: number, b: HudView['boss']): void {
+    const q = this.q;
+    q.boss.classList.toggle('hidden', !b);
+    if (!b) { this.bossKey = ''; return; }
+    const f = Math.max(0, Math.min(1, b.fraction));
+    q.bossFill.style.width = `${f * 100}%`;
+    const gw = parseFloat(q.bossGhost.style.width || '100');
+    q.bossGhost.style.width = `${Math.max(f * 100, gw - dt * 18)}%`;
+    q.boss.classList.toggle('low', f < 0.25);
+    const key = `${b.label}|${b.wave}|${b.waves}`;
+    if (key === this.bossKey) return;
+    this.bossKey = key;
+    q.bossName.textContent = b.label.toUpperCase();
+    q.bossWave.textContent = b.waves ? `WAVE ${b.wave}/${b.waves}` : '';
+    q.bossNotches.innerHTML = Array.from({ length: Math.max(0, b.waves - 1) }, (_, i) => `<i style="left:${((i + 1) / b.waves) * 100}%"${i < b.wave - 1 ? ' class="past"' : ''}></i>`).join('');
   }
 
   private setRing(r: HTMLElement, v: number | null, label: string): void {
