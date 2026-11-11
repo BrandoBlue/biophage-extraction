@@ -37,7 +37,7 @@ export function bristleback(seed: number, stage = 0): BodyPlan {
   const head = b.bone('head', neck, S(0, 1.45, 2.05));
   const quillL = b.bone('quillL', body, S(-0.42, 2.2, -0.15));
   const quillR = b.bone('quillR', body, S(0.42, 2.2, -0.15));
-  const young = [b.bone('young0', body, S(0.2, 1.14, 0.3)), b.bone('young1', body, S(-0.22, 1.16, -0.45))];
+  const young = [b.bone('young0', body, S(0.2, 1.22, -0.05)), b.bone('young1', body, S(-0.22, 1.22, -0.6))];
   const tail = b.bone('tail', body, S(0, 1.55, -1.35));
   const hide = tint('#ffffff', 0.92), belly = tint('#ffffff', 1.2);
   // Barrel, shoulder hump and rump.

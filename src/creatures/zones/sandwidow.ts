@@ -108,7 +108,7 @@ export class Sandwidow {
     belly.clearcoat = 0; belly.roughness = 0.95;
     const saddle = chitin(mix(FAUNA.dustPale, FAUNA.sandDeep, 0.25), ORGANIC.amber, 4);
     saddle.roughness = 0.75; saddle.clearcoat = 0.1;
-    const petalMat = chitin(mix(FAUNA.dustPale, FAUNA.sand, 0.35), ORGANIC.amber, 3);
+    const petalMat = chitin(mix(FAUNA.dustPale, FAUNA.pearl, 0.3), ORGANIC.amber, 3);
     petalMat.roughness = 0.7; petalMat.clearcoat = 0.15;
     const petalInner = livingFlesh(mix(ORGANIC.wetFlesh, HIVE.bone, 0.25), ORGANIC.vein, ORGANIC.mist, 6);
     this.throat = livingFlesh(mix(ORGANIC.wetFlesh, '#C47A78', 0.4), ORGANIC.vein, ORGANIC.mist, 7);

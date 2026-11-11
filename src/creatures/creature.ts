@@ -86,7 +86,12 @@ export class Creature {
   private deadFor = -1;
   private fallV = 0;
   /** Species motion for the new-zone creatures (serpent swimming, burrowing, quill flare...), or null. */
-  private motion: SpeciesMotion | null = null;
+  motion: SpeciesMotion | null = null;
+  /**
+   * Wall and ceiling clinging (Cablecrawler): when set, feet plant on this world plane instead of on `ground`.
+   * Behaviour code orients the root so its +Y is the plane normal (walls, the underside of a walkway).
+   */
+  surface: THREE.Plane | null = null;
   /** Metres a species motion pulls the body down this frame (lying flat in water, crouching to cut). */
   sink = 0;
   /** Seconds this creature has been alive (secondary animation clock). */
@@ -145,7 +150,8 @@ export class Creature {
   private restFoot(l: LimbRig, out: THREE.Vector3, lead: number): THREE.Vector3 {
     out.copy(l.spec.rest).applyMatrix4(this.rig.root.matrixWorld);
     out.addScaledVector(this.drive.velocity, lead);
-    out.y = this.ground(out.x, out.z);
+    if (this.surface) this.surface.projectPoint(out, out);
+    else out.y = this.ground(out.x, out.z);
     return out;
   }
 
@@ -238,7 +244,7 @@ export class Creature {
   private footHeightOffset(): number {
     let s = 0, n = 0;
     for (const f of this.feet) if (!f.limb.severed) { s += f.pos.y; n++; }
-    return n ? s / n - this.worldPos.y : 0;
+    return n && !this.surface ? s / n - this.worldPos.y : 0;
   }
 
   private feetPitch(): number {
@@ -247,7 +253,7 @@ export class Creature {
       if (f.limb.severed) continue;
       if (f.limb.spec.rest.z >= 0) { front += f.pos.y; nf++; } else { back += f.pos.y; nb++; }
     }
-    if (!nf || !nb) return 0;
+    if (!nf || !nb || this.surface) return 0;
     const span = Math.max(0.5, this.plan.radius * 1.5);
     return -Math.atan2(front / nf - back / nb, span) * 0.8;
   }
