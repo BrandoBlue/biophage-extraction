@@ -3,7 +3,7 @@
  * so items read at a glance in the stash, the cavities and loot toasts. One cell = 64 px; an icon's
  * viewBox follows the item's footprint from data/loot.json, so a 2x2 organ fills its four cells.
  */
-import { LOOT } from '../../data';
+import { def as itemOf } from './items';
 import type { ItemKind } from '../../data';
 import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
 
@@ -140,6 +140,25 @@ const DRAW: Record<string, (c: Ctx) => string> = {
       <path d="M64 12 C96 14 112 40 108 66 C104 92 86 106 64 106 C42 106 24 92 20 66 C16 40 32 14 64 12Z" fill="url(#r${c.id})" stroke="${HIVE.bone}" stroke-opacity=".5" stroke-width="1.5" filter="url(#g${c.id})"/>
       ${[-24, -8, 8, 24].map((dx) => `<path d="M${64 + dx * 0.4} 14 C${64 + dx} 40 ${64 + dx} 80 ${64 + dx * 0.5} 104" stroke="${ZONE7_SHADE.moss}" stroke-opacity=".6" fill="none"/>`).join('')}
       <ellipse cx="54" cy="44" rx="10" ry="14" fill="${HIVE.bone}" fill-opacity=".5"/></g>`,
+  // Flesh Market contraband (data/market.json).
+  neuroSpikeGrenade: (c) => defs(c, radial(`r${c.id}`, [[0, ZONE7.violet], [0.6, ZONE7_SHADE.flesh], [1, ZONE7_SHADE.rockDeep]]))
+    + `<g filter="url(#s${c.id})">${[0, 1, 2, 3, 4, 5, 6, 7].map((i) => { const a = (i / 8) * Math.PI * 2 + 0.3; return `<path d="M${32 + Math.cos(a) * 14} ${34 + Math.sin(a) * 14} L${32 + Math.cos(a) * 26} ${34 + Math.sin(a) * 26}" stroke="${HIVE.bone}" stroke-width="2.4" stroke-linecap="round"/>`; }).join('')}
+      <circle cx="32" cy="34" r="15" fill="url(#r${c.id})" stroke="${HIVE.bone}" stroke-opacity=".6"/>
+      <path d="M24 30 C28 26 36 26 40 31 M25 38 C30 42 36 41 40 37" stroke="${ZONE7.violet}" stroke-width="1.4" fill="none" filter="url(#g${c.id})"/>
+      <rect x="28" y="8" width="8" height="8" rx="2" fill="${HIVE.bone}"/><circle cx="32" cy="34" r="3" fill="${PATH.viral}" filter="url(#g${c.id})"/></g>`,
+
+  mawSeedMine: (c) => defs(c, radial(`r${c.id}`, [[0, ZONE7.lime, 0.8], [0.45, ZONE7_SHADE.moss], [1, ZONE7_SHADE.rockDeep]], '50%', '45%'))
+    + `<g filter="url(#s${c.id})"><ellipse cx="32" cy="40" rx="24" ry="14" fill="url(#r${c.id})" stroke="${HIVE.bone}" stroke-opacity=".5"/>
+      ${[-16, -8, 0, 8, 16].map((dx, i) => `<path d="M${32 + dx} ${30 + Math.abs(dx) * 0.3} l${i % 2 ? 2 : -2} -10 l${i % 2 ? 2 : 3} 9z" fill="${HIVE.bone}"/>`).join('')}
+      <path d="M14 40 C24 46 40 46 50 40" stroke="${HIVE.danger}" stroke-width="2.2" fill="none"/>
+      <circle cx="32" cy="38" r="2.4" fill="${ZONE7.lime}" filter="url(#g${c.id})"/></g>`,
+
+  heartHusk: (c) => defs(c, radial(`r${c.id}`, [[0, HIVE.bone, 0.9], [0.35, HIVE.danger], [0.8, ZONE7_SHADE.flesh], [1, ZONE7_SHADE.rockDeep]], '42%', '38%'))
+    + `<g filter="url(#s${c.id})"><path d="M64 112 C30 92 14 66 18 44 C22 22 46 16 60 34 C64 20 74 12 88 14 C108 18 116 42 108 64 C100 86 84 100 64 112Z" fill="url(#r${c.id})" stroke="${HIVE.bone}" stroke-opacity=".55" stroke-width="1.5"/>
+      <path d="M40 40 C36 56 44 76 64 92 M84 30 C92 48 88 70 72 88" stroke="${ZONE7_SHADE.rockDeep}" stroke-opacity=".7" stroke-width="2" fill="none"/>
+      <path d="M58 22 C54 10 60 4 66 6 M78 16 C80 6 88 4 92 8" stroke="${HIVE.bone}" stroke-width="5" stroke-linecap="round" fill="none"/>
+      <path d="M30 60 L22 66 M98 58 L108 62 M50 96 L44 104" stroke="${HIVE.bone}" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="62" cy="58" r="4" fill="${HIVE.danger}" filter="url(#g${c.id})"/></g>`,
 };
 
 /** Fallback by kind, for items Design adds before the UI draws them. */
@@ -151,7 +170,7 @@ function generic(c: Ctx, kind: ItemKind): string {
 
 /** SVG markup for an item, sized to its footprint (rotated swaps width and height). */
 export function itemIcon(item: string, rotated = false): string {
-  const def = LOOT.items[item];
+  const def = itemOf(item);
   const [sw, sh] = def ? def.size : [1, 1];
   const w = sw * CELL, h = sh * CELL;
   const c: Ctx = { w, h, id: `i${uid++}` };

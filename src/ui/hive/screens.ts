@@ -3,7 +3,8 @@
  * Each screen is a pure function of ProfileView plus callbacks, so the same code drives the game and the
  * static mocks in mocks/ui.html. Layouts follow references 01 to 03 (docs/reference/).
  */
-import { CLASSES, LOOT, RAID, VIRUSES, layoutPosition } from '../../../data';
+import { def as itemOf } from '../items';
+import { CLASSES, RAID, VIRUSES, layoutPosition } from '../../../data';
 import type { ClassId } from '../../../data';
 import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../../render/palette';
 import { hostPortrait } from '../hosts';
@@ -57,12 +58,12 @@ const unlocked = (id: ClassId) => CLASSES[id].playableFrom !== 'host';
 
 /** Item tile markup shared by grids, previews and results. */
 export function tile(item: string, count: number, rotated = false): string {
-  const d = LOOT.items[item];
+  const d = itemOf(item);
   return `<div class="tile k-${d?.kind ?? 'tech'}" style="--kc:${KIND_COLOUR[d?.kind ?? 'tech']}">${itemIcon(item, rotated)}${count > 1 ? `<b class="n">${count}</b>` : ''}</div>`;
 }
 
 /* ------------------------------------------------------------------------------------------- MAIN MENU */
-export interface MenuCallbacks { go(tab: string): void; deploy(): void; quit(): void }
+export interface MenuCallbacks { go(tab: string): void; deploy(): void; quit(): void; /** Show the Flesh Market entry. */ market?: boolean }
 
 export function mainMenu(p: ProfileView, cb: MenuCallbacks): HTMLElement {
   const el = h('div', 'scr scr-menu');
@@ -72,6 +73,7 @@ export function mainMenu(p: ProfileView, cb: MenuCallbacks): HTMLElement {
     <ul class="menu-list">
       <li><button data-go="deploy" class="primary">${glyph('play')}<span>DEPLOY</span><small>Choose host, loadout and drop zone</small></button></li>
       <li><button data-go="stash">${glyph('stash')}<span>STASH & LOADOUT</span><small>${used}/${cap} cells · ${p.cavity.length} items in cavities</small></button></li>
+      ${cb.market ? `<li><button data-go="market">${glyph('dna')}<span>FLESH MARKET</span><small>Buy and sell with The Gullet Broker</small></button></li>` : ''}
       <li><button data-go="host">${glyph('virus')}<span>HOST SELECT</span><small>${esc(CLASSES[p.host].label)}</small></button></li>
       <li><button data-go="settings">${glyph('gear')}<span>SETTINGS</span><small>Controls, video, audio</small></button></li>
       <li><button data-go="quit">${glyph('quit')}<span>QUIT</span><small>Return the host to dormancy</small></button></li>
@@ -85,11 +87,13 @@ export function mainMenu(p: ProfileView, cb: MenuCallbacks): HTMLElement {
     </dl>
     <div class="survival"><span>SURVIVAL RATE</span><b>${p.stats.raids ? Math.round((p.stats.extracts / p.stats.raids) * 100) : 0}%</b><i style="--v:${p.stats.raids ? p.stats.extracts / p.stats.raids : 0}"></i></div>
     ${p.last ? `<div class="last ${p.last.result}"><span>LAST RAID</span><b>${p.last.result === 'extracted' ? 'EXTRACTED' : 'HOST LOST'}</b><em>${p.last.value} DNA</em></div>` : '<div class="last none"><span>LAST RAID</span><b>NO RAIDS YET</b><em>Zone 7 awaits</em></div>'}
-    <div class="stashval"><span>STASH VALUE</span><b>${valueOf(p.stash).toLocaleString('en-US')} DNA</b></div>`);
+    <div class="stashval"><span>STASH VALUE</span><b>${valueOf(p.stash).toLocaleString('en-US')} DNA</b></div>
+    <div class="loadout"><span>LOADOUT <em>${valueOf(p.cavity).toLocaleString('en-US')} DNA AT RISK</em></span>
+      <div class="tiles">${p.cavity.map((c) => tile(c.item, c.count)).join('') || '<i class="none">Cavities empty</i>'}${p.gutPouch.length ? `<b class="sep">POUCH</b>${p.gutPouch.map((c) => tile(c.item, c.count)).join('')}` : ''}</div></div>`);
   el.append(side);
   const go = cta('ENTER EXCLUSION ZONE', 'PVPVE ZONE · DEATH LOSES YOUR LOADOUT');
   go.dataset.go = 'deploy';
-  el.append(go, keyHints([['ENTER', 'DEPLOY'], ['S', 'STASH'], ['H', 'HOST'], ['ESC', 'BACK']]));
+  el.append(go, keyHints([['ENTER', 'DEPLOY'], ['S', 'STASH'], ['H', 'HOST'], ...(cb.market ? [['M', 'MARKET'] as [string, string]] : []), ['ESC', 'BACK']]));
   el.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-go]');
     if (!b) return;
@@ -134,7 +138,7 @@ export function hostSelect(p: ProfileView, cb: { pick(id: ClassId): void; next()
   }
   el.append(cards);
   // Stash preview strip (ref 02 bottom row).
-  const viral = p.stash.filter((s) => LOOT.items[s.item]?.kind === 'virus' || LOOT.items[s.item]?.kind === 'mutagen');
+  const viral = p.stash.filter((s) => itemOf(s.item)?.kind === 'virus' || itemOf(s.item)?.kind === 'mutagen');
   const loot = p.stash.filter((s) => !viral.includes(s));
   const [used, cap] = usage('stash', p);
   el.insertAdjacentHTML('beforeend', `
@@ -341,8 +345,8 @@ export function results(r: ResultData, cb: { again(): void }): HTMLElement {
     <div class="res-head"><h1>${won ? 'EXTRACTED' : 'HOST LOST'}</h1>
       <p>${won ? 'The Seed Spire carried your haul out of Zone 7.' : `Biomass depleted${r.cause ? ` · ${esc(r.cause)}` : ''}. Everything in your cavities is gone.`}</p>${r.note ? `<p class="note">${esc(r.note)}</p>` : ''}</div>
     <section class="hv-panel res-items"><h2>${won ? 'MOVING TO STASH' : 'LOST WITH THE HOST'}</h2>
-      <ul>${r.items.map((i, n) => `<li style="--d:${n * 0.08}s">${tile(i.item, i.count)}<span>${esc(LOOT.items[i.item]?.label ?? i.item)}</span><b>×${i.count}</b><em>${(LOOT.items[i.item]?.value ?? 0) * i.count} DNA</em></li>`).join('') || '<li class="none">Nothing carried</li>'}</ul>
-      ${r.kept?.length ? `<h2 class="kept">GUT POUCH · KEPT</h2><ul>${r.kept.map((i) => `<li>${tile(i.item, i.count)}<span>${esc(LOOT.items[i.item]?.label ?? i.item)}</span><b>×${i.count}</b></li>`).join('')}</ul>` : ''}
+      <ul>${r.items.map((i, n) => `<li style="--d:${n * 0.08}s">${tile(i.item, i.count)}<span>${esc(itemOf(i.item)?.label ?? i.item)}</span><b>×${i.count}</b><em>${(itemOf(i.item)?.value ?? 0) * i.count} DNA</em></li>`).join('') || '<li class="none">Nothing carried</li>'}</ul>
+      ${r.kept?.length ? `<h2 class="kept">GUT POUCH · KEPT</h2><ul>${r.kept.map((i) => `<li>${tile(i.item, i.count)}<span>${esc(itemOf(i.item)?.label ?? i.item)}</span><b>×${i.count}</b></li>`).join('')}</ul>` : ''}
     </section>
     <section class="hv-panel res-sum">
       <div class="big"><span>${won ? 'HAUL VALUE' : 'VALUE LOST'}</span><b>${won ? '+' : '−'}${r.value.toLocaleString('en-US')}</b></div>

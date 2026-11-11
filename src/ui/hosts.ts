@@ -95,12 +95,12 @@ export function hostPortrait(id: ClassId, opts: { locked?: boolean } = {}): stri
         <feComposite in="SourceGraphic" in2="diff" operator="arithmetic" k1="1.35" result="lit"/>
         <feComposite in="spec" in2="lit" operator="arithmetic" k2=".55" k3="1" result="wet"/>
         <feComposite in="wet" in2="SourceAlpha" operator="in" result="body"/>
-        <feMorphology in="SourceAlpha" operator="dilate" radius="1.4" result="d"/><feFlood flood-color="${L.glow}" flood-opacity=".7"/><feComposite in2="d" operator="in"/><feGaussianBlur stdDeviation="2.6" result="rim"/>
+        <feMorphology in="SourceAlpha" operator="dilate" radius="1.4" result="d"/><feFlood flood-color="${L.glow}" flood-opacity=".28"/><feComposite in2="d" operator="in"/><feGaussianBlur stdDeviation="3.4" result="rim"/>
         <feMerge><feMergeNode in="rim"/><feMergeNode in="body"/></feMerge>
       </filter>
       <linearGradient id="k${u}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${L.skin}"/><stop offset=".55" stop-color="${L.skinDark}"/><stop offset="1" stop-color="${HIVE.background}"/></linearGradient>
       <linearGradient id="b${u}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${L.bone}"/><stop offset="1" stop-color="${L.skinDark}"/></linearGradient>
-      <radialGradient id="p${u}" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="${L.glow}" stop-opacity=".55"/><stop offset="1" stop-color="${L.glow}" stop-opacity="0"/></radialGradient>
+      <radialGradient id="p${u}" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="${L.glow}" stop-opacity=".3"/><stop offset="1" stop-color="${L.glow}" stop-opacity="0"/></radialGradient>
       <pattern id="s${u}" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="1" fill="${L.glow}" fill-opacity=".07"/></pattern>
     </defs>
     <ellipse cx="100" cy="232" rx="78" ry="9" fill="url(#p${u})"/>

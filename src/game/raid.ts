@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ABILITIES, ABOMINATIONS, CLASSES, HOST, LOOT, NESTS, RAID, VIRUSES, VIRUS_RULES, WEAPONS, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
+import { ABILITIES, ABOMINATIONS, CLASSES, HOST, LOOT, RAID, VIRUSES, VIRUS_RULES, WEAPONS, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
 import { groundHeight, ISLAND_RADIUS, mulberry32 } from '../world/zone7';
 import { Abomination, type AbominationContext, type AbominationKind, type HitSphere } from './abominations';
 import { AbilitySystem } from './abilities';
@@ -12,7 +12,8 @@ import type { Placed } from './grid';
 import { Injection, SporeInfection, virusForItem, virusModifiers } from './virus';
 import type { Noise } from './perception';
 import { hostVisibility } from '../ai';
-import { BroodNest, StandInHeart } from './nest';
+import { BroodNest } from './nest';
+import { BroodHeart } from '../creatures/broodheart';
 import { Player } from './player';
 import { Projectiles, segmentSphere, type Projectile } from './projectiles';
 import { BioPod, Hazards, SeedSpire } from './props';
@@ -876,7 +877,7 @@ export class Raid {
   // ------------------------------------------------------------------ nests (Brood Heart)
   /** Places a nest. World's layout can call this with its own crater position. */
   addNest(id: string, type: string, x: number, z: number): BroodNest {
-    const n = new BroodNest(id, type, x, z, new StandInHeart(NESTS[type].weakPoints.count), this.rand);
+    const n = new BroodNest(id, type, x, z, new BroodHeart(Math.floor(this.rand() * 1e6), this.scene), this.rand);
     this.scene.add(n.body.root);
     if (this.pipeline.quality === 'low') simplifyForSoftware(n.body.root);
     this.nests.push(n);
@@ -911,8 +912,6 @@ export class Raid {
     this.bus.emit('nestDamaged', { id: n.id, biomass: n.biomass, fraction: n.fraction, weakPoint: vent !== null });
     if (!killed) return;
     const o = n.t.onDestroyed, c = n.position;
-    gore.burst(this.scene, { point: c.clone().setY(c.y + 1.6), colour: ZONE7.magenta, count: 220, speed: 12 });
-    gore.splat(this.scene, { point: c.clone(), normal: new THREE.Vector3(0, 1, 0), size: 7, colour: ZONE7.magenta });
     this.fx.ring(c.clone().setY(c.y + 0.5), GORE.violetFluid, o.shockwave.radius, 0.8);
     if (this.player.position.distanceTo(c) <= o.shockwave.radius) this.overload.add(o.shockwave.overload);
     this.carried.dna += o.dnaDrop;
