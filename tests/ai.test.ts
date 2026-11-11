@@ -45,7 +45,7 @@ describe('archetypes', () => {
       expect(ABOMINATIONS[k], k).toBeDefined();
       expect(AI.archetypes[k], k).toBeDefined();
     }
-    expect(new Set(Object.values(AI.archetypes))).toEqual(new Set(['swarm', 'spitter', 'stalker', 'flyer', 'tank', 'mimic', 'grazer', 'weaver']));
+    expect(new Set(Object.values(AI.archetypes))).toEqual(new Set(['swarm', 'spitter', 'stalker', 'flyer', 'tank', 'mimic', 'grazer', 'weaver', 'burrower', 'herd']));
     for (const k of Object.keys(AI.archetypes)) expect(ABOMINATIONS[k], k).toBeDefined();
     expect(archetypeOf('glasswalker')).toBe('stalker');
   });
@@ -555,5 +555,55 @@ describe('Host-milestone creatures: Husk Mimic, Lumen Grazer, Tithe Weaver', () 
     const s = f.add(3, { x: 0, z: 0 }, { x: 1, z: 0 }, 15).strand;
     expect(f.damage(s.id, 10)).toBe(false);
     expect(f.damage(s.id, 10)).toBe(true);
+  });
+});
+
+describe('desert creatures: Dunewake and Bristleback', () => {
+  it('a Dunewake swims under the sand out of reach, ripples in, bursts out to bite, then fights on the surface and dives', () => {
+    const d = hunting(at('dunewake', 1, 0, 30));
+    const B = ABOMINATIONS.dunewake.burrow as { triggerRadius: number; rippleTell: number };
+    let swamUnder = false, rippleAt = -1, burstAt = -1, surfacedFor = 0, dived = false;
+    const s = simulate([d], 20, host(), { each: (sim) => {
+      if (d.phase === 'swim' && d.submerged >= 1) swamUnder = true;
+      if (d.phase === 'ripple' && rippleAt < 0) { rippleAt = sim.t; expect(d.submerged).toBeGreaterThan(0.5); }
+      if (d.phase === 'burst' && burstAt < 0) burstAt = sim.t;
+      if (d.phase === 'surface') surfacedFor += 1 / 60;
+      if (surfacedFor > 0 && d.phase === 'swim') dived = true;
+    } });
+    expect(swamUnder).toBe(true);
+    expect(burstAt - rippleAt).toBeCloseTo(B.rippleTell, 1);
+    const bite = s.events.find((e) => e.e.type === 'melee');
+    expect(bite?.e).toMatchObject({ damage: ABOMINATIONS.dunewake.damage });
+    expect(s.events.some((e) => e.e.type === 'reveal' && (e.e as { how: string }).how === 'ambush')).toBe(true);
+    expect(surfacedFor).toBeGreaterThan(2);
+    expect(dived).toBe(true);
+  });
+
+  it('a calm Dunewake idles under the sand', () => {
+    const d = at('dunewake', 2, 0, 0);
+    simulate([d], 3, host({ x: 300, z: 300, alive: false }));
+    expect(d.submerged).toBe(1);
+  });
+
+  it('a Bristleback herd grazes past a host, but gunfire nearby raises the alarm and it stampedes', () => {
+    const b = at('bristleback', 3, 0, 0);
+    simulate([b], 5, host({ x: 0, z: 12 }));
+    expect(b.mode).toBe('calm');
+    const shot = simulate([b], 0.2, host({ x: 0, z: 18 }), { noises: [{ x: 0, z: 18, radius: 25 }] });
+    expect(shot.events.some((e) => e.e.type === 'alarm')).toBe(true);
+    const run = simulate([b], 6, host({ x: 0, z: 18 }));
+    expect(b.engaged).toBe(true);
+    expect(run.events.some((e) => e.e.type === 'charge' || e.e.type === 'volley')).toBe(true);
+  });
+
+  it('a hurt Bristleback stampedes through the host and trampling hits; it looses quill volleys between charges', () => {
+    const b = at('bristleback', 4, 0, 0);
+    b.hurt();
+    const st = ABOMINATIONS.bristleback.stampede as { trampleDamage: number };
+    const v = ABOMINATIONS.bristleback.quillVolley as { count: number; damage: number };
+    const s = simulate([b], 40, host({ x: 0, z: 20 }));
+    expect(s.events.some((e) => e.e.type === 'melee' && (e.e as { damage: number }).damage === st.trampleDamage)).toBe(true);
+    const volley = s.events.find((e) => e.e.type === 'volley');
+    expect(volley?.e).toMatchObject({ count: v.count, damage: v.damage });
   });
 });

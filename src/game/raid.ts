@@ -1054,10 +1054,10 @@ export class Raid {
         this.hurt(dmg, 'torso', c.kind, c.position);
         this.fx.bleed(p.eyePosition.clone().add(new THREE.Vector3(0, -0.4, 0)), c.position.clone().sub(p.position).normalize(), GORE.flesh, 6);
       },
-      onSpit: (c, from, vel) => {
+      onSpit: (c, from, vel, damage) => {
         this.bus.emit('attack', { id: c.id, type: c.kind, position: { x: c.position.x, y: c.position.y, z: c.position.z } });
-        const proj = ABOMINATIONS.bilecantor.projectile as { gravity: number };
-        this.projectiles.fire('bile', 'enemy', from, vel, { damage: c.t.damage, gravity: proj.gravity, life: 6 });
+        const proj = (c.t.projectile ?? ABOMINATIONS.bilecantor.projectile) as { gravity: number };
+        this.projectiles.fire('bile', 'enemy', from, vel, { damage: damage ?? c.t.damage, gravity: damage !== undefined ? 0 : proj.gravity, life: 6 });
       },
     };
     const net = this.net;
