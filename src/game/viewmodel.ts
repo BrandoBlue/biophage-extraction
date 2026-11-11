@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { HIVE, ZONE7 } from '../render/palette';
+import { HIVE, ORGANIC, ZONE7 } from '../render/palette';
 import { mulberry32 } from '../world/zone7';
 import { alienEye, bioNode, chitin, livingFlesh, membrane } from '../render/materials';
 import { glowTexture } from '../render/shotfx';
@@ -7,8 +7,9 @@ import { glowTexture } from '../render/shotfx';
 const hex = (c: THREE.Color) => `#${c.getHexString()}`;
 
 const C = {
-  flesh: new THREE.Color(ZONE7.magenta).lerp(new THREE.Color(HIVE.bone), 0.25).multiplyScalar(0.32),
-  fleshDeep: new THREE.Color(ZONE7.violet).lerp(new THREE.Color(ZONE7.magenta), 0.5).multiplyScalar(0.3),
+  // Ethereal, not neon: the gun is wet, lit flesh (dusky mauve, bone ribs); glow stays in the chamber and eyes.
+  flesh: new THREE.Color(ORGANIC.wetFlesh),
+  fleshDeep: new THREE.Color(ORGANIC.wetFleshDeep),
   bone: new THREE.Color(HIVE.bone),
   acid: new THREE.Color(HIVE.acid),
   cyan: new THREE.Color(ZONE7.cyan),
@@ -37,6 +38,12 @@ export function organic(geo: THREE.BufferGeometry, amount: number, freq: number,
 function glow(color: THREE.Color, intensity = 2.2): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color: C.void, emissive: color, emissiveIntensity: intensity, roughness: 0.2 });
 }
+
+/**
+ * On-screen size of the gun. The breathing animation used to reset the scale to 1 every frame, so the gun filled a
+ * quarter of the screen; it now breathes around this size, leaving room for the host's gripping hand below it.
+ */
+export const GUN_SCALE = 0.72;
 
 interface Eye { group: THREE.Group; base: THREE.Euler }
 interface Tentacle { root: THREE.Group; segs: THREE.Group[]; phase: number }
@@ -80,18 +87,18 @@ export class SynapseBursterView {
     }
     const bodyGeo = organic(new THREE.LatheGeometry(profile, 28), 0.008, 38, 3);
     bodyGeo.rotateX(Math.PI / 2);
-    const fleshMat = livingFlesh(hex(C.flesh.clone().multiplyScalar(1.1)), ZONE7.magenta, ZONE7.magenta);
+    const fleshMat = livingFlesh(hex(C.flesh), ORGANIC.vein, HIVE.bone, 14); // coarser mottling reads at arm's length
     const body = new THREE.Mesh(bodyGeo, fleshMat);
     g.add(body);
 
     // Darker underbelly sac.
-    const belly = new THREE.Mesh(organic(new THREE.SphereGeometry(0.075, 24, 16), 0.006, 50, 5), livingFlesh(hex(C.fleshDeep.clone().multiplyScalar(1.5)), ZONE7.violet, ZONE7.violet));
+    const belly = new THREE.Mesh(organic(new THREE.SphereGeometry(0.075, 24, 16), 0.006, 50, 5), livingFlesh(hex(C.fleshDeep.clone().multiplyScalar(1.4)), ORGANIC.vein, ORGANIC.mist));
     belly.scale.set(1, 0.8, 1.9);
     belly.position.set(0, -0.06, 0.03);
     g.add(belly);
 
     // Bone ribs wrapping the body.
-    const boneMat = chitin(HIVE.bone, ZONE7.cyan, 12);
+    const boneMat = chitin(HIVE.bone, ORGANIC.amber, 12);
     for (let i = 0; i < 5; i++) {
       const rib = new THREE.Mesh(new THREE.TorusGeometry(0.105 - Math.abs(i - 2) * 0.008, 0.009, 6, 20, Math.PI * 1.15), boneMat);
       rib.position.z = -0.12 + i * 0.065;
@@ -107,10 +114,10 @@ export class SynapseBursterView {
     }
 
     // Spore chamber: membrane sphere with a glowing core (brightness = ammo).
-    this.chamberMat = glow(C.acid, 1.5);
+    this.chamberMat = glow(C.acid, 1.1);
     this.chamberCore = new THREE.Mesh(new THREE.IcosahedronGeometry(0.045, 2), this.chamberMat);
     const sac = new THREE.Mesh(organic(new THREE.SphereGeometry(0.07, 24, 16), 0.004, 60, 9), membrane(HIVE.acid, 0.3));
-    (sac.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.35;
+    (sac.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.12;
     const chamber = new THREE.Group();
     chamber.add(this.chamberCore, sac);
     chamber.position.set(0.0, 0.085, 0.09);
@@ -132,10 +139,10 @@ export class SynapseBursterView {
     const eyePositions: [number, number, number, number][] = [
       [0.0, 0.122, -0.1, 0.036], [0.058, 0.104, -0.16, 0.027], [-0.055, 0.106, -0.14, 0.024], [0.1, 0.035, 0.0, 0.02], [-0.098, 0.03, 0.03, 0.017],
     ];
-    const lidMat = livingFlesh(hex(C.fleshDeep.clone().multiplyScalar(1.5)), ZONE7.violet, ZONE7.magenta);
+    const lidMat = livingFlesh(hex(C.fleshDeep.clone().multiplyScalar(1.5)), ORGANIC.vein, HIVE.bone);
     for (const [k, [x, y, z, r]] of eyePositions.entries()) {
       const eg = new THREE.Group();
-      const ball = new THREE.Mesh(new THREE.SphereGeometry(r, 28, 20), alienEye(k % 2 ? ZONE7.lime : ZONE7.cyan, HIVE.bone));
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(r, 28, 20), alienEye(k === 0 ? ZONE7.cyan : ORGANIC.amber, HIVE.bone));
       eg.add(ball);
       const socket = new THREE.Group();
       socket.position.set(x, y, z);
@@ -149,8 +156,8 @@ export class SynapseBursterView {
     }
 
     // Feeder tentacles curling off the back and underside.
-    const tentMat = livingFlesh(hex(C.flesh.clone().multiplyScalar(1.6)), ZONE7.violet, ZONE7.magenta);
-    const tipMat = bioNode(ZONE7.lime, 3);
+    const tentMat = livingFlesh(hex(C.flesh.clone().multiplyScalar(1.2)), ORGANIC.vein, HIVE.bone);
+    const tipMat = bioNode(ORGANIC.amber, 1.4);
     for (let t = 0; t < 5; t++) {
       const root = new THREE.Group();
       root.position.set(-0.06 + rand() * 0.12, -0.02 + rand() * 0.06, 0.2 + rand() * 0.08);
@@ -200,12 +207,12 @@ export class SynapseBursterView {
     this.flash = new THREE.Group();
     this.flash.position.z = -0.37;
     const add = { blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false, transparent: true } as const;
-    const burst = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: C.acid.clone().lerp(new THREE.Color(1, 1, 1), 0.3).multiplyScalar(3), ...add }));
+    const burst = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: C.acid.clone().lerp(new THREE.Color(1, 1, 1), 0.3).multiplyScalar(1.8), ...add }));
     burst.scale.setScalar(0.22);
-    const star = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.05), new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.acid.clone().multiplyScalar(3), side: THREE.DoubleSide, ...add }));
+    const star = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.05), new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.acid.clone().multiplyScalar(1.8), side: THREE.DoubleSide, ...add }));
     const star2 = star.clone();
     star2.rotation.z = Math.PI / 2;
-    const streak = new THREE.Mesh(new THREE.PlaneGeometry(0.035, 2.2).rotateX(-Math.PI / 2).translate(0, 0, -1.1), new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.acid.clone().multiplyScalar(2.2), side: THREE.DoubleSide, ...add }));
+    const streak = new THREE.Mesh(new THREE.PlaneGeometry(0.035, 2.2).rotateX(-Math.PI / 2).translate(0, 0, -1.1), new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.acid.clone().multiplyScalar(1.3), side: THREE.DoubleSide, ...add }));
     const streak2 = streak.clone();
     streak2.rotation.z = Math.PI / 2;
     this.flash.add(burst, star, star2, streak, streak2);
@@ -239,14 +246,15 @@ export class SynapseBursterView {
 
     // Angled so the barrel points at the crosshair and the eye crown and flank face the host.
     g.rotation.set(-0.12, 0.16, -0.1);
-    g.scale.setScalar(0.55);
+    g.scale.setScalar(GUN_SCALE);
     this.root.add(g);
-    this.root.position.set(0.24, -0.22, -0.42);
+    this.root.position.set(0.27, -0.225, -0.47);
 
-    // A cool key and warm rim that travel with the gun, so its form reads in dark corners of the raid.
-    const key = new THREE.PointLight(ZONE7.cyan, 0.25, 1.2, 2);
+    // A cool mist key and a warm bone rim that travel with the gun, so its form reads in dark corners of the raid
+    // as lit flesh rather than a pink glow.
+    const key = new THREE.PointLight(ORGANIC.mist, 0.35, 1.2, 2);
     key.position.set(-0.25, 0.25, 0.1);
-    const rimLight = new THREE.PointLight(ZONE7.magenta, 0.9, 1.0, 2);
+    const rimLight = new THREE.PointLight(HIVE.bone, 0.45, 1.0, 2);
     rimLight.position.set(0.3, 0.05, -0.35);
     this.root.add(key, rimLight);
 
@@ -255,6 +263,15 @@ export class SynapseBursterView {
       // Arm's-length geometry never sits in fog.
       const m = (o as THREE.Mesh).material as THREE.Material | undefined;
       if (m && 'fog' in m) (m as THREE.Material & { fog: boolean }).fog = false;
+      // The baked environment is the violet-magenta nebula; at arm's length its clearcoat reflection turned the
+      // whole gun neon pink. Keep a hint of it so the flesh still reads wet.
+      // three.js ignores envMapIntensity for scene.environment, so bind the scene's map to these materials directly.
+      if (m instanceof THREE.MeshStandardMaterial) {
+        m.envMapIntensity = 0.25;
+        (o as THREE.Mesh).onBeforeRender = (_r, scene) => {
+          if (scene.environment !== m.envMap && scene.environment?.isTexture) { m.envMap = scene.environment as THREE.Texture; m.needsUpdate = true; }
+        };
+      }
     });
     camera.add(this.root);
   }
@@ -287,8 +304,8 @@ export class SynapseBursterView {
     let rx = this.sway.y * 0.6 + this.kick * 0.12 + Math.sin(t * 1.3) * 0.006;
     let ry = this.sway.x * 0.8;
     let rz = 0;
-    let px = 0.23 + this.sway.x * 0.05 + Math.cos(bt * 0.5) * 0.012 * bob;
-    let py = -0.2 - this.sway.y * 0.05 + Math.abs(Math.sin(bt * 0.5)) * 0.014 * bob + Math.sin(t * 1.3) * 0.004;
+    let px = 0.27 + this.sway.x * 0.05 + Math.cos(bt * 0.5) * 0.012 * bob;
+    let py = -0.225 - this.sway.y * 0.05 + Math.abs(Math.sin(bt * 0.5)) * 0.014 * bob + Math.sin(t * 1.3) * 0.004;
     let pz = -0.47 + this.kick * 0.06;
     if (cam.sprinting) { rx -= 0.28; ry += 0.55; px -= 0.04; py -= 0.04; }
 
@@ -309,7 +326,7 @@ export class SynapseBursterView {
     this.chamberCore.scale.setScalar(chamberScale * breath * (0.6 + 0.4 * ammoFrac));
     this.chamberMat.emissiveIntensity = 0.2 + 0.6 * ammoFrac * (this.reloadT > 0 ? 0.4 : 1) + Math.sin(t * 5) * 0.2;
     this.egoMat.emissiveIntensity = 0.5 + ego * 4 + (ego >= 1 ? Math.sin(t * 12) * 1.5 : 0);
-    this.gun.scale.set(1, breath, 1);
+    this.gun.scale.set(GUN_SCALE, GUN_SCALE * breath, GUN_SCALE);
 
     for (let i = 0; i < this.tentacles.length; i++) {
       const tn = this.tentacles[i];

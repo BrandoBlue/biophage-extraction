@@ -26,6 +26,9 @@ Rule for every department: no dynamic `import()` and no runtime `fetch` of files
 Headless tests take screenshots with `freezeAndScreenshot` from `tests/lib/harness.mjs`, which pauses the game
 loop first; a plain `page.screenshot` can time out on slow CI runners.
 
+CI builds once, then runs unit tests and each browser suite (smoke, raid, raid-release, creatures) as parallel jobs with
+their own 35 min limit; add a new browser suite as one more `matrix` entry in `.github/workflows/ci.yml`.
+
 CI also uploads, per PR, the smoke screenshots and a **playable build** zip (`biophage-playable-<sha>`).
 
 The 60 fps at 1080p target needs a real GPU, so CI cannot measure it. CI logs software-rendered fps in

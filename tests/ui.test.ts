@@ -9,6 +9,8 @@ import { gridSize, usage } from '../src/ui/hive/model';
 import { getSettings, DEFAULT_SETTINGS, SETTINGS_KEY } from '../src/ui/settings';
 import { fixtureActions, fixtureProfile } from '../mocks/fixtures';
 import { source } from '../src/ui/hive/stash';
+import { HiveStage, STAGE } from '../src/ui/hive-stage';
+import type { Pipeline } from '../src/render/pipeline';
 
 describe('item icons', () => {
   it('gives every item in loot.json an icon, hand-drawn for every Larva and Host item so far', () => {
@@ -101,3 +103,29 @@ describe('settings', () => {
   });
 });
 
+
+describe('podLayout (TAB overlay pod grid)', async () => {
+  const { podLayout } = await import('../src/ui/raid-hud');
+  it('keeps one entry per pod stack, in order, without overlaps', () => {
+    const items = [{ item: 'glitchingHeart', count: 1 }, { item: 'clotGel', count: 4 }, { item: 'mutagenVial', count: 1 }, { item: 'lanternGland', count: 1 }, { item: 'broodHeartSeed', count: 1 }];
+    const lay = podLayout(items);
+    expect(lay.items.map((i) => i.item)).toEqual(items.map((i) => i.item));
+    expect(lay.size[1]).toBeGreaterThanOrEqual(3);
+    for (const a of lay.items) for (const b of lay.items) {
+      if (a === b) continue;
+      expect(fits({ zone: 'pod', label: '', size: lay.size, items: [b] }, a.item, a.x, a.y, a.rotated)).not.toBe('blocked');
+    }
+  });
+});
+
+describe('Hive stage', () => {
+  it('draws only while active, and at most every STAGE.testFrameMs in automated runs', () => {
+    const st = new HiveStage({} as Pipeline);
+    expect(st.due(0, false)).toBe(false);
+    st.active = true;
+    expect(st.due(0, false)).toBe(true);
+    expect(st.due(1, false)).toBe(true);
+    expect(st.due(10, true)).toBe(false);
+    expect(st.due(1 + STAGE.testFrameMs, true)).toBe(true);
+  });
+});

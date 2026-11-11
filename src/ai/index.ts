@@ -16,6 +16,7 @@ export { AttackTokens, tokensFor } from './tokens';
 export { Awareness, sightRate, noiseGain } from './senses';
 export { hostVisibility, type VisibilityInput } from './light';
 export { WaveDirector, type NestSpawn, type NestState } from './nest';
+export { ReliquaryBrain, type BossEvent, type BossInput, type BossState } from './reliquary';
 export type { AIEvent, AllyView, BrainWorld, HostView, Mode, Vec2, Vec3 } from './types';
 export { SwarmBrain, SpitterBrain, StalkerBrain, FlyerBrain, TankBrain };
 

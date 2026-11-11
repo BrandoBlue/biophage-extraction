@@ -13,13 +13,21 @@ import { Injection, SporeInfection, virusForItem, virusModifiers } from './virus
 import { Grenade, huskRules, Mine, throwVelocity } from './gear';
 import type { Noise } from './perception';
 import { hostVisibility } from '../ai';
+import { BroodNest } from './nest';
+import { BroodHeart } from '../creatures/broodheart';
 import { Player } from './player';
 import { Projectiles, segmentSphere, type Projectile } from './projectiles';
 import { BioPod, Hazards, SeedSpire } from './props';
+import { gravityAt, zone7Layout, type Zone7Layout } from '../world/layout';
+import type { SiteDressing } from '../world/sites';
+
+/** One Seed Spire of the raid: the World layout says where and when it opens (src/world/layout.ts). */
+export interface SpireSite { id: string; label: string; opensAt: number; open: boolean; point: ExtractionPoint; spire: SeedSpire }
 import { gore } from '../render/gore';
 import { simplifyForSoftware } from '../render/pipeline';
 import { creatureGore } from '../creatures/gore';
 import { HostArm, VIRUS_LOOKS, attachToViewmodel, type VirusLook } from '../creatures/hostarm';
+import { HarvestFx } from '../creatures/organs';
 import { HIVE, ZONE7 } from '../render/palette';
 import { NeuralOverload, Biomass } from './vitals';
 import { SynapseBurster, projectileLooks } from './weapon';
@@ -45,6 +53,8 @@ export interface HudState {
   interact: { text: string; progress: number } | null;
   scanner: { x: number; z: number; yaw: number; extract: { x: number; z: number }; pods: { x: number; z: number; opened: boolean }[]; pings: ScannerPing[]; range: number };
   healing: boolean;
+  /** Awake boss nest (Brood Heart) in range: label, Biomass fraction, wave progress. */
+  boss: { label: string; fraction: number; wave: number; waves: number } | null;
   /** Larva: active virus id, the virus being injected, and channel progress 0..1. */
   activeVirus: string | null;
   injecting: string | null;
@@ -68,12 +78,15 @@ export class Raid {
   readonly overload: NeuralOverload;
   readonly weapon: SynapseBurster;
   readonly hostArm = new HostArm();
+  private harvestFx = new HarvestFx();
   readonly abilities: AbilitySystem;
   readonly carried = new Carried();
   readonly creatures: Abomination[] = [];
   readonly pods: BioPod[] = [];
-  readonly spire: SeedSpire;
-  readonly extract: ExtractionPoint;
+  /** Every Seed Spire this raid, in opening order. `extract`/`spire` are the one the host is at or nearest to. */
+  readonly spires: SpireSite[] = [];
+  /** Brood Heart nests (PvE AI): wave-spawning set pieces placed from the World layout (RAID.larva.nests). */
+  readonly nests: BroodNest[] = [];
   readonly fx: Fx;
   readonly projectiles: Projectiles;
   readonly hazards: Hazards;
@@ -127,7 +140,12 @@ export class Raid {
   private classId: ClassId = 'neuroInfiltrator';
   private spawnScale: number;
 
-  constructor(private scene: THREE.Scene, readonly camera: THREE.PerspectiveCamera, private canvas: HTMLCanvasElement) {
+  constructor(
+    private scene: THREE.Scene, readonly camera: THREE.PerspectiveCamera, private canvas: HTMLCanvasElement,
+    /** Live sites for this raid (World & Level). Seed 1 is Design's RAID.larva layout. */
+    readonly layout: Zone7Layout = zone7Layout(1),
+    private sites?: SiteDressing,
+  ) {
     const cls = CLASSES[this.classId];
     this.playable = Math.min(RAID.playableRadius, ISLAND_RADIUS * 0.84);
     this.spawnScale = this.playable / RAID.playableRadius;
@@ -146,25 +164,29 @@ export class Raid {
       if ((VIRUS_LOOKS as string[]).includes(e.virus)) this.hostArm.mutate(e.virus as VirusLook, VIRUS_RULES.mutationGrowTime);
     });
 
-    // Layout from data.
-    const [ex, ez] = layoutPosition(RAID.extract, this.playable);
-    this.extract = new ExtractionPoint(ex, ez, RAID.extract.zoneRadius, extractTimeFor(this.classId), RAID.extract.cancelOnLeave);
-    this.spire = new SeedSpire(ex, ez, RAID.extract.zoneRadius);
-    scene.add(this.spire.root);
-    const beacon = scene.getObjectByName('extraction-beacon');
-    if (beacon) beacon.position.set(ex, 40 + groundHeight(ex, ez), ez);
+    // Sites from the World layout: Seed Spires (a late one opens mid-raid), Bio-Pods, Gene Blooms.
+    for (const e of layout.extracts) {
+      const point = new ExtractionPoint(e.x, e.z, RAID.extract.zoneRadius, extractTimeFor(this.classId), RAID.extract.cancelOnLeave);
+      const spire = new SeedSpire(e.x, e.z, RAID.extract.zoneRadius);
+      const open = e.opensAt <= 0;
+      spire.root.visible = open;
+      scene.add(spire.root);
+      this.spires.push({ id: e.id, label: e.label, opensAt: e.opensAt, open, point, spire });
+    }
+    const [ex, ez] = [this.spires[0].point.x, this.spires[0].point.z];
+    for (const s of [...layout.pods, ...layout.nodes.map((n) => ({ ...n, type: 'geneBloom' }))]) {
+      this.dropContainer(s.type, s.x, s.z, s.id);
+    }
 
-    RAID.containers.forEach((c, i) => {
-      const [x, z] = layoutPosition(c, this.playable);
-      this.dropContainer(c.type, x, z, `${c.type}-${i}`);
-    });
+    for (const n of layout.nests) this.addNest(n.id, n.type, n.x, n.z);
 
-    const [sx, sz] = layoutPosition(RAID.spawn, this.playable);
+    const [sx, sz] = [layout.spawn.x, layout.spawn.z];
     this.player.spawn(sx, sz, Math.atan2(-(ex - sx), -(ez - sz)));
     this.player.onJump = () => { this.overload.add(HOST.neuralOverload.jumpFill); };
     this.player.onLand = (h) => {
       this.noise(this.player.position, HOST.noiseRadius.jumpLand, 'land');
-      const over = h - HOST.fallDamage.safeHeight;
+      // Impact energy scales with gravity: falls inside the Gravity Bloom land softly.
+      const over = h * this.player.gravityScale - HOST.fallDamage.safeHeight;
       if (over > 0) this.hurt(over * HOST.fallDamage.damagePerMetre, 'limb', 'fall', null);
     };
 
@@ -180,6 +202,17 @@ export class Raid {
 
     this.bindInput();
   }
+
+  /** The open Seed Spire the host is channelling, else the nearest open one. */
+  get currentSpire(): SpireSite {
+    const p = this.player.position;
+    const open = this.spires.filter((s) => s.open);
+    if (!open.length) return this.spires[0];
+    return open.find((s) => s.point.inside)
+      ?? open.reduce((a, b) => (Math.hypot(a.point.x - p.x, a.point.z - p.z) <= Math.hypot(b.point.x - p.x, b.point.z - p.z) ? a : b));
+  }
+  get extract(): ExtractionPoint { return this.currentSpire.point; }
+  get spire(): SeedSpire { return this.currentSpire.spire; }
 
   // ------------------------------------------------------------------ setup
   private spawnInitial(): void {
@@ -538,6 +571,11 @@ export class Raid {
         this.damageCreature(c, dmg, false, c.centre.clone().sub(at).normalize(), c.centre.clone(), 'grenade');
         c.stagger(q.g.r.overload / 40);
       }
+      for (const n of this.nests) {
+        if (!n.alive) continue;
+        const core = n.core(new THREE.Vector3()), dmg = q.g.damageAt(core.distanceTo(at));
+        if (dmg > 0) this.damageNest(n, dmg, null, core);
+      }
       const self = p.position.distanceTo(at);
       if (self <= q.g.r.radius) { this.overload.add(q.g.r.overload); this.hurt(q.g.damageAt(self) * 0.5, 'torso', 'own grenade', at); }
       this.bus.emit('explosion', { item: 'neuroSpikeGrenade', position: { x: at.x, y: at.y, z: at.z } });
@@ -704,6 +742,8 @@ export class Raid {
     p.footstepScale = mods.footstep;
     this.overload.decayBoost = mods.overloadDecay;
     const wasOver = this.overload.overloaded;
+    // Gravity Bloom anomaly: lighter gravity in its field (World layout).
+    p.gravityScale = gravityAt(this.layout, p.position.x, p.position.z);
     p.update(dt);
     if (live && p.sprinting) this.overload.add(HOST.neuralOverload.sprintFillPerSecond * dt);
     this.overload.update(dt);
@@ -803,8 +843,10 @@ export class Raid {
       },
     };
     for (const c of this.creatures) c.update(dt, ctx);
+    if (live) this.updateNests(dt);
     creatureGore.update(dt);
     this.hostArm.update(dt);
+    this.harvestFx.update(dt);
     for (let i = this.creatures.length - 1; i >= 0; i--) if (this.creatures[i].removable) { this.scene.remove(this.creatures[i].root); this.creatures.splice(i, 1); }
     if (live && this.elapsed >= this.nextReinforce) { this.nextReinforce += RAID.reinforcements.interval; this.reinforce(); }
 
@@ -853,27 +895,38 @@ export class Raid {
         if (this.harvestProgress >= 1) this.harvest(corpse);
       } else this.harvestProgress = 0;
     }
+    // Creature & Mutation: the wet, glowing cut grows with the hold.
+    if (this.harvestTarget && this.harvestProgress > 0) this.harvestFx.progress(this.scene, this.harvestTarget, this.harvestProgress);
+    else this.harvestFx.cancel();
     this.interactText = this.interactTarget
       ? { text: this.interactTarget.opened ? 'HOLD E · TAKE WHAT IS LEFT' : `HOLD E · TEAR OPEN ${LOOT.containers[this.interactTarget.type].label.toUpperCase()}`, progress: this.interactTarget.progress }
       : this.harvestTarget ? { text: `HOLD E · HARVEST ${LOOT.items[ABOMINATIONS[this.harvestTarget.kind].harvest!.item].label.toUpperCase()}`, progress: this.harvestProgress } : null;
 
-    // Seed Spire.
-    if (live) {
-      const change = this.extract.update(p.position.x, p.position.z, dt);
-      if (change === 'start') {
-        this.bus.emit('extractStart', { label: RAID.extract.label, time: this.extract.time });
-        this.noise(this.spire.position, RAID.extract.signalNoise, 'extract');
-        this.spireSignal = 0;
+    // Seed Spires: late ones open on the clock; every open one can be channelled.
+    for (const sp of this.spires) {
+      if (!sp.open && live && this.elapsed >= sp.opensAt) {
+        sp.open = true;
+        sp.spire.root.visible = true;
+        this.sites?.setExtractOpen(sp.id, true);
+        this.bus.emit('extractOpened', { label: sp.label, x: sp.point.x, z: sp.point.z });
       }
-      if (this.extract.inside) {
-        this.spireSignal += dt;
-        if (this.spireSignal > 2) { this.spireSignal = 0; this.noise(this.spire.position, RAID.extract.signalNoise, 'extract'); }
-        this.bus.emit('extractProgress', { progress: this.extract.progress, timeLeft: this.extract.timeLeft });
+      if (live && sp.open) {
+        const change = sp.point.update(p.position.x, p.position.z, dt);
+        if (change === 'start') {
+          this.bus.emit('extractStart', { label: sp.label, time: sp.point.time });
+          this.noise(sp.spire.position, RAID.extract.signalNoise, 'extract');
+          this.spireSignal = 0;
+        }
+        if (sp.point.inside) {
+          this.spireSignal += dt;
+          if (this.spireSignal > 2) { this.spireSignal = 0; this.noise(sp.spire.position, RAID.extract.signalNoise, 'extract'); }
+          this.bus.emit('extractProgress', { progress: sp.point.progress, timeLeft: sp.point.timeLeft });
+        }
+        if (change === 'cancel') this.bus.emit('extractCancel', {});
+        if (change === 'done') this.win();
       }
-      if (change === 'cancel') this.bus.emit('extractCancel', {});
-      if (change === 'done') this.win();
+      if (sp.open) sp.spire.update(dt, sp.point.progress, sp.point.inside);
     }
-    this.spire.update(dt, this.extract.progress, this.extract.inside);
 
     // Raid clock and zone collapse.
     if (live) {
@@ -907,11 +960,13 @@ export class Raid {
     this.harvestTarget = null;
     const colour = `#${c.fluid.getHexString()}`;
     gore.burst(this.scene, { point: c.centre.clone(), colour, count: 50, speed: 4 });
+    this.harvestFx.done(this.scene, item, c.centre, this.hostArm.root);
     this.bus.emit('harvestDone', { item, type: c.kind });
     this.bus.emit('pickup', { items: [{ item, count: 1 }], dna: 0, source: c.kind });
   }
 
   private openPod(pod: BioPod): void {
+    if (pod.type === 'geneBloom') this.sites?.setNodeHarvested(pod.id, true);
     const rolled = pod.opened ? pod.remaining : rollContainer(pod.type, this.rand);
     pod.open();
     pod.remaining = [];
@@ -940,6 +995,63 @@ export class Raid {
     pr.vel.lerp(want, Math.min(1, pr.seek!.turnRate * dt)).setLength(speed);
   }
 
+  // ------------------------------------------------------------------ nests (Brood Heart)
+  /** Places a nest. World's layout can call this with its own crater position. */
+  addNest(id: string, type: string, x: number, z: number): BroodNest {
+    const n = new BroodNest(id, type, x, z, new BroodHeart(Math.floor(this.rand() * 1e6), this.scene), this.rand);
+    this.scene.add(n.body.root);
+    if (this.pipeline.quality === 'low') simplifyForSoftware(n.body.root);
+    this.nests.push(n);
+    return n;
+  }
+
+  private updateNests(dt: number): void {
+    const p = this.player.position;
+    for (const n of this.nests) {
+      const wasDormant = n.state === 'dormant';
+      let alive = 0;
+      for (const c of this.creatures) if (c.alive && n.brood.has(c.id)) alive++;
+      const spawns = n.update(dt, Math.hypot(n.position.x - p.x, n.position.z - p.z), alive);
+      if (wasDormant && (n.state as string) === 'active') this.bus.emit('nestAwake', { id: n.id, type: n.type, label: n.t.label });
+      if (!spawns.length) continue;
+      const waveBefore = n.brood.size;
+      for (const s of spawns) {
+        if (!ABOMINATIONS[s.type]) continue;
+        const c = this.addCreature(s.type as AbominationKind, s.x, s.z);
+        c.place(s.x, s.z, s.vx, s.vz);
+        c.alert({ x: p.x, z: p.z });
+        n.brood.add(c.id);
+      }
+      this.fx.burst(n.core(new THREE.Vector3()), GORE.violetFluid, 1.6);
+      if (n.brood.size > waveBefore) this.bus.emit('nestWave', { id: n.id, wave: n.wave, of: n.waves });
+    }
+  }
+
+  private damageNest(n: BroodNest, amount: number, vent: number | null, at: THREE.Vector3): void {
+    const killed = n.damage(amount, vent);
+    this.fx.impact(at, vent !== null ? GORE.limeFluid : GORE.violetFluid, vent !== null ? 12 : 6);
+    this.bus.emit('nestDamaged', { id: n.id, biomass: n.biomass, fraction: n.fraction, weakPoint: vent !== null });
+    if (!killed) return;
+    const o = n.t.onDestroyed, c = n.position;
+    this.fx.ring(c.clone().setY(c.y + 0.5), GORE.violetFluid, o.shockwave.radius, 0.8);
+    if (this.player.position.distanceTo(c) <= o.shockwave.radius) this.overload.add(o.shockwave.overload);
+    this.carried.dna += o.dnaDrop;
+    this.kills++;
+    this.dropContainer(o.container, c.x + 3.5, c.z, `${o.container}-${n.id}`);
+    this.noise(c, HOST.noiseRadius.egoCharge, 'nest');
+    this.bus.emit('nestDestroyed', { id: n.id, type: n.type, dna: o.dnaDrop, container: o.container });
+  }
+
+  private bossHud(): HudState['boss'] {
+    const p = this.player.position;
+    for (const n of this.nests) {
+      if (n.state !== 'active' && n.state !== 'spent') continue;
+      if (Math.hypot(n.position.x - p.x, n.position.z - p.z) > n.t.activationRadius * 1.5) continue;
+      return { label: n.t.label, fraction: n.fraction, wave: n.wave, waves: n.waves };
+    }
+    return null;
+  }
+
   private projectileHit(pr: Projectile, a: THREE.Vector3, b: THREE.Vector3): { point: THREE.Vector3; t: number } | null {
     if (pr.owner === 'enemy') {
       if (this.phase !== 'raid') return null;
@@ -964,6 +1076,18 @@ export class Raid {
       }
       const hit = weakHit ?? bodyHit;
       if (hit && hit.t < bestT) { bestT = hit.t; bestC = c; bestS = hit.s; }
+    }
+    let nestHit: { n: BroodNest; t: number; vent: number | null } | null = null;
+    for (const n of this.nests) {
+      const h = n.hit(a, b);
+      if (h && h.t < (nestHit?.t ?? bestT)) nestHit = { n, ...h };
+    }
+    if (nestHit) {
+      const point = a.clone().lerp(b, nestHit.t);
+      const dmg = pr.kind === 'ego' ? pr.damage : projectileDamage(this.weapon.w, point.distanceTo(pr.origin), 1);
+      this.damageNest(nestHit.n, dmg, nestHit.vent, point);
+      if (pr.kind === 'spore') this.weapon.credit(nestHit.vent !== null);
+      return { point, t: nestHit.t };
     }
     if (!bestC || !bestS) return null;
     const point = a.clone().lerp(b, bestT);
@@ -1015,7 +1139,7 @@ export class Raid {
       slots: this.abilities.slots(),
       carried: this.carried.items.map((s) => ({ item: s.item, label: itemDef(s.item)!.label, count: s.count, kind: itemDef(s.item)!.kind })),
       dna: this.carried.dna, value: this.carried.value, kills: this.kills,
-      extract: { progress: this.extract.progress, inside: this.extract.inside, distance: Math.hypot(this.extract.x - p.x, this.extract.z - p.z), label: RAID.extract.label },
+      extract: { progress: this.extract.progress, inside: this.extract.inside, distance: Math.hypot(this.extract.x - p.x, this.extract.z - p.z), label: this.currentSpire.label },
       interact: this.interactText,
       scanner: {
         x: p.x, z: p.z, yaw: this.player.yaw, range: 60,
@@ -1024,6 +1148,7 @@ export class Raid {
         pings: this.creatures.filter((c) => c.alive && (c.revealed > 0 || (c.engaged && c.position.distanceTo(p) < 25))).map((c) => ({ x: c.position.x, z: c.position.z, kind: c.kind, revealed: c.revealed > 0 })),
       },
       healing: this.useLeft > 0 || this.healLeft > 0,
+      boss: this.bossHud(),
       activeVirus: this.injection.active,
       injecting: this.injection.pending,
       injectProgress: this.injection.progress,
@@ -1053,6 +1178,7 @@ export class Raid {
       extractPosition: [this.extract.x, this.extract.z], pods: this.pods.map((q) => ({ id: q.id, position: [q.position.x, q.position.z], opened: q.opened })),
       enemies: this.creatures.map((c) => ({ id: c.id, kind: c.kind, alive: c.alive, state: c.state, biomass: c.biomass, position: [c.position.x, c.position.y, c.position.z], centre: [c.centre.x, c.centre.y, c.centre.z] })),
       result: this.result, gore: gore.stats(),
+      nests: this.nests.map((n) => ({ id: n.id, state: n.state, biomass: n.biomass, wave: n.wave, brood: n.brood.size, position: [n.position.x, n.position.z] })),
       reviving: this.reviveLeft > 0, grenades: this.grenades.length, mines: this.mines.length, virus: this.injection.active, injecting: this.injection.pending, parasites: this.parasites.length, harvested: [...this.harvested], maxBiomass: this.biomass.max,
     };
   }
@@ -1073,6 +1199,8 @@ export class Raid {
       ego: () => { this.weapon.ego = this.weapon.w.egoCharge.chargeToFire; this.egoQueued = true; },
       ability: (slot: number) => this.useAbility(slot),
       hold: (code: string, on: boolean) => { if (on) this.player.keys.add(code); else this.player.keys.delete(code); },
+      /** Damages nest `i` directly (ventricle index or null for the body). */
+      hitNest: (i: number, amount: number, vent: number | null = null) => { const n = this.nests[i]; if (n) this.damageNest(n, amount, vent, n.core(new THREE.Vector3())); },
       killAll: () => { for (const c of this.creatures) if (c.alive) this.damageCreature(c, 1e6, false, null, c.centre, 'debug'); },
       damage: (n: number) => this.hurt(n, 'torso', 'debug', null),
       extractNow: () => { const ex = this.extract; this.player.position.set(ex.x, groundHeight(ex.x, ex.z), ex.z); },

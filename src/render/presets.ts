@@ -18,15 +18,15 @@ export interface GradePreset {
 }
 
 export const GRADE_PRESETS = {
-  /** Reference 04: saturated cosmic wasteland, heavy bloom on emissives, shadows kept dark. */
+  /** Reference 04, read through Brandon's note: ethereal and atmospheric, glow as accent, restrained bloom, shadows kept dark. */
   zone7: {
-    exposure: 1.0,
-    environment: 0.45,
-    bloom: { strength: 0.6, radius: 0.35, threshold: 0.95 },
-    aberration: 0.0018,
-    vignette: 0.45,
-    saturation: 1.18,
-    contrast: 1.06,
+    exposure: 1.05,
+    environment: 0.55,
+    bloom: { strength: 0.38, radius: 0.5, threshold: 1.15 },
+    aberration: 0.0012,
+    vignette: 0.42,
+    saturation: 0.98,
+    contrast: 1.04,
     grain: 0.03,
     split: 0.2,
     shadow: GRADE.zone7Shadow,

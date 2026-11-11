@@ -44,8 +44,10 @@ export function zone7Sky(radius = 900): THREE.Mesh {
         vec3 gas = mix(uViolet, uMagenta, smoothstep(0.35, 0.75, w.x));
         gas = mix(gas, uCyan, smoothstep(0.55, 0.85, w.y) * 0.85);
         float density = smoothstep(0.38, 0.85, n);
-        sky += gas * density * 0.95;
-        sky += uMagenta * smoothstep(0.6, 0.95, n2) * 0.35;
+        // Ethereal, not neon: the gas is a veil, partly desaturated toward its own luminance.
+        gas = mix(vec3(dot(gas, vec3(0.2126, 0.7152, 0.0722))), gas, 0.5);
+        sky += gas * density * 0.6;
+        sky += uMagenta * smoothstep(0.6, 0.95, n2) * 0.16;
 
         // Plasma rift: a bright band of cyan-white across the sky, broken by noise.
         vec3 axis = normalize(vec3(0.35, 0.82, -0.45));
@@ -77,7 +79,7 @@ export function planet(opts: { radius: number; band: string; rim: string; ring?:
     new THREE.SphereGeometry(opts.radius, 64, 48),
     new THREE.ShaderMaterial({
       fog: false,
-      uniforms: { uBand: col(opts.band), uRim: col(opts.rim), uBase: col(ZONE7_SHADE.planet), uLight: { value: opts.lightDir.clone().normalize() }, uSeed: { value: opts.seed ?? 1 } },
+      uniforms: { uBand: col(opts.band), uRim: col(opts.rim), uBase: col(ZONE7_SHADE.planet), uHaze: col(ZONE7_SHADE.skyHorizon), uLight: { value: opts.lightDir.clone().normalize() }, uSeed: { value: opts.seed ?? 1 } },
       vertexShader: /* glsl */ `
         varying vec3 vN; varying vec3 vP; varying vec3 vView;
         void main() {
@@ -86,17 +88,21 @@ export function planet(opts: { radius: number; band: string; rim: string; ring?:
           gl_Position = projectionMatrix * viewMatrix * wp;
         }`,
       fragmentShader: /* glsl */ `
-        uniform vec3 uBand, uRim, uBase, uLight; uniform float uSeed;
+        uniform vec3 uBand, uRim, uBase, uHaze, uLight; uniform float uSeed;
         varying vec3 vN; varying vec3 vP; varying vec3 vView;
         ${GLSL_NOISE}
         void main() {
           vec3 p = normalize(vP);
           float bands = bioFbm(vec3(p.y * 9.0 + bioFbm(p * 3.0 + uSeed) * 2.0, uSeed, 0.0));
-          vec3 surf = mix(uBase, uBand, smoothstep(0.35, 0.75, bands) * 0.55);
+          // Soft, low-contrast banding in a greyed band colour: a distant world seen through haze, not a poster.
+          vec3 band = mix(vec3(dot(uBand, vec3(0.2126, 0.7152, 0.0722))), uBand, 0.5);
+          vec3 surf = mix(uBase, band, smoothstep(0.3, 0.8, bands) * 0.4);
           surf = mix(surf, uRim * 0.6, smoothstep(0.7, 0.9, bioFbm(p * 6.0 + uSeed)) * 0.4);
           float lit = smoothstep(-0.15, 0.6, dot(vN, uLight));
           float fres = pow(1.0 - max(dot(vN, vView), 0.0), 3.0);
-          vec3 c = surf * (0.08 + lit * 0.9) + uRim * fres * (0.4 + lit * 1.8);
+          vec3 c = surf * (0.08 + lit * 0.9) + uRim * fres * (0.25 + lit * 1.1);
+          // Aerial perspective: veil the disc in the sky's horizon haze, a little more on the dark side.
+          c = mix(c, uHaze * 0.55, 0.3 + 0.15 * (1.0 - lit));
           gl_FragColor = vec4(c, 1.0);
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
@@ -120,7 +126,8 @@ export function planet(opts: { radius: number; band: string; rim: string; ring?:
             float bands = bioNoise(vec3(t * 60.0, 0.0, 0.0)) * 0.7 + bioNoise(vec3(t * 13.0, 5.0, 0.0)) * 0.5;
             float a = smoothstep(0.0, 0.08, t) * (1.0 - smoothstep(0.75, 1.0, t)) * bands;
             vec3 c = mix(uCol, uRim, t);
-            gl_FragColor = vec4(c * a * 1.4, a);
+            c = mix(vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), c, 0.45);
+            gl_FragColor = vec4(c * a * 0.38, a);
           }`,
       }),
     );

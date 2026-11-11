@@ -7,6 +7,7 @@ Every tuning change to `data/*.json`, newest first, with the reason.
 - New items: Seed Key, Black Box, Coolant Rod, Reliquary Heart, Ribchoir Bone, Warden Seed-Core, Embryo Pod; containers Reliquary Cage, Sealed Locker, Cargo Crate.
 - Evolutions now cost DNA plus catalyst organs; Reliquary and Warden XP added.
 - Mother Clot gets machine-readable `perks` (10% off pouch upgrades at rep 2, one free Clot Gel per deploy at rep 4) for Gameplay to enforce; other vendor unlocks stay as text for now. Kill objectives name their target with `creature`.
+- Reliquary timing for PvE AI (approved by Design): per-phase `turnRate`, attack wind-ups (rear-up 1.4 s, hymn 1.0 s, cover break 1.2 s, tendril grab 0.8 s, brood drop 0.8 s), hearts exposed 4 s after a vent, hymn ring to 30 m and 0.6 m tall, cover break reach 12 m, grab range 10 m, forelimb lunge ×2.5 for 0.6 s, stalk front armour covers a 120° arc, first brood drop 8 s after waking, `wakeRadius` 30, `songLoops`; plus `holdDistance` per phase (5, 10, 0 m), vent trigger range 14 m and `legs.slowPerSevered` 0.15 (the brief's 15%).
 
 ## Host spec (2026-11-11)
 - New tables: kits, synapse, progression, viral-lab, market, rivals, `RAID.host`; Tithe Weaver, Husk Mimic and Lumen Grazer added with their organs. No Spore or Larva values changed.

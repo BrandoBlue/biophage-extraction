@@ -18,7 +18,14 @@ const POSES = {
   cantor: { at: [-15.8, 74.6], eye: 2.0, yaw: 0.05, pitch: 0.42, nohud: true, creatures: [-19.5, 74.5, 0.1] },
   mutate: { at: [-41, 108], eye: 1.8, yaw: -0.2, pitch: -0.05, mutate: [-39.6, 103] },
   lab: { lab: 0.35, nohud: true },
+  chamber: { at: [12, 62], eye: 1.7, yaw: -0.05, pitch: 0.18, chamber: [12, 50] },
+  chamberInside: { at: [12, 51.5], eye: 1.7, yaw: 0.1, pitch: 0.25, chamber: [12, 50] },
   rim: { at: [-105, -25], eye: 4, yaw: 1.25, pitch: -0.2 },
+  // World & Level sites (seed 1, the default under automation).
+  crater: { at: [-34, -19], eye: 6, yaw: 1.05, pitch: -0.28 },
+  anomaly: { at: [36, -17], eye: 2.5, yaw: -0.6, pitch: 0.3 },
+  bloom: { at: [4, -31], eye: 1.7, yaw: -0.6, pitch: -0.22 },
+  spire: { at: [96, 31], eye: 3, yaw: -2.07, pitch: 0.08 },
 };
 const width = Number(process.env.LOOKDEV_W || 1280), height = Number(process.env.LOOKDEV_H || 720);
 const server = spawn('npx', ['vite', 'preview', '--port', '4174', '--strictPort'], { stdio: 'ignore' });
@@ -49,6 +56,7 @@ try {
     await page.evaluate((h) => { const e = document.getElementById('hud'); if (e) e.style.visibility = h ? 'hidden' : ''; }, !!pose.nohud);
     if (pose.fire) await page.evaluate(([x, y, z]) => { const d = window.__biophage.debug; d.begin(); d.aimAt(x, y, z); d.trigger(true); }, pose.fire);
     if (pose.shots) await page.evaluate((a) => window.__biophageLookdev.shots(...a), pose.shots);
+    if (pose.chamber) await page.evaluate(([x, z]) => window.__biophageLookdev.chamber(x, z), pose.chamber);
     if (pose.creatures) await page.evaluate(([x, z, f]) => window.__biophageLookdev.creatures(x, z, f), pose.creatures);
     if (pose.mutate) await page.evaluate(([x, z]) => window.__biophageLookdev.mutateDemo(x, z), pose.mutate);
     if (process.env.RAW) await page.evaluate(() => window.__biophageLookdev.raw(true));

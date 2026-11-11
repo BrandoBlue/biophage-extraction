@@ -117,7 +117,8 @@ export class SeedSpire {
       this.root.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 60, 0.42 - b * 0.06, 8), stalkMat));
     }
     // Glowing veins up the stalk.
-    this.stalkGlow = glow(C.lime, 2.5);
+    // Ethereal, not neon: dim veins at rest that only flare while an extraction charges.
+    this.stalkGlow = glow(C.lime, 0.8);
     for (let v = 0; v < 4; v++) {
       const pts: THREE.Vector3[] = [];
       for (let k = 0; k <= 14; k++) {
@@ -127,7 +128,7 @@ export class SeedSpire {
       this.root.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 60, 0.06, 4), this.stalkGlow));
     }
     // Crown bulb at the top.
-    const crown = new THREE.Mesh(organic(new THREE.SphereGeometry(1.6, 24, 18), 0.15, 3, 2), glow(C.lime, 1.6));
+    const crown = new THREE.Mesh(organic(new THREE.SphereGeometry(1.6, 24, 18), 0.15, 3, 2), glow(C.lime, 0.7));
     crown.position.y = 36;
     this.root.add(crown);
 
@@ -177,7 +178,7 @@ export class SeedSpire {
     const open = Math.min(1, progress * 1.6 + (inside ? 0.15 : 0));
     for (const p of this.petals) p.rotation.x = THREE.MathUtils.damp(p.rotation.x, -open * 0.9, 6, dt);
     this.ringMat.opacity = 0.35 + 0.25 * Math.sin(this.time * (inside ? 8 : 2)) ** 2;
-    this.stalkGlow.emissiveIntensity = 2 + progress * 5 + Math.sin(this.time * 3 - progress * 10) * 0.5;
+    this.stalkGlow.emissiveIntensity = 0.8 + progress * 4 + Math.sin(this.time * 3 - progress * 10) * 0.3;
     this.progressRing.geometry.dispose();
     this.progressRing.geometry = new THREE.RingGeometry(this.radius - 0.5, this.radius - 0.2, 64, 1, Math.PI / 2, -Math.max(0.0001, progress) * Math.PI * 2);
     if (this.launched > 0) {

@@ -8,9 +8,64 @@ concurrency:
   # Cancel superseded PR runs, but let every main run finish so main's state is always known.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  check:
+  # Type-check, build once, pack the single-file release; every browser job tests these exact files.
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Type-check, build and pack the single-file release
+        run: npm run release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: |
+            dist/
+            release/
+          retention-days: 3
+      # Every PR gets a playable build: download the zip, unzip, double-click biophage-*.html.
+      - name: Playable build
+        uses: actions/upload-artifact@v4
+        with:
+          name: biophage-playable-${{ github.sha }}
+          path: release/biophage-*.html
+          retention-days: 30
+
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  # Headless browser suites run in parallel, each with its own time budget. Add new suites here.
+  browser:
+    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: smoke
+            run: npm run smoke && npm run smoke:release && npm run budget
+          - name: raid
+            run: npm run smoke:raid
+          - name: raid-release
+            run: npm run smoke:raid:release
+          - name: creatures
+            run: npm run smoke:creatures
+    name: browser (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,33 +74,15 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      - name: Type-check, build and pack the single-file release
-        run: npm run release
-      - name: Unit tests
-        run: npm test
-      - name: Smoke test (served build)
-        run: npm run smoke
-      - name: Smoke test (single-file build opened from disk)
-        run: npm run smoke:release
-      - name: Size and load budget
-        run: npm run budget
-      - name: Scripted raid (fight, loot, extract, death)
-        run: npm run smoke:raid
-      - name: Scripted raid (single-file build)
-        run: npm run smoke:raid:release
-      - name: Creature viewer (every species, mutation, dismemberment)
-        run: npm run smoke:creatures
-      - name: Smoke screenshots and metrics
+      - uses: actions/download-artifact@v4
+        with:
+          name: build
+      - name: ${{ matrix.name }}
+        run: ${{ matrix.run }}
+      - name: Screenshots and metrics
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: smoke-screenshots
+          name: screenshots-${{ matrix.name }}
           path: tests/out/
           if-no-files-found: ignore
-      # Every PR gets a playable build: download the zip, unzip, double-click biophage-*.html.
-      - name: Playable build
-        uses: actions/upload-artifact@v4
-        with:
-          name: biophage-playable-${{ github.sha }}
-          path: release/biophage-*.html
-          retention-days: 30

@@ -1,6 +1,6 @@
 /**
  * Look-review mocks: every Hive screen with fixture data, no game running.
- *   npm run dev → http://localhost:5173/mocks/ui.html?screen=menu|host|stash|raid|settings|won|lost
+ *   npm run dev → http://localhost:5173/mocks/ui.html?screen=menu|host|stash|raid|market|settings|won|lost
  *   npm run mocks → screenshots of each into tests/out/ui/
  */
 import { HiveUI } from '../src/ui/hive/hive-ui';
