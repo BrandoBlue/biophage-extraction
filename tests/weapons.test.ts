@@ -198,4 +198,20 @@ describe('weapon views and rig', () => {
     expect(sniper.back).toBeGreaterThan(smg.back * 2);
     expect(sniper.settledAt).toBeGreaterThan(smg.settledAt);
   });
+
+  it('blooms the spread per shot, less while aiming, and recovers (the crosshair reads it)', async () => {
+    const { LivingWeapon } = await import('../src/game/weapon');
+    const { Projectiles } = await import('../src/game/projectiles');
+    const spec = weaponSpec('synapseBurster');
+    const w = new LivingWeapon(spec, new GenericWeaponModel({ ...spec, id: 'bloom-test' }), new Projectiles(new THREE.Scene(), new Proxy({}, { get: () => () => new THREE.Mesh() }) as never));
+    const ctx = { aimPoint: new THREE.Vector3(0, 0, -10), moving: false, sprinting: false };
+    const rest = w.spreadRadians();
+    let peak = 0, widest = 0;
+    for (let i = 0; i < 30; i++) { w.update(1 / 60, true, false, ctx); peak = Math.max(peak, w.bloom); widest = Math.max(widest, w.spreadRadians()); }
+    expect(peak).toBeGreaterThan(0);
+    expect(peak).toBeLessThanOrEqual(WEAPON_FEEL.fire[spec.class].bloomMax!);
+    expect(widest).toBeGreaterThan(rest);
+    for (let i = 0; i < 120; i++) w.update(1 / 60, false, false, ctx);
+    expect(w.bloom).toBe(0);
+  });
 });

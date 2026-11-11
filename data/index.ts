@@ -698,7 +698,14 @@ export function weaponSources(id: string): { unlock?: { class: ClassId; level: n
 }
 
 export interface ReloadBeat { at: number; pose: string; cue: string }
-export interface FireFeel { kick: number; shake: number; push: number; settle: number; flash: number }
+export type ReticleStyle = 'cross' | 'ring' | 'chevron' | 'dot' | 'arc';
+export interface FireFeel {
+  kick: number; shake: number; push: number; settle: number; flash: number;
+  /** Spread bloom: degrees added per shot, the cap, and degrees/s it recovers. */
+  bloom?: number; bloomMax?: number; bloomRecover?: number;
+  /** Crosshair shape for the class (UI draws it). */
+  reticle?: ReticleStyle;
+}
 export interface WeaponFeel {
   reload: Record<'magazine' | 'perShell' | 'regrow', { beats: ReloadBeat[]; emptyExtraPose?: string; cancelAt?: number; openAndCloseTime?: number }>;
   fire: Record<WeaponClass, FireFeel>;

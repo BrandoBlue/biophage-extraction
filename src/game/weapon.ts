@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { HIVE, ORGANIC, ZONE7 } from '../render/palette';
-import type { ProjectileLook, WeaponSpec } from '../../data';
+import { WEAPON_FEEL, type FireFeel, type ProjectileLook, type WeaponSpec } from '../../data';
 import { mulberry32 } from '../world/zone7';
 import { AutoWeaponState, type AmmoFeed } from './weapon-state';
 import type { Projectiles, ProjectileKind } from './projectiles';
@@ -89,10 +89,16 @@ export class LivingWeapon {
     if (e) this.ego = Math.min(e.chargeToFire, this.ego + (weakPoint ? e.chargePerWeakPointHit : e.chargePerHit));
   }
 
-  spreadRadians(moving: boolean): number {
+  /** Spread bloom in degrees: grows per shot (weapon-feel.json), recovers when the trigger rests. */
+  bloom = 0;
+  /** True while the host is moving (the crosshair opens up with the movement penalty). */
+  moving = false;
+  get feel(): FireFeel | undefined { return WEAPON_FEEL.fire[this.spec.class]; }
+
+  spreadRadians(moving: boolean = this.moving): number {
     const s = this.spec.spread;
     const base = THREE.MathUtils.lerp(s.hip, s.ads, this.aim);
-    return base * (moving ? s.movingPenalty : 1) * DEG;
+    return (base * (moving ? s.movingPenalty : 1) + this.bloom) * DEG;
   }
 
   private dirTo(target: THREE.Vector3, spread: number): THREE.Vector3 {
@@ -113,6 +119,9 @@ export class LivingWeapon {
     const canFire = ready && !(s.spread.sprintBlocksFire && ctx.sprinting);
     const wasReloading = this.state.isReloading;
     const r = this.state.update(dt, trigger && canFire);
+    this.moving = ctx.moving;
+    const f = this.feel;
+    this.bloom = Math.max(0, this.bloom - (f?.bloomRecover ?? 5) * dt);
     this.model.muzzle.getWorldPosition(this.muzzle);
     const look: ProjectileLook = s.projectile.look;
     // Charge weapons scale damage with the charge reached; everything else fires at full power.
@@ -130,6 +139,8 @@ export class LivingWeapon {
         });
       }
       this.lastKick = this.model.fired();
+      // Each round opens the cone a little (less while aiming); the crosshair shows it.
+      this.bloom = Math.min(f?.bloomMax ?? 2, this.bloom + (f?.bloom ?? 0.3) * (1 - this.aim * 0.6));
     }
     for (let i = 0; i < r.shellsIn; i++) this.model.shellIn?.();
     const startedReload = !wasReloading && this.state.isReloading;

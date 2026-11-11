@@ -59,6 +59,14 @@ export interface HudState {
   ammo: number; magazine: number; reloading: number; ego: number; egoReady: boolean; aiming: boolean;
   /** The held weapon: slot index in `slots`, rounds left in its ammo item (Infinity: regrows), charge and scope 0..1. */
   weapon: { id: string; label: string; class: string; slot: number; slots: string[]; reserve: number; charge: number; scope: number; canAim: boolean };
+  /**
+   * What the crosshair should show: `radius` is the live spread cone as a fraction of half the viewport height
+   * (hip spread + movement + shot bloom, shrinking as you aim), `bloom` 0..1 how far shot bloom has opened it,
+   * `style` the class reticle (weapon-feel.json), `ready` false while reloading, empty, swapping or sprint-blocked,
+   * `pellets` > 1 for spread guns, `charge` 0..1 for charge guns, `onTarget` when the aim ray rests on a live
+   * creature, `weak` when on its live weak point.
+   */
+  crosshair: { radius: number; bloom: number; style: string; ready: boolean; pellets: number; charge: number; onTarget: boolean; weak: boolean };
   timeLeft: number; collapse: boolean;
   slots: ReturnType<AbilitySystem['slots']>;
   carried: { item: string; label: string; count: number; kind: string }[];
@@ -131,6 +139,8 @@ export class Raid {
   private lastDecal = new Map<number, number>();
   private noises: Noise[] = [];
   /** Acid graft burns (mods special 'acid'): damage per second on a creature until it runs out. */
+  /** What the aim ray rested on last frame (crosshair target feedback). */
+  private aimTarget: { weak: boolean } | null = null;
   /** Reload feel beats already played this reload (or this shell). */
   private reloadBeat = { idx: 0, last: 0 };
   /** Habitat homes this raid (Design's habitats.json), for placement and reinforcements. */
@@ -842,11 +852,12 @@ export class Raid {
     const dir = this.camera.getWorldDirection(new THREE.Vector3());
     const far = origin.clone().addScaledVector(dir, 80);
     let best = 1;
+    this.aimTarget = null;
     for (const c of this.creatures) {
       if (!c.alive) continue;
       for (const h of c.hitSpheres) {
         const t = segmentSphere(origin, far, h.world, h.r);
-        if (t !== null && t < best && t > 0.002) best = t;
+        if (t !== null && t < best && t > 0.002) { best = t; this.aimTarget = { weak: c.isLiveWeakPoint(h) }; }
       }
     }
     // March the ground so spores land where the crosshair points at terrain.
@@ -1503,6 +1514,13 @@ export class Raid {
       overload: this.overload.fraction, overloaded: this.overload.overloaded,
       ammo: w.state.ammo, magazine: w.spec.magazine, reloading: w.state.reloadProgress,
       weapon: { id: w.id, label: w.spec.label, class: w.spec.class, slot: this.held, slots: this.weapons.map((x) => x.id), reserve: w.state.reserve, charge: w.state.charge, scope: w.spec.ads?.scope ? w.aim : 0, canAim: w.canAim },
+      crosshair: {
+        radius: Math.tan(w.spreadRadians()) / Math.tan((this.player.camera.fov * Math.PI) / 360),
+        bloom: Math.min(1, w.bloom / (w.feel?.bloomMax ?? 2)),
+        style: w.spec.ads?.scope && w.aim > 0.95 ? 'scope' : (w.feel?.reticle ?? 'cross'),
+        ready: !w.state.isReloading && w.state.ammo > 0 && !this.rig.equipping && !(w.spec.spread.sprintBlocksFire && this.player.sprinting),
+        pellets: w.spec.pellets, charge: w.state.charge, onTarget: !!this.aimTarget, weak: !!this.aimTarget?.weak,
+      },
       ego: w.egoFraction, egoReady: w.egoReady, aiming: w.aim > 0.5,
       timeLeft: this.timeLeft, collapse: this.timeLeft <= RAID.zoneCollapse.warningAt,
       slots: this.abilities.slots(),
