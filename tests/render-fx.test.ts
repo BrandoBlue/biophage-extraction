@@ -173,9 +173,12 @@ describe('built-space atmosphere and grown walls', () => {
   it('keeps the held gun in lit, natural tones rather than neon pink', async () => {
     const { ORGANIC, ZONE7 } = await import('../src/render/palette');
     const { SynapseBursterView } = await import('../src/game/viewmodel');
-    const view = new SynapseBursterView(new THREE.PerspectiveCamera());
+    const view = new SynapseBursterView();
+    const { WeaponRig } = await import('../src/game/weapon-rig');
+    const rig = new WeaponRig(new THREE.PerspectiveCamera());
+    rig.equip(view, 0);
     const lights: THREE.PointLight[] = [];
-    view.root.traverse((o) => { if ((o as THREE.PointLight).isPointLight) lights.push(o as THREE.PointLight); });
+    rig.root.traverse((o) => { if ((o as THREE.PointLight).isPointLight) lights.push(o as THREE.PointLight); });
     expect(lights.some((l) => l.color.getHexString() === new THREE.Color(ZONE7.magenta).getHexString())).toBe(false);
     let flesh = false;
     view.root.traverse((o) => {
@@ -189,9 +192,9 @@ describe('built-space atmosphere and grown walls', () => {
 describe('first-person gun framing', () => {
   it('keeps the gun at its framed size while it breathes', async () => {
     const { SynapseBursterView, GUN_SCALE } = await import('../src/game/viewmodel');
-    const view = new SynapseBursterView(new THREE.PerspectiveCamera());
+    const view = new SynapseBursterView();
     const gun = view.root.children.find((c) => c instanceof THREE.Group && c.children.length > 10) as THREE.Group;
-    for (let i = 0; i < 3; i++) view.update(1 / 60, { yaw: 0, pitch: 0, speed: 0, sprinting: false, grounded: true }, 1, 0, null);
+    for (let i = 0; i < 3; i++) view.update(1 / 60, { ammoFrac: 1, aim: 0, ego: 0, charge: 0, reloading: false, look: null });
     expect(gun.scale.x).toBeCloseTo(GUN_SCALE);
     expect(gun.scale.y).toBeLessThan(GUN_SCALE * 1.05);
   });

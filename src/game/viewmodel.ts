@@ -3,6 +3,8 @@ import { HIVE, ORGANIC, ZONE7 } from '../render/palette';
 import { mulberry32 } from '../world/zone7';
 import { alienEye, bioNode, chitin, livingFlesh, membrane } from '../render/materials';
 import { glowTexture } from '../render/shotfx';
+import type { ReloadStyle } from '../../data';
+import type { WeaponFrame, WeaponModel } from './weapon-view';
 
 const hex = (c: THREE.Color) => `#${c.getHexString()}`;
 
@@ -52,9 +54,13 @@ interface Tentacle { root: THREE.Group; segs: THREE.Group[]; phase: number }
  * The Synapse Burster: a living spore gun held by the host. Flesh body, bone ribs, tracking eyes,
  * a translucent spore chamber whose glow shows the magazine, crystal implants and swaying feeder tentacles.
  */
-export class SynapseBursterView {
+export class SynapseBursterView implements WeaponModel {
   readonly root = new THREE.Group();
   readonly muzzle = new THREE.Object3D();
+  readonly sight = new THREE.Object3D();
+  /** Hand end of the wrist, +Y up the forearm: HostArm mounts here. */
+  readonly grip = new THREE.Object3D();
+  readonly flashColour = HIVE.acid;
   /** The host's hand and forearm: Creature & Mutation grows the virus mutation on this group. */
   readonly arm = new THREE.Group();
   private gun = new THREE.Group();
@@ -64,17 +70,12 @@ export class SynapseBursterView {
   private chamberMat: THREE.MeshStandardMaterial;
   private egoMat: THREE.MeshStandardMaterial;
   private flash: THREE.Group;
-  private flashLight: THREE.PointLight;
   private flashLife = 0;
-  private kick = 0;
-  private sway = new THREE.Vector2();
-  private lastYaw = 0;
-  private lastPitch = 0;
   private reloadT = 0;
   private reloadDur = 1;
   private time = 0;
 
-  constructor(camera: THREE.Camera) {
+  constructor() {
     const rand = mulberry32(42);
     const g = this.gun;
 
@@ -218,9 +219,6 @@ export class SynapseBursterView {
     this.flash.add(burst, star, star2, streak, streak2);
     this.flash.visible = false;
     g.add(this.flash);
-    this.flashLight = new THREE.PointLight(HIVE.acid, 0, 6, 2);
-    this.flashLight.position.z = -0.45;
-    g.add(this.flashLight);
 
     // Alien host hand: dark chitin fingers wrapped under the grip.
     const handMat = chitin(hex(C.skin.clone().multiplyScalar(2.2)), ZONE7.lime, 14);
@@ -237,26 +235,21 @@ export class SynapseBursterView {
       node.position.set(0.035, -0.1, 0.05 + i * 0.04);
       this.arm.add(node);
     }
-    const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.05, 0.3, 12), handMat);
-    wrist.position.set(0.06, -0.24, 0.24);
-    wrist.rotation.set(0.9, 0, -0.3);
-    this.arm.add(wrist);
+    // HostArm (Creature) grows the forearm from here: the hand end of the old wrist, +Y up the forearm.
+    this.grip.rotation.set(0.9, 0, -0.3);
+    this.grip.position.set(0.06, -0.24, 0.24).addScaledVector(new THREE.Vector3(0, 1, 0).applyEuler(this.grip.rotation), -0.15);
+    this.grip.scale.setScalar(1.05);
+    this.arm.add(this.grip);
     this.arm.name = 'host-arm';
     g.add(this.arm);
 
     // Angled so the barrel points at the crosshair and the eye crown and flank face the host.
     g.rotation.set(-0.12, 0.16, -0.1);
     g.scale.setScalar(GUN_SCALE);
+    // Eye line over the crown, toward the back of the gun: the rig lines it up with the crosshair when aiming.
+    this.sight.position.set(0, 0.2, 0.12);
+    g.add(this.sight);
     this.root.add(g);
-    this.root.position.set(0.27, -0.225, -0.47);
-
-    // A cool mist key and a warm bone rim that travel with the gun, so its form reads in dark corners of the raid
-    // as lit flesh rather than a pink glow.
-    const key = new THREE.PointLight(ORGANIC.mist, 0.35, 1.2, 2);
-    key.position.set(-0.25, 0.25, 0.1);
-    const rimLight = new THREE.PointLight(HIVE.bone, 0.45, 1.0, 2);
-    rimLight.position.set(0.3, 0.05, -0.35);
-    this.root.add(key, rimLight);
 
     this.root.traverse((o) => {
       o.frustumCulled = false;
@@ -273,41 +266,17 @@ export class SynapseBursterView {
         };
       }
     });
-    camera.add(this.root);
   }
 
-  fired(): void {
-    this.kick = Math.min(1.4, this.kick + 0.55);
-    this.flashLife = 0.06;
-  }
+  fired(): void { this.flashLife = 0.06; }
 
-  reload(duration: number): void { this.reloadT = duration; this.reloadDur = duration; }
+  reload(_style: ReloadStyle, duration: number): void { this.reloadT = duration; this.reloadDur = duration; }
 
-  /**
-   * @param ammoFrac magazine fill, drives chamber glow
-   * @param ego 0..1 Ego Charge, drives crystal glow
-   * @param look direction to the nearest threat in camera space (eyes track it), or null
-   */
-  update(dt: number, cam: { yaw: number; pitch: number; speed: number; sprinting: boolean; grounded: boolean }, ammoFrac: number, ego: number, look: THREE.Vector3 | null): void {
+  update(dt: number, f: WeaponFrame): void {
+    const { ammoFrac, ego, look } = f;
     this.time += dt;
     const t = this.time;
-
-    // Sway against camera rotation.
-    const dYaw = cam.yaw - this.lastYaw, dPitch = cam.pitch - this.lastPitch;
-    this.lastYaw = cam.yaw; this.lastPitch = cam.pitch;
-    this.sway.x = THREE.MathUtils.damp(this.sway.x + THREE.MathUtils.clamp(dYaw, -0.1, 0.1) * 0.6, 0, 8, dt);
-    this.sway.y = THREE.MathUtils.damp(this.sway.y + THREE.MathUtils.clamp(dPitch, -0.1, 0.1) * 0.6, 0, 8, dt);
-
-    this.kick = THREE.MathUtils.damp(this.kick, 0, 14, dt);
-    const bob = cam.grounded ? Math.min(1, cam.speed / 6) : 0;
-    const bt = t * (cam.sprinting ? 13 : 9);
-    let rx = this.sway.y * 0.6 + this.kick * 0.12 + Math.sin(t * 1.3) * 0.006;
-    let ry = this.sway.x * 0.8;
-    let rz = 0;
-    let px = 0.27 + this.sway.x * 0.05 + Math.cos(bt * 0.5) * 0.012 * bob;
-    let py = -0.225 - this.sway.y * 0.05 + Math.abs(Math.sin(bt * 0.5)) * 0.014 * bob + Math.sin(t * 1.3) * 0.004;
-    let pz = -0.47 + this.kick * 0.06;
-    if (cam.sprinting) { rx -= 0.28; ry += 0.55; px -= 0.04; py -= 0.04; }
+    let rx = -0.12, ry = 0.16, rz = -0.1;
 
     // Reload: tip the gun, chamber deflates then swells.
     let chamberScale = 1;
@@ -315,11 +284,10 @@ export class SynapseBursterView {
       this.reloadT = Math.max(0, this.reloadT - dt);
       const k = 1 - this.reloadT / this.reloadDur;
       const arc = Math.sin(k * Math.PI);
-      rz += arc * 0.7; rx += arc * 0.35; py -= arc * 0.07;
+      rz += arc * 0.7; rx += arc * 0.35;
       chamberScale = k < 0.5 ? 1 - k * 1.4 : 0.3 + (k - 0.5) * 1.4;
     }
-    this.root.position.set(px, py, pz);
-    this.root.rotation.set(rx, ry, rz);
+    this.gun.rotation.set(rx, ry, rz);
 
     // Living details.
     const breath = 1 + Math.sin(t * 2.1) * 0.03;
@@ -352,6 +320,5 @@ export class SynapseBursterView {
     const on = this.flashLife > 0;
     this.flash.visible = on;
     if (on) { this.flash.scale.setScalar(0.8 + Math.random() * 0.5); this.flash.rotation.z = Math.random() * Math.PI; }
-    this.flashLight.intensity = on ? 3.5 * (this.flashLife / 0.06) : 0;
   }
 }

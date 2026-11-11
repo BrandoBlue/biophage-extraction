@@ -64,26 +64,81 @@ export interface HostRules {
   noiseRadius: { footstepWalk: number; footstepSprint: number; jumpLand: number; gunfire: number; egoCharge: number; reload: number };
 }
 
+export type WeaponClass = 'rifle' | 'smg' | 'shotgun' | 'sniper' | 'launcher' | 'sidearm' | 'special';
+export type FireMode = 'auto' | 'semi' | 'burst' | 'charge';
+export type ReloadStyle = 'magazine' | 'perShell' | 'regrow';
+export type ProjectileLook = 'spore' | 'needle' | 'shard' | 'glob' | 'bolt';
+export interface EgoCharge {
+  chargePerHit: number; chargePerWeakPointHit: number; chargeToFire: number; overloadFill: number;
+  projectiles: number; damage: number; seekRadius: number; seekTurnRate: number;
+  projectileSpeed: number; burstRadius: number;
+}
+
+/**
+ * A weapons.json entry as written. The Synapse Burster predates the roster schema (reloadTime, projectileSpeed,
+ * burst, adsTime at top level); `weaponSpec` resolves either shape, with defaults, into a WeaponSpec.
+ */
 export interface Weapon {
   label: string;
+  class?: WeaponClass;
+  rarity?: string;
+  fantasy?: string;
+  fireMode?: FireMode;
+  burstCount?: number;
+  /** Seconds between rounds inside one burst. */
+  burstDelay?: number;
+  chargeTime?: number;
+  /** Charge weapons: hold time and the least charge (0..1) that still fires on release. */
+  charge?: { time?: number; minFraction?: number };
+  /** Feed item the reload takes from the cavities and pouch (loot.json kind 'ammo'); null or absent: regrows. */
+  ammo?: string | null;
+  milestone?: string;
   damage: number;
+  pellets?: number;
   fireRate: number;
-  burst: { radius: number; damage: number };
   magazine: number;
-  reserve: number | 'infinite';
-  reloadTime: number;
-  projectileSpeed: number;
-  projectileGravity: number;
+  reload?: { style: ReloadStyle; time: number; perShellTime?: number; emptyExtra?: number };
+  projectile?: {
+    look?: ProjectileLook; speed: number; gravity?: number; splash?: { radius: number; damage: number };
+    /** Creatures a round passes through before it stops. */
+    pierce?: number;
+    /** Sticks where it lands and bursts after `fuse` seconds. */
+    stick?: boolean; fuse?: number;
+  };
+  spread: { hip: number; ads?: number; movingPenalty: number; sprintBlocksFire?: boolean };
+  range: { falloffStart: number; falloffEnd: number; minMultiplier: number; maxDistance?: number };
+  weakPointMultiplier: number;
+  recoil?: { pitch: number; yawJitter: number; recovery: number };
+  /** false: this weapon cannot aim down sights (no zoom). zoom is the FOV divisor while aiming. */
+  ads?: false | { zoom: number; time: number; scope?: boolean };
+  handling?: { equipTime: number; moveSpeed?: number };
+  knockback?: number;
+  egoCharge?: EgoCharge;
+  // Legacy (Synapse Burster) fields.
+  burst?: { radius: number; damage: number };
+  reserve?: number | 'infinite';
+  reloadTime?: number;
+  projectileSpeed?: number;
+  projectileGravity?: number;
+  adsTime?: number;
+}
+
+/** A weapon with every field resolved. What the raid fires. */
+export interface WeaponSpec {
+  id: string; label: string; class: WeaponClass; rarity: string; fantasy: string;
+  fireMode: FireMode; burstCount: number; burstDelay: number; chargeTime: number; minCharge: number;
+  ammo: string | null; milestone: string;
+  damage: number; pellets: number; fireRate: number; magazine: number;
+  reload: { style: ReloadStyle; time: number; perShellTime: number; emptyExtra: number };
+  projectile: { look: ProjectileLook; speed: number; gravity: number; splash: { radius: number; damage: number } | null; pierce: number; stick: boolean; fuse: number };
   spread: { hip: number; ads: number; movingPenalty: number; sprintBlocksFire: boolean };
   range: { falloffStart: number; falloffEnd: number; minMultiplier: number; maxDistance: number };
   weakPointMultiplier: number;
   recoil: { pitch: number; yawJitter: number; recovery: number };
-  adsTime: number;
-  egoCharge: {
-    chargePerHit: number; chargePerWeakPointHit: number; chargeToFire: number; overloadFill: number;
-    projectiles: number; damage: number; seekRadius: number; seekTurnRate: number;
-    projectileSpeed: number; burstRadius: number;
-  };
+  ads: { zoom: number; time: number; scope: boolean } | null;
+  handling: { equipTime: number; moveSpeed: number };
+  knockback: number;
+  egoCharge: EgoCharge | null;
 }
 
 export interface Ability {
@@ -117,7 +172,7 @@ export interface Abomination {
   [tunable: string]: unknown;
 }
 
-export type ItemKind = 'consumable' | 'currency' | 'mutagen' | 'virus' | 'tech' | 'organ';
+export type ItemKind = 'consumable' | 'currency' | 'mutagen' | 'virus' | 'tech' | 'organ' | 'weapon' | 'ammo';
 export interface Item { label: string; kind: ItemKind; value: number; size: Range; stack: number; inertUntil?: string }
 export interface LootEntry { item: string; weight: number; count: Range }
 export interface Container {
@@ -209,6 +264,39 @@ const strip = <T>(o: object): T => {
 export const CLASSES = strip<Record<ClassId, HostClass>>(classesJson);
 export const HOST = strip<HostRules>(hostJson);
 export const WEAPONS = strip<Record<string, Weapon>>(weaponsJson);
+/** Every weapon id in weapons.json, starter first. */
+export const WEAPON_IDS = Object.keys(WEAPONS);
+
+/** Resolves a weapons.json entry (roster or legacy shape) into a full WeaponSpec. Throws on an unknown id. */
+export function weaponSpec(id: string): WeaponSpec {
+  const w = WEAPONS[id];
+  if (!w) throw new Error(`unknown weapon ${id}`);
+  const reloadTime = w.reload?.time ?? w.reloadTime ?? 2;
+  const speed = w.projectile?.speed ?? w.projectileSpeed ?? 90;
+  const adsTime = w.adsTime ?? 0.2;
+  return {
+    id, label: w.label, class: w.class ?? 'rifle', rarity: w.rarity ?? 'common', fantasy: w.fantasy ?? '',
+    fireMode: w.fireMode ?? 'auto', burstCount: w.burstCount ?? 3, burstDelay: w.burstDelay ?? 1 / w.fireRate,
+    chargeTime: w.charge?.time ?? w.chargeTime ?? 1, minCharge: w.charge?.minFraction ?? 1,
+    ammo: w.ammo ?? null, milestone: w.milestone ?? 'spore',
+    damage: w.damage, pellets: w.pellets ?? 1, fireRate: w.fireRate, magazine: w.magazine,
+    reload: { style: w.reload?.style ?? 'regrow', time: reloadTime, perShellTime: w.reload?.perShellTime ?? reloadTime / Math.max(1, w.magazine), emptyExtra: w.reload?.emptyExtra ?? 0 },
+    projectile: {
+      look: w.projectile?.look ?? 'spore', speed, gravity: w.projectile?.gravity ?? w.projectileGravity ?? 0,
+      splash: w.projectile?.splash ?? w.burst ?? null,
+      pierce: w.projectile?.pierce ?? 0, stick: w.projectile?.stick ?? false, fuse: w.projectile?.fuse ?? 0,
+    },
+    spread: { hip: w.spread.hip, ads: w.spread.ads ?? w.spread.hip, movingPenalty: w.spread.movingPenalty, sprintBlocksFire: w.spread.sprintBlocksFire ?? true },
+    range: { ...w.range, maxDistance: w.range.maxDistance ?? w.range.falloffEnd * 1.8 },
+    weakPointMultiplier: w.weakPointMultiplier,
+    recoil: w.recoil ?? { pitch: 0.4, yawJitter: 0.15, recovery: 9 },
+    ads: w.ads === false ? null : { zoom: w.ads?.zoom ?? 1.2, time: w.ads?.time ?? adsTime, scope: w.ads?.scope ?? false },
+    handling: { equipTime: w.handling?.equipTime ?? 0.5, moveSpeed: w.handling?.moveSpeed ?? 1 },
+    knockback: w.knockback ?? 0,
+    egoCharge: w.egoCharge ?? null,
+  };
+}
+
 export const ABILITIES = strip<Record<string, Ability>>(abilitiesJson);
 export const ABOMINATIONS = strip<Record<string, Abomination>>(abominationsJson);
 export const LOOT = strip<{ currency: { id: string; label: string }; items: Record<string, Item>; containers: Record<string, Container> }>(lootJson);
@@ -275,7 +363,7 @@ export function extractTimeFor(cls: ClassId): number {
 }
 
 /** Damage of one weapon projectile after range falloff and hit-zone/weak-point multipliers. */
-export function projectileDamage(w: Weapon, distance: number, multiplier = 1): number {
+export function projectileDamage(w: Pick<Weapon, 'damage' | 'range'>, distance: number, multiplier = 1): number {
   const { falloffStart, falloffEnd, minMultiplier } = w.range;
   const t = Math.min(1, Math.max(0, (distance - falloffStart) / (falloffEnd - falloffStart)));
   return w.damage * (1 - t * (1 - minMultiplier)) * multiplier;

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ABILITIES, ABOMINATIONS, BOSSES, CLASSES, HOST, KITS, LOOT, RAID, VIRUSES, VIRUS_RULES, WEAPONS, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
+import { ABILITIES, ABOMINATIONS, BOSSES, CLASSES, HOST, KITS, LOOT, RAID, VIRUSES, VIRUS_RULES, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
 import { groundHeight, ISLAND_RADIUS, mulberry32 } from '../world/zone7';
 import { Abomination, type AbominationContext, type AbominationKind, type HitSphere } from './abominations';
 import { AbilitySystem } from './abilities';
@@ -28,10 +28,14 @@ import { gore } from '../render/gore';
 import { simplifyForSoftware } from '../render/pipeline';
 import { creatureGore } from '../creatures/gore';
 import { HostArm, VIRUS_LOOKS, attachToViewmodel, type VirusLook } from '../creatures/hostarm';
+import type { AmmoFeed } from './weapon-state';
 import { HarvestFx } from '../creatures/organs';
 import { HIVE, ZONE7 } from '../render/palette';
 import { NeuralOverload, Biomass } from './vitals';
-import { SynapseBurster, projectileLooks } from './weapon';
+import { LivingWeapon, STARTER_WEAPON, projectileLooks } from './weapon';
+import { WeaponRig } from './weapon-rig';
+import { createWeaponModel } from './weapon-view';
+import { weaponSpec, WEAPONS as WEAPON_DATA } from '../../data';
 import { DEFAULT_ZONE, RaidLog } from './economy';
 
 export type Phase = 'briefing' | 'raid' | 'extracted' | 'lost';
@@ -47,6 +51,8 @@ export interface HudState {
   biomass: number; biomassMax: number;
   overload: number; overloaded: boolean;
   ammo: number; magazine: number; reloading: number; ego: number; egoReady: boolean; aiming: boolean;
+  /** The held weapon: slot index in `slots`, rounds left in its ammo item (Infinity: regrows), charge and scope 0..1. */
+  weapon: { id: string; label: string; class: string; slot: number; slots: string[]; reserve: number; charge: number; scope: number; canAim: boolean };
   timeLeft: number; collapse: boolean;
   slots: ReturnType<AbilitySystem['slots']>;
   carried: { item: string; label: string; count: number; kind: string }[];
@@ -78,7 +84,11 @@ export class Raid {
   readonly player: Player;
   readonly biomass: Biomass;
   readonly overload: NeuralOverload;
-  readonly weapon: SynapseBurster;
+  /** The weapons carried into the raid (loadout slots), and which one is held. */
+  readonly weapons: LivingWeapon[] = [];
+  private held = 0;
+  readonly rig: WeaponRig;
+  get weapon(): LivingWeapon { return this.weapons[this.held]; }
   readonly hostArm = new HostArm();
   private harvestFx = new HarvestFx();
   /** Raid-select zone and the contract log for this raid (src/game/economy.ts). */
@@ -143,7 +153,7 @@ export class Raid {
   private collapseWarned = false;
   private spireSignal = 0;
   private sinceHit = 99;
-  private result: (CarriedSnapshot & { cause?: string }) | null = null;
+  private result: (CarriedSnapshot & { cause?: string; weapons: string[] }) | null = null;
   private classId: ClassId = 'neuroInfiltrator';
   private spawnScale: number;
 
@@ -166,9 +176,8 @@ export class Raid {
     this.fx = new Fx(scene);
     this.hazards = new Hazards(scene);
     this.projectiles = new Projectiles(scene, projectileLooks());
-    this.weapon = new SynapseBurster(WEAPONS.synapseBurster, camera, this.projectiles);
-    // Creature & Mutation: the host's forearm dissolve-grows into the injected virus's look.
-    attachToViewmodel(this.weapon.view, this.hostArm);
+    this.rig = new WeaponRig(camera);
+    this.arm([STARTER_WEAPON]);
     // Contracts: what happened this raid (settled in the Hive by economy.settleContracts).
     this.bus.on('harvestDone', (e) => this.log.harvest(e.item));
     this.bus.on('creatureDeath', (e) => this.log.kill(e.type));
@@ -309,6 +318,10 @@ export class Raid {
       if (e.button === 2) this.aimHeld = true;
       if (e.button === 1) { this.egoQueued = true; e.preventDefault(); }
     });
+    addEventListener('wheel', (e) => {
+      if (!locked() || this.phase !== 'raid' || Math.abs(e.deltaY) < 1) return;
+      this.cycleWeapon(e.deltaY > 0 ? 1 : -1);
+    }, { passive: true });
     addEventListener('mouseup', (e) => {
       if (e.button === 0) this.trigger = false;
       if (e.button === 2) this.aimHeld = false;
@@ -323,6 +336,7 @@ export class Raid {
       if (e.code === 'KeyV') this.meleeQueued = true;
       if (e.code === 'KeyG') this.throwGrenade();
       if (e.code === 'KeyX') this.placeMine();
+      if (e.code === 'KeyZ') this.cycleWeapon(1);
     });
   }
 
@@ -330,6 +344,7 @@ export class Raid {
   deploy(d: Deployment): void {
     if (this.phase !== 'briefing') return;
     this.carried.load(d.loadout, d.cavitySize, d.pouchSize);
+    if (d.weapons?.length) this.arm(d.weapons);
     this.zone = d.zone ?? DEFAULT_ZONE;
     this.log = new RaidLog(this.zone);
     this.begin();
@@ -370,7 +385,7 @@ export class Raid {
   }
 
   private onReload(): void {
-    this.bus.emit('reload', { weapon: this.weapon.id, time: this.weapon.w.reloadTime });
+    this.bus.emit('reload', { weapon: this.weapon.id, time: this.weapon.state.reloadTotal });
     this.noise(this.player.position, HOST.noiseRadius.reload, 'reload');
   }
 
@@ -703,7 +718,7 @@ export class Raid {
   private lose(cause: string): void {
     if (this.phase !== 'raid') return;
     this.phase = 'lost';
-    this.result = { ...this.carried.snapshot(), cause };
+    this.result = { ...this.carried.snapshot(), cause, weapons: this.weapons.map((w) => w.id) };
     this.player.enabled = false;
     this.trigger = false;
     this.bus.emit('death', { cause, items: this.result.items, dna: this.result.dna, value: this.result.value });
@@ -714,7 +729,7 @@ export class Raid {
   private win(): void {
     if (this.phase !== 'raid') return;
     this.phase = 'extracted';
-    this.result = this.carried.snapshot();
+    this.result = { ...this.carried.snapshot(), weapons: this.weapons.map((w) => w.id) };
     this.player.enabled = false;
     this.trigger = false;
     this.spire.launch();
@@ -760,7 +775,7 @@ export class Raid {
     // Movement and Overload.
     p.canSprint = !this.overload.overloaded && this.useLeft <= 0;
     p.slowed = this.useLeft > 0 ? Number(ABILITIES.clotGel.movementMultiplierWhileUsing ?? 0.6) : 1;
-    p.speedMultiplier = this.injection.injecting ? VIRUS_RULES.injectMovementMultiplier : 1;
+    p.speedMultiplier = (this.injection.injecting ? VIRUS_RULES.injectMovementMultiplier : 1) * this.weapon.spec.handling.moveSpeed;
     const mods = virusModifiers(this.injection.active);
     p.sprintBoost = mods.sprint;
     p.footstepScale = mods.footstep;
@@ -799,31 +814,37 @@ export class Raid {
     // Weapon.
     for (const c of this.creatures) c.refreshHitSpheres();
     const trigger = live && (this.debugTrigger ?? this.trigger);
-    const fire = this.weapon.update(dt, trigger, live && this.aimHeld, { aimPoint: this.aimPoint(), moving: p.moving, sprinting: p.sprinting });
+    const w = this.weapon;
+    const fire = w.update(dt, trigger, live && this.aimHeld, { aimPoint: this.aimPoint(), moving: p.moving, sprinting: p.sprinting }, !this.rig.equipping);
     if (fire.shots > 0) {
-      const w = this.weapon.w;
-      p.kick(w.recoil.pitch * (Math.PI / 180) * fire.shots * (1 - this.weapon.aim * 0.5));
-      p.yaw += (this.rand() - 0.5) * w.recoil.yawJitter * (Math.PI / 180) * fire.shots;
-      p.addTrauma(0.03);
+      const rc = w.spec.recoil;
+      p.kick(rc.pitch * (Math.PI / 180) * fire.shots * (1 - w.aim * 0.5));
+      p.yaw += (this.rand() - 0.5) * rc.yawJitter * (Math.PI / 180) * fire.shots;
+      p.addTrauma(0.03 * Math.min(3, w.spec.pellets > 1 ? 2 : 1));
+      for (let i = 0; i < fire.shots; i++) this.rig.fired();
       this.noise(p.position, HOST.noiseRadius.gunfire, 'gunfire');
-      this.bus.emit('shot', { weapon: this.weapon.id, ammo: this.weapon.state.ammo, position: { x: p.position.x, y: p.position.y, z: p.position.z }, ego: false });
+      this.bus.emit('shot', { weapon: w.id, ammo: w.state.ammo, position: { x: p.position.x, y: p.position.y, z: p.position.z }, ego: false });
     }
     if (fire.startedReload) this.onReload();
-    if (fire.reloaded) this.bus.emit('reloaded', { weapon: this.weapon.id, ammo: this.weapon.state.ammo });
+    if (fire.reloaded) this.bus.emit('reloaded', { weapon: w.id, ammo: w.state.ammo });
     if (this.egoQueued) {
       this.egoQueued = false;
-      if (live && this.weapon.egoReady) {
+      if (live && w.egoReady) {
         if (this.overload.overloaded) this.bus.emit('abilityDenied', { id: 'egoCharge', reason: 'overloaded' });
-        else if (this.weapon.fireEgo(this.aimPoint())) {
-          this.overload.add(this.weapon.w.egoCharge.overloadFill);
+        else if (w.fireEgo(this.aimPoint())) {
+          this.overload.add(w.spec.egoCharge!.overloadFill);
           this.noise(p.position, HOST.noiseRadius.egoCharge, 'egoCharge');
           p.addTrauma(0.3);
           p.kick(0.05);
-          this.bus.emit('shot', { weapon: this.weapon.id, ammo: this.weapon.state.ammo, position: { x: p.position.x, y: p.position.y, z: p.position.z }, ego: true });
+          this.rig.fired();
+          this.bus.emit('shot', { weapon: w.id, ammo: w.state.ammo, position: { x: p.position.x, y: p.position.y, z: p.position.z }, ego: true });
         }
       }
     }
-    this.weapon.view.update(dt, { yaw: p.yaw, pitch: p.pitch, speed: Math.hypot(p.velocity.x, p.velocity.z), sprinting: p.sprinting, grounded: p.grounded }, this.weapon.state.ammo / this.weapon.w.magazine, this.weapon.egoFraction, this.lookTarget());
+    // Aiming down sights zooms by the weapon's ads.zoom (weapons without ADS never zoom).
+    p.zoom = 1 + ((w.spec.ads?.zoom ?? 1) - 1) * THREE.MathUtils.smoothstep(w.aim, 0, 1);
+    this.rig.update(dt, { yaw: p.yaw, pitch: p.pitch, speed: Math.hypot(p.velocity.x, p.velocity.z), sprinting: p.sprinting, grounded: p.grounded },
+      { ammoFrac: w.state.ammo / w.spec.magazine, aim: w.aim, ego: w.egoFraction, charge: fire.charge, reloading: w.state.isReloading, look: this.lookTarget() });
 
     // Abilities.
     this.abilities.update(dt);
@@ -1090,7 +1111,7 @@ export class Raid {
     }
     let bestT = Infinity, bestC: Abomination | null = null, bestS: HitSphere | null = null;
     for (const c of this.creatures) {
-      if (!c.alive) continue;
+      if (!c.alive || pr.hit?.has(c.id)) continue;
       let weakHit: { t: number; s: HitSphere } | null = null;
       let bodyHit: { t: number; s: HitSphere } | null = null;
       for (const h of c.hitSpheres) {
@@ -1109,23 +1130,74 @@ export class Raid {
     }
     if (nestHit) {
       const point = a.clone().lerp(b, nestHit.t);
-      const dmg = pr.kind === 'ego' ? pr.damage : projectileDamage(this.weapon.w, point.distanceTo(pr.origin), 1);
+      if (pr.stick) return { point, t: nestHit.t }; // sticky rounds burst on their fuse
+      const dmg = pr.weapon ? projectileDamage({ damage: pr.damage, range: pr.weapon.range }, point.distanceTo(pr.origin), 1) : pr.damage;
       this.damageNest(nestHit.n, dmg, nestHit.vent, point);
-      if (pr.kind === 'spore') this.weapon.credit(nestHit.vent !== null);
+      if (pr.weapon) this.weaponFor(pr)?.credit(nestHit.vent !== null);
       return { point, t: nestHit.t };
     }
     if (!bestC || !bestS) return null;
     const point = a.clone().lerp(b, bestT);
     const weak = bestC.isLiveWeakPoint(bestS);
     const dist = point.distanceTo(pr.origin);
-    const mult = weak ? (bestC.t.weakPoint.multiplier ?? this.weapon.w.weakPointMultiplier) : 1;
-    const dmg = pr.kind === 'ego' ? pr.damage * mult : projectileDamage(this.weapon.w, dist, mult);
+    if (pr.stick) return { point, t: bestT }; // sticky rounds burst on their fuse
+    const mult = weak ? (bestC.t.weakPoint.multiplier ?? pr.weapon?.weakPointMultiplier ?? 2) : 1;
+    const dmg = pr.weapon ? projectileDamage({ damage: pr.damage, range: pr.weapon.range }, dist, mult) : pr.damage * mult;
     const dir = pr.vel.clone().normalize();
+    (pr.hit ??= new Set()).add(bestC.id);
     this.damageCreature(bestC, dmg, weak, dir, point, pr.kind, bestS);
-    if (pr.kind === 'spore') this.weapon.credit(weak);
+    if (pr.weapon) this.weaponFor(pr)?.credit(weak);
     this.fx.impact(point, weak ? GORE.limeFluid : GORE.spore, weak ? 12 : 6);
     this.splash(pr, point, bestC);
     return { point, t: bestT };
+  }
+
+  /** The carried weapon that fired a player round (Ego Charge is credited to it). */
+  private weaponFor(pr: Projectile): LivingWeapon | undefined { return this.weapons.find((w) => w.spec === pr.weapon); }
+
+  // ------------------------------------------------------------------ arsenal
+  /** Loads the raid's weapon slots (weapons.json ids; unknown ids are skipped) and holds the first. */
+  arm(ids: string[]): void {
+    const known = ids.filter((id) => WEAPON_DATA[id]);
+    if (!known.length) known.push(STARTER_WEAPON);
+    for (const w of this.weapons) w.model.root.removeFromParent();
+    this.weapons.length = 0;
+    const feed = (id: string, item: string): AmmoFeed => ({
+      available: () => this.carried.count(item),
+      take: (n) => { let got = 0; while (got < n && this.carried.consume(item)) got++; if (got) this.bus.emit('ammoFed', { weapon: id, item, count: got }); return got; },
+    });
+    for (const id of known) {
+      const spec = weaponSpec(id);
+      const w = new LivingWeapon(spec, createWeaponModel(spec), this.projectiles, spec.ammo ? feed(id, spec.ammo) : null);
+      this.weapons.push(w);
+      this.rig.add(w.model);
+    }
+    this.held = -1;
+    this.equip(0, true);
+  }
+
+  /** Draws carried weapon `i` (its equipTime swing; instantly at raid start). */
+  equip(i: number, instant = false): boolean {
+    if (i === this.held || !this.weapons[i]) return false;
+    const prev = this.weapons[this.held];
+    if (prev) { prev.state.cancelReload(); prev.aim = 0; }
+    this.held = i;
+    const w = this.weapons[i];
+    this.rig.equip(w.model, instant ? 0 : w.spec.handling.equipTime);
+    // Creature & Mutation: the host's forearm (and its virus mutation) moves onto the drawn weapon's grip.
+    if (w.model.grip) {
+      w.model.grip.add(this.hostArm.root);
+      this.hostArm.root.position.set(0, 0, 0);
+      this.hostArm.root.quaternion.identity();
+      this.hostArm.root.scale.setScalar(1);
+    } else attachToViewmodel(w.model as { root: THREE.Object3D }, this.hostArm);
+    if (!instant) this.bus.emit('weaponSwap', { weapon: w.id, slot: i });
+    return true;
+  }
+
+  private cycleWeapon(step: number): void {
+    if (this.weapons.length < 2) return;
+    this.equip((this.held + step + this.weapons.length) % this.weapons.length);
   }
 
   private splash(pr: Projectile, at: THREE.Vector3, except: Abomination | null): void {
@@ -1158,7 +1230,8 @@ export class Raid {
       phase: this.phase,
       biomass: this.biomass.current, biomassMax: this.biomass.max,
       overload: this.overload.fraction, overloaded: this.overload.overloaded,
-      ammo: w.state.ammo, magazine: w.w.magazine, reloading: w.state.isReloading ? 1 - w.state.reloading / w.w.reloadTime : 0,
+      ammo: w.state.ammo, magazine: w.spec.magazine, reloading: w.state.reloadProgress,
+      weapon: { id: w.id, label: w.spec.label, class: w.spec.class, slot: this.held, slots: this.weapons.map((x) => x.id), reserve: w.state.reserve, charge: w.state.charge, scope: w.spec.ads?.scope ? w.aim : 0, canAim: w.canAim },
       ego: w.egoFraction, egoReady: w.egoReady, aiming: w.aim > 0.5,
       timeLeft: this.timeLeft, collapse: this.timeLeft <= RAID.zoneCollapse.warningAt,
       slots: this.abilities.slots(),
@@ -1257,7 +1330,11 @@ export class Raid {
       },
       clearAim: () => { this.debugAim = null; },
       trigger: (on: boolean | null) => { this.debugTrigger = on; },
-      ego: () => { this.weapon.ego = this.weapon.w.egoCharge.chargeToFire; this.egoQueued = true; },
+      ego: () => { this.weapon.ego = this.weapon.spec.egoCharge?.chargeToFire ?? 0; this.egoQueued = true; },
+      /** Loads these weapons.json ids as the raid's weapon slots. */
+      arm: (ids: string[]) => this.arm(ids),
+      equip: (i: number) => this.equip(i),
+      aim: (on: boolean) => { this.aimHeld = on; },
       ability: (slot: number) => this.useAbility(slot),
       hold: (code: string, on: boolean) => { if (on) this.player.keys.add(code); else this.player.keys.delete(code); },
       /** Damages nest `i` directly (ventricle index or null for the body). */

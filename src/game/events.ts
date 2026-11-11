@@ -11,6 +11,10 @@ export interface GameEvents {
   shot: { weapon: string; ammo: number; position: Vec3Like; ego: boolean };
   reload: { weapon: string; time: number };
   reloaded: { weapon: string; ammo: number };
+  /** The held weapon changed (mouse wheel or Z). */
+  weaponSwap: { weapon: string; slot: number };
+  /** A fed weapon took rounds from its ammo item in the cavities or pouch. */
+  ammoFed: { weapon: string; item: string; count: number };
   hit: { target: string; id: number; damage: number; weakPoint: boolean; kill: boolean; position: Vec3Like };
   damaged: { amount: number; biomass: number; zone: HitZone; source: string; direction: Vec3Like | null };
   healed: { amount: number; biomass: number };

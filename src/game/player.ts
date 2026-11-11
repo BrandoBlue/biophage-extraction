@@ -34,6 +34,8 @@ export class Player {
   crouched = false;
   /** Set by the raid each frame (abilities, overload). */
   speedMultiplier = 1;
+  /** Set by the raid each frame from the held weapon's aim: the FOV divides by it, and so does mouse look. */
+  zoom = 1;
   /** Set by the raid each frame from the World layout (Gravity Bloom anomaly); 1 = normal gravity. */
   gravityScale = 1;
   /** Virus modifiers: sprint speed and how far footsteps carry. */
@@ -74,8 +76,8 @@ export class Player {
       if (document.pointerLockElement !== dom || !this.enabled) return;
       if (freshLock) { freshLock = false; return; }
       if (Math.abs(e.movementX) > MAX_MOUSE_DELTA || Math.abs(e.movementY) > MAX_MOUSE_DELTA) return;
-      this.yaw -= e.movementX * 0.0022;
-      this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * 0.0022, -1.5, 1.5);
+      this.yaw -= (e.movementX * 0.0022) / this.zoom;
+      this.pitch = THREE.MathUtils.clamp(this.pitch - (e.movementY * 0.0022) / this.zoom, -1.5, 1.5);
     });
   }
 
@@ -209,7 +211,7 @@ export class Player {
     c.position.addScaledVector(right, bobX);
     c.rotation.set(THREE.MathUtils.clamp(this.pitch + this.recoilPitch, -1.55, 1.55) + sy, this.yaw + sx, this.roll + sr, 'YXZ');
 
-    const fov = BASE_FOV + (sprint ? 6 : 0) + (this.sliding ? 9 : 0);
-    if (Math.abs(c.fov - fov) > 0.01) { c.fov = THREE.MathUtils.damp(c.fov, fov, 6, dt); c.updateProjectionMatrix(); }
+    const fov = (BASE_FOV + (sprint ? 6 : 0) + (this.sliding ? 9 : 0)) / this.zoom;
+    if (Math.abs(c.fov - fov) > 0.01) { c.fov = THREE.MathUtils.damp(c.fov, fov, this.zoom > 1.01 || c.fov < BASE_FOV - 1 ? 18 : 6, dt); c.updateProjectionMatrix(); }
   }
 }

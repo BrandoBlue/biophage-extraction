@@ -10,6 +10,7 @@ import { footprint, ItemGrid, stackLimit, type Placed } from './grid';
 import type { CarriedSnapshot, Loadout } from './inventory';
 import { earnedPerk, newEconomy, normaliseEconomy, type EconomyState } from './economy';
 import { newHive, normaliseHive, type HiveState } from './hive';
+import { normaliseSlots, raidWeapons, STARTER_WEAPON } from './arsenal';
 
 export interface RaidRecord { raids: number; extracts: number; deaths: number; kills: number }
 
@@ -29,6 +30,8 @@ export interface Profile {
   economy: EconomyState;
   /** The Hive Body: organ levels, Spore Garden clock, Gestation Vat job (src/game/hive.ts). */
   hive: HiveState;
+  /** Weapons equipped besides the innate starter (weapons.json ids; src/game/arsenal.ts). Lost on death. */
+  weaponSlots: (string | null)[];
 }
 
 /** Key/value store; `localStorage` in the browser, a Map in tests or when storage is blocked. */
@@ -80,6 +83,7 @@ export function newProfile(): Profile {
     gutPouchLevel: 0, cavity: [], gutPouch: [], stats: { raids: 0, extracts: 0, deaths: 0, kills: 0 }, host: 'neuroInfiltrator', marketMood: MARKET.mood.start,
     economy: newEconomy(),
     hive: newHive(),
+    weaponSlots: normaliseSlots([]),
   };
 }
 
@@ -95,6 +99,7 @@ function normalise(raw: Partial<Profile>): Profile {
     gutPouch: Array.isArray(raw.gutPouch) ? raw.gutPouch : [],
     economy: normaliseEconomy(raw.economy),
     hive: normaliseHive(raw.hive),
+    weaponSlots: normaliseSlots(raw.weaponSlots),
   };
   p.stashRows = Math.min(PROFILE.stash.rowExpansion.maxRows, Math.max(PROFILE.stash.rowsBase, Math.floor(Number(p.stashRows) || 0)));
   p.gutPouchLevel = Math.min(PROFILE.gutPouch.upgrades.length, Math.max(0, Math.floor(Number(p.gutPouchLevel) || 0)));
@@ -204,7 +209,7 @@ export function upgradePouch(p: Profile): boolean {
 }
 
 // ------------------------------------------------------------------ raid transitions
-export interface Deployment { loadout: Loadout; cavitySize: [number, number]; pouchSize: [number, number]; freeKit: number; /** Raid-select zone id (data/zones.json). */ zone: string }
+export interface Deployment { /** weapons.json ids in slot order, the starter first. */ weapons: string[]; loadout: Loadout; cavitySize: [number, number]; pouchSize: [number, number]; freeKit: number; /** Raid-select zone id (data/zones.json). */ zone: string }
 
 /**
  * Hands the cavity loadout and gut pouch to the raid. The saved profile keeps the gut pouch (it is secure) but its
@@ -221,9 +226,12 @@ export function deploy(p: Profile): Deployment {
   const gift = earnedPerk(p, 'deployGift');
   if (gift) g[gift.to === 'cavity' ? 'cavity' : 'pouch'].add(gift.item, gift.count);
   const loadout = { cavity: g.cavity.snapshot(), pouch: g.pouch.snapshot() };
+  const weapons = raidWeapons(p);
+  // Equipped weapons ride with the host: a quit or a death costs them, an extraction brings them home.
+  p.weaponSlots = normaliseSlots([]);
   p.cavity = [];
   p.stats.raids++;
-  return { loadout, cavitySize: cavitySize(p), pouchSize: pouchSize(p.gutPouchLevel), freeKit, zone: p.economy.zone };
+  return { weapons, loadout, cavitySize: cavitySize(p), pouchSize: pouchSize(p.gutPouchLevel), freeKit, zone: p.economy.zone };
 }
 
 export interface Settlement { toStash: { item: string; count: number }[]; overflow: { item: string; count: number }[]; dnaBanked: number }
@@ -233,7 +241,9 @@ export interface Settlement { toStash: { item: string; count: number }[]; overfl
  * kill DNA is banked, the gut pouch returns as carried. Items the stash has no room for wait in the cavities
  * and become the next loadout.
  */
-export function extract(p: Profile, c: Pick<CarriedSnapshot, 'cavity' | 'pouch' | 'dna'>, kills: number): Settlement {
+export function extract(p: Profile, c: Pick<CarriedSnapshot, 'cavity' | 'pouch' | 'dna'> & { weapons?: string[] }, kills: number): Settlement {
+  // Weapons carried out go back into their slots (the starter is innate).
+  p.weaponSlots = normaliseSlots((c.weapons ?? []).filter((w) => w !== STARTER_WEAPON));
   const stash = stashGrid(p);
   const [cc, cr] = cavitySize(p);
   const leftover = new ItemGrid(cc, cr);
