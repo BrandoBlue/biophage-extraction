@@ -1,6 +1,7 @@
 import { HIVE } from '../render/palette';
 import * as THREE from 'three';
 import { alienEye, bioNode, chitin, livingFlesh, membrane } from '../render/materials';
+import { creatureHide } from './hide';
 import { meshSdf } from './sdf';
 import * as P from './parts';
 import { aimBone, solveTwoBone } from './ik';
@@ -68,7 +69,10 @@ export function slotMaterial(plan: BodyPlan, slot: MaterialSlot): THREE.Material
   const pal = { ...plan.palette, vein: scaleHex(plan.palette.vein, RESTRAINT.vein), rim, chitinGlow: scaleHex(plan.palette.chitinGlow, RESTRAINT.chitinGlow) };
   let m: THREE.Material;
   switch (slot) {
-    case 'flesh': { const f = livingFlesh(pal.flesh, pal.vein, pal.rim, plan.fleshScale); f.vertexColors = true; f.clearcoatRoughness = 0.32; f.roughness = 0.5; m = f; break; }
+    case 'flesh': {
+      // Grounded hide: wet skin broken by sutures, dry cracked crust, tumour knots and worn-through bone.
+      const crust = `#${new THREE.Color(pal.bone).lerp(new THREE.Color(pal.flesh), 0.55).multiplyScalar(0.62).getHexString()}`;
+      const f = creatureHide(pal.flesh, pal.vein, pal.rim, crust, pal.bone, plan.fleshScale); f.vertexColors = true; f.roughness = 0.55; m = f; break; }
     case 'raw': { const f = livingFlesh(pal.flesh, scaleHex(pal.fluid, 0.5), scaleHex(pal.fluid, 0.4), plan.fleshScale * 1.8); f.side = THREE.DoubleSide; m = f; break; }
     case 'chitin': m = chitin(pal.chitin, pal.chitinGlow, 3.5); break;
     case 'bone': m = chitin(pal.bone, pal.chitinGlow, 7); break;

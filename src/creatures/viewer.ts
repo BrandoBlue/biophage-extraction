@@ -8,7 +8,7 @@ import { HostArm, VIRUS_LOOKS, type VirusLook } from './hostarm';
 import { organMesh } from './organs';
 import { HostBody } from './hosts';
 import type { ClassId } from '../../data';
-import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
+import { HIVE, ORGANIC, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { bioSurface, bioNode } from '../render/materials';
 import { createPipeline, simplifyForSoftware, type Pipeline } from '../render/pipeline';
 import { buildZone7, groundHeight } from '../world/zone7';
@@ -76,17 +76,31 @@ function specimenStage(scene: THREE.Scene): void {
   scene.add(fill, fill.target);
 }
 
-interface ViewerState { species: SpeciesId; seed: number; stage: number; walking: boolean; striking: number; env: 'hive' | 'zone7' }
+/** Neutral look-dev stage (`?creatures&env=studio`): grey floor, bone-white key, cool mist rim, no coloured light. */
+function studioStage(scene: THREE.Scene): void {
+  scene.background = new THREE.Color(HIVE.background).lerp(new THREE.Color(ORGANIC.mist), 0.12);
+  scene.add(new THREE.Mesh(new THREE.CircleGeometry(40, 64).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: new THREE.Color(ORGANIC.mist).multiplyScalar(0.18), roughness: 0.9 })));
+  scene.add(new THREE.HemisphereLight(ORGANIC.mist, HIVE.background, 0.9));
+  const key = new THREE.SpotLight(HIVE.bone, 110, 34, 0.6, 0.5, 1.3);
+  key.position.set(5, 11, 7);
+  const rim = new THREE.SpotLight(ORGANIC.mist, 80, 34, 0.6, 0.5, 1.3);
+  rim.position.set(-6, 7, -9);
+  const fill = new THREE.SpotLight(ORGANIC.amber, 20, 30, 0.7, 0.6, 1.4);
+  fill.position.set(-4, 2.5, 8);
+  for (const l of [key, rim, fill]) { l.target.position.set(0, 1.2, 0); scene.add(l, l.target); }
+}
+
+interface ViewerState { species: SpeciesId; seed: number; stage: number; walking: boolean; striking: number; env: 'hive' | 'zone7' | 'studio' }
 
 export function startCreatureViewer(canvas: HTMLCanvasElement): void {
   const q = new URLSearchParams(location.search);
-  const env: ViewerState['env'] = q.get('env') === 'zone7' ? 'zone7' : 'hive';
+  const env: ViewerState['env'] = q.get('env') === 'zone7' ? 'zone7' : q.get('env') === 'studio' ? 'studio' : 'hive';
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 1500);
   // Zone 7: a flat spot on the island (the Bio-Pod clearing).
   const origin = env === 'zone7' ? new THREE.Vector3(22, 0, 0) : new THREE.Vector3();
   const ground = env === 'zone7' ? groundHeight : () => 0;
-  if (env === 'zone7') buildZone7(scene); else specimenStage(scene);
+  if (env === 'zone7') buildZone7(scene); else if (env === 'studio') studioStage(scene); else specimenStage(scene);
   origin.y = ground(origin.x, origin.z);
   const pipeline: Pipeline = createPipeline(canvas, scene, camera, env === 'zone7' ? 'zone7' : 'hive');
   const soft = pipeline.quality === 'low';
@@ -217,6 +231,8 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     c.root.position.set(origin.x + x, ground(origin.x + x, origin.z + z), origin.z + z);
     c.root.rotation.y = faceYaw;
     c.drive.excite = 0.5;
+    // Sky-sized hovers (the Lumen Grazer) come down to the stage lights, low enough that their curtains brush the floor.
+    if (c.plan.locomotion === 'hover' && c.plan.radius > 6) c.drive.altitude = c.plan.radius * 1.5;
     scene.add(c.root);
     if (soft) simplifyForSoftware(c.root);
     c.plant();
@@ -264,8 +280,9 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     else if (c) {
       const r = c.plan.radius, h = c.plan.bodyHeight;
       const top = c.plan.locomotion === 'walker' ? h : h;
-      target.copy(c.root.position).setY(c.root.position.y + (c.plan.locomotion === 'hover' ? h - 1.3 : c.plan.locomotion === 'flyer' ? h : top * 0.8));
-      dist = c.plan.locomotion === 'hover' ? 9.5 : c.plan.locomotion === 'flyer' ? 1.7 : Math.max(2.2, r * 3.4 + h * 1.4);
+      const hoverY = (c.drive.altitude ?? h) - Math.min(1.3, r);
+      target.copy(c.root.position).setY(c.root.position.y + (c.plan.locomotion === 'hover' ? hoverY : c.plan.locomotion === 'flyer' ? h : top * 0.8));
+      dist = c.plan.locomotion === 'hover' ? Math.max(4, r * 6.3) : c.plan.locomotion === 'flyer' ? 1.7 : Math.max(2.2, r * 3.4 + h * 1.4);
       if (st.walking) { target.set(origin.x, target.y, origin.z); dist = Math.max(3.2, r * 3.2) * 2.6 + h; }
     }
     dist *= zoom;
