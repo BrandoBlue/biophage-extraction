@@ -22,6 +22,8 @@ export interface ProfileView {
   stats: { raids: number; extracts: number; deaths: number; kills: number };
   /** Last raid result, for the menu's debrief card. */
   last?: { result: 'extracted' | 'lost'; value: number } | null;
+  /** Zone picked on raid select (zones.json id). */
+  zone?: string;
 }
 
 export interface HiveActions {
@@ -40,6 +42,37 @@ export interface HiveActions {
   /** Sells `count` of the stack at `index` of `zone`; returns the DNA paid (0 if nothing sold). */
   sell?(zone: GridZone, index: number, count: number): number;
   buy?(item: string): boolean;
+  /** Hive vendors with stock, reputation and contracts (Gameplay's economy.ts). The VENDORS tab unlocks with it. */
+  vendors?(): VendorView[];
+  vendorBuy?(vendor: string, item: string): boolean;
+  /** Sells to a vendor; returns the DNA paid (0 if nothing sold). */
+  vendorSell?(vendor: string, zone: GridZone, index: number, count: number): number;
+  acceptContract?(id: string): boolean;
+  abandonContract?(vendor: string): boolean;
+  /** Zone roster with access, and picking the raid-select zone. */
+  zones?(): ZoneView[];
+  selectZone?(id: string): boolean;
+}
+
+export type ZoneView = { id: string; label: string; access: { state: 'open' } | { state: 'locked' | 'coming'; reason: string } };
+
+export type VendorBuyState = 'ok' | 'not-stocked' | 'rep' | 'dna' | 'space';
+export type ContractState = 'done' | 'active' | 'available' | 'locked' | 'coming';
+export interface ContractView {
+  id: string; title: string; brief: string; state: ContractState;
+  objectives: { text: string; done: number; need: number }[];
+  reward: { dna: number; rep: number; items: { item: string; count: number }[]; unlock?: string };
+  /** Titles of contracts that must be finished first. */
+  requires: string[];
+}
+export interface VendorView {
+  id: string; label: string; role: string; brief: string;
+  /** Reputation level 1-4, points, and the level band [floor, next) (next null at max). */
+  rep: { level: number; points: number; floor: number; next: number | null };
+  unlocks: { rep: number; text: string; earned: boolean }[];
+  stock: { item: string; price: number; rep: number; state: VendorBuyState }[];
+  sellPrice(item: string): number;
+  contracts: ContractView[];
 }
 
 export type BuyState = 'ok' | 'not-stocked' | 'dna' | 'space';

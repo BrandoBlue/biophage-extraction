@@ -4,15 +4,19 @@
  * debrief. main.ts keeps the same small surface it had with the interim menu: construct, hide, say, visible,
  * plus showResults for the debrief.
  */
-import { CLASSES, MARKET, PROFILE } from '../../data';
-import type { ClassId } from '../../data';
+import { CLASSES, MARKET, PROFILE, VENDOR_REP_THRESHOLDS, VENDORS, vendorBuyPrice } from '../../data';
+import type { ClassId, VendorId } from '../../data';
+import {
+  abandonContract, acceptContract, canVendorBuy, contractById, openVendors, repLevel, repPoints, selectZone, vendorBuy, vendorContracts, vendorSell, vendorStock, zoneList,
+} from '../game/economy';
 import { ItemGrid } from '../game/grid';
 import {
   buy, canBuy, expandStash, marketStock, marketWindow, nextStashRowCost, placeAt, pouchUpgradeCost, sell, sellPrice, stashGrid, upgradePouch,
   type Profile,
 } from '../game/profile';
 import { HiveUI } from './hive/hive-ui';
-import type { HiveActions, ProfileView } from './hive/model';
+import type { HiveActions, ProfileView, VendorView } from './hive/model';
+import { objectiveText } from './hive/vendors';
 import type { ResultData } from './hive/screens';
 
 /** Short, stable callsign from the profile's raid record; a real name arrives with the Hive account. */
@@ -46,6 +50,13 @@ export class HiveMenu {
       },
       sell: (zone, index, count) => { const paid = sell(p, zone, index, count); if (paid) onChange(); return paid; },
       buy: (item) => { const ok = buy(p, item); if (ok) onChange(); return ok; },
+      vendors: () => openVendors().map((v) => this.vendorView(v)),
+      vendorBuy: (v, item) => { const ok = vendorBuy(p, v as VendorId, item); if (ok) onChange(); return ok; },
+      vendorSell: (v, zone, index, count) => { const paid = vendorSell(p, v as VendorId, zone, index, count); if (paid) onChange(); return paid; },
+      acceptContract: (id) => { const ok = acceptContract(p, id); if (ok) onChange(); return ok; },
+      abandonContract: (v) => { const ok = abandonContract(p, v as VendorId); if (ok) onChange(); return ok; },
+      zones: () => zoneList(p),
+      selectZone: (id) => { const ok = selectZone(p, id); if (ok) onChange(); return ok; },
     };
     this.ui = new HiveUI(root, () => this.view(), actions, {
       pickHost: (id) => this.pickHost(id),
@@ -58,7 +69,28 @@ export class HiveMenu {
   private view(): ProfileView {
     const p = this.profile;
     return { callsign: callsign(p), dna: p.dna, host: p.host, stash: p.stash, stashRows: p.stashRows, cavity: p.cavity,
-      gutPouch: p.gutPouch, gutPouchLevel: p.gutPouchLevel, stats: p.stats, last: this.last };
+      gutPouch: p.gutPouch, gutPouchLevel: p.gutPouchLevel, stats: p.stats, last: this.last, zone: p.economy.zone };
+  }
+
+  /** One vendor as the vendor screen reads it: rep band, rep-gated stock, unlock text, contract chain. */
+  private vendorView(v: VendorId): VendorView {
+    const p = this.profile, d = VENDORS[v], level = repLevel(p, v), T = VENDOR_REP_THRESHOLDS;
+    return {
+      id: v, label: d.label, role: d.role, brief: d.brief ?? '',
+      rep: { level, points: Math.floor(repPoints(p, v)), floor: T[level - 1] ?? 0, next: level < T.length ? T[level] : null },
+      unlocks: Object.entries(d.unlocks).map(([r, text]) => ({ rep: Number(r), text, earned: level >= Number(r) })),
+      stock: vendorStock(p, v).map((s) => {
+        const st = canVendorBuy(p, v, s.item);
+        return { item: s.item, price: s.price, rep: s.rep, state: st };
+      }),
+      sellPrice: (item) => vendorBuyPrice(v, item),
+      contracts: vendorContracts(p, v).map(({ contract: c, state, progress }) => ({
+        id: c.id, title: c.title, brief: c.brief, state,
+        objectives: c.objectives.map((o, i) => ({ text: objectiveText(o), done: progress[i] ?? 0, need: o.count ?? 1 })),
+        reward: { dna: c.reward.dna, rep: c.reward.rep, items: c.reward.items ?? [], unlock: c.reward.unlock },
+        requires: (c.requires ?? []).map((id) => contractById(id)?.title ?? id),
+      })),
+    };
   }
 
   /** Only hosts open in this milestone can be picked; a smaller cavity grid spills its loadout back to the stash. */

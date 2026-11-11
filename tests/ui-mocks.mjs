@@ -6,7 +6,7 @@ import { chromium } from 'playwright';
 
 const BASE = 'http://localhost:5179/mocks/';
 const URL = `${BASE}ui.html`;
-const screens = (process.argv[2] ?? 'menu,host,stash,raid,market,settings,won,lost,hud:fight,hud:inject,hud:mutated,hud:harvest,hud:extract,hud:low,hud:cavity,hud:boss').split(',');
+const screens = (process.argv[2] ?? 'menu,host,stash,raid,market,vendors,archivist,settings,won,lost,hud:fight,hud:inject,hud:mutated,hud:harvest,hud:extract,hud:low,hud:cavity,hud:boss,hud:gear').split(',');
 const server = spawn('npx', ['vite', '--port', '5179', '--strictPort'], { stdio: 'ignore' });
 const fail = (m) => { console.error(`MOCKS FAIL: ${m}`); server.kill(); process.exit(1); };
 try {

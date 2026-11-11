@@ -1,7 +1,8 @@
 import type * as THREE from 'three';
 import { ZONE7_SITES } from '../../data';
 import { CATALOGUE, zone7Layout } from './layout';
-import { buildZone7, type Zone7World } from './zone7';
+import { buildZone7, setTerrain, type Zone7World } from './zone7';
+import { buildWreck } from './wreck';
 
 /**
  * Zone registry (World & Level). Each raid map is built from its zone id (Design's data/zones.json ids; geometry in
@@ -17,7 +18,7 @@ export interface ZoneWorld extends Zone7World {
 }
 
 /** Zones whose maps exist. */
-export const BUILT_ZONES: ZoneId[] = ['glowmireIsle'];
+export const BUILT_ZONES: ZoneId[] = ['glowmireIsle', 'longSeedWreck'];
 
 /** Landmark areas of Glowmire Isle, resolved to world positions. */
 export function glowmireLandmarks(): { id: string; x: number; z: number; radius: number }[] {
@@ -31,7 +32,13 @@ export function glowmireLandmarks(): { id: string; x: number; z: number; radius:
 }
 
 export function buildZone(scene: THREE.Scene, zone: ZoneId, seed: number): ZoneWorld {
+  if (zone === 'longSeedWreck') {
+    setTerrain(null);
+    const w = buildWreck(scene, seed);
+    return { layout: w.layout, sites: w.sites, structures: w.structures, zone, landmarkAt: w.landmarkAt };
+  }
   if (!BUILT_ZONES.includes(zone)) console.warn(`zone ${zone} has no map yet; building glowmireIsle`);
+  setTerrain(null);
   const world = buildZone7(scene, zone7Layout(seed));
   const marks = glowmireLandmarks();
   return {

@@ -7,7 +7,7 @@ import '@fontsource/chakra-petch/latin-500.css';
 import '@fontsource/chakra-petch/latin-700.css';
 import '@fontsource/rajdhani/latin-500.css';
 import '@fontsource/rajdhani/latin-700.css';
-import { GRADE, HIVE, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
+import { GRADE, HIVE, ORGANIC, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
 
 export const CSS_VARS: Record<string, string> = {
   ...Object.fromEntries(Object.entries(HIVE).map(([k, v]) => [`--${k}`, v])),
@@ -15,6 +15,8 @@ export const CSS_VARS: Record<string, string> = {
   ...Object.fromEntries(Object.entries(PATH).map(([k, v]) => [`--path-${k}`, v])),
   ...Object.fromEntries(Object.entries(ZONE7_SHADE).map(([k, v]) => [`--shade-${k}`, v])),
   ...Object.fromEntries(Object.entries(GRADE).map(([k, v]) => [`--grade-${k}`, v])),
+  // Lit, natural tones (Art Bible "Ethereal, not neon"): --wetFlesh, --amber, --mist ...
+  ...Object.fromEntries(Object.entries(ORGANIC).map(([k, v]) => [`--${k}`, v])),
   // Legacy short names used by the Spore HUD stylesheet.
   '--bg': HIVE.background,
   '--viral': PATH.viral,

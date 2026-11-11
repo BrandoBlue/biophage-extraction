@@ -302,15 +302,45 @@ try {
   await freezeAndScreenshot(page, 'tests/out/raid-hive-after.png', { resume: true });
   log('after death: cavities empty, gut pouch kept, banked DNA untouched');
 
-  // --- Flesh Market: today's stock is listed and selling one stash item pays DNA.
-  await tab('market');
+  // --- Hive vendors: Mother Clot lists rep-gated stock and contracts, buys from the stash, and a contract can be taken.
+  await tab('vendors');
+  if (!(await page.isVisible('#hive .scr-vendor'))) await fail('VENDORS did not open the Hive vendors');
+  const vCards = await page.locator('#hive .mk-card').count();
+  const contracts = await page.locator('#hive .vd-contract').count();
+  if (vCards < 1 || contracts < 1) await fail(`Mother Clot shows ${vCards} offers and ${contracts} contracts`);
+  let before = (await profile()).dna;
+  await page.click('#hive [data-sell="0"]');
+  if (!((await profile()).dna > before)) await fail('selling to Mother Clot paid no DNA');
+  const vendorPaid = (await profile()).dna - before;
+  const accept = page.locator('#hive .vd-contract .hv-btn.accept:not([disabled])').first();
+  let taken = 'none offered';
+  if (await accept.count()) {
+    await accept.click();
+    const active = (await profile()).economy?.contracts?.active ?? {};
+    if (!Object.keys(active).length) await fail('accepting a contract did not make it active');
+    taken = Object.values(active).join(', ');
+  }
+  await freezeAndScreenshot(page, 'tests/out/raid-vendors.png');
+  log(`Mother Clot: ${vCards} offers, ${contracts} contracts, sold one item for ${vendorPaid} DNA, took ${taken}`);
+
+  // --- Flesh Market through the vendor row: today's stock is listed and selling one stash item pays DNA.
+  await page.click('#hive [data-vendor="gulletBroker"]');
   const cards = await page.locator('#hive .mk-card').count();
   if (cards < 1) await fail('Flesh Market shows no stock');
-  const before = (await profile()).dna;
+  before = (await profile()).dna;
   await page.click('#hive [data-sell="0"]');
   if (!((await profile()).dna > before)) await fail('selling at the Flesh Market paid no DNA');
   await freezeAndScreenshot(page, 'tests/out/raid-market.png');
   log(`Flesh Market: ${cards} offers, sold one item for ${(await profile()).dna - before} DNA`);
+
+  // --- Raid select into another zone: deploying with a different built zone picked reloads into that map and deploys.
+  await page.evaluate(() => { const p = window.__biophage.profile; p.economy.unlocks.push('zone:longSeedWreck'); p.economy.zone = 'longSeedWreck'; });
+  await Promise.all([page.waitForNavigation({ timeout: 120000 }), page.evaluate(() => window.__biophage.debug.begin())]);
+  await boot();
+  for (let i = 0; i < 20; i++) { s = await state(); if (s.phase === 'raid') break; await frames(1); }
+  if (s.phase !== 'raid' || s.zone !== 'longSeedWreck') await fail(`zone switch did not deploy into the Wreck: phase ${s.phase}, zone ${s.zone}`);
+  await freezeAndScreenshot(page, 'tests/out/raid-wreck.png');
+  log('raid select: switched to the Wreck of the Long Seed, reloaded and deployed');
 
   if (errors.length) await fail(`console errors:\n${errors.join('\n')}`);
   await browser.close();
