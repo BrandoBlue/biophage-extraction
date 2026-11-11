@@ -18,6 +18,7 @@ import progressionJson from './progression.json';
 import viralLabJson from './viral-lab.json';
 import marketJson from './market.json';
 import rivalsJson from './rivals.json';
+import zone7Json from './zone7.json';
 
 export type Range = [number, number];
 
@@ -209,6 +210,18 @@ export const VIRUS_RULES = virusData.rules as VirusRules;
 export const VIRUSES = Object.fromEntries(Object.entries(virusData).filter(([k]) => k !== 'rules')) as Record<string, Virus>;
 export const NESTS = strip<Record<string, Nest>>(nestsJson);
 export const PROFILE = strip<ProfileRules>(profileJson);
+
+/** Zone 7 site catalogue (World & Level): where extracts, harvest nodes and the anomaly can appear. */
+export interface Zone7Sites {
+  extractPool: (Placement & { id: string })[];
+  extractMinSeparation: number;
+  padRadius: number;
+  podClearingRadius: number;
+  broodCrater: { radius: number; depth: number; rimHeight: number };
+  geneBlooms: { perRaid: number; clearingRadius: number; sites: (Placement & { id: string })[] };
+  anomaly: { id: string; size: number; sites: (Placement & { id: string })[] };
+}
+export const ZONE7_SITES = strip<Zone7Sites>(zone7Json);
 
 /** DNA cost of the next stash row expansion, given rows already bought. Infinity at the cap. */
 export function stashRowCost(rowsBought: number): number {

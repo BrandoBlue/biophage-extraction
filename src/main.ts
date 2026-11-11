@@ -6,6 +6,7 @@ import { HiveMenu } from './ui/hive-menu';
 import { ItemGrid } from './game/grid';
 import { browserStorage, deploy, die, extract, loadProfile, saveProfile } from './game/profile';
 import { buildZone7 } from './world/zone7';
+import { zone7Layout } from './world/layout';
 import { createPipeline } from './render/pipeline';
 import { installLookdev } from './render/lookdev';
 import pkg from '../package.json';
@@ -13,7 +14,12 @@ import pkg from '../package.json';
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1500);
-buildZone7(scene);
+// Each raid draws its live sites (which Seed Spires open, which Gene Blooms grow, where the anomaly sits)
+// from a seed. `?seed=N` pins it. Seed 1 is Design's RAID.larva layout (spires at bearings 20 and 110), which is
+// what the Raid itself still uses until it reads its sites from the layout; then this becomes a fresh seed per raid.
+const seedParam = Number(new URLSearchParams(location.search).get('seed'));
+const raidSeed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : 1;
+const world = buildZone7(scene, zone7Layout(raidSeed));
 const raid = new Raid(scene, camera, canvas);
 const hud = new RaidHud(raid.bus, () => location.reload());
 const labels = Object.fromEntries(Object.entries(LOOT.items).map(([k, v]) => [k, v.label]));
@@ -78,5 +84,5 @@ pipeline.renderer.setAnimationLoop(() => {
   pipeline.render(dt);
   frames++;
   // Read by tests/smoke.mjs and tests/raid.mjs: proves the loop is alive and drives scripted raids.
-  (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), profile, debug };
+  (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), profile, debug, layout: world.layout };
 });

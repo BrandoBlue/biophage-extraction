@@ -316,6 +316,52 @@
           ]
         }
       ]
+    },
+    "geneBloom": {
+      "label": "Gene Bloom",
+      "openTime": 3,
+      "noiseOnOpen": 24,
+      "guaranteed": [
+        {
+          "item": "dnaStrand",
+          "count": 2
+        }
+      ],
+      "rolls": 1,
+      "table": [
+        {
+          "item": "dnaStrand",
+          "weight": 40,
+          "count": [
+            2,
+            3
+          ]
+        },
+        {
+          "item": "mutagenVial",
+          "weight": 30,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "synapseLens",
+          "weight": 20,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "glitchingHeart",
+          "weight": 2,
+          "count": [
+            1,
+            1
+          ]
+        }
+      ]
     }
   }
 }
