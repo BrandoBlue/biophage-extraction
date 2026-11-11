@@ -10,6 +10,9 @@ import { SpitterBrain } from './behaviours/spitter';
 import { StalkerBrain } from './behaviours/stalker';
 import { SwarmBrain } from './behaviours/swarm';
 import { TankBrain } from './behaviours/tank';
+import { MimicBrain } from './behaviours/mimic';
+import { GrazerBrain } from './behaviours/grazer';
+import { WeaverBrain } from './behaviours/weaver';
 
 export { Brain, type Body } from './brain';
 export { AttackTokens, tokensFor } from './tokens';
@@ -20,10 +23,12 @@ export { ReliquaryBrain, type BossEvent, type BossInput, type BossState } from '
 export { WardenBrain, type WardenEvent, type WardenInput, type WardenRoom, type WardenSurface } from './warden';
 export { PaleVigilBrain, type VigilEvent, type VigilInput } from './vigil';
 export type { AIEvent, AllyView, BrainWorld, HostView, Mode, Vec2, Vec3 } from './types';
-export { SwarmBrain, SpitterBrain, StalkerBrain, FlyerBrain, TankBrain };
+export { SwarmBrain, SpitterBrain, StalkerBrain, FlyerBrain, TankBrain, MimicBrain, GrazerBrain, WeaverBrain };
+export { WebField, segDist, type Strand } from './web';
 
 const BRAINS: Record<Archetype, new (...a: ConstructorParameters<typeof SwarmBrain>) => Brain> = {
   swarm: SwarmBrain, spitter: SpitterBrain, stalker: StalkerBrain, flyer: FlyerBrain, tank: TankBrain,
+  mimic: MimicBrain, grazer: GrazerBrain, weaver: WeaverBrain,
 };
 
 export function archetypeOf(kind: string): Archetype { return AI.archetypes[kind] ?? 'swarm'; }

@@ -295,6 +295,8 @@ export interface Zone7Sites {
   ridges: { id: string; points: [number, number][]; height: number; halfWidth: number; passes: [number, number][] }[];
   valleys: { id: string; points: [number, number][]; depth: number; halfWidth: number }[];
   caves: CaveSpec[];
+  trails: string[][];
+  outcrops: { clusters: number; spacing: number; rocks: [number, number]; size: [number, number] };
   dropIn: { height: number; fallSpeed: number };
 }
 /** A domed cave chamber with side tunnels (World & Level); angles are local degrees, 180 = the main mouth. */
@@ -309,7 +311,7 @@ export const ZONE_SITES = strip<{ glowmireIsle: Zone7Sites; longSeedWreck: Recor
 /** Zone 1, Glowmire Isle: the Zone 7 island. */
 export const ZONE7_SITES = ZONE_SITES.glowmireIsle;
 /** PvE AI tuning (owned by PvE AI & Encounters): archetype per Abomination kind and how each archetype hunts. */
-export type Archetype = 'swarm' | 'spitter' | 'stalker' | 'flyer' | 'tank';
+export type Archetype = 'swarm' | 'spitter' | 'stalker' | 'flyer' | 'tank' | 'mimic' | 'grazer' | 'weaver';
 export interface AiRules {
   archetypes: Record<string, Archetype>;
   awareness: { suspicious: number; sightRate: number; closeSight: number; peripheralFactor: number; noiseGain: number; noiseImpulse: number; loudNoiseGain: number; decayRate: number; investigateTime: number; senseHz: number };
@@ -323,6 +325,9 @@ export interface AiRules {
   flyer: { orbitRadius: Range; orbitSpeed: number; diveGap: number; faceHeight: number; flockRadius: number; calmHeight: Range; diveSpeed: number; diveTime: number; climbTime: number; screechTell: number; turnRate: number };
   tank: { turnRate: number; chargeTurnRate: number; hornReach: number; chargeRange: Range; chargeAimCone: number; chargeDistance: number; chargeKnockback: number; slamTrigger: number; slamWindup: number; recoverTime: number; approachFactor: number };
   nestSpawn: { ejectSpeed: number; ejectRadius: number; startAwareness: number };
+  mimic: { turnRate: number; walkFactor: number; unmaskTell: number; lungeTime: number; recoverTime: number; knockback: number };
+  grazer: { turnRate: number; idleHeight: number; tellRange: number; diveFrom: number; diveSpeed: number; slamHeight: number; diveTimeout: number; climbTime: number; knockback: number };
+  weaver: { turnRate: number; hoverHeight: number; spinEvery: number; cutAhead: number; keepRange: [number, number] };
   warden: {
     wake: { trigger: 'approach' | 'power'; radius: number };
     crawlSpeed: number; floorSpeed: number; perchTime: [number, number]; holdDistance: number;

@@ -19,6 +19,10 @@ export interface CoverOptions {
   radius?: number;
   /** Grid spacing in metres; one candidate item per cell. */
   cell?: number;
+  /** Ground ecology multiplier on density at (x, z): 0 bare, 1 typical, above 1 lush (the zone's slope, moisture, trails). */
+  density?(x: number, z: number): number;
+  /** Tip tints to pick from by colony; defaults to the zone accents. */
+  tints?: readonly string[];
 }
 
 export const COVER = { radius: 26, lowRadius: 13, cell: 0.62 };
@@ -124,6 +128,7 @@ export interface GroundCover {
 
 export function groundCover(opts: CoverOptions): GroundCover {
   const R = opts.radius ?? COVER.radius;
+  const tints = opts.tints ?? TINTS;
   const g = opts.cell ?? COVER.cell;
   const max = Math.ceil(Math.PI * (R / g) ** 2 * 1.05);
   const bodyMat = coverMaterial();
@@ -160,7 +165,7 @@ export function groundCover(opts: CoverOptions): GroundCover {
       const d = Math.hypot(x - cx, z - cz);
       if (d > r) continue;
       // Clumps: dense patches with bare moss between them.
-      const density = patch(x * 0.09, z * 0.09) * 0.75 + patch(x * 0.37, z * 0.37) * 0.25;
+      const density = (patch(x * 0.09, z * 0.09) * 0.75 + patch(x * 0.37, z * 0.37) * 0.25) * (opts.density ? opts.density(x, z) : 1);
       if (cellHash(ix, iz, 3) > density * 1.5) continue;
       if (opts.exclude?.(x, z)) continue;
       const pick = cellHash(ix, iz, 4);
@@ -177,8 +182,8 @@ export function groundCover(opts: CoverOptions): GroundCover {
       p.set(x, opts.height(x, z) - (kind === 'pebble' ? size * 0.15 : 0.02), z);
       mesh.setMatrixAt(i, m4.compose(p, q, s.setScalar(size)));
       // Tint follows the patch so clumps share a colour, like a colony.
-      const hue = Math.floor(patch(x * 0.05 + 7, z * 0.05 + 3) * 3.999 + cellHash(ix, iz, 9) * 0.6) % TINTS.length;
-      mesh.setColorAt(i, col.set(TINTS[hue]));
+      const hue = Math.floor(patch(x * 0.05 + 7, z * 0.05 + 3) * (tints.length - 0.001) + cellHash(ix, iz, 9) * 0.6) % tints.length;
+      mesh.setColorAt(i, col.set(tints[hue]));
       counts[kind] = i + 1;
     }
     for (const k of KINDS) {

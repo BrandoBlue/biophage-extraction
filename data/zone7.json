@@ -470,6 +470,53 @@
     "dropIn": {
       "height": 55,
       "fallSpeed": 9
+    },
+    "_trailsNote": "Worn trails between named areas (area ids in order). Ground cover thins on them; outcrops and big flora keep off. The route reads as walked, not drawn.",
+    "trails": [
+      [
+        "spawnHollow",
+        "mirrorShallows",
+        "centralStand",
+        "lensBasin"
+      ],
+      [
+        "mirrorShallows",
+        "seedDebris",
+        "rimFalls"
+      ],
+      [
+        "centralStand",
+        "heartwoodStand",
+        "hollowSpire"
+      ],
+      [
+        "spawnHollow",
+        "southmoorGrove",
+        "eastshelfGrove",
+        "fungalCaves"
+      ],
+      [
+        "lensBasin",
+        "reliquaryBowl"
+      ],
+      [
+        "heartwoodStand",
+        "broodCrater",
+        "westfallMere"
+      ]
+    ],
+    "outcrops": {
+      "_note": "Bare rock breaking through on slopes and ridge flanks: hard cover between the areas.",
+      "clusters": 70,
+      "spacing": 10,
+      "rocks": [
+        2,
+        4
+      ],
+      "size": [
+        0.6,
+        2.4
+      ]
     }
   },
   "longSeedWreck": {

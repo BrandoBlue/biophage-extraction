@@ -43,6 +43,8 @@ export type AIEvent =
   | { type: 'screech'; radius: number }
   | { type: 'slam'; radius: number; damage: number; knockback: number }
   | { type: 'charge' }
+  /** Strung a web strand between two ground points (Tithe Weaver). */
+  | { type: 'web'; from: Vec2; to: Vec2 }
   /** Juked sideways out of the host's aim. */
   | { type: 'dodge' }
   /** Burst from its tank, dropped its disguise, or sprang the ambush it laid where it lost the host. */
