@@ -91,3 +91,30 @@ describe('Abomination art', () => {
     }
   });
 });
+
+describe('ground cover field', () => {
+  it('fills the field around the viewer, stays put in the world, and keeps out of excluded ground', async () => {
+    const { groundCover, COVER } = await import('../src/render/cover');
+    const cover = groundCover({ height: () => 0, exclude: (x) => x > 5 });
+    cover.relay(0.1, 0.1, false);
+    const total = Object.values(cover.counts).reduce((a, b) => a + b, 0);
+    expect(total).toBeGreaterThan(400);
+    expect(cover.counts.frond).toBeGreaterThan(cover.counts.pebble);
+    const frond = cover.group.getObjectByName('cover-frond') as THREE.InstancedMesh;
+    const m = new THREE.Matrix4(), p = new THREE.Vector3();
+    let maxX = -Infinity, maxR = 0;
+    for (let i = 0; i < frond.count; i++) {
+      frond.getMatrixAt(i, m); p.setFromMatrixPosition(m);
+      maxX = Math.max(maxX, p.x); maxR = Math.max(maxR, Math.hypot(p.x, p.z));
+    }
+    expect(maxX).toBeLessThanOrEqual(5);
+    expect(maxR).toBeLessThanOrEqual(COVER.radius + 1);
+    // Moving within the same cell does not re-lay; the software tier gets a smaller field.
+    frond.getMatrixAt(0, m); const first = m.clone();
+    cover.relay(0.2, 0.2, false);
+    frond.getMatrixAt(0, m); expect(m.equals(first)).toBe(true);
+    cover.relay(0.2, 0.2, true);
+    const low = Object.values(cover.counts).reduce((a, b) => a + b, 0);
+    expect(low).toBeLessThan(total * 0.45);
+  });
+});

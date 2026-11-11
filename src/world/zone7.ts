@@ -3,6 +3,7 @@ import { ZONE7, ZONE7_SHADE } from '../render/palette';
 import { bioNode, crystal, fungusCap, fungusStem, liquidLight, membrane, zoneRock, bioTime } from '../render/materials';
 import { capGeometry, crystalClusterGeometry, floatingIslandGeometry, ISLAND_TOP, ribbonGeometry, stemGeometry } from '../render/geometry';
 import { cloudSea, planet, sporeField, starField, zone7Sky } from '../render/sky';
+import { groundCover } from '../render/cover';
 
 /** Deterministic RNG so every raid pocket (and every screenshot test) is reproducible. */
 export function mulberry32(seed: number): () => number {
@@ -304,6 +305,13 @@ export function buildZone7(scene: THREE.Scene, seed = 7): void {
   }
   const pustuleMesh = instanced(new THREE.SphereGeometry(1, 8, 6), bioNode(ZONE7.lime), pustules, 'pustules');
   scene.add(pustuleMesh);
+
+  // Dense foreground growth around the viewer (reference 04's busy ground); clear of pools and the extract pad.
+  const extract = FLAT_SPOTS[1];
+  scene.add(groundCover({
+    height: groundHeight,
+    exclude: (x, z) => POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 0.6) || Math.hypot(x - extract.x, z - extract.z) < 4,
+  }).group);
 
   // A handful of real lights where the glow is strongest; everything else is emissive + bloom.
   const big = fungi.filter((f) => f.height > 9).sort((a, b) => b.height - a.height).slice(0, 6);
