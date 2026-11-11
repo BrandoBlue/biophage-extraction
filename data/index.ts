@@ -18,6 +18,7 @@ import progressionJson from './progression.json';
 import viralLabJson from './viral-lab.json';
 import marketJson from './market.json';
 import rivalsJson from './rivals.json';
+import zone7Json from './zone7.json';
 import vendorsJson from './vendors.json';
 import contractsJson from './contracts.json';
 import hiveJson from './hive.json';
@@ -218,6 +219,17 @@ export const VIRUSES = Object.fromEntries(Object.entries(virusData).filter(([k])
 export const NESTS = strip<Record<string, Nest>>(nestsJson);
 export const PROFILE = strip<ProfileRules>(profileJson);
 
+/** Zone 7 site catalogue (World & Level): where extracts, harvest nodes and the anomaly can appear. */
+export interface Zone7Sites {
+  extractPool: (Placement & { id: string })[];
+  extractMinSeparation: number;
+  padRadius: number;
+  podClearingRadius: number;
+  broodCrater: { radius: number; depth: number; rimHeight: number };
+  geneBlooms: { perRaid: number; clearingRadius: number; sites: (Placement & { id: string })[] };
+  anomaly: { id: string; size: number; sites: (Placement & { id: string })[] };
+}
+export const ZONE7_SITES = strip<Zone7Sites>(zone7Json);
 /** PvE AI tuning (owned by PvE AI & Encounters): archetype per Abomination kind and how each archetype hunts. */
 export type Archetype = 'swarm' | 'spitter' | 'stalker' | 'flyer' | 'tank';
 export interface AiRules {

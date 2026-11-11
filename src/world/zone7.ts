@@ -4,31 +4,32 @@ import { bioNode, crystal, fungusCap, fungusStem, liquidLight, membrane, zoneRoc
 import { capGeometry, crystalClusterGeometry, floatingIslandGeometry, ISLAND_TOP, ribbonGeometry, stemGeometry } from '../render/geometry';
 import { cloudSea, planet, sporeField, starField, zone7Sky } from '../render/sky';
 import { groundCover } from '../render/cover';
+import { ZONE7_SITES } from '../../data';
+import { mulberry32 } from './rng';
+import { CATALOGUE, zone7Layout, type Zone7Layout } from './layout';
+import { buildSites, clearings, type SiteDressing } from './sites';
 
-/** Deterministic RNG so every raid pocket (and every screenshot test) is reproducible. */
-export function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+export { mulberry32 } from './rng';
 
 /** Main island radius. Walkable to about 0.84 of this (~150 m), matching data/raid.json playableRadius. */
 export const ISLAND_RADIUS = 180;
 
 /**
- * Spots that must be flat and walkable, matching the Spore layout in docs/gdd (layoutPosition in data/):
- * spawn on the south-west rim, the Seed Spire extract on the north-east rim, the Bio-Pod clearing near the centre.
+ * Spots that must be flat and walkable, from the site catalogue (src/world/layout.ts): the spawn, every
+ * candidate Seed Spire pad (index 1 is the Spore extract at bearing 20), Bio-Pod clearings and Gene Bloom sites.
+ * Every candidate is shaped whatever the seed, so groundHeight never depends on the raid.
  */
-export const FLAT_SPOTS = [
-  { name: 'spawn', x: -41, z: 113, radius: 9 },
-  { name: 'extract', x: 44, z: -120, radius: 10 },
-  { name: 'bio-pod', x: 22, z: 0, radius: 13 },
-] as const;
+export const FLAT_SPOTS: readonly { name: string; x: number; z: number; radius: number }[] = [
+  { name: 'spawn', ...xz(CATALOGUE.spawn), radius: 9 },
+  ...CATALOGUE.pads.map((p) => ({ name: p.id, ...xz(p), radius: ZONE7_SITES.padRadius })),
+  ...CATALOGUE.pods.map((p, i) => ({ name: p.id, ...xz(p), radius: i === 0 ? 13 : ZONE7_SITES.podClearingRadius })),
+  ...CATALOGUE.blooms.map((p) => ({ name: p.id, ...xz(p), radius: ZONE7_SITES.geneBlooms.clearingRadius })),
+];
+
+function xz(p: { x: number; z: number }) { return { x: Math.round(p.x * 10) / 10, z: Math.round(p.z * 10) / 10 }; }
+
+/** Brood Heart craters: a bowl with a raised lip, half-burying the nest (docs/gdd/larva-milestone.md). */
+export const CRATERS = CATALOGUE.nests.map((n) => ({ name: n.id, ...xz(n), ...ZONE7_SITES.broodCrater }));
 
 /** Liquid-light pools: one mid-route landmark, one on the west rim spilling into the void as a fall. */
 export const POOLS = [
@@ -62,6 +63,15 @@ export function groundHeight(x: number, z: number): number {
     const w = 1 - smooth(s.radius, s.radius + 14, Math.hypot(x - s.x, z - s.z));
     if (w > 0) h += (rawHeight(s.x, s.z) - h) * w;
   }
+  for (const c of CRATERS) {
+    const d = Math.hypot(x - c.x, z - c.z) / c.radius;
+    if (d < 1.6) {
+      const floor = rawHeight(c.x, c.z);
+      const bowl = 1 - smooth(0.3, 1, d);
+      h += (floor - c.depth - h) * bowl;
+      h += c.rimHeight * Math.exp(-((d - 1.05) ** 2) / 0.04);
+    }
+  }
   // Pools sit in shallow basins so the liquid surface is never buried by the terrain.
   for (const p of POOLS) {
     const d = Math.hypot(x - p.x, z - p.z);
@@ -74,6 +84,7 @@ export function groundHeight(x: number, z: number): number {
 /** True if (x, z) is inside a flat gameplay spot or pool (plus margin): keep big flora out. */
 export function isReserved(x: number, z: number, margin = 0): boolean {
   return FLAT_SPOTS.some((s) => Math.hypot(x - s.x, z - s.z) < s.radius + margin)
+    || CRATERS.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius * 0.8 + margin)
     || POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 1 + margin);
 }
 
@@ -205,8 +216,13 @@ function fall(from: THREE.Vector3, outward: THREE.Vector3, drop: number, width: 
   return mesh;
 }
 
-/** The Spore pocket of Zone 7: one floating island over the void, bioluminescent flora, cosmic sky. */
-export function buildZone7(scene: THREE.Scene, seed = 7): void {
+export interface Zone7World { layout: Zone7Layout; sites: SiteDressing }
+
+/**
+ * Zone 7: one floating island over the void, bioluminescent flora, cosmic sky, and the raid's sites
+ * (Seed Spire pads, Brood Heart crater, Gene Blooms, the anomaly) from `layout`. `seed` drives the dressing only.
+ */
+export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout(1), seed = 7): Zone7World {
   const rand = mulberry32(seed);
 
   // Sky: baked to a cubemap (background + image-based lighting) by the render pipeline on first frame.
@@ -306,12 +322,16 @@ export function buildZone7(scene: THREE.Scene, seed = 7): void {
   const pustuleMesh = instanced(new THREE.SphereGeometry(1, 8, 6), bioNode(ZONE7.lime), pustules, 'pustules');
   scene.add(pustuleMesh);
 
-  // Dense foreground growth around the viewer (reference 04's busy ground); clear of pools and the extract pad.
-  const extract = FLAT_SPOTS[1];
+  // Dense foreground growth around the viewer (reference 04's busy ground); clear of pools, pads, nodes and the crater bed.
+  const clear = clearings(layout);
   scene.add(groundCover({
     height: groundHeight,
-    exclude: (x, z) => POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 0.6) || Math.hypot(x - extract.x, z - extract.z) < 4,
+    exclude: (x, z) => POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 0.6) || clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius),
   }).group);
+
+  // Gameplay sites for this raid.
+  const sites = buildSites(layout, groundHeight, seed);
+  scene.add(sites.group);
 
   // A handful of real lights where the glow is strongest; everything else is emissive + bloom.
   const big = fungi.filter((f) => f.height > 9).sort((a, b) => b.height - a.height).slice(0, 6);
@@ -342,10 +362,5 @@ export function buildZone7(scene: THREE.Scene, seed = 7): void {
   scene.add(giant, moon, cloudSea(-240), starField(rand));
   scene.add(sporeField(rand, 700, 60, 40, [ZONE7.cyan, ZONE7.lime, ZONE7.magenta]));
 
-  // Extraction beacon: the goal the Gameplay department wires up in Spore.
-  const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 80, 16, 1, true), new THREE.MeshBasicMaterial({ color: ZONE7.lime, transparent: true, opacity: 0.35, side: THREE.DoubleSide }));
-  const ex = FLAT_SPOTS[1];
-  beacon.position.set(ex.x, 40 + groundHeight(ex.x, ex.z), ex.z);
-  beacon.name = 'extraction-beacon';
-  scene.add(beacon);
+  return { layout, sites };
 }

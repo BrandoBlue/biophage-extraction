@@ -34,6 +34,8 @@ export interface GameEvents {
   harvestStart: { type: string; time: number };
   harvestProgress: { progress: number };
   harvestDone: { item: string; type: string };
+  /** A late Seed Spire has opened (World layout; RAID.larva.extracts opensAt). */
+  extractOpened: { label: string; x: number; z: number };
   /** Brood Heart nests (PvE AI). */
   nestAwake: { id: string; type: string; label: string };
   nestWave: { id: string; wave: number; of: number };
