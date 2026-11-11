@@ -84,7 +84,7 @@ export const NAV: { id: string; label: string; sub?: string; locked?: string }[]
   { id: 'raid', label: 'RAID SELECT', sub: 'Exclusion Zone' },
   { id: 'synapse', label: 'SYNAPSE & SKILLS', locked: 'HOST' },
   { id: 'lab', label: 'VIRAL LAB', locked: 'HOST' },
-  { id: 'market', label: 'FLESH MARKET', locked: 'HOST' },
+  { id: 'vendors', label: 'VENDORS', sub: 'Trade & contracts', locked: 'LARVA' },
   { id: 'hivemind', label: 'HIVE-MIND', sub: 'Multiplayer', locked: 'HIVE' },
 ];
 

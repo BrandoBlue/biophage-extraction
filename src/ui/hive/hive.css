@@ -350,3 +350,48 @@
 .scr-raid .zone.locked { opacity:.55; } .scr-raid .zone.locked:hover { opacity:.8; }
 .scr-raid .zone.locked b { color:color-mix(in srgb, var(--bone) 70%, transparent); }
 .raid-info .mods .bone { color:var(--bone); }
+
+/* Hive vendors (src/ui/hive/vendors.ts): switcher row, reputation, unlocks, stock, contracts. Bone frames, amber for standing. */
+.vd-row { position:absolute; top:calc(var(--u) * 8.2); left:50%; transform:translateX(-50%); display:flex; gap:calc(var(--u) * .6); z-index:2; }
+#hive[data-tab=vendors] .hv-title, #hive[data-tab=market] .hv-title { display:none; }
+.vd-pick { min-width:calc(var(--u) * 15); padding:calc(var(--u) * .45) calc(var(--u) * 1); text-align:left; background:color-mix(in srgb, var(--background) 78%, transparent);
+  border:1px solid color-mix(in srgb, var(--bone) 22%, transparent); clip-path:polygon(calc(var(--u) * .6) 0, 100% 0, 100% calc(100% - calc(var(--u) * .6)), calc(100% - calc(var(--u) * .6)) 100%, 0 100%, 0 calc(var(--u) * .6)); }
+.vd-pick b { display:block; font-size:calc(var(--u) * .85); letter-spacing:.14em; color:var(--bone); font-weight:600; }
+.vd-pick small { font-size:calc(var(--u) * .66); letter-spacing:.08em; color:color-mix(in srgb, var(--bone) 55%, transparent); text-transform:none; }
+.vd-pick.on { border-color:color-mix(in srgb, var(--bone) 60%, transparent); background:color-mix(in srgb, var(--panel) 70%, transparent); }
+.vd-pick.on b { color:var(--amber); }
+.mk-portrait .vendor-art { height:100%; max-width:100%; animation:breathe 8s ease-in-out infinite; filter:drop-shadow(0 calc(var(--u) * .6) calc(var(--u) * 1.2) var(--background)); }
+.vd-rep { display:grid; grid-template-columns:auto 1fr; gap:.25em .6em; align-items:center; font-size:calc(var(--u) * 1); margin-top:calc(var(--u) * .6); }
+.vd-rep b { justify-self:end; color:var(--amber); font-family:"Chakra Petch", sans-serif; letter-spacing:.1em; }
+.vd-rep i { grid-column:1 / -1; height:4px; background:color-mix(in srgb, var(--bone) 15%, transparent); position:relative; }
+.vd-rep i::before { content:''; position:absolute; left:0; top:0; bottom:0; width:var(--v); background:linear-gradient(90deg, color-mix(in srgb, var(--amber) 60%, var(--bone)), var(--amber)); }
+.vd-rep small { grid-column:1 / -1; font-size:calc(var(--u) * .72); opacity:.6; text-transform:none; letter-spacing:.02em; }
+.vd-unlocks { list-style:none; margin:calc(var(--u) * .7) 0 0; padding:0; display:grid; gap:calc(var(--u) * .25); font-size:calc(var(--u) * .8); }
+.vd-unlocks li { display:grid; grid-template-columns:calc(var(--u) * 2) 1fr; align-items:baseline; opacity:.5; text-transform:none; letter-spacing:.02em; }
+.vd-unlocks li em { font-style:normal; font-family:"Chakra Petch", sans-serif; color:var(--bone); }
+.vd-unlocks li.on { opacity:1; } .vd-unlocks li.on em { color:var(--amber); }
+.vd-mid { display:flex; flex-direction:column; }
+.vd-mid .mk-cards { flex:none; }
+.vd-h { margin:calc(var(--u) * 1) 0 calc(var(--u) * .5); font-size:calc(var(--u) * 1.05); color:var(--bone); letter-spacing:.14em; }
+.vd-h small { margin-left:.6em; font-size:.7em; opacity:.55; letter-spacing:.04em; text-transform:none; font-weight:400; }
+.vd-contracts { flex:1; min-height:0; overflow:auto; display:grid; align-content:start; gap:calc(var(--u) * .5); padding-right:calc(var(--u) * .3); }
+.vd-contract { padding:calc(var(--u) * .6) calc(var(--u) * .8); background:color-mix(in srgb, var(--background) 60%, transparent); border-left:2px solid color-mix(in srgb, var(--bone) 25%, transparent); }
+.vd-contract header { display:flex; justify-content:space-between; align-items:baseline; }
+.vd-contract header b { font-size:calc(var(--u) * 1); color:var(--bone); letter-spacing:.06em; }
+.vd-contract header em { font-style:normal; font-size:calc(var(--u) * .7); letter-spacing:.16em; color:color-mix(in srgb, var(--bone) 55%, transparent); }
+.vd-contract p { margin:.25em 0 .35em; font-size:calc(var(--u) * .82); opacity:.7; text-transform:none; letter-spacing:.02em; }
+.vd-contract ul { list-style:none; margin:0; padding:0; display:grid; gap:.15em; font-size:calc(var(--u) * .82); }
+.vd-contract li { display:flex; justify-content:space-between; text-transform:none; letter-spacing:.02em; }
+.vd-contract li i { font-style:normal; color:color-mix(in srgb, var(--bone) 70%, transparent); }
+.vd-contract li.met i { color:var(--acid); }
+.vd-contract footer { display:flex; justify-content:space-between; align-items:center; gap:calc(var(--u) * .6); margin-top:.4em; font-size:calc(var(--u) * .78); color:var(--path-dna); }
+.vd-contract footer span { display:flex; align-items:center; gap:.3em; flex-wrap:wrap; } .vd-contract footer span b { color:var(--amber); font-weight:600; }
+.vd-contract footer .hv-btn { flex:none; width:auto; padding:calc(var(--u) * .3) calc(var(--u) * .9); font-size:calc(var(--u) * .8); white-space:nowrap; }
+.vd-contract .req { display:flex; align-items:center; gap:.35em; margin-top:.35em; font-size:calc(var(--u) * .72); opacity:.6; text-transform:none; }
+.vd-contract.active { border-left-color:var(--amber); background:color-mix(in srgb, var(--panel) 55%, transparent); }
+.vd-contract.active header em { color:var(--amber); }
+.vd-contract.locked, .vd-contract.done { opacity:.5; }
+.vd-contract.done header em { color:var(--acid); }
+#hive .vd-contract .hv-btn.abandon { color:var(--danger); border-color:color-mix(in srgb, var(--danger) 45%, transparent); }
+.vd-contracts .none { opacity:.5; text-transform:none; }
+.scr-market .vd-row ~ .hv-panel { top:calc(var(--u) * 12.5); }

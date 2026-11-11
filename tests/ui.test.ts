@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CLASSES, LOOT, VIRUSES } from '../data';
+import { CLASSES, CONTRACTS, LOOT, VIRUSES } from '../data';
+import { objectiveText } from '../src/ui/hive/vendors';
 import { DRAWN_ITEMS, itemIcon } from '../src/ui/icons';
 import { ALL_COLOURS } from '../src/render/palette';
 import { hostPortrait } from '../src/ui/hosts';
@@ -145,5 +146,16 @@ describe('Zone roster', () => {
     for (const z of r.filter((x) => !x.open)) expect(z.access).not.toBe('OPEN');
     expect(zoneAccess('contract signalInTheWreck (Archivist)')).toMatch(/^CONTRACT · /);
     expect(zoneAccess('open')).toBe('OPEN');
+  });
+});
+
+describe('Contract objectives', () => {
+  it('reads every contracts.json objective as a plain sentence', () => {
+    for (const c of CONTRACTS) for (const o of c.objectives) {
+      const t = objectiveText(o);
+      expect(t.length, `${c.id}/${o.type}`).toBeGreaterThan(6);
+      expect(t, `${c.id}/${o.type}`).not.toMatch(/undefined|NaN/);
+      expect(t).not.toBe(o.type);
+    }
   });
 });
