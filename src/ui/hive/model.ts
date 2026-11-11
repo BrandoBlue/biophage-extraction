@@ -2,7 +2,8 @@
  * What the Hive screens read and what they ask for. The screens never touch game objects: HiveMenu adapts
  * Gameplay's Profile (src/game/profile.ts) to these shapes, so either side can change without the other.
  */
-import { CLASSES, LOOT, PROFILE } from '../../../data';
+import { def as itemOf } from '../items';
+import { CLASSES, PROFILE } from '../../../data';
 import type { ClassId } from '../../../data';
 
 export type GridZone = 'stash' | 'cavity' | 'pouch';
@@ -21,6 +22,8 @@ export interface ProfileView {
   stats: { raids: number; extracts: number; deaths: number; kills: number };
   /** Last raid result, for the menu's debrief card. */
   last?: { result: 'extracted' | 'lost'; value: number } | null;
+  /** Zone picked on raid select (zones.json id). */
+  zone?: string;
 }
 
 export interface HiveActions {
@@ -34,6 +37,52 @@ export interface HiveActions {
   upgradePouch(): boolean;
   deploy(): void;
   quit?(): void;
+  /** Flesh Market (Host milestone). Optional: the MARKET tab unlocks when the profile supports it. */
+  market?(): MarketView;
+  /** Sells `count` of the stack at `index` of `zone`; returns the DNA paid (0 if nothing sold). */
+  sell?(zone: GridZone, index: number, count: number): number;
+  buy?(item: string): boolean;
+  /** Hive vendors with stock, reputation and contracts (Gameplay's economy.ts). The VENDORS tab unlocks with it. */
+  vendors?(): VendorView[];
+  vendorBuy?(vendor: string, item: string): boolean;
+  /** Sells to a vendor; returns the DNA paid (0 if nothing sold). */
+  vendorSell?(vendor: string, zone: GridZone, index: number, count: number): number;
+  acceptContract?(id: string): boolean;
+  abandonContract?(vendor: string): boolean;
+  /** Zone roster with access, and picking the raid-select zone. */
+  zones?(): ZoneView[];
+  selectZone?(id: string): boolean;
+}
+
+export type ZoneView = { id: string; label: string; access: { state: 'open' } | { state: 'locked' | 'coming'; reason: string } };
+
+export type VendorBuyState = 'ok' | 'not-stocked' | 'rep' | 'dna' | 'space';
+export type ContractState = 'done' | 'active' | 'available' | 'locked' | 'coming';
+export interface ContractView {
+  id: string; title: string; brief: string; state: ContractState;
+  objectives: { text: string; done: number; need: number }[];
+  reward: { dna: number; rep: number; items: { item: string; count: number }[]; unlock?: string };
+  /** Titles of contracts that must be finished first. */
+  requires: string[];
+}
+export interface VendorView {
+  id: string; label: string; role: string; brief: string;
+  /** Reputation level 1-4, points, and the level band [floor, next) (next null at max). */
+  rep: { level: number; points: number; floor: number; next: number | null };
+  unlocks: { rep: number; text: string; earned: boolean }[];
+  stock: { item: string; price: number; rep: number; state: VendorBuyState }[];
+  sellPrice(item: string): number;
+  contracts: ContractView[];
+}
+
+export type BuyState = 'ok' | 'not-stocked' | 'dna' | 'space';
+export interface MarketView {
+  /** -3 (soured) to +3 (sated); moves buy prices. */
+  mood: number;
+  stock: { item: string; price: number; state: BuyState }[];
+  sellPrice(item: string): number;
+  /** Seconds until the stock rotates. */
+  rotatesIn: number;
 }
 
 export const gridSize = (zone: GridZone, p: ProfileView): [number, number] => {
@@ -44,13 +93,13 @@ export const gridSize = (zone: GridZone, p: ProfileView): [number, number] => {
 };
 
 export const footprint = (pl: Pick<Placed, 'item' | 'rotated'>): [number, number] => {
-  const [w, hh] = LOOT.items[pl.item]?.size ?? [1, 1];
+  const [w, hh] = itemOf(pl.item)?.size ?? [1, 1];
   return pl.rotated ? [hh, w] : [w, hh];
 };
 
 export const itemsIn = (zone: GridZone, p: ProfileView): Placed[] => (zone === 'stash' ? p.stash : zone === 'cavity' ? p.cavity : p.gutPouch);
 
-export const valueOf = (items: Placed[]) => items.reduce((s, i) => s + (LOOT.items[i.item]?.value ?? 0) * i.count, 0);
+export const valueOf = (items: Placed[]) => items.reduce((s, i) => s + (itemOf(i.item)?.value ?? 0) * i.count, 0);
 
 /** Cells used / total, for the "STASH CONTAINER (30/60 SLOTS)" readouts. */
 export function usage(zone: GridZone, p: ProfileView): [number, number] {

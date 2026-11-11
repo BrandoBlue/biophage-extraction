@@ -3,9 +3,11 @@ import { haulValue } from '../data';
 import { Raid } from './game/raid';
 import { RaidHud } from './ui/raid-hud';
 import { HiveMenu } from './ui/hive-menu';
+import { HiveStage } from './ui/hive-stage';
 import { ItemGrid } from './game/grid';
 import { browserStorage, deploy, die, extract, loadProfile, saveProfile } from './game/profile';
-import { buildZone7 } from './world/zone7';
+import { settleContracts } from './game/economy';
+import { buildZone } from './world/zones';
 import { createPipeline } from './render/pipeline';
 import { installLookdev } from './render/lookdev';
 import pkg from '../package.json';
@@ -21,9 +23,14 @@ else bootRaid();
 function bootRaid(): void {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1500);
-  buildZone7(scene);
-  const raid = new Raid(scene, camera, canvas);
-  const hud = new RaidHud(raid.bus);
+  // Each raid draws its live sites (which Seed Spires open, which Gene Blooms grow, where the anomaly sits)
+  // from a fresh seed. `?seed=N` pins it; automated runs use seed 1 (Design's RAID.larva layout) so tests are reproducible.
+  const seedParam = Number(new URLSearchParams(location.search).get('seed'));
+  const raidSeed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : navigator.webdriver ? 1 : 1 + Math.floor(Math.random() * 1e6);
+  // `?zone=longSeedWreck` loads another built map (look-dev and testing); raid-select switching is Gameplay's.
+  const world = buildZone(scene, new URLSearchParams(location.search).get('zone') ?? 'glowmireIsle', raidSeed);
+  const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures);
+  const hud = new RaidHud(raid.bus, raid);
 
   // Persistent loop (Larva): boot into the Hive, deploy with the cavity loadout, settle the raid into the profile.
   const storage = browserStorage();
@@ -45,11 +52,13 @@ function bootRaid(): void {
     const totals = (entries: typeof r.pouch) => new ItemGrid(99, 99, entries).totals();
     if (e.result === 'extracted') {
       const st = extract(profile, r, e.kills);
+      const done = settleContracts(profile, raid.log, true).filter((c) => c.completed);
       save();
-      const note = `${st.dnaBanked} DNA banked.${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}`;
+      const note = `${st.dnaBanked} DNA banked.${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}${done.length ? ` Contract complete: ${done.map((c) => c.title).join(', ')}.` : ''}`;
       menu.showResults({ result: 'extracted', items: r.items, dna: r.dna, value: r.value, kills: e.kills, time: e.time, note });
     } else {
       die(profile, r, e.kills);
+      settleContracts(profile, raid.log, false);
       save();
       const lost = totals(r.cavity);
       menu.showResults({ result: 'lost', items: lost, dna: r.dna, value: haulValue(lost, r.dna), kills: e.kills, time: e.time, cause: r.cause, kept: totals(r.pouch) });
@@ -60,6 +69,7 @@ function bootRaid(): void {
   const pipeline = createPipeline(canvas, scene, camera, 'zone7');
   installLookdev(pipeline, camera, scene);
   raid.pipeline = pipeline;
+  const stage = new HiveStage(pipeline);
 
   function resize(): void {
     const w = innerWidth, h = innerHeight;
@@ -81,12 +91,17 @@ function bootRaid(): void {
   pipeline.renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.05);
     raid.update(dt);
+    // Landmarks (Design's zones.json) count toward contracts the first time the host walks into one.
+    if (!menu.visible) { const lm = world.landmarkAt(camera.position.x, camera.position.z); if (lm) raid.visit(lm); }
     hud.update(dt, raid.hud());
-    // The Hive screens cover the whole view: skip the 3D frame behind them (the loop and frame counter keep running).
-    // The first frames still render so shaders compile at boot, not on the DEPLOY click.
-    if (!menu.visible || frames < 3) pipeline.render(dt);
+    // The main menu draws the 3D Hive lab with the host on its pedestal; other Hive screens cover the whole view, so
+    // the 3D frame behind them is skipped (the loop and frame counter keep running). The first frames always render
+    // the raid scene so its shaders compile at boot, not on the DEPLOY click.
+    menu.stageLive(stage.set(frames >= 3 && menu.wantsStage, profile.host, camera.aspect));
+    stage.update(dt);
+    if (!menu.visible || frames < 3 || stage.due()) pipeline.render(dt);
     frames++;
     // Read by tests/smoke.mjs and tests/raid.mjs: proves the loop is alive and drives scripted raids.
-    (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), profile, debug };
+    (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), profile, debug, layout: world.layout };
   });
 }

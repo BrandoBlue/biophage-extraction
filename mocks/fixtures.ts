@@ -1,8 +1,10 @@
 /** Fixture profile and an in-memory HiveActions for the UI mocks and UI unit tests. */
-import { PROFILE, stashRowCost } from '../data';
+import { CONTRACTS, MARKET, PROFILE, stashRowCost, VENDOR_REP_THRESHOLDS, VENDORS, vendorBuyPrice, vendorRepLevel, ZONES } from '../data';
+import { def as itemOf } from '../src/ui/items';
 import { fits } from '../src/ui/hive/grid';
 import { gridSize, itemsIn } from '../src/ui/hive/model';
-import type { GridZone, HiveActions, ProfileView } from '../src/ui/hive/model';
+import type { GridZone, HiveActions, ProfileView, VendorView } from '../src/ui/hive/model';
+import { objectiveText } from '../src/ui/hive/vendors';
 import { source } from '../src/ui/hive/stash';
 
 export function fixtureProfile(): ProfileView {
@@ -74,6 +76,42 @@ export function fixtureActions(p: ProfileView, deploy: () => void = () => {}): H
       p.dna -= u.cost; p.gutPouchLevel++; return true;
     },
     deploy,
+    market: () => ({
+      mood: 1,
+      rotatesIn: 9 * 3600 + 22 * 60,
+      sellPrice: (item) => Math.floor((itemOf(item)?.value ?? 0) * MARKET.buyRate),
+      stock: ['clotGel', 'mutagenVial', 'plagueStalkerStrain', 'neuroSpikeGrenade', 'mawSeedMine', 'heartHusk'].map((item, i) => ({
+        item, price: MARKET.catalogue.find((c) => c.item === item)!.price, state: i === 5 ? 'dna' as const : 'ok' as const })),
+    }),
+    sell(zone, index, count) {
+      const list = itemsIn(zone, p), st = list[index];
+      if (!st) return 0;
+      const n = Math.min(count, st.count), paid = n * Math.floor((itemOf(st.item)?.value ?? 0) * MARKET.buyRate);
+      st.count -= n; if (st.count <= 0) list.splice(index, 1);
+      p.dna += paid; return paid;
+    },
+    buy: () => false,
+    vendors: () => (['motherClot', 'archivist'] as const).map((id, k): VendorView => {
+      const v = VENDORS[id], points = k === 0 ? 140 : 40, level = vendorRepLevel(points), T = VENDOR_REP_THRESHOLDS;
+      const chain = CONTRACTS.filter((c) => c.vendor === id && c.milestone === 'larva');
+      return {
+        id, label: v.label, role: v.role, brief: v.brief ?? '',
+        rep: { level, points, floor: T[level - 1], next: T[level] ?? null },
+        unlocks: Object.entries(v.unlocks).map(([r, text]) => ({ rep: Number(r), text, earned: level >= Number(r) })),
+        stock: (v.stock ?? []).map((s) => ({ ...s, state: s.rep > level ? 'rep' as const : s.price > p.dna ? 'dna' as const : 'ok' as const })),
+        sellPrice: (item) => vendorBuyPrice(id, item),
+        contracts: chain.map((c, i) => ({
+          id: c.id, title: c.title, brief: c.brief,
+          state: k === 0 ? (i === 0 ? 'done' : i === 1 ? 'active' : 'locked') : (i === 0 ? 'available' : 'locked'),
+          objectives: c.objectives.map((o) => ({ text: objectiveText(o), done: k === 0 && i === 1 ? 1 : 0, need: o.count ?? 1 })),
+          reward: { dna: c.reward.dna, rep: c.reward.rep, items: c.reward.items ?? [], unlock: c.reward.unlock },
+          requires: (c.requires ?? []).map((r) => CONTRACTS.find((x) => x.id === r)?.title ?? r),
+        })),
+      };
+    }),
+    zones: () => Object.entries(ZONES).map(([id, z]) => ({ id, label: z.label,
+      access: z.access === 'open' ? { state: 'open' as const } : z.milestone === 'larva' ? { state: 'locked' as const, reason: 'finish Signal in the Wreck' } : { state: 'coming' as const, reason: `arrives in ${z.milestone}` } })),
+    selectZone: (id) => { p.zone = id; return true; },
   };
 }
 export { gridSize };

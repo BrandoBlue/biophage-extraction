@@ -18,6 +18,7 @@ import progressionJson from './progression.json';
 import viralLabJson from './viral-lab.json';
 import marketJson from './market.json';
 import rivalsJson from './rivals.json';
+import zone7Json from './zone7.json';
 import vendorsJson from './vendors.json';
 import contractsJson from './contracts.json';
 import hiveJson from './hive.json';
@@ -218,6 +219,27 @@ export const VIRUSES = Object.fromEntries(Object.entries(virusData).filter(([k])
 export const NESTS = strip<Record<string, Nest>>(nestsJson);
 export const PROFILE = strip<ProfileRules>(profileJson);
 
+/** Zone 7 site catalogue (World & Level): where extracts, harvest nodes and the anomaly can appear. */
+export interface Zone7Sites {
+  extractPool: (Placement & { id: string })[];
+  extractMinSeparation: number;
+  padRadius: number;
+  podClearingRadius: number;
+  broodCrater: { radius: number; depth: number; rimHeight: number };
+  geneBlooms: { perRaid: number; clearingRadius: number; sites: (Placement & { id: string })[] };
+  anomaly: { id: string; size: number; sites: (Placement & { id: string })[] };
+  structures: {
+    hollowSpire: Placement & { yaw: number; footprint: number; lootContainer: string };
+    reliquaryBowl: Placement & { yaw: number; size: number; depth: number };
+    longSeedDebris: Placement & { yaw: number; footprint: number };
+  };
+  /** Landmark id (Design's zones.json) → the catalogue site it names and its radius in metres. */
+  landmarks: Record<string, { site: string; radius: number }>;
+}
+/** Site catalogues keyed by zone id (World & Level). */
+export const ZONE_SITES = strip<{ glowmireIsle: Zone7Sites; longSeedWreck: Record<string, unknown> }>(zone7Json);
+/** Zone 1, Glowmire Isle: the Zone 7 island. */
+export const ZONE7_SITES = ZONE_SITES.glowmireIsle;
 /** PvE AI tuning (owned by PvE AI & Encounters): archetype per Abomination kind and how each archetype hunts. */
 export type Archetype = 'swarm' | 'spitter' | 'stalker' | 'flyer' | 'tank';
 export interface AiRules {
@@ -412,7 +434,7 @@ export interface Boss {
   label: string; zone: string; milestone: string; brief: string;
   size: Record<string, number>; biomass: number;
   arena: Record<string, unknown>;
-  dormantUntil: string; songRadius: number;
+  dormantUntil: string; songRadius: number; wakeRadius: number; songLoops: boolean;
   weakPoints: Record<string, Record<string, unknown>>;
   phases: BossPhase[];
   enrage: { after: number; effect: string };

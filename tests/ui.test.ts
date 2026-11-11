@@ -1,14 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { CLASSES, LOOT, VIRUSES } from '../data';
+import { CLASSES, CONTRACTS, LOOT, VIRUSES } from '../data';
+import { objectiveText } from '../src/ui/hive/vendors';
 import { DRAWN_ITEMS, itemIcon } from '../src/ui/icons';
 import { ALL_COLOURS } from '../src/render/palette';
 import { hostPortrait } from '../src/ui/hosts';
-import { classTraits, raidPlan } from '../src/ui/hive/screens';
+import { classTraits, LIVE_ZONE, raidPlan, zoneAccess, zoneRoster } from '../src/ui/hive/screens';
 import { firstFit, fits, virusText } from '../src/ui/hive/grid';
 import { gridSize, usage } from '../src/ui/hive/model';
 import { getSettings, DEFAULT_SETTINGS, SETTINGS_KEY } from '../src/ui/settings';
 import { fixtureActions, fixtureProfile } from '../mocks/fixtures';
 import { source } from '../src/ui/hive/stash';
+import { HiveStage, STAGE } from '../src/ui/hive-stage';
+import type { Pipeline } from '../src/render/pipeline';
 
 describe('item icons', () => {
   it('gives every item in loot.json an icon, hand-drawn for every Larva and Host item so far', () => {
@@ -101,3 +104,58 @@ describe('settings', () => {
   });
 });
 
+
+describe('podLayout (TAB overlay pod grid)', async () => {
+  const { podLayout } = await import('../src/ui/raid-hud');
+  it('keeps one entry per pod stack, in order, without overlaps', () => {
+    const items = [{ item: 'glitchingHeart', count: 1 }, { item: 'clotGel', count: 4 }, { item: 'mutagenVial', count: 1 }, { item: 'lanternGland', count: 1 }, { item: 'broodHeartSeed', count: 1 }];
+    const lay = podLayout(items);
+    expect(lay.items.map((i) => i.item)).toEqual(items.map((i) => i.item));
+    expect(lay.size[1]).toBeGreaterThanOrEqual(3);
+    for (const a of lay.items) for (const b of lay.items) {
+      if (a === b) continue;
+      expect(fits({ zone: 'pod', label: '', size: lay.size, items: [b] }, a.item, a.x, a.y, a.rotated)).not.toBe('blocked');
+    }
+  });
+});
+
+describe('Hive stage', () => {
+  it('draws only while active, and at most every STAGE.testFrameMs in automated runs', () => {
+    const st = new HiveStage({} as Pipeline);
+    expect(st.due(0, false)).toBe(false);
+    st.active = true;
+    expect(st.due(0, false)).toBe(true);
+    expect(st.due(1, false)).toBe(true);
+    expect(st.due(10, true)).toBe(false);
+    expect(st.due(1 + STAGE.testFrameMs, true)).toBe(true);
+  });
+  it('stays off until the host is ready, and in automated runs until the menu has settled', () => {
+    const st = new HiveStage({} as Pipeline);
+    expect(st.set(true, 'neuroInfiltrator', 1.6, 0, true)).toBe(false);
+    expect(st.set(true, 'neuroInfiltrator', 1.6, STAGE.testSettleMs - 1, true)).toBe(false);
+    expect(st.set(false, 'neuroInfiltrator', 1.6, STAGE.testSettleMs, true)).toBe(false);
+    expect(st.active).toBe(false);
+  });
+});
+
+describe('Zone roster', () => {
+  it('lists every zone in travel order with the live zone open and the rest saying what opens them', () => {
+    const r = zoneRoster();
+    expect(r.map((z) => z.order)).toEqual([...r.map((z) => z.order)].sort((a, b) => a - b));
+    expect(r.find((z) => z.id === LIVE_ZONE)?.open).toBe(true);
+    for (const z of r.filter((x) => !x.open)) expect(z.access).not.toBe('OPEN');
+    expect(zoneAccess('contract signalInTheWreck (Archivist)')).toMatch(/^CONTRACT · /);
+    expect(zoneAccess('open')).toBe('OPEN');
+  });
+});
+
+describe('Contract objectives', () => {
+  it('reads every contracts.json objective as a plain sentence', () => {
+    for (const c of CONTRACTS) for (const o of c.objectives) {
+      const t = objectiveText(o);
+      expect(t.length, `${c.id}/${o.type}`).toBeGreaterThan(6);
+      expect(t, `${c.id}/${o.type}`).not.toMatch(/undefined|NaN/);
+      expect(t).not.toBe(o.type);
+    }
+  });
+});

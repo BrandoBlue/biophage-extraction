@@ -3,8 +3,9 @@
  * Bio-Pod. Pointer drag, R or right-click to rotate while dragging, double-click to quick-move to the
  * other side. The grid only previews fits; the move itself is the caller's (Gameplay's transfer rules).
  */
+import { def as itemOf } from '../items';
 import './grid.css';
-import { LOOT, VIRUSES, VIRUS_RULES } from '../../../data';
+import { VIRUSES, VIRUS_RULES } from '../../../data';
 import { itemIcon, KIND_COLOUR } from '../icons';
 import { esc, h } from './kit';
 import { footprint } from './model';
@@ -32,7 +33,7 @@ export function fits(src: GridSource, item: string, x: number, y: number, rotate
     const [ow, oh] = footprint(o);
     const overlap = x < o.x + ow && x + w > o.x && y < o.y + oh && y + hh > o.y;
     if (!overlap) continue;
-    const def = LOOT.items[item];
+    const def = itemOf(item);
     if (o.item === item && def && def.stack > 1 && o.count < def.stack) return 'stack';
     return 'blocked';
   }
@@ -41,7 +42,7 @@ export function fits(src: GridSource, item: string, x: number, y: number, rotate
 
 /** First free spot, scanning rows then columns, trying both orientations. */
 export function firstFit(src: GridSource, item: string, prefer = false): DropTarget | null {
-  const def = LOOT.items[item];
+  const def = itemOf(item);
   if (def && def.stack > 1) {
     const s = src.items.find((o) => o.item === item && o.count < def.stack);
     if (s) return { zone: src.zone, x: s.x, y: s.y, rotated: s.rotated };
@@ -73,7 +74,7 @@ export function virusText(item: string): { gain: string; cost: string } | null {
 }
 
 export function tooltipHtml(pl: Placed): string {
-  const d = LOOT.items[pl.item];
+  const d = itemOf(pl.item);
   if (!d) return esc(pl.item);
   const v = virusText(pl.item);
   return `<div class="tt-head" style="--kc:${KIND_COLOUR[d.kind]}"><b>${esc(d.label)}</b><span>${d.kind.toUpperCase()}</span></div>
@@ -117,7 +118,7 @@ export class GridView {
     this.el.innerHTML = `<div class="cells">${cells}</div><div class="hint-box"></div>`
       + src.items.map((pl, i) => {
         const [w, hh] = footprint(pl);
-        const d = LOOT.items[pl.item];
+        const d = itemOf(pl.item);
         return `<div class="item k-${d?.kind ?? 'tech'}" data-zone="${src.zone}" data-item="${esc(pl.item)}" data-index="${i}"
           style="--x:${pl.x};--y:${pl.y};--w:${w};--h:${hh};--kc:${KIND_COLOUR[d?.kind ?? 'tech']}">${itemIcon(pl.item, pl.rotated)}${pl.count > 1 ? `<b class="n">${pl.count}</b>` : ''}</div>`;
       }).join('');

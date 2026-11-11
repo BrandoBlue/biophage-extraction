@@ -73,6 +73,10 @@ try {
   let p = await profile();
   if (!(await page.isVisible('#hive'))) await fail('Hive menu is not shown at boot');
   if ((await page.getAttribute('#hive', 'data-tab')) !== 'menu') await fail('the Hive does not open on the main menu');
+  // The main menu stands the host's 3D body in the Hive lab behind the specimen column (src/ui/hive-stage.ts).
+  // Software rendering has no parallel shader compile, so the lab's first compile freezes the page for ~20 s locally
+  // and longer on CI runners; on a GPU it is well under a second.
+  await page.waitForSelector('#hive.lab-live', { timeout: 180000 }).catch(() => fail('the 3D Hive lab is not live behind the main menu'));
   await freezeAndScreenshot(page, 'tests/out/raid-hive-menu.png', { resume: true });
   await tab('stash');
   if (p.dna !== PROFILE.newProfile.dna || !PROFILE.newProfile.stash.every((k) => total(p.stash, k.item) === k.count)) await fail(`unexpected new profile ${JSON.stringify(p)}`);
@@ -138,6 +142,13 @@ try {
   await call('killAll');
   await frames(5);
 
+  // --- World layout (seed 1 under automation): three Bio-Pods plus the raid's Gene Bloom harvest nodes.
+  const layout = await page.evaluate(() => window.__biophage.layout);
+  const blooms = s.pods.filter((q) => q.id.startsWith('bloom-'));
+  const caches = s.pods.filter((q) => /^(spire|debris)-/.test(q.id));
+  if (s.pods.length !== layout.pods.length + layout.nodes.length + caches.length || blooms.length !== layout.nodes.length || caches.length < 2) await fail(`layout sites not spawned: ${JSON.stringify(s.pods.map((q) => q.id))}`);
+  log(`world sites: ${layout.pods.length} Bio-Pods, ${blooms.length} Gene Blooms, ${caches.length} structure caches, spires ${layout.extracts.map((e) => e.id).join(' then ')}, anomaly ${layout.anomaly.id}`);
+
   // --- Loot the Bio-Pod.
   const pod = s.pods[0];
   await call('teleport', pod.position[0] + 1.2, pod.position[1]);
@@ -147,6 +158,8 @@ try {
   await call('hold', 'KeyE', false);
   if (!s.pods[0].opened) await fail('Bio-Pod did not open while holding E');
   if (!s.carried.items.length) await fail('Bio-Pod gave no items');
+  // Contract log: the harvest, the kill and the first pod open are recorded for the Hive's contract settlement.
+  if (s.zone !== 'glowmireIsle' || !s.log.harvested.needlemawGland || !s.log.killed.needlemaw || !Object.keys(s.log.opened).length) await fail(`contract log incomplete: ${JSON.stringify({ zone: s.zone, log: s.log })}`);
   log(`Bio-Pod: ${s.carried.items.map((i) => `${i.count}x ${i.item}`).join(', ')}; haul ${s.carried.value}`);
 
   // --- In-raid inventory: put the gland into the open pod and take it back (UI's Tab overlay API).
@@ -156,6 +169,17 @@ try {
   s = await state();
   if (s.carried.items.some((i) => i.item === 'needlemawGland')) await fail('gland still carried after moving it to the pod');
   if ((await call('transfer', 'pod', 0, 'cavity')) !== 1) await fail('could not take the gland back from the pod');
+
+  // --- TAB opens the cavity overlay with the open pod as a third grid; TAB closes it.
+  await page.keyboard.press('Tab');
+  await frames(2);
+  const ov = await page.evaluate(() => ({ open: !document.querySelector('.cav-overlay')?.classList.contains('hidden'),
+    zones: [...document.querySelectorAll('.cav-overlay [data-zone]')].map((e) => e.getAttribute('data-zone')) }));
+  if (!ov.open || !['cavity', 'pouch'].every((z) => ov.zones.includes(z))) await fail(`TAB overlay not shown: ${JSON.stringify(ov)}`);
+  await freezeAndScreenshot(page, 'tests/out/raid-cavities.png', { resume: true });
+  await page.keyboard.press('Tab');
+  if (await page.isVisible('.cav-overlay')) await fail('TAB did not close the cavity overlay');
+  log(`cavity overlay: ${[...new Set(ov.zones)].join(', ')}`);
 
   // --- Inject the Adrenaline Virus: 3 s channel, then it takes hold and lowers max Biomass.
   const vials = (st) => st.carried.items.filter((i) => i.item === 'adrenalineVirus').reduce((n, i) => n + i.count, 0);
@@ -175,7 +199,8 @@ try {
   await freezeAndScreenshot(page, 'tests/out/raid-collapse.png', { resume: true });
   await call('setTimeLeft', 500);
 
-  // --- Extract.
+  // --- Extract. Waits run at 8x sim speed so the two raid smokes fit CI's 35 min job (software rendering is ~1 fps).
+  await call('setTimeScale', 8);
   await call('extractNow');
   for (let i = 0; i < 120; i++) { await frames(4); s = await state(); if (s.phase !== 'raid') break; }
   if (s.phase !== 'extracted') await fail(`expected extracted, got ${s.phase} (progress ${s.extractProgress})`);
@@ -220,6 +245,10 @@ try {
     await call('aimAt', nest.position[0], 3, nest.position[1]);
     for (let i = 0; i < 40; i++) { await frames(2); s = await state(); if (s.nests[0].brood > 0) break; }
     if (s.nests[0].state !== 'active' || s.nests[0].wave < 1 || s.nests[0].brood < 1) await fail(`Brood Heart did not wake and spawn: ${JSON.stringify(s.nests[0])}`);
+    // The HUD's boss bar names the awake heart and shows its waves (src/ui/raid/hud.ts).
+    await page.waitForSelector('#hud .h-boss:not(.hidden)', { timeout: 30000 }).catch(() => fail('the boss bar did not show for the awake Brood Heart'));
+    const bossText = await page.textContent('#hud .h-boss .bh');
+    if (!/BROOD HEART/i.test(bossText) || !/WAVE \d+\/\d+/.test(bossText)) await fail(`boss bar reads "${bossText}"`);
     await freezeAndScreenshot(page, 'tests/out/raid-nest.png', { resume: true });
     const pods = s.pods.length;
     await call('hitNest', 0, 1e6, null);
@@ -228,6 +257,32 @@ try {
     if (s.nests[0].state !== 'destroyed' || s.pods.length !== pods + 1) await fail(`Brood Heart kill did not drop a Brood Cache: ${JSON.stringify(s.nests[0])}`);
     log(`Brood Heart woke, sent wave ${s.nests[0].wave} (${s.nests[0].brood} spawn), died and dropped a Brood Cache`);
   }
+  await call('killAll');
+  await call('setTimeScale', 8);
+  // Brood Cache: the container PvE AI's Brood Heart drops on death always holds a Brood Heart Seed.
+  const cacheId = await call('dropContainer', 'broodCache');
+  await frames(1);
+  await call('hold', 'KeyE', true);
+  for (let i = 0; i < 60; i++) { await frames(3); s = await state(); if (s.pods.find((q) => q.id === cacheId)?.opened) break; }
+  await call('hold', 'KeyE', false);
+  if (!s.pods.find((q) => q.id === cacheId)?.opened) await fail('Brood Cache did not open while holding E');
+  const inCache = (await call('openContainer'))?.items ?? [];
+  if (![...s.carried.items, ...inCache].some((i) => i.item === 'broodHeartSeed')) await fail(`Brood Cache had no Brood Heart Seed: carried ${JSON.stringify(s.carried.items)} cache ${JSON.stringify(inCache)}`);
+  log(`Brood Cache opened: ${[...s.carried.items, ...inCache].map((i) => `${i.count}x ${i.item}`).join(', ')}`);
+  // Flesh Market gear: a grenade explodes after its fuse; a Heart Husk turns the first death into a revive.
+  await call('give', 'neuroSpikeGrenade', 1);
+  if (!(await call('grenade'))) await fail('could not throw a Neuro-Spike Grenade');
+  for (let i = 0; i < 40; i++) { await frames(2); s = await state(); if (s.grenades === 0) break; }
+  if (s.grenades !== 0) await fail('grenade never exploded');
+  await call('melee');
+  await call('give', 'heartHusk', 1);
+  await call('damage', 10000);
+  await frames(2);
+  s = await state();
+  if (s.phase !== 'raid' || !s.reviving) await fail(`Heart Husk did not catch the death: ${s.phase}, reviving ${s.reviving}`);
+  for (let i = 0; i < 40; i++) { await frames(2); s = await state(); if (!s.reviving) break; }
+  if (s.reviving || !(s.biomass > 0)) await fail(`Heart Husk revive did not finish: biomass ${s.biomass}`);
+  log(`Heart Husk revived the host at ${Math.round(s.biomass)} Biomass`);
   await call('damage', 10000);
   await frames(3);
   s = await state();
@@ -244,8 +299,39 @@ try {
   if (p.cavity.length || total(p.stash, 'dnaStrand') || total(p.stash, 'synapseLens') > total(haul, 'synapseLens')) await fail(`death did not empty the cavities: ${JSON.stringify(p)}`);
   if (total(p.gutPouch, 'clotGel') !== pouchGel) await fail(`gut pouch did not survive death: ${JSON.stringify(p.gutPouch)}`);
   if (p.stats.deaths !== 1 || p.dna !== expectDna) await fail(`death record or banked DNA wrong: ${JSON.stringify(p.stats)} DNA ${p.dna}`);
-  await freezeAndScreenshot(page, 'tests/out/raid-hive-after.png');
+  await freezeAndScreenshot(page, 'tests/out/raid-hive-after.png', { resume: true });
   log('after death: cavities empty, gut pouch kept, banked DNA untouched');
+
+  // --- Hive vendors: Mother Clot lists rep-gated stock and contracts, buys from the stash, and a contract can be taken.
+  await tab('vendors');
+  if (!(await page.isVisible('#hive .scr-vendor'))) await fail('VENDORS did not open the Hive vendors');
+  const vCards = await page.locator('#hive .mk-card').count();
+  const contracts = await page.locator('#hive .vd-contract').count();
+  if (vCards < 1 || contracts < 1) await fail(`Mother Clot shows ${vCards} offers and ${contracts} contracts`);
+  let before = (await profile()).dna;
+  await page.click('#hive [data-sell="0"]');
+  if (!((await profile()).dna > before)) await fail('selling to Mother Clot paid no DNA');
+  const vendorPaid = (await profile()).dna - before;
+  const accept = page.locator('#hive .vd-contract .hv-btn.accept:not([disabled])').first();
+  let taken = 'none offered';
+  if (await accept.count()) {
+    await accept.click();
+    const active = (await profile()).economy?.contracts?.active ?? {};
+    if (!Object.keys(active).length) await fail('accepting a contract did not make it active');
+    taken = Object.values(active).join(', ');
+  }
+  await freezeAndScreenshot(page, 'tests/out/raid-vendors.png');
+  log(`Mother Clot: ${vCards} offers, ${contracts} contracts, sold one item for ${vendorPaid} DNA, took ${taken}`);
+
+  // --- Flesh Market through the vendor row: today's stock is listed and selling one stash item pays DNA.
+  await page.click('#hive [data-vendor="gulletBroker"]');
+  const cards = await page.locator('#hive .mk-card').count();
+  if (cards < 1) await fail('Flesh Market shows no stock');
+  before = (await profile()).dna;
+  await page.click('#hive [data-sell="0"]');
+  if (!((await profile()).dna > before)) await fail('selling at the Flesh Market paid no DNA');
+  await freezeAndScreenshot(page, 'tests/out/raid-market.png');
+  log(`Flesh Market: ${cards} offers, sold one item for ${(await profile()).dna - before} DNA`);
 
   if (errors.length) await fail(`console errors:\n${errors.join('\n')}`);
   await browser.close();

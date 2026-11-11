@@ -3,13 +3,14 @@
  * Each screen is a pure function of ProfileView plus callbacks, so the same code drives the game and the
  * static mocks in mocks/ui.html. Layouts follow references 01 to 03 (docs/reference/).
  */
-import { CLASSES, LOOT, RAID, VIRUSES, layoutPosition } from '../../../data';
+import { def as itemOf } from '../items';
+import { BOSSES, CLASSES, CONTRACTS, RAID, VIRUSES, ZONES, layoutPosition } from '../../../data';
 import type { ClassId } from '../../../data';
 import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../../render/palette';
 import { hostPortrait } from '../hosts';
 import { glyph, itemIcon, KIND_COLOUR } from '../icons';
 import { cta, esc, h, keyHints, meter, panel, q } from './kit';
-import type { ProfileView } from './model';
+import type { ProfileView, ZoneView } from './model';
 import { usage, valueOf } from './model';
 
 const BASE: ClassId = 'neuroInfiltrator';
@@ -57,12 +58,12 @@ const unlocked = (id: ClassId) => CLASSES[id].playableFrom !== 'host';
 
 /** Item tile markup shared by grids, previews and results. */
 export function tile(item: string, count: number, rotated = false): string {
-  const d = LOOT.items[item];
+  const d = itemOf(item);
   return `<div class="tile k-${d?.kind ?? 'tech'}" style="--kc:${KIND_COLOUR[d?.kind ?? 'tech']}">${itemIcon(item, rotated)}${count > 1 ? `<b class="n">${count}</b>` : ''}</div>`;
 }
 
 /* ------------------------------------------------------------------------------------------- MAIN MENU */
-export interface MenuCallbacks { go(tab: string): void; deploy(): void; quit(): void }
+export interface MenuCallbacks { go(tab: string): void; deploy(): void; quit(): void; /** Show the Flesh Market entry. */ market?: boolean }
 
 export function mainMenu(p: ProfileView, cb: MenuCallbacks): HTMLElement {
   const el = h('div', 'scr scr-menu');
@@ -72,6 +73,7 @@ export function mainMenu(p: ProfileView, cb: MenuCallbacks): HTMLElement {
     <ul class="menu-list">
       <li><button data-go="deploy" class="primary">${glyph('play')}<span>DEPLOY</span><small>Choose host, loadout and drop zone</small></button></li>
       <li><button data-go="stash">${glyph('stash')}<span>STASH & LOADOUT</span><small>${used}/${cap} cells · ${p.cavity.length} items in cavities</small></button></li>
+      ${cb.market ? `<li><button data-go="vendors">${glyph('dna')}<span>VENDORS</span><small>Mother Clot, the Archivist, the Gullet Broker</small></button></li>` : ''}
       <li><button data-go="host">${glyph('virus')}<span>HOST SELECT</span><small>${esc(CLASSES[p.host].label)}</small></button></li>
       <li><button data-go="settings">${glyph('gear')}<span>SETTINGS</span><small>Controls, video, audio</small></button></li>
       <li><button data-go="quit">${glyph('quit')}<span>QUIT</span><small>Return the host to dormancy</small></button></li>
@@ -85,11 +87,13 @@ export function mainMenu(p: ProfileView, cb: MenuCallbacks): HTMLElement {
     </dl>
     <div class="survival"><span>SURVIVAL RATE</span><b>${p.stats.raids ? Math.round((p.stats.extracts / p.stats.raids) * 100) : 0}%</b><i style="--v:${p.stats.raids ? p.stats.extracts / p.stats.raids : 0}"></i></div>
     ${p.last ? `<div class="last ${p.last.result}"><span>LAST RAID</span><b>${p.last.result === 'extracted' ? 'EXTRACTED' : 'HOST LOST'}</b><em>${p.last.value} DNA</em></div>` : '<div class="last none"><span>LAST RAID</span><b>NO RAIDS YET</b><em>Zone 7 awaits</em></div>'}
-    <div class="stashval"><span>STASH VALUE</span><b>${valueOf(p.stash).toLocaleString('en-US')} DNA</b></div>`);
+    <div class="stashval"><span>STASH VALUE</span><b>${valueOf(p.stash).toLocaleString('en-US')} DNA</b></div>
+    <div class="loadout"><span>LOADOUT <em>${valueOf(p.cavity).toLocaleString('en-US')} DNA AT RISK</em></span>
+      <div class="tiles">${p.cavity.map((c) => tile(c.item, c.count)).join('') || '<i class="none">Cavities empty</i>'}${p.gutPouch.length ? `<b class="sep">POUCH</b>${p.gutPouch.map((c) => tile(c.item, c.count)).join('')}` : ''}</div></div>`);
   el.append(side);
   const go = cta('ENTER EXCLUSION ZONE', 'PVPVE ZONE · DEATH LOSES YOUR LOADOUT');
   go.dataset.go = 'deploy';
-  el.append(go, keyHints([['ENTER', 'DEPLOY'], ['S', 'STASH'], ['H', 'HOST'], ['ESC', 'BACK']]));
+  el.append(go, keyHints([['ENTER', 'DEPLOY'], ['S', 'STASH'], ['H', 'HOST'], ...(cb.market ? [['M', 'VENDORS'] as [string, string]] : []), ['ESC', 'BACK']]));
   el.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-go]');
     if (!b) return;
@@ -134,7 +138,7 @@ export function hostSelect(p: ProfileView, cb: { pick(id: ClassId): void; next()
   }
   el.append(cards);
   // Stash preview strip (ref 02 bottom row).
-  const viral = p.stash.filter((s) => LOOT.items[s.item]?.kind === 'virus' || LOOT.items[s.item]?.kind === 'mutagen');
+  const viral = p.stash.filter((s) => itemOf(s.item)?.kind === 'virus' || itemOf(s.item)?.kind === 'mutagen');
   const loot = p.stash.filter((s) => !viral.includes(s));
   const [used, cap] = usage('stash', p);
   el.insertAdjacentHTML('beforeend', `
@@ -169,8 +173,57 @@ export function raidPlan(): RaidPlan {
 const NAMES: Record<string, string> = { needlemaw: 'Needlemaw', bilecantor: 'Bile Cantor', glasswalker: 'Glasswalker', oculimoth: 'Oculimoth', mournback: 'Mournback' };
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-export function raidSelect(p: ProfileView, cb: { deploy(): void }): HTMLElement {
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+/** The zone this build deploys into (Zone 7 is Glowmire Isle). */
+export const LIVE_ZONE = 'glowmireIsle';
+
+/** Plain-words access requirement for a zone (zones.json `access`). */
+export function zoneAccess(access: string): string {
+  if (access === 'open') return 'OPEN';
+  const c = /^contract (\w+)/.exec(access);
+  if (c) return `CONTRACT · ${(CONTRACTS.find((k) => k.id === c[1])?.title ?? c[1]).toUpperCase()}`;
+  if (access === 'apex') return 'APEX MILESTONE';
+  if (access.startsWith('host')) return 'HOST LEVEL 5';
+  return access.toUpperCase();
+}
+
+/** The zone roster in travel order: open zones first-class, the rest show what opens them. */
+export function zoneRoster(open: (id: string) => boolean = (id) => ZONES[id]?.access === 'open') {
+  return Object.entries(ZONES).sort(([, a], [, b]) => a.order - b.order).map(([id, z]) => ({
+    id, label: z.label, order: z.order, threat: z.threat, raidTime: z.raidTime ?? null, boss: z.boss ? BOSSES[z.boss]?.label ?? z.boss : null,
+    open: open(id), access: zoneAccess(z.access), pitch: z.pitch,
+  }));
+}
+
+interface ZoneCallbacks { notice?(msg: string, tone?: string): void; zones?(): ZoneView[]; selectZone?(id: string): boolean; changed?(): void }
+
+function zoneRow(current: string, cb: ZoneCallbacks): HTMLElement {
+  const row = h('div', 'zones');
+  // Gameplay's zoneList decides access when it is there; otherwise zones.json's `access` does.
+  const live = cb.zones?.();
+  const roster = zoneRoster(live ? (id) => live.find((z) => z.id === id)?.access.state === 'open' : undefined);
+  for (const z of roster) {
+    const acc = live?.find((x) => x.id === z.id)?.access;
+    const why = acc && acc.state !== 'open' ? acc.reason.toUpperCase() : z.access;
+    const b = h<HTMLButtonElement>('button', `zone${z.open ? '' : ' locked'}${z.id === current ? ' on' : ''}`, `<em>${ROMAN[z.order] ?? z.order}</em>
+      <div><b>${esc(z.label.toUpperCase())}</b><small>${z.open ? `<span class="pips">${[1, 2, 3, 4, 5].map((i) => `<i class="${i >= z.threat[0] && i <= z.threat[1] ? 'on' : ''}"></i>`).join('')}</span>${z.raidTime ? fmt(z.raidTime) : ''}` : `${glyph('lock')}${esc(why)}`}</small></div>`);
+    b.dataset.zone = z.id;
+    b.title = z.pitch;
+    b.addEventListener('click', () => {
+      if (!z.open) { cb.notice?.(`${z.label.toUpperCase()} · ${why}`, 'danger'); return; }
+      if (z.id !== current && cb.selectZone?.(z.id)) cb.changed?.();
+    });
+    row.append(b);
+  }
+  return row;
+}
+
+export function raidSelect(p: ProfileView, cb: { deploy(): void } & ZoneCallbacks): HTMLElement {
   const el = h('div', 'scr scr-raid');
+  const zoneId = p.zone && ZONES[p.zone] ? p.zone : LIVE_ZONE;
+  const zone = ZONES[zoneId];
+  const boss = zone?.boss ? BOSSES[zone.boss] : null;
+  const roster = zoneRoster();
   const plan = raidPlan();
   const extracts = RAID.larva?.extracts ?? [{ label: RAID.extract.label, radius: RAID.extract.radius, bearing: RAID.extract.bearing, opensAt: 0 }];
   el.innerHTML = `
@@ -181,7 +234,7 @@ export function raidSelect(p: ProfileView, cb: { deploy(): void }): HTMLElement 
         <li class="pod">${glyph('pod')}Bio-Pod</li><li class="drop">${glyph('play')}Your drop point</li>
       </ul>
     </div>`;
-  const info = panel('raid-info', 'EXCLUSION ZONE: ZONE 7', 'The Island · 1 of 1 sectors open');
+  const info = panel('raid-info', `EXCLUSION ZONE: ${(zone?.label ?? 'Zone 7').toUpperCase()}`, `Zone 7 · ${roster.filter((z) => z.open).length} of ${roster.length} zones open`);
   info.insertAdjacentHTML('beforeend', `
     <div class="threat"><span>THREAT LEVEL</span><div class="pips">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= plan.threat ? 'on' : ''}"></i>`).join('')}</div><b>${['', 'LOW', 'GUARDED', 'HIGH', 'SEVERE', 'EXTREME'][plan.threat]}</b></div>
     <dl class="raidfacts">
@@ -192,6 +245,7 @@ export function raidSelect(p: ProfileView, cb: { deploy(): void }): HTMLElement 
     </dl>
     <h3>ACTIVE MODIFIERS</h3>
     <ul class="mods">
+      ${boss ? `<li class="bone">${glyph('nest')}<b>${esc(boss.label)} sleeps in the ${esc(String(boss.arena.shape ?? 'arena'))}</b><span>Dormant until a ${esc(boss.dormantUntil)}. Its song carries ${boss.songRadius} m.</span></li>` : ''}
       ${plan.nests ? `<li class="danger">${glyph('nest')}<b>Brood Heart nest present</b><span>Wakes within range, pulses spawn waves. Kill it for the Brood Cache.</span></li>` : ''}
       ${extracts.filter((x) => x.opensAt > 0).map((x) => `<li class="lime">${glyph('spire')}<b>Second ${esc(x.label)} opens at ${fmt(x.opensAt)}</b><span>Bearing ${x.bearing}°. Routes and timing shift mid-raid.</span></li>`).join('')}
       ${RAID.larva?.corpseHarvest ? `<li class="cyan">${glyph('dna')}<b>Corpse harvesting</b><span>Hold E on a dead Abomination to cut out its organ.</span></li>` : ''}
@@ -199,7 +253,7 @@ export function raidSelect(p: ProfileView, cb: { deploy(): void }): HTMLElement 
     </ul>
     <h3>KNOWN ABOMINATIONS</h3>
     <ul class="roster">${plan.hostiles.map((x) => `<li><span>${esc(NAMES[x.type] ?? x.type)}</span><b>×${x.count}</b></li>`).join('')}</ul>`);
-  el.append(info);
+  el.append(info, zoneRow(zoneId, cb));
   el.insertAdjacentHTML('beforeend', `
     <div class="squad"><h3>HIVE-MIND SQUAD</h3>
       <div class="sq-slots"><div class="sq you">${hostPortrait(p.host)}<span>${esc(p.callsign)}</span></div>
@@ -341,8 +395,8 @@ export function results(r: ResultData, cb: { again(): void }): HTMLElement {
     <div class="res-head"><h1>${won ? 'EXTRACTED' : 'HOST LOST'}</h1>
       <p>${won ? 'The Seed Spire carried your haul out of Zone 7.' : `Biomass depleted${r.cause ? ` · ${esc(r.cause)}` : ''}. Everything in your cavities is gone.`}</p>${r.note ? `<p class="note">${esc(r.note)}</p>` : ''}</div>
     <section class="hv-panel res-items"><h2>${won ? 'MOVING TO STASH' : 'LOST WITH THE HOST'}</h2>
-      <ul>${r.items.map((i, n) => `<li style="--d:${n * 0.08}s">${tile(i.item, i.count)}<span>${esc(LOOT.items[i.item]?.label ?? i.item)}</span><b>×${i.count}</b><em>${(LOOT.items[i.item]?.value ?? 0) * i.count} DNA</em></li>`).join('') || '<li class="none">Nothing carried</li>'}</ul>
-      ${r.kept?.length ? `<h2 class="kept">GUT POUCH · KEPT</h2><ul>${r.kept.map((i) => `<li>${tile(i.item, i.count)}<span>${esc(LOOT.items[i.item]?.label ?? i.item)}</span><b>×${i.count}</b></li>`).join('')}</ul>` : ''}
+      <ul>${r.items.map((i, n) => `<li style="--d:${n * 0.08}s">${tile(i.item, i.count)}<span>${esc(itemOf(i.item)?.label ?? i.item)}</span><b>×${i.count}</b><em>${(itemOf(i.item)?.value ?? 0) * i.count} DNA</em></li>`).join('') || '<li class="none">Nothing carried</li>'}</ul>
+      ${r.kept?.length ? `<h2 class="kept">GUT POUCH · KEPT</h2><ul>${r.kept.map((i) => `<li>${tile(i.item, i.count)}<span>${esc(itemOf(i.item)?.label ?? i.item)}</span><b>×${i.count}</b></li>`).join('')}</ul>` : ''}
     </section>
     <section class="hv-panel res-sum">
       <div class="big"><span>${won ? 'HAUL VALUE' : 'VALUE LOST'}</span><b>${won ? '+' : '−'}${r.value.toLocaleString('en-US')}</b></div>

@@ -1,11 +1,13 @@
 import * as THREE from 'three';
-import { groundHeight, ISLAND_RADIUS } from '../world/zone7';
+import { groundHeight, ISLAND_RADIUS, SOLIDS } from '../world/zone7';
 import { footstepRadius } from './perception';
 import type { HostClass, HostRules } from '../../data';
 
 const EYE = 1.7;
 const EYE_CROUCH = 1.05;
 const GRAVITY = 22;
+/** Body radius against World structure walls. */
+const BODY_RADIUS = 0.4;
 const BASE_FOV = 75;
 
 /**
@@ -18,6 +20,9 @@ export const FEEL = { crouchMultiplier: 0.5, slideSpeed: 11, slideTime: 0.7, jum
  * First-person host controller: walk, sprint, crouch, slide, jump, head bob, camera shake and knockback.
  * Collides with the island heightfield and its rim. Static props get Rapier colliders in Larva.
  */
+/** Pixels; a single mousemove larger than this is a pointer-lock artefact, not a flick. */
+const MAX_MOUSE_DELTA = 400;
+
 export class Player {
   readonly velocity = new THREE.Vector3();
   /** Feet position. The camera sits on top at eye height. */
@@ -29,6 +34,8 @@ export class Player {
   crouched = false;
   /** Set by the raid each frame (abilities, overload). */
   speedMultiplier = 1;
+  /** Set by the raid each frame from the World layout (Gravity Bloom anomaly); 1 = normal gravity. */
+  gravityScale = 1;
   /** Virus modifiers: sprint speed and how far footsteps carry. */
   sprintBoost = 1;
   footstepScale = 1;
@@ -59,8 +66,14 @@ export class Player {
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
     dom.addEventListener('click', () => dom.requestPointerLock?.());
+    // Chrome's first mousemove after pointer lock engages carries minus the cursor position (issue #42), which
+    // swung the camera to the sky on every click-to-play. Skip that event and drop absurd single-event jumps.
+    let freshLock = false;
+    document.addEventListener('pointerlockchange', () => { freshLock = document.pointerLockElement === dom; });
     addEventListener('mousemove', (e) => {
       if (document.pointerLockElement !== dom || !this.enabled) return;
+      if (freshLock) { freshLock = false; return; }
+      if (Math.abs(e.movementX) > MAX_MOUSE_DELTA || Math.abs(e.movementY) > MAX_MOUSE_DELTA) return;
       this.yaw -= e.movementX * 0.0022;
       this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * 0.0022, -1.5, 1.5);
     });
@@ -140,14 +153,19 @@ export class Player {
       this.peakY = this.position.y;
       this.onJump();
     }
-    this.velocity.y -= GRAVITY * dt;
+    this.velocity.y -= GRAVITY * this.gravityScale * dt;
 
     const p = this.position;
+    const prevY = p.y;
     p.addScaledVector(this.velocity, dt);
+    // World structures: walls push the body out, decks and ramps are floors, ceilings stop a jump.
+    SOLIDS.collide(p, BODY_RADIUS, this.crouched ? 1.2 : 1.8);
+    const ceiling = SOLIDS.ceilingAt(p.x, p.z, prevY);
+    if (p.y + 1.8 > ceiling && this.velocity.y > 0) { p.y = Math.max(prevY, ceiling - 1.8); this.velocity.y = 0; }
     const edge = ISLAND_RADIUS * 0.84;
     const r = Math.hypot(p.x, p.z);
     if (r > edge) { p.x *= edge / r; p.z *= edge / r; }
-    const floor = groundHeight(p.x, p.z);
+    const floor = SOLIDS.floorAt(p.x, p.z, Math.max(prevY, p.y));
     if (!this.grounded) this.peakY = Math.max(this.peakY, p.y);
     if (p.y <= floor) {
       if (!this.grounded) {

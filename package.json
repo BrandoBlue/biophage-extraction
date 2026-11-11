@@ -9,6 +9,7 @@
     "test": "vitest run",
     "smoke": "node tests/smoke.mjs",
     "lookdev": "node tests/lookdev.mjs",
+    "lookdev:player": "node tests/playerview.mjs",
     "check": "npm run release && npm test && npm run smoke && npm run smoke:release && npm run budget && npm run smoke:raid && npm run smoke:creatures && npm run smoke:raid:release",
     "release": "npm run build && node scripts/bundle-single.mjs",
     "smoke:release": "node tests/smoke.mjs --release",

@@ -43,7 +43,7 @@ export function vineCorner(seed: number): string {
     const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ');
     const w = 7 - t * 1.0;
     paths += `<path d="${d}" stroke="url(#vg${seed})" stroke-width="${Math.max(1.6, w)}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
-    paths += `<path d="${d}" stroke="${HIVE.acid}" stroke-opacity=".18" stroke-width="${Math.max(0.8, w * 0.3)}" fill="none" transform="translate(-1 -1)"/>`;
+    paths += `<path d="${d}" stroke="${HIVE.bone}" stroke-opacity=".14" stroke-width="${Math.max(0.8, w * 0.3)}" fill="none" transform="translate(-1 -1)"/>`;
     for (let i = 2; i < pts.length - 1; i += 2) {
       const [x, y] = pts[i], [nx, ny] = pts[i + 1];
       const ang = Math.atan2(ny - y, nx - x) + (r() < 0.5 ? 1 : -1) * (0.9 + r() * 0.5);
@@ -51,7 +51,7 @@ export function vineCorner(seed: number): string {
       thorns += `<path d="M${x.toFixed(1)} ${y.toFixed(1)} L${(x + Math.cos(ang) * tl).toFixed(1)} ${(y + Math.sin(ang) * tl).toFixed(1)} L${(x + Math.cos(ang + 0.5) * 3).toFixed(1)} ${(y + Math.sin(ang + 0.5) * 3).toFixed(1)}Z" fill="${HIVE.bone}" fill-opacity=".55"/>`;
       if (r() < 0.32) {
         const pr = 2.4 + r() * 4.2;
-        const col = r() < 0.75 ? HIVE.acid : PATH.viral;
+        const q = r(), col = q < 0.5 ? HIVE.bone : q < 0.8 ? PATH.viral : HIVE.acid;
         pustules += `<circle class="pustule" style="animation-delay:${(-r() * 4).toFixed(2)}s" cx="${(x + Math.cos(ang) * 4).toFixed(1)}" cy="${(y + Math.sin(ang) * 4).toFixed(1)}" r="${pr.toFixed(1)}" fill="${col}" filter="url(#vp${seed})"/>`;
       }
     }
@@ -73,6 +73,8 @@ export interface FrameOpts {
   callsign: string;
   dna: number;
   extras?: { label: string; value: string; tone?: string }[];
+  /** Nav tabs to open even though their milestone has not arrived (feature-detected screens). */
+  unlocked?: string[];
 }
 
 export const NAV: { id: string; label: string; sub?: string; locked?: string }[] = [
@@ -82,7 +84,7 @@ export const NAV: { id: string; label: string; sub?: string; locked?: string }[]
   { id: 'raid', label: 'RAID SELECT', sub: 'Exclusion Zone' },
   { id: 'synapse', label: 'SYNAPSE & SKILLS', locked: 'HOST' },
   { id: 'lab', label: 'VIRAL LAB', locked: 'HOST' },
-  { id: 'market', label: 'FLESH MARKET', locked: 'HOST' },
+  { id: 'vendors', label: 'VENDORS', sub: 'Trade & contracts', locked: 'LARVA' },
   { id: 'hivemind', label: 'HIVE-MIND', sub: 'Multiplayer', locked: 'HIVE' },
 ];
 
@@ -101,7 +103,7 @@ export function frame(o: FrameOpts): { root: HTMLElement; body: HTMLElement; nav
       </div>
       <div class="hv-brand">BIOPHAGE: EXTRACTION <i>${glyph('virus')}</i></div>
     </header>
-    <nav class="hv-nav">${NAV.map((n) => `<button class="tab${n.id === o.tab ? ' on' : ''}${n.locked ? ' locked' : ''}" data-tab="${n.id}" ${n.locked ? 'disabled' : ''}>
+    <nav class="hv-nav">${NAV.map((n) => (o.unlocked?.includes(n.id) ? { ...n, locked: undefined } : n)).map((n) => `<button class="tab${n.id === o.tab ? ' on' : ''}${n.locked ? ' locked' : ''}" data-tab="${n.id}" ${n.locked ? 'disabled' : ''}>
       ${n.label}${n.sub ? `<small>${n.sub}</small>` : ''}${n.locked ? `<em>${glyph('lock')}${n.locked}</em>` : ''}</button>`).join('')}</nav>
     <h1 class="hv-title"><span>${esc(o.title)}</span></h1>
     <main class="hv-body"></main>`;

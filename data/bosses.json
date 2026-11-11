@@ -26,6 +26,8 @@
     },
     "dormantUntil": "host enters arena",
     "songRadius": 150,
+    "wakeRadius": 30,
+    "songLoops": true,
     "weakPoints": {
       "hearts": {
         "count": 3,
@@ -41,7 +43,8 @@
       "legs": {
         "count": 6,
         "biomassEach": 250,
-        "severedFrom": "phase2"
+        "severedFrom": "phase2",
+        "slowPerSevered": 0.15
       }
     },
     "phases": [
@@ -50,7 +53,10 @@
         "from": 1.0,
         "to": 0.65,
         "frontArmourMultiplier": 0.2,
+        "frontArmourArc": 120,
         "speed": 2.4,
+        "turnRate": 0.7,
+        "holdDistance": 5,
         "attacks": {
           "legStamp": {
             "damage": 45,
@@ -70,7 +76,9 @@
               "type": "needlemaw",
               "count": 3
             },
-            "cooldown": 25
+            "cooldown": 25,
+            "firstDelay": 8,
+            "windup": 0.8
           }
         },
         "note": "the bone shell blocks frontal fire; flank via the ledge or bait a stamp and shoot the brood sac"
@@ -80,6 +88,8 @@
         "from": 0.65,
         "to": 0.3,
         "speed": 1.8,
+        "turnRate": 0.4,
+        "holdDistance": 10,
         "attacks": {
           "rearAndVent": {
             "sporeCloud": {
@@ -88,26 +98,36 @@
               "overloadPerSecond": 8,
               "duration": 6
             },
-            "cooldown": 14
+            "cooldown": 14,
+            "windup": 1.4,
+            "heartsExposed": 4,
+            "triggerRange": 14
           },
           "hymn": {
             "ring": {
               "damage": 25,
               "speed": 12,
-              "jumpable": true
+              "jumpable": true,
+              "maxRadius": 30,
+              "height": 0.6
             },
-            "cooldown": 10
+            "cooldown": 10,
+            "windup": 1.0
           },
           "broodDrop": {
             "spawn": {
               "type": "needlemaw",
               "count": 4
             },
-            "cooldown": 20
+            "cooldown": 20,
+            "firstDelay": 8,
+            "windup": 0.8
           },
           "coverBreak": {
             "destroysCover": true,
-            "cooldown": 18
+            "cooldown": 18,
+            "windup": 1.2,
+            "reach": 12
           }
         },
         "note": "rears up and splits the ribcage open: the three hearts are exposed while it vents; legs can now be severed (each severed leg slows it 15%)"
@@ -117,19 +137,25 @@
         "from": 0.3,
         "to": 0.0,
         "speed": 3.2,
+        "turnRate": 1.6,
+        "holdDistance": 0,
         "bodyDamageMultiplier": 1.5,
         "attacks": {
           "forelimbDrag": {
             "damage": 50,
             "range": 7,
             "windup": 0.7,
-            "cooldown": 3.5
+            "cooldown": 3.5,
+            "lungeSpeedMultiplier": 2.5,
+            "lungeTime": 0.6
           },
           "tendrilGrab": {
             "damage": 30,
             "pin": 2,
             "freedByDamage": 80,
-            "cooldown": 12
+            "cooldown": 12,
+            "range": 10,
+            "windup": 0.8
           },
           "lightFlood": {
             "poolGrowsTo": 0.7,

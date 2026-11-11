@@ -4,12 +4,13 @@
  * with its EGO CHARGE ring, objectives top right, harvest / inject / extract rings in the centre.
  * Reads a HudView each frame and listens to gameplay events; never touches game objects.
  */
+import { def as itemOf } from '../items';
 import './hud.css';
-import { LOOT, VIRUSES, VIRUS_RULES } from '../../../data';
+import { VIRUSES, VIRUS_RULES } from '../../../data';
 import { HIVE, PATH, ZONE7 } from '../../render/palette';
 import { applyTheme } from '../theme';
 import { glyph, itemIcon, KIND_COLOUR } from '../icons';
-import { barFrame, scannerFrame, slotsFrame, socketFrame, timerFrame, weaponFrame } from './organic';
+import { barFrame, bossFrame, scannerFrame, slotsFrame, socketFrame, timerFrame, weaponFrame } from './organic';
 import type { HudView } from './model';
 
 type Bus = { on(type: string, fn: (e: never) => void): () => void };
@@ -24,7 +25,11 @@ function el(tag: string, cls: string, html = ''): HTMLElement {
 
 /** Full control list, shown on the briefing prompt and whenever the mouse is released mid-raid. */
 export const CONTROLS = '<small>WASD move · SHIFT sprint · C slide/crouch · SPACE jump · ESC release · TAB cavities</small>'
-  + '<small>LMB fire · RMB aim · R regrow · F ego charge · 1/Q psych-wave pulse · 2 clot gel · hold E harvest</small>';
+  + '<small>LMB fire · RMB aim · R regrow · F ego charge · V melee · 1/Q psych-wave pulse · 2 clot gel · hold E harvest</small>'
+  + '<small>G neuro-spike grenade · X maw-seed mine · a Heart Husk in your cavities revives you once</small>';
+
+/** Flesh Market gear the HUD counts from what the host carries: key, item, short label. */
+export const GEAR: [string, string, string][] = [['G', 'neuroSpikeGrenade', 'SPIKE'], ['X', 'mawSeedMine', 'MINE'], ['', 'heartHusk', 'HUSK']];
 
 export const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
@@ -49,6 +54,9 @@ export class OrganicHud {
   private mutateLeft = 0;
   private bannerLeft = 0;
   private lootKey = '';
+  private bossKey = '';
+  private gearKey = '';
+  private reviveLeft = 0;
 
   constructor(root: HTMLElement, bus?: Bus) {
     applyTheme();
@@ -59,6 +67,8 @@ export class OrganicHud {
       <div class="h-top">
         <div class="h-timer">${timerFrame()}<b data-q="timer">10:00</b></div>
         <div class="h-objective" data-q="objective"></div>
+        <div class="h-boss hidden" data-q="boss"><div class="bh"><b data-q="bossName"></b><span data-q="bossWave"></span></div>
+          <div class="bt">${bossFrame()}<div class="trk"><div class="ghost" data-q="bossGhost"></div><div class="fill" data-q="bossFill"></div><div class="notches" data-q="bossNotches"></div></div></div></div>
       </div>
       <div class="h-quest"><h4>${glyph('spire')}OBJECTIVES</h4><ul data-q="quests"></ul>
         <div class="h-haul"><span>HAUL</span><b data-q="haul">0</b><span>KILL DNA</span><b data-q="dna">0</b></div>
@@ -79,6 +89,8 @@ export class OrganicHud {
         <div class="ammo" data-q="ammoBox"><b data-q="ammo">42</b> / ∞ <small>SPORES</small></div>
         <div class="ego" data-q="ego"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="40"/><circle class="val" cx="50" cy="50" r="40" data-q="egoRing"/></svg><span>EGO<br/>CHARGE</span></div>
       </div>
+      <div class="h-gear" data-q="gear"></div>
+      <div class="h-revive hidden" data-q="revive"><b>HEART HUSK</b><span>THE HUSK SPLITS · REBIRTH IN <i data-q="reviveT">0.0</i></span></div>
       <div class="h-centre">
         <div class="hitmarker" data-q="hit"></div>
         <div class="h-interact hidden" data-q="interact"><span></span><div class="bar"><div></div></div></div>
@@ -113,8 +125,8 @@ export class OrganicHud {
     });
     on('overload', () => this.say('OVERLOADED', 'violet'));
     on<{ reason: string }>('abilityDenied', (e) => this.say(e.reason === 'overloaded' ? 'OVERLOADED' : e.reason === 'empty' ? 'NONE CARRIED' : 'RECHARGING'));
-    on<{ items: { item: string; count: number }[] }>('pickup', (e) => this.say(`HARVESTED ${e.items.map((i) => `${i.count > 1 ? `${i.count}× ` : ''}${LOOT.items[i.item]?.label ?? i.item}`).join(' · ')}`.toUpperCase(), 'cyan'));
-    on<{ items: { item: string; count: number }[] }>('cavityFull', (e) => this.say(`CAVITIES FULL · ${e.items.map((i) => LOOT.items[i.item]?.label ?? i.item).join(', ').toUpperCase()} LEFT BEHIND · [TAB] SWAP`, 'danger', 3.5));
+    on<{ items: { item: string; count: number }[] }>('pickup', (e) => this.say(`HARVESTED ${e.items.map((i) => `${i.count > 1 ? `${i.count}× ` : ''}${itemOf(i.item)?.label ?? i.item}`).join(' · ')}`.toUpperCase(), 'cyan'));
+    on<{ items: { item: string; count: number }[] }>('cavityFull', (e) => this.say(`CAVITIES FULL · ${e.items.map((i) => itemOf(i.item)?.label ?? i.item).join(', ').toUpperCase()} LEFT BEHIND · [TAB] SWAP`, 'danger', 3.5));
     on('collapseWarning', () => this.say('ZONE COLLAPSE IN 2:00 · EXTRACT NOW', 'danger alarm', 5));
     on<{ label: string }>('extractStart', (e) => this.say(`${e.label.toUpperCase()} SIGNAL · HOLD THE ZONE`, 'lime'));
     on('extractCancel', () => this.say('EXTRACTION INTERRUPTED', 'danger'));
@@ -122,8 +134,14 @@ export class OrganicHud {
     on<{ virus: string }>('virusInjectStart', (e) => this.say(`INJECTING ${(VIRUSES[e.virus]?.label ?? e.virus).toUpperCase()} · YOU ARE SLOWED`, 'violet', VIRUS_RULES.injectTime));
     on('virusInjectCancel', () => this.say('INJECTION INTERRUPTED', 'danger'));
     on<{ virus: string }>('virusInjected', (e) => this.mutate(e.virus));
-    on<{ item: string }>('harvestDone', (e) => this.say(`CUT OUT ${(LOOT.items[e.item]?.label ?? e.item).toUpperCase()}`, 'cyan'));
+    on<{ item: string }>('harvestDone', (e) => this.say(`CUT OUT ${(itemOf(e.item)?.label ?? e.item).toUpperCase()}`, 'cyan'));
     on<{ id: string; slot: number }>('ability', () => { this.bannerLeft = 1.4; });
+    on<{ hit: number | null }>('melee', (e) => { if (e.hit !== null) { this.hitLeft = 0.18; this.q.hit.className = 'hitmarker on'; } });
+    on<{ time: number }>('reviving', (e) => { this.reviveLeft = e.time; this.q.revive.classList.remove('hidden'); });
+    on('revived', () => { this.reviveLeft = 0; this.q.revive.classList.add('hidden'); this.say('REBORN FROM THE HUSK', 'lime', 2.5); });
+    on<{ label: string }>('nestAwake', (e) => this.say(`${e.label.toUpperCase()} STIRS`, 'danger', 3));
+    on<{ wave: number; of: number }>('nestWave', (e) => this.say(`BROOD WAVE ${e.wave} OF ${e.of}`, 'danger', 2.5));
+    on<{ dna: number }>('nestDestroyed', (e) => this.say(`THE HEART BURSTS · +${e.dna} DNA · BROOD CACHE EXPOSED`, 'lime', 4));
   }
 
   /** Mutation flash: the screen edges bloom in the strain's colour while the arms dissolve-grow. */
@@ -190,7 +208,7 @@ export class OrganicHud {
     const key = s.carried.map((c) => `${c.item}${c.count}`).join(',') + (s.cavityUsed ?? '');
     if (key !== this.lootKey) {
       this.lootKey = key;
-      q.carried.innerHTML = s.carried.map((c) => `<div class="chip" style="--kc:${KIND_COLOUR[(LOOT.items[c.item]?.kind ?? 'tech') as keyof typeof KIND_COLOUR]}" title="${c.label}">${itemIcon(c.item)}${c.count > 1 ? `<b>${c.count}</b>` : ''}</div>`).join('')
+      q.carried.innerHTML = s.carried.map((c) => `<div class="chip" style="--kc:${KIND_COLOUR[(itemOf(c.item)?.kind ?? 'tech') as keyof typeof KIND_COLOUR]}" title="${c.label}">${itemIcon(c.item)}${c.count > 1 ? `<b>${c.count}</b>` : ''}</div>`).join('')
         + (s.cavityUsed ? `<span class="cap">${s.cavityUsed[0]}/${s.cavityUsed[1]} <kbd>TAB</kbd></span>` : '');
     }
 
@@ -248,8 +266,38 @@ export class OrganicHud {
     this.mutateLeft = Math.max(0, this.mutateLeft - dt);
     if (this.mutateLeft <= 0) q.mutate.classList.remove('on');
 
+    this.updateBoss(dt, s.boss ?? null);
+    this.updateGear(s);
+    if (this.reviveLeft > 0) { this.reviveLeft = Math.max(0, this.reviveLeft - dt); q.reviveT.textContent = this.reviveLeft.toFixed(1); }
     this.drawScanner(s);
     if (s.phase !== this.lastPhase) this.lastPhase = s.phase;
+  }
+
+  /** Gear chips over the weapon panel: only what is carried, with its key and count. */
+  private updateGear(s: HudView): void {
+    const have = GEAR.map(([key, item, label]) => ({ key, item, label, n: s.carried.filter((c) => c.item === item).reduce((a, c) => a + c.count, 0) })).filter((g) => g.n > 0);
+    const k = have.map((g) => `${g.item}${g.n}`).join(',');
+    if (k === this.gearKey) return;
+    this.gearKey = k;
+    this.q.gear.innerHTML = have.map((g) => `<div class="gchip">${g.key ? `<kbd>${g.key}</kbd>` : ''}<i>${itemIcon(g.item)}</i><span>${g.label}</span><b>×${g.n}</b></div>`).join('');
+  }
+
+  /** Boss bar under the objective: bone-and-flesh sinew, a pale damage ghost, one notch per brood wave. */
+  private updateBoss(dt: number, b: HudView['boss']): void {
+    const q = this.q;
+    q.boss.classList.toggle('hidden', !b);
+    if (!b) { this.bossKey = ''; return; }
+    const f = Math.max(0, Math.min(1, b.fraction));
+    q.bossFill.style.width = `${f * 100}%`;
+    const gw = parseFloat(q.bossGhost.style.width || '100');
+    q.bossGhost.style.width = `${Math.max(f * 100, gw - dt * 18)}%`;
+    q.boss.classList.toggle('low', f < 0.25);
+    const key = `${b.label}|${b.wave}|${b.waves}`;
+    if (key === this.bossKey) return;
+    this.bossKey = key;
+    q.bossName.textContent = b.label.toUpperCase();
+    q.bossWave.textContent = b.waves ? `WAVE ${b.wave}/${b.waves}` : '';
+    q.bossNotches.innerHTML = Array.from({ length: Math.max(0, b.waves - 1) }, (_, i) => `<i style="left:${((i + 1) / b.waves) * 100}%"${i < b.wave - 1 ? ' class="past"' : ''}></i>`).join('');
   }
 
   private setRing(r: HTMLElement, v: number | null, label: string): void {
@@ -274,8 +322,8 @@ export class OrganicHud {
     // Swirling psych-wave spiral (reference 04's living map).
     c.lineWidth = 1.6;
     for (let i = 0; i < 3; i++) {
-      c.strokeStyle = [ZONE7.cyan, HIVE.acid, ZONE7.magenta][i];
-      c.globalAlpha = 0.35;
+      c.strokeStyle = [ZONE7.cyan, ZONE7.violet, ZONE7.magenta][i];
+      c.globalAlpha = 0.2;
       c.beginPath();
       for (let t = 0; t < 1; t += 0.01) {
         const a = t * Math.PI * 6 + this.time * (0.4 + i * 0.15) + (i * Math.PI * 2) / 3;
@@ -289,7 +337,7 @@ export class OrganicHud {
     const sweep = (this.time * 1.5) % (Math.PI * 2);
     if ('createConicGradient' in c) {
       const sg = c.createConicGradient(sweep, cx, cy);
-      sg.addColorStop(0, `${HIVE.acid}66`); sg.addColorStop(0.08, `${HIVE.acid}00`); sg.addColorStop(1, `${HIVE.acid}00`);
+      sg.addColorStop(0, `${HIVE.bone}38`); sg.addColorStop(0.08, `${HIVE.bone}00`); sg.addColorStop(1, `${HIVE.bone}00`);
       c.fillStyle = sg; c.fillRect(0, 0, W, W);
     }
     const k = R / sc.range;
@@ -312,13 +360,13 @@ export class OrganicHud {
     c.globalAlpha = 1;
     for (const ex of sc.extracts ?? [{ ...sc.extract, open: true }]) {
       const [x, y] = edge(toScreen(ex.x, ex.z));
-      c.strokeStyle = ex.open === false ? `${ZONE7.lime}66` : ZONE7.lime; c.lineWidth = 2; c.shadowColor = ZONE7.lime; c.shadowBlur = 10;
+      c.strokeStyle = ex.open === false ? `${ZONE7.lime}55` : `${ZONE7.lime}cc`; c.lineWidth = 1.6; c.shadowColor = ZONE7.lime; c.shadowBlur = 4;
       c.beginPath(); c.moveTo(x, y - 7); c.lineTo(x + 6, y); c.lineTo(x, y + 7); c.lineTo(x - 6, y); c.closePath(); c.stroke(); c.shadowBlur = 0;
     }
     c.fillStyle = HIVE.acid;
     c.beginPath(); c.moveTo(cx, cy - 8); c.lineTo(cx + 5, cy + 5); c.lineTo(cx - 5, cy + 5); c.closePath(); c.fill();
     c.restore();
-    c.strokeStyle = s.collapse ? HIVE.danger : `${HIVE.acid}aa`; c.lineWidth = 2;
+    c.strokeStyle = s.collapse ? HIVE.danger : `${HIVE.bone}66`; c.lineWidth = 1;
     c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.stroke();
   }
 }

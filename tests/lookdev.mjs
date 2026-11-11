@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
-const URL = `http://localhost:4174/?quality=${process.env.QUALITY || 'high'}`;
+const URL = `http://localhost:4174/?quality=${process.env.QUALITY || 'high'}${process.env.ZONE ? `&zone=${process.env.ZONE}` : ''}`;
 const POSES = {
   spawn: { at: [-41, 113], eye: 1.7, yaw: -0.35, pitch: 0.08 },
   pool: { at: [-5, 66], eye: 3, yaw: 0.45, pitch: -0.12 },
@@ -18,7 +18,27 @@ const POSES = {
   cantor: { at: [-15.8, 74.6], eye: 2.0, yaw: 0.05, pitch: 0.42, nohud: true, creatures: [-19.5, 74.5, 0.1] },
   mutate: { at: [-41, 108], eye: 1.8, yaw: -0.2, pitch: -0.05, mutate: [-39.6, 103] },
   lab: { lab: 0.35, nohud: true },
+  chamber: { at: [12, 62], eye: 1.7, yaw: -0.05, pitch: 0.18, chamber: [12, 50] },
+  chamberInside: { at: [12, 51.5], eye: 1.7, yaw: 0.1, pitch: 0.25, chamber: [12, 50] },
   rim: { at: [-105, -25], eye: 4, yaw: 1.25, pitch: -0.2 },
+  // World & Level sites (seed 1, the default under automation).
+  crater: { at: [-34, -19], eye: 6, yaw: 1.05, pitch: -0.28 },
+  anomaly: { at: [36, -17], eye: 2.5, yaw: -0.6, pitch: 0.3 },
+  bloom: { at: [4, -31], eye: 1.7, yaw: -0.6, pitch: -0.22 },
+  spire: { at: [96, 31], eye: 3, yaw: -2.07, pitch: 0.08 },
+  // Zone 2 poses: run with ZONE=longSeedWreck.
+  wreckProw: { at: [122, 6], eye: 2.2, yaw: 1.45, pitch: 0.08 },
+  wreckHold: { at: [68, -12], eye: 1.7, yaw: 1.3, pitch: 0.12 },
+  wreckCatwalk: { at: [62, 17], eye: 7.7, yaw: 1.75, pitch: -0.2 },
+  wreckWarrens: { at: [-1, 0], eye: 1.7, yaw: 1.5708, pitch: 0.02 },
+  wreckGallery: { at: [-36.5, 0], eye: 1.7, yaw: 1.5708, pitch: 0.05 },
+  wreckReactor: { at: [-66, 12], eye: 7.7, yaw: 1.03, pitch: -0.05 },
+  beacon: { at: [30, -95], eye: 1.8, yaw: -0.51, pitch: 0.3 },
+  tower: { at: [-44, -66], eye: 2, yaw: 0.68, pitch: 0.28 },
+  towerInside: { at: [-60, -86], eye: 1.7, yaw: 2.6, pitch: 0.35 },
+  bowl: { at: [52, 3], eye: 7, yaw: -1.5, pitch: -0.05 },
+  bowlFloor: { at: [80, -6], eye: 1.7, yaw: -0.5, pitch: 0.12 },
+  debris: { at: [-42, 66], eye: 2.2, yaw: 0.85, pitch: 0.05 },
 };
 const width = Number(process.env.LOOKDEV_W || 1280), height = Number(process.env.LOOKDEV_H || 720);
 const server = spawn('npx', ['vite', 'preview', '--port', '4174', '--strictPort'], { stdio: 'ignore' });
@@ -34,8 +54,11 @@ try {
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`${m.type()}: ${m.text()}`); });
   await page.goto(URL);
-  await page.addStyleTag({ content: '#prompt,#hive{display:none!important}' });
   await page.waitForFunction(() => window.__biophage?.frames > 3, null, { timeout: 120000 });
+  // The game boots into the Hive and stops drawing the raid behind it: deploy first (as tests/smoke.mjs does).
+  if (await page.$('#hive .tab[data-tab="raid"]')) await page.click('#hive .tab[data-tab="raid"]');
+  if (await page.$('#deploy')) await page.click('#deploy');
+  await page.addStyleTag({ content: '#prompt,#hive{display:none!important}' });
   mkdirSync('tests/out', { recursive: true });
   const only = process.argv[2];
   for (const [name, pose] of Object.entries(POSES)) {
@@ -49,6 +72,7 @@ try {
     await page.evaluate((h) => { const e = document.getElementById('hud'); if (e) e.style.visibility = h ? 'hidden' : ''; }, !!pose.nohud);
     if (pose.fire) await page.evaluate(([x, y, z]) => { const d = window.__biophage.debug; d.begin(); d.aimAt(x, y, z); d.trigger(true); }, pose.fire);
     if (pose.shots) await page.evaluate((a) => window.__biophageLookdev.shots(...a), pose.shots);
+    if (pose.chamber) await page.evaluate(([x, z]) => window.__biophageLookdev.chamber(x, z), pose.chamber);
     if (pose.creatures) await page.evaluate(([x, z, f]) => window.__biophageLookdev.creatures(x, z, f), pose.creatures);
     if (pose.mutate) await page.evaluate(([x, z]) => window.__biophageLookdev.mutateDemo(x, z), pose.mutate);
     if (process.env.RAW) await page.evaluate(() => window.__biophageLookdev.raw(true));
