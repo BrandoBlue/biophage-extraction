@@ -657,7 +657,211 @@
       "z": 0,
       "coreRadius": 4,
       "ringRadius": 8,
-      "valves": 4
+      "valves": 4,
+      "gantryHeight": 12
     }
+  },
+  "marrowPit": {
+    "_note": "The Marrow Pit (World & Level, src/world/pit.ts). Design's brief: data/zones.json marrowPit, docs/gdd/10-new-zones.md. A vertical shaft in depth layers; y is metres relative to the rim (negative is down). Each layer is a shelf ringing the shaft out to `edge` (noisy by `wobble`); a ledge path (`ramps`) cut into the cliff below each layer's edge leads down to the next, running from bearing `start` to `end` (degrees, x = cos, z = sin). Positions are polar: bearing in degrees, radius in metres from the shaft's axis.",
+    "cliff": 3,
+    "maxSlope": 1.6,
+    "playableRadius": 150,
+    "outerRadius": 260,
+    "layers": [
+      {
+        "id": "rim",
+        "label": "The Rim",
+        "y": 0,
+        "edge": 128,
+        "wobble": 6
+      },
+      {
+        "id": "cables",
+        "label": "The Cable Shelf",
+        "y": -70,
+        "edge": 110,
+        "wobble": 4
+      },
+      {
+        "id": "warrens",
+        "label": "The Warrens",
+        "y": -135,
+        "edge": 78,
+        "wobble": 5
+      },
+      {
+        "id": "deep",
+        "label": "The Undermouth",
+        "y": -215
+      }
+    ],
+    "ramps": [
+      {
+        "id": "rimPath",
+        "upper": "rim",
+        "start": 200,
+        "end": 300,
+        "width": 6
+      },
+      {
+        "id": "cablePath",
+        "upper": "cables",
+        "start": 0,
+        "end": 110,
+        "width": 6
+      },
+      {
+        "id": "warrenPath",
+        "upper": "warrens",
+        "start": 120,
+        "end": 310,
+        "width": 6
+      }
+    ],
+    "spawn": {
+      "bearing": 172,
+      "radius": 143
+    },
+    "extracts": [
+      {
+        "id": "rimLift",
+        "label": "Rim Lift",
+        "bearing": 150,
+        "radius": 139,
+        "opensAt": 0
+      },
+      {
+        "id": "updraft",
+        "label": "The Updraft",
+        "bearing": 0,
+        "radius": 0,
+        "opensAt": null,
+        "opensOn": "bossDead",
+        "note": "At the Nethermaw's mouth (bosses.json nethermaw arena): opens when it dies."
+      }
+    ],
+    "bridge": {
+      "layer": "cables",
+      "bearing": 90,
+      "width": 2.6,
+      "sag": 2.4,
+      "hubRadius": 7
+    },
+    "camp": {
+      "huts": [
+        {
+          "bearing": 160,
+          "radius": 145,
+          "yaw": -20
+        },
+        {
+          "bearing": 180,
+          "radius": 141,
+          "yaw": 5
+        },
+        {
+          "bearing": 192,
+          "radius": 146,
+          "yaw": 20
+        }
+      ]
+    },
+    "warren": {
+      "from": 128,
+      "to": 188,
+      "radius": [
+        92,
+        98
+      ],
+      "huts": 7
+    },
+    "gallery": {
+      "from": 238,
+      "to": 292,
+      "radius": 104,
+      "ribs": 9
+    },
+    "undermouth": {
+      "arenaRadius": 25,
+      "mawRadius": 8.5,
+      "rootColumns": {
+        "count": 4,
+        "radius": 17
+      },
+      "ledges": [
+        {
+          "bearing": 60,
+          "radius": 30,
+          "height": 3
+        },
+        {
+          "bearing": 180,
+          "radius": 30,
+          "height": 5.5
+        },
+        {
+          "bearing": 290,
+          "radius": 30,
+          "height": 8
+        }
+      ],
+      "pillars": 6,
+      "pillarRadius": 46
+    },
+    "landmarks": {
+      "rimCamp": {
+        "layer": "rim",
+        "from": 130,
+        "to": 210
+      },
+      "cableBridge": {
+        "layer": "cables",
+        "bridge": true
+      },
+      "hangingWarren": {
+        "layer": "warrens",
+        "from": 120,
+        "to": 196
+      },
+      "boneGallery": {
+        "layer": "warrens",
+        "from": 230,
+        "to": 300
+      },
+      "undermouth": {
+        "layer": "deep"
+      }
+    },
+    "loot": [
+      {
+        "id": "rim-crate-0",
+        "container": "pitCrate",
+        "layer": "rim",
+        "bearing": 186,
+        "radius": 137
+      },
+      {
+        "id": "rim-crate-1",
+        "container": "pitCrate",
+        "layer": "rim",
+        "bearing": 140,
+        "radius": 146
+      },
+      {
+        "id": "cables-crate-2",
+        "container": "pitCrate",
+        "layer": "cables",
+        "bearing": 92,
+        "radius": 117
+      },
+      {
+        "id": "cables-crate-3",
+        "container": "pitCrate",
+        "layer": "cables",
+        "bearing": 268,
+        "radius": 113
+      }
+    ],
+    "_lootNote": "Containers follow Design's habitats.json loot.marrowPit: 4 pit crates at the rim camp, 4 on the Cable Bridge, 4 in the Hanging Warren huts, 2 deep caches in the Bone Gallery and 2 on the Undermouth ledges. `loot` lists the ones on open ground; the rest stand in the structures (src/world/pit.ts)."
   }
 }

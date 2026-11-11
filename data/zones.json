@@ -301,7 +301,7 @@
   },
   "marrowPit": {
     "label": "The Marrow Pit",
-    "milestone": "host",
+    "milestone": "larva",
     "order": 6,
     "pitch": "A vertical shaft hundreds of metres deep, strung with rickety walkways, cables and hanging huts. The deeper you go the stranger, stronger and richer it gets, and the further it is back up.",
     "look": "dark stone and roots, mist in shafts of grey light from above, warm lamp glow on the walkways, a sickly green glow from the bottom; no neon",
@@ -315,7 +315,7 @@
       2,
       5
     ],
-    "access": "host level 5 or contract theLongDrop",
+    "access": "open",
     "structures": [
       "Rim Camp (scaffold, winches and the lift; spawn and the main extract)",
       "Cable Bridges (rope and bone walkways across the shaft)",
@@ -436,7 +436,8 @@
       }
     },
     "extracts": "the rim lift (always); the updraft at the bottom (only once the Nethermaw is dead)",
-    "why": "push-your-luck descent: every layer is richer and deadlier, and the only easy way out is up"
+    "why": "push-your-luck descent: every layer is richer and deadlier, and the only easy way out is up",
+    "accessNote": "Opened now (coordinator, 2026-11-11: Brandon wants the new zones playable right away). Design's intended gate was 'host level 5 or contract theLongDrop'; restore it when progression catches up."
   },
   "weepingFen": {
     "label": "The Weeping Fen",

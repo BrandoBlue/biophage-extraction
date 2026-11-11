@@ -3,6 +3,7 @@ import { HIVE, ORGANIC, ZONE7_SHADE } from '../render/palette';
 import { bioNode, bioTime, chitin, liquidLight, membrane, zoneRock } from '../render/materials';
 import type { Collider, CollisionWorld } from './collision';
 import type { CaveLair } from './cave';
+import type { WardenArena } from './wreck';
 import { mulberry32 } from './rng';
 import { noise3 } from '../render/geometry';
 
@@ -39,12 +40,24 @@ export interface ArenaInfo {
   onLedge(x: number, z: number): boolean;
 }
 
+export interface Walkway {
+  id: string; x: number; y: number; z: number;
+  /** Half length along the walkway and half width across it, and its yaw (collision convention). */
+  halfLength: number; halfWidth: number; yaw: number;
+  readonly isCut: boolean;
+  cut(): void;
+}
+
 export interface BuiltStructures {
   group: THREE.Group;
   loot: LootSpot[];
   arena: ArenaInfo | null;
   /** The Pale Vigil's cave lair (src/world/cave.ts), on zones that have one. */
   lair?: CaveLair | null;
+  /** Walkway segments that can be cut (the Marrow Pit's bridge decks): `cut()` drops the deck out from under you. */
+  walkways?: Walkway[];
+  /** The Warden's reactor-chamber arena (src/world/wreck.ts), on the Wreck. */
+  warden?: WardenArena | null;
   /** Break an arena pillar (boss phase 2): hides it and removes its collider. */
   breakPillar(id: string): void;
 }

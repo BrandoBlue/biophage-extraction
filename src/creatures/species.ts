@@ -15,6 +15,7 @@ import { titheWeaver } from './hostkin/titheweaver';
 import { huskMimic } from './hostkin/huskmimic';
 import { lumenGrazer } from './hostkin/lumengrazer';
 import { PlanBuilder, V, col, dim, mix, mutate, tint } from './builder';
+import { ZONE_SPECIES } from './zones';
 
 // ======================================================================= Needlemaw: lamprey × harvestman × comb jelly
 export function needlemaw(seed: number, stage = 0): BodyPlan {
@@ -50,6 +51,8 @@ export function needlemaw(seed: number, stage = 0): BodyPlan {
   b.part({ id: 'teeth0', type: 'needleRing', bone: head, at: S(0, -0.03, 0.5), dir: V(0, 0, 1), fwd: V(0, 1, 0), size: 0.17 * s, p: [14, 1.1, 0.75], material: 'glass' });
   b.part({ id: 'teeth1', type: 'needleRing', bone: head, at: S(0, -0.03, 0.43), dir: V(0, 0, 1), fwd: V(0, 1, 0), size: 0.1 * s, p: [10, 1.2, 0.9], material: 'bone' });
   b.part({ id: 'maw', type: 'node', bone: head, at: S(0, -0.03, 0.36), dir: V(0, 0, 1), size: 0.07 * s, material: 'glow' });
+  // Something wrong: three small eyes deep inside the sucker, looking out through the teeth.
+  [[-0.05, 0.02], [0.055, 0.0], [0.0, -0.07]].forEach(([x, y], i) => b.part({ id: `mawEye${i}`, type: 'eye', bone: head, at: S(x, -0.03 + y, 0.38), dir: V(x * 2, y * 2, 1), size: 0.026 * s, material: 'eye', dynamic: true }));
   // Throat sac: the weak point, flares on wind-up.
   b.part({ id: 'throat', type: 'pustule', bone: head, at: S(0, -0.13, 0.33), dir: V(0, -1, 0.3), size: 0.11 * s, material: 'glow', dynamic: true, weak: true });
   // A cluster of small eyes crowding the top of the head.
@@ -189,6 +192,8 @@ export function glasswalker(seed: number, stage = 0): BodyPlan {
   b.both((side) => b.skin({ shape: 'ellipsoid', a: S(side * 0.2, 2.36, 0.78), radii: S(0.14, 0.06, 0.13), blend: 0.08, bone: head, tint: pale }));
   b.skin({ shape: 'cone', a: S(0, 2.43, 0.62), b: S(0, 2.52, 0.4), ra: 0.06 * s, rb: 0.02 * s, blend: 0.07, bone: head }); // crest
   b.skin({ shape: 'ellipsoid', a: S(0, 2.28, 0.9), radii: S(0.09, 0.07, 0.07), subtract: true, blend: 0.03, bone: head }); // beak socket
+  // Something wrong: the left lobe of the hammer has swollen into a tumour, crowded with extra eyes.
+  b.skin({ shape: 'ellipsoid', a: S(-0.3, 2.32, 0.8), radii: S(0.13, 0.11, 0.12), blend: 0.06, bone: head, tint: tint('#ffffff', 0.85) });
   // Segmented glass-sponge abdomen tapering back and down.
   b.skin({ shape: 'cone', a: S(0, 1.86, -0.12), b: S(0, 1.5, -1.05), ra: 0.29 * s, rb: 0.07 * s, blend: 0.12, bone: abdomen, ribs: { freq: 7 / s, depth: 0.03 } });
   // Feeding arms under the head (cuttlefish), always groping.
@@ -202,6 +207,10 @@ export function glasswalker(seed: number, stage = 0): BodyPlan {
     const hit = b.surf(S(side * 0.5, 2.38 + k * 0.012, 0.86 - k * 0.07), V(-side, 0, 0));
     b.part({ id: `eye${n}${k}`, type: 'eye', bone: head, at: hit.at.clone().addScaledVector(hit.normal, -0.008), dir: hit.normal, size: 0.022 * s, material: 'eye', dynamic: true });
   }));
+  [[0.05, 0.03], [0.02, -0.05], [-0.04, 0.0], [0.08, -0.02]].forEach(([dz, dy], k) => {
+    const hit = b.surf(S(-0.6, 2.32 + dy, 0.8 + dz), V(1, 0, 0));
+    b.part({ id: `tumourEye${k}`, type: 'eye', bone: head, at: hit.at.clone().addScaledVector(hit.normal, -0.006), dir: hit.normal.clone().add(V(0, dy * 4, dz * 4)), size: (0.014 + k * 0.004) * s, material: 'eye', dynamic: true });
+  });
   // The refraction lens: the one thing on it that does not bend light. Weak point and tell.
   b.part({ id: 'lens', type: 'lens', bone: body, at: S(0, 2.0, 0.3), dir: V(0, 0.35, 1), size: 0.085 * s, material: 'glow', dynamic: true, weak: true });
   b.part({ id: 'lensRim', type: 'lid', bone: body, at: S(0, 1.995, 0.28), dir: V(0, 0.35, 1), size: 0.085 * s, material: 'bone' });
@@ -330,6 +339,10 @@ export function mournback(seed: number, stage = 0): BodyPlan {
   // Hermit-crab shell grown into the spine: a hump of fused bone.
   b.skin({ shape: 'ellipsoid', a: S(0, 2.15, -0.25), radii: S(0.9, 0.62, 1.25), blend: 0.35, bone: hump, tint: tint(HIVE.bone, 0.9) });
   // Front bone shield over the skull, and sweeping horns.
+  // Something wrong: a second, smaller face pressing out through the skin of one cheek, as if from inside.
+  b.skin({ shape: 'ellipsoid', a: S(0.4, 1.12, 1.9), radii: S(0.2, 0.24, 0.22), blend: 0.12, bone: head, tint: tint('#ffffff', 1.1) });
+  { const hit = b.surf(S(1.2, 1.12, 1.92), V(-1, 0, 0));
+    b.part({ id: 'cheekFace', type: 'skull', bone: head, at: hit.at.clone().addScaledVector(hit.normal, -0.09), dir: hit.normal.clone().add(V(0, 0.3, 0.5)), fwd: V(0.2, 0.1, 1), size: 0.3 * s, p: [2], material: 'bone' }); }
   b.part({ id: 'shield', type: 'plate', bone: head, at: S(0, 1.55, 1.55), dir: V(0, 0.75, 1), fwd: V(0, 1, -0.3), size: 0.95 * s, p: [0.95, 0.85, 0.4, 0.5], material: 'bone' });
   b.both((side, n) => b.part({ id: `horn${n}`, type: 'horn', bone: head, at: S(side * 0.55, 1.42, 1.7), dir: V(side, 0.25, 0.25), fwd: V(0, 0.6, 1), size: 1.5 * s, p: [0.16, 1.2], material: 'bone' }));
   // Shoulder spurs: the shell's growth breaking through the hide.
@@ -390,6 +403,7 @@ export function mournback(seed: number, stage = 0): BodyPlan {
 export const SPECIES: Record<SpeciesId, (seed: number, stage?: number) => BodyPlan> = {
   needlemaw, bilecantor, glasswalker, oculimoth, mournback,
   titheWeaver, huskMimic, lumenGrazer,
+  ...ZONE_SPECIES,
 };
 export const SPECIES_IDS = Object.keys(SPECIES) as SpeciesId[];
 

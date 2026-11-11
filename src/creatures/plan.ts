@@ -13,7 +13,10 @@ import type { SdfPrim } from './sdf';
 
 export type SpeciesId =
   | 'needlemaw' | 'bilecantor' | 'glasswalker' | 'oculimoth' | 'mournback'
-  | 'titheWeaver' | 'huskMimic' | 'lumenGrazer';
+  | 'titheWeaver' | 'huskMimic' | 'lumenGrazer'
+  | ZoneSpeciesId;
+/** New-zone species (src/creatures/zones): Ochre Reach, Marrow Pit, Weeping Fen. */
+export type ZoneSpeciesId = 'dunewake' | 'bristleback' | 'shroudling';
 export type Locomotion = 'walker' | 'hover' | 'flyer';
 export type MaterialSlot = 'flesh' | 'chitin' | 'bone' | 'glow' | 'glass' | 'eye' | 'membrane' | 'raw';
 
