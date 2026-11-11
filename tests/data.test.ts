@@ -3,6 +3,7 @@ import {
   ABILITIES, ABOMINATIONS, CLASSES, HOST, KITS, LOOT, MARKET, NESTS, PROFILE, PROGRESSION, RAID, RIVALS, SYNAPSE, VIRAL_LAB, VIRUSES, WEAPONS,
   itemDef, levelForXp, marketPrice, nodeMutagenCost,
   BOSSES, CONTRACTS, HIVE_ORGANS, RECIPES, VENDORS, VENDOR_REP_THRESHOLDS, ZONES, bossPhase, vendorBuyPrice, vendorRepLevel,
+  HABITATS, RARITIES, ZONE_SITES, habitatGroups, sustainedDps, type HabitatWhere, type WeaponDef,
   extractTimeFor, haulValue, layoutPosition, stashRowCost, projectileDamage, rollContainer,
 } from '../data';
 import { mulberry32 } from '../src/world/zone7';
@@ -333,5 +334,100 @@ describe('economy, zones and bosses (docs/gdd/07, 08)', () => {
       }
     }
     expect(VENDORS.motherClot.perks?.deployGift?.item).toBe('clotGel');
+  });
+});
+
+describe('weapon roster and habitats (docs/gdd/09)', () => {
+  const roster = Object.entries(WEAPONS) as [string, WeaponDef][];
+
+  it('has a big roster that covers every class Gameplay builds for', () => {
+    expect(roster.length).toBeGreaterThanOrEqual(12);
+    const classes = new Set(roster.map(([, w]) => w.class));
+    for (const c of ['sidearm', 'smg', 'rifle', 'shotgun', 'sniper', 'marksman', 'launcher', 'beam']) expect(classes.has(c as WeaponDef['class']), c).toBe(true);
+  });
+
+  it('every weapon is well-formed for its fire mode, reload style and zoom', () => {
+    for (const [id, w] of roster) {
+      expect(RARITIES, id).toContain(w.rarity);
+      expect(w.fantasy.length, id).toBeGreaterThan(20);
+      if (w.fireMode === 'burst') { expect(w.burstCount, id).toBeGreaterThan(1); expect(w.burstDelay, id).toBeGreaterThan(0); }
+      if (w.fireMode === 'charge') expect(w.charge?.time, id).toBeGreaterThan(0);
+      if (w.reload.style === 'perShell') expect(w.reload.perShellTime, id).toBeGreaterThan(0);
+      if (w.ads) {
+        expect(w.ads.zoom, id).toBeGreaterThanOrEqual(1.1);
+        if (w.ads.scope) expect(w.ads.zoom, id).toBeGreaterThanOrEqual(2.5);
+      }
+      if (w.ammo === null) expect(['regrow'], id).toContain(w.reload.style);
+      else expect(itemDef(w.ammo)?.kind, id).toBe('ammo');
+    }
+    expect(roster.filter(([, w]) => w.ads === false).length).toBeGreaterThanOrEqual(3);
+    expect(roster.filter(([, w]) => w.ads && w.ads.scope).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('every weapon can be found, bought or torn from a boss', () => {
+    const fromContainers = new Set(Object.values(LOOT.containers).flatMap((c) => [...c.table.map((e) => e.item), ...c.guaranteed.map((g) => g.item)]));
+    const fromVendors = new Set(Object.values(VENDORS).flatMap((v) => (v.stock ?? []).map((s) => s.item)));
+    for (const [id, w] of roster) {
+      if (id === 'synapseBurster') continue;
+      expect(itemDef(id)?.kind, id).toBe('weapon');
+      if (w.rarity === 'relic') expect(BOSSES[w.dropsFrom as keyof typeof BOSSES], id).toBeDefined();
+      else expect(fromContainers.has(id) || fromVendors.has(id), id).toBe(true);
+    }
+  });
+
+  it('rarer weapons are worth more, and vendors never sell below what they pay', () => {
+    const value = (r: string) => roster.filter(([id, w]) => w.rarity === r && id !== 'synapseBurster').map(([id]) => itemDef(id)!.value);
+    for (let i = 1; i < RARITIES.length; i++) expect(Math.min(...value(RARITIES[i]))).toBeGreaterThan(Math.max(...value(RARITIES[i - 1])));
+    for (const v of Object.values(VENDORS)) for (const s of v.stock ?? []) {
+      const it = itemDef(s.item)!;
+      expect(s.price, s.item).toBeGreaterThan(it.value * v.buyRate * (v.prefers[it.kind] ?? 1));
+    }
+  });
+
+  it('no gun deletes a Neuro-Infiltrator: body-shot time to kill stays above 0.6 s', () => {
+    for (const [id, w] of roster) {
+      expect(CLASSES.neuroInfiltrator.biomass / sustainedDps(w), id).toBeGreaterThanOrEqual(0.6);
+      expect(sustainedDps(w), id).toBeGreaterThanOrEqual(30);
+      expect(w.damage * w.pellets, id).toBeLessThan(CLASSES.neuroInfiltrator.biomass); // no one-shot body kills
+    }
+  });
+
+  const whereOk = (zone: string, w: HabitatWhere) => {
+    if ('landmark' in w) return (ZONES[zone].landmarks ?? []).includes(w.landmark);
+    if ('room' in w) return (ZONE_SITES.longSeedWreck as unknown as { rooms: { id: string }[] }).rooms.some((r) => r.id === w.room);
+    if ('biome' in w) return RAID.host.biomes.some((b: { id: string }) => b.id === w.biome);
+    if ('guards' in w) return LOOT.containers[w.guards] !== undefined;
+    if ('band' in w) return w.band.radius[0] >= 0 && w.band.radius[1] <= 1 && w.band.radius[0] < w.band.radius[1] && w.band.bearing.every((b) => b >= 0 && b <= 360);
+    return 'nearExtract' in w;
+  };
+
+  it('every species in a zone has a home there, and every home points at a real place', () => {
+    for (const [zone, species] of Object.entries(HABITATS.zones)) {
+      expect(ZONES[zone], zone).toBeDefined();
+      expect(Object.keys(species).sort(), zone).toEqual([...(ZONES[zone].creatures ?? [])].sort());
+      for (const [kind, h] of Object.entries(species)) {
+        expect(ABOMINATIONS[kind as keyof typeof ABOMINATIONS], kind).toBeDefined();
+        for (const g of h!.groups) {
+          expect(whereOk(zone, g.where), `${zone} ${kind}`).toBe(true);
+          if (g.fallback) expect(whereOk(zone, g.fallback), `${zone} ${kind} fallback`).toBe(true);
+        }
+      }
+    }
+    for (const [zone, list] of Object.entries(HABITATS.loot)) {
+      const want = ZONES[zone].containers ?? {};
+      const got: Record<string, number> = {};
+      for (const p of list) { expect(whereOk(zone, p.at), p.why).toBe(true); got[p.container] = (got[p.container] ?? 0) + p.count; }
+      expect(got, zone).toEqual(want);
+    }
+  });
+
+  it('Glowmire homes keep the tuned Spore and Larva head-count', () => {
+    const tuned: Record<string, number> = {};
+    for (const g of [...RAID.spawnGroups, ...(RAID.larva?.spawnGroups ?? [])]) tuned[g.type] = (tuned[g.type] ?? 0) + g.count;
+    for (const [kind, n] of Object.entries(tuned)) {
+      expect(habitatGroups('glowmireIsle', kind, 'larva').reduce((a, g) => a + g.count, 0), kind).toBe(n);
+    }
+    expect(habitatGroups('longSeedWreck', 'huskMimic', 'larva')).toHaveLength(0);
+    expect(habitatGroups('longSeedWreck', 'huskMimic', 'host')).toHaveLength(2);
   });
 });

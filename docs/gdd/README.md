@@ -21,6 +21,7 @@ Owned by the Game Design department. Short living docs, one per system. **Every 
 | [05-raid-and-extraction](05-raid-and-extraction.md) | Raid timer, layout, spawns, Bio-Pod loot, Seed Spire extraction, death |
 | [07-economy-and-progression](07-economy-and-progression.md) | **Why you extract:** what every loot type is for, vendors, contracts, the Hive Body, evolution catalysts, difficulty |
 | [08-zones-and-bosses](08-zones-and-bosses.md) | **Zone roster** (Glowmire Isle, Wreck of the Long Seed, the Expanse, two Apex zones) and **bosses** (the Reliquary, the Warden) |
+| [09-weapons-and-habitats](09-weapons-and-habitats.md) | **16-gun roster** (reload styles, zoom or not, rarity, ammo feeds, where each is found) and **habitats**: where every creature lives and where containers sit |
 | [06-roadmap-systems](06-roadmap-systems.md) | Decisions already made for Larva and Host: inventory, stash, viruses, Synapse tree, Flesh Market, PvP |
 | [spore-milestone](spore-milestone.md) | The Spore feature list with acceptance criteria per department |
 | [larva-milestone](larva-milestone.md) | The Larva feature list: stash, cavities, harvesting, viruses, three new creatures, the Brood Heart |
@@ -31,7 +32,7 @@ Owned by the Game Design department. Short living docs, one per system. **Every 
 | --- | --- | --- |
 | `data/classes.json` | Host class stats | Gameplay, UI |
 | `data/host.json` | Neural Overload, hit zones, fall damage | Gameplay, UI, Rendering (overload FX) |
-| `data/weapons.json` | Synapse Burster and Ego Charge | Gameplay, Audio |
+| `data/weapons.json` | The 16-gun roster (the Synapse Burster keeps its Ego Charge) | Gameplay, Creatures, UI, Audio |
 | `data/abilities.json` | Ability slots: Psych-Wave Pulse, Clot Gel | Gameplay, UI |
 | `data/abominations.json` | Needlemaw, Bile Cantor | AI, Creatures, Gameplay |
 | `data/loot.json` | Items, values, Bio-Pod loot table | Gameplay, UI |
@@ -49,6 +50,7 @@ Owned by the Game Design department. Short living docs, one per system. **Every 
 | `data/contracts.json` | Contract chains and objectives | Gameplay, UI |
 | `data/hive.json` | Hive Body organs and Gestation recipes | Gameplay, UI |
 | `data/zones.json` | Zone roster: access, raid time, structures, foes, loot focus | World, AI, UI, Gameplay |
+| `data/habitats.json` | Where each species lives per zone; deliberate container placement | AI, World, Gameplay |
 | `data/bosses.json` | The Reliquary and the Warden: phases, weak points, arenas, rewards | Creatures, AI, World, Gameplay |
 
 `tests/data.test.ts` checks cross-references and the balance targets stated in these docs, so a tuning change that breaks a design promise fails CI.

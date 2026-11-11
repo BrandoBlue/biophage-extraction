@@ -36,6 +36,36 @@
         "item": "heartHusk",
         "price": 650,
         "rep": 4
+      },
+      {
+        "item": "hiveSpitter",
+        "price": 260,
+        "rep": 1
+      },
+      {
+        "item": "quillet",
+        "price": 220,
+        "rep": 1
+      },
+      {
+        "item": "sporeFeed",
+        "price": 5,
+        "rep": 1
+      },
+      {
+        "item": "gulletScatter",
+        "price": 560,
+        "rep": 2
+      },
+      {
+        "item": "stingerChoir",
+        "price": 600,
+        "rep": 2
+      },
+      {
+        "item": "broodMortar",
+        "price": 1150,
+        "rep": 3
       }
     ],
     "unlocks": {
@@ -44,8 +74,16 @@
       "4": "one free Clot Gel every deploy"
     },
     "perks": {
-      "pouchUpgradeDiscount": { "rep": 2, "fraction": 0.1 },
-      "deployGift": { "rep": 4, "item": "clotGel", "count": 1, "to": "pouch" }
+      "pouchUpgradeDiscount": {
+        "rep": 2,
+        "fraction": 0.1
+      },
+      "deployGift": {
+        "rep": 4,
+        "item": "clotGel",
+        "count": 1,
+        "to": "pouch"
+      }
     }
   },
   "archivist": {
@@ -78,6 +116,46 @@
         "item": "synapseLens",
         "price": 200,
         "rep": 3
+      },
+      {
+        "item": "needleFeed",
+        "price": 6,
+        "rep": 1
+      },
+      {
+        "item": "shardFeed",
+        "price": 8,
+        "rep": 1
+      },
+      {
+        "item": "cicadine",
+        "price": 620,
+        "rep": 1
+      },
+      {
+        "item": "marrowHand",
+        "price": 560,
+        "rep": 2
+      },
+      {
+        "item": "eyestalkMarksman",
+        "price": 1200,
+        "rep": 3
+      },
+      {
+        "item": "vertebraRifle",
+        "price": 1250,
+        "rep": 3
+      },
+      {
+        "item": "boltFeed",
+        "price": 20,
+        "rep": 3
+      },
+      {
+        "item": "tumorLauncher",
+        "price": 2500,
+        "rep": 4
       }
     ],
     "services": {
@@ -105,12 +183,25 @@
     "buyRate": 0.6,
     "prefers": {
       "organ": 1.0,
-      "tech": 0.8
+      "tech": 0.8,
+      "weapon": 1.15
     },
     "unlocks": {
       "2": "contraband stock",
       "3": "one extra stock slot",
       "4": "buys boss catalysts at full value"
-    }
+    },
+    "stock": [
+      {
+        "item": "bloomcannon",
+        "price": 1300,
+        "rep": 2
+      },
+      {
+        "item": "lumenLance",
+        "price": 2600,
+        "rep": 4
+      }
+    ]
   }
 }

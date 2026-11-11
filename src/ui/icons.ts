@@ -18,6 +18,8 @@ export const KIND_COLOUR: Record<ItemKind, string> = {
   virus: PATH.viral,
   tech: ZONE7.cyan,
   organ: ZONE7.magenta,
+  weapon: HIVE.bone,
+  ammo: PATH.melee,
 };
 
 interface Ctx { w: number; h: number; id: string }
