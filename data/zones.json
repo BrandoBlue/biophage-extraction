@@ -224,7 +224,7 @@
   },
   "ochreReach": {
     "label": "The Ochre Reach",
-    "milestone": "host",
+    "milestone": "larva",
     "order": 4,
     "pitch": "A sun-baked alien savannah under three suns and a ringed planet: red dust, lone umbrella trees, a dead settler colony of clay domes and drill rigs, and things under the sand.",
     "look": "hot haze and blowing dust, low-saturation ochre and rust, three soft suns, the ring planet huge in the sky, blue-veined trees; no neon",
@@ -237,7 +237,7 @@
       2,
       4
     ],
-    "access": "host level 3 or contract dustAndDomes",
+    "access": "open",
     "structures": [
       "Settler Domes (a village of clay domes and tin lean-tos, enterable, lockers inside; Shroudlings nest here)",
       "Rig Yard (rusted derricks and lookout towers with ladders; sniper roosts)",
