@@ -21,7 +21,7 @@ Rule for every department: no dynamic `import()` and no runtime `fetch` of files
 | Logic | `npm test` | a Vitest test fails |
 | Smoke, served | `npm run smoke` | no frames, a console error, or the host cannot walk |
 | Smoke, shipped file | `npm run smoke:release` | same, on the single file opened from `file://` |
-| Budget | `npm run budget` | file over 15 MiB, gzip over 6 MiB, or first frame over 15 s in CI |
+| Budget | `npm run budget` | file over 15 MiB, gzip over 6 MiB, or software-rendered first frame over 40 s in CI (a tripwire; the 15 s player budget is checked on real hardware) |
 
 Headless tests take screenshots with `freezeAndScreenshot` from `tests/lib/harness.mjs`, which pauses the game
 loop first; a plain `page.screenshot` can time out on slow CI runners.
