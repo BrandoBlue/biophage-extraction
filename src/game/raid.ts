@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ABILITIES, ABOMINATIONS, CLASSES, HOST, LOOT, RAID, VIRUSES, VIRUS_RULES, WEAPONS, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
+import { ABILITIES, ABOMINATIONS, CLASSES, HOST, KITS, LOOT, RAID, VIRUSES, VIRUS_RULES, WEAPONS, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
 import { groundHeight, ISLAND_RADIUS, mulberry32 } from '../world/zone7';
 import { Abomination, type AbominationContext, type AbominationKind, type HitSphere } from './abominations';
 import { AbilitySystem } from './abilities';
@@ -10,6 +10,7 @@ import { Carried, type CarriedSnapshot } from './inventory';
 import type { Deployment } from './profile';
 import type { Placed } from './grid';
 import { Injection, SporeInfection, virusForItem, virusModifiers } from './virus';
+import { Grenade, huskRules, Mine, throwVelocity } from './gear';
 import type { Noise } from './perception';
 import { hostVisibility } from '../ai';
 import { BroodNest } from './nest';
@@ -31,6 +32,7 @@ import { HarvestFx } from '../creatures/organs';
 import { HIVE, ZONE7 } from '../render/palette';
 import { NeuralOverload, Biomass } from './vitals';
 import { SynapseBurster, projectileLooks } from './weapon';
+import { DEFAULT_ZONE, RaidLog } from './economy';
 
 export type Phase = 'briefing' | 'raid' | 'extracted' | 'lost';
 
@@ -79,6 +81,9 @@ export class Raid {
   readonly weapon: SynapseBurster;
   readonly hostArm = new HostArm();
   private harvestFx = new HarvestFx();
+  /** Raid-select zone and the contract log for this raid (src/game/economy.ts). */
+  zone = DEFAULT_ZONE;
+  log = new RaidLog();
   readonly abilities: AbilitySystem;
   readonly carried = new Carried();
   readonly creatures: Abomination[] = [];
@@ -122,6 +127,14 @@ export class Raid {
   private harvestTarget: Abomination | null = null;
   private harvestProgress = 0;
   private harvested = new Set<number>();
+  /** Melee and Flesh Market gear (grenades, mines, Heart Husk). */
+  private meleeCooldown = 0;
+  private meleeQueued = false;
+  private grenades: { g: Grenade; mesh: THREE.Mesh }[] = [];
+  private mines: { m: Mine; mesh: THREE.Mesh }[] = [];
+  private gearMat = new THREE.MeshStandardMaterial({ color: GORE.bone, emissive: GORE.cyanFluid, emissiveIntensity: 1.5 });
+  private gearGeo = new THREE.IcosahedronGeometry(0.12, 1);
+  private reviveLeft = 0;
   private healLeft = 0;
   private healRate = 0;
   private useLeft = 0;
@@ -156,6 +169,9 @@ export class Raid {
     this.weapon = new SynapseBurster(WEAPONS.synapseBurster, camera, this.projectiles);
     // Creature & Mutation: the host's forearm dissolve-grows into the injected virus's look.
     attachToViewmodel(this.weapon.view, this.hostArm);
+    // Contracts: what happened this raid (settled in the Hive by economy.settleContracts).
+    this.bus.on('harvestDone', (e) => this.log.harvest(e.item));
+    this.bus.on('creatureDeath', (e) => this.log.kill(e.type));
     this.bus.on('virusInjected', (e) => {
       if ((VIRUS_LOOKS as string[]).includes(e.virus)) this.hostArm.mutate(e.virus as VirusLook, VIRUS_RULES.mutationGrowTime);
     });
@@ -171,9 +187,7 @@ export class Raid {
     }
     const [ex, ez] = [this.spires[0].point.x, this.spires[0].point.z];
     for (const s of [...layout.pods, ...layout.nodes.map((n) => ({ ...n, type: 'geneBloom' }))]) {
-      const pod = new BioPod(s.id, s.type, s.x, s.z);
-      this.pods.push(pod);
-      scene.add(pod.root);
+      this.dropContainer(s.type, s.x, s.z, s.id);
     }
     // Caches inside structures stand on their decks, not on the terrain.
     for (const spot of structures?.loot ?? []) {
@@ -303,6 +317,9 @@ export class Raid {
       if (e.code === 'KeyF') this.egoQueued = true;
       if (e.code === 'Digit1' || e.code === 'KeyQ') this.useAbility(1);
       if (e.code === 'Digit2') this.useAbility(2);
+      if (e.code === 'KeyV') this.meleeQueued = true;
+      if (e.code === 'KeyG') this.throwGrenade();
+      if (e.code === 'KeyX') this.placeMine();
     });
   }
 
@@ -310,6 +327,8 @@ export class Raid {
   deploy(d: Deployment): void {
     if (this.phase !== 'briefing') return;
     this.carried.load(d.loadout, d.cavitySize, d.pouchSize);
+    this.zone = d.zone ?? DEFAULT_ZONE;
+    this.log = new RaidLog(this.zone);
     this.begin();
   }
 
@@ -358,7 +377,7 @@ export class Raid {
   }
 
   hurt(amount: number, zone: 'head' | 'torso' | 'limb', source: string, from: THREE.Vector3 | null): void {
-    if (this.phase !== 'raid' || amount <= 0) return;
+    if (this.phase !== 'raid' || amount <= 0 || this.reviveLeft > 0) return;
     const applied = this.biomass.damage(amount * HOST.hitZones[zone]);
     let direction = null;
     if (from) {
@@ -378,7 +397,7 @@ export class Raid {
     }
     this.pipeline.hitPulse?.(Math.min(1, applied / 30));
     this.bus.emit('damaged', { amount: applied, biomass: this.biomass.current, zone, source, direction });
-    if (this.biomass.dead) this.lose(source);
+    if (this.biomass.dead && !this.tryRevive()) this.lose(source);
   }
 
   /**
@@ -511,8 +530,129 @@ export class Raid {
     }
     if (this.parasites.length && drain > 0) {
       this.biomass.damage(drain * dt);
-      if (this.biomass.dead) this.lose('spliced parasites');
+      if (this.biomass.dead && !this.tryRevive()) this.lose('spliced parasites');
     }
+  }
+
+  // ------------------------------------------------------------------ melee and Flesh Market gear
+  private updateGear(dt: number): void {
+    const p = this.player;
+    // Heart Husk revive: frozen and untouchable while the husk regrows you.
+    if (this.reviveLeft > 0) {
+      this.reviveLeft -= dt;
+      p.speedMultiplier = 0;
+      if (this.reviveLeft <= 0) {
+        this.biomass.current = this.biomass.max * huskRules().reviveFraction;
+        this.fx.burst(p.position.clone().add(new THREE.Vector3(0, 1, 0)), GORE.flesh, 1.4);
+        this.bus.emit('revived', { biomass: this.biomass.current });
+      }
+    }
+    // Melee: a short lunge and a strike on the nearest Abomination in front.
+    this.meleeCooldown = Math.max(0, this.meleeCooldown - dt);
+    if (this.meleeQueued) {
+      this.meleeQueued = false;
+      const k = KITS[this.classId].melee;
+      if (this.meleeCooldown <= 0 && this.reviveLeft <= 0) {
+        this.meleeCooldown = k.cooldown;
+        const fwd = p.forward(new THREE.Vector3()).setY(0).normalize();
+        p.velocity.addScaledVector(fwd, Number(k.lunge ?? 0) * 4);
+        let best: Abomination | null = null, bd = k.range + 0.6;
+        for (const c of this.creatures) {
+          if (!c.alive) continue;
+          const to = c.centre.clone().sub(p.eyePosition);
+          const d = Math.hypot(to.x, to.z) - c.radius * 0.5;
+          if (d < bd && to.setY(0).normalize().dot(fwd) > 0.55) { bd = d; best = c; }
+        }
+        if (best) {
+          this.damageCreature(best, k.damage, false, fwd.clone(), best.centre.clone(), 'melee');
+          best.stagger(0.4);
+          p.addTrauma(0.25);
+        }
+        this.noise(p.position, HOST.noiseRadius.gunfire * 0.3, 'melee');
+        this.bus.emit('melee', { id: k.id, hit: best ? best.id : null });
+      }
+    }
+    // Grenades in flight.
+    for (let i = this.grenades.length - 1; i >= 0; i--) {
+      const q = this.grenades[i];
+      const boom = q.g.update(dt, groundHeight);
+      q.mesh.position.set(q.g.pos.x, q.g.pos.y, q.g.pos.z);
+      if (!boom) continue;
+      this.scene.remove(q.mesh);
+      this.grenades.splice(i, 1);
+      const at = q.mesh.position.clone();
+      this.fx.ring(at, GORE.cyanFluid, q.g.r.radius, 0.6);
+      this.fx.burst(at, GORE.violetFluid, 1.2);
+      gore.burst(this.scene, { point: at, colour: `#${GORE.cyanFluid.getHexString()}`, count: 80, speed: 9 });
+      this.noise(at, HOST.noiseRadius.egoCharge, 'grenade');
+      for (const c of this.creatures) {
+        if (!c.alive) continue;
+        const dmg = q.g.damageAt(c.centre.distanceTo(at));
+        if (dmg <= 0) continue;
+        this.damageCreature(c, dmg, false, c.centre.clone().sub(at).normalize(), c.centre.clone(), 'grenade');
+        c.stagger(q.g.r.overload / 40);
+      }
+      for (const n of this.nests) {
+        if (!n.alive) continue;
+        const core = n.core(new THREE.Vector3()), dmg = q.g.damageAt(core.distanceTo(at));
+        if (dmg > 0) this.damageNest(n, dmg, null, core);
+      }
+      const self = p.position.distanceTo(at);
+      if (self <= q.g.r.radius) { this.overload.add(q.g.r.overload); this.hurt(q.g.damageAt(self) * 0.5, 'torso', 'own grenade', at); }
+      this.bus.emit('explosion', { item: 'neuroSpikeGrenade', position: { x: at.x, y: at.y, z: at.z } });
+    }
+    // Mines.
+    const alive = this.creatures.filter((c) => c.alive);
+    for (let i = this.mines.length - 1; i >= 0; i--) {
+      const q = this.mines[i];
+      const hit = q.m.update(dt, alive.map((c) => c.position));
+      (q.mesh.material as THREE.MeshStandardMaterial).emissiveIntensity = q.m.armed ? 2.5 + Math.sin(this.elapsed * 8) : 0.4;
+      if (hit < 0) continue;
+      const c = alive[hit];
+      this.scene.remove(q.mesh);
+      this.mines.splice(i, 1);
+      this.damageCreature(c, q.m.r.damage, false, new THREE.Vector3(0, 1, 0), c.centre.clone(), 'mine');
+      c.stagger(q.m.r.root);
+      gore.burst(this.scene, { point: c.centre.clone(), colour: `#${c.fluid.getHexString()}`, count: 70, speed: 7 });
+      this.noise(c.position, HOST.noiseRadius.gunfire, 'mine');
+      this.bus.emit('explosion', { item: 'mawSeedMine', position: { x: c.position.x, y: c.position.y, z: c.position.z } });
+    }
+  }
+
+  /** Throws a Neuro-Spike Grenade from the cavities (or pouch). */
+  throwGrenade(): boolean {
+    if (this.phase !== 'raid' || this.reviveLeft > 0 || !this.carried.consume('neuroSpikeGrenade')) return false;
+    const eye = this.player.eyePosition, dir = this.player.forward(new THREE.Vector3());
+    const g = new Grenade({ x: eye.x + dir.x * 0.6, y: eye.y + dir.y * 0.6 - 0.1, z: eye.z + dir.z * 0.6 }, throwVelocity(dir));
+    const mesh = new THREE.Mesh(this.gearGeo, this.gearMat);
+    this.scene.add(mesh);
+    this.grenades.push({ g, mesh });
+    this.bus.emit('gearUsed', { item: 'neuroSpikeGrenade' });
+    return true;
+  }
+
+  /** Plants a Maw-Seed Mine at the host's feet. */
+  placeMine(): boolean {
+    if (this.phase !== 'raid' || this.reviveLeft > 0 || !this.carried.consume('mawSeedMine')) return false;
+    const p = this.player.position;
+    const m = new Mine({ x: p.x, y: groundHeight(p.x, p.z), z: p.z });
+    const mesh = new THREE.Mesh(this.gearGeo, this.gearMat.clone());
+    mesh.scale.set(2.2, 0.6, 2.2);
+    mesh.position.set(m.pos.x, m.pos.y + 0.05, m.pos.z);
+    this.scene.add(mesh);
+    this.mines.push({ m, mesh });
+    this.bus.emit('gearUsed', { item: 'mawSeedMine' });
+    return true;
+  }
+
+  /** Heart Husk: on lethal damage, spend one and regrow after a delay instead of dying. */
+  private tryRevive(): boolean {
+    if (this.reviveLeft > 0) return true;
+    if (!this.carried.consume('heartHusk')) return false;
+    this.reviveLeft = huskRules().reviveDelay;
+    this.biomass.current = 0.001;
+    this.bus.emit('reviving', { time: this.reviveLeft });
+    return true;
   }
 
   // ------------------------------------------------------------------ in-raid inventory (UI & HUD's Tab overlay)
@@ -650,6 +790,8 @@ export class Raid {
       if (done) this.onVirus(done);
       this.updateVirusEffects(dt);
     }
+
+    if (live) this.updateGear(dt);
 
     // Weapon.
     for (const c of this.creatures) c.refreshHitSpheres();
@@ -847,6 +989,7 @@ export class Raid {
   private openPod(pod: BioPod): void {
     if (pod.type === 'geneBloom') this.sites?.setNodeHarvested(pod.id, true);
     const rolled = pod.opened ? pod.remaining : rollContainer(pod.type, this.rand);
+    if (!pod.opened) { this.log.open(pod.type); this.bus.emit('containerOpened', { id: pod.id, container: pod.type }); }
     pod.open();
     pod.remaining = [];
     const items: typeof rolled = [], left: typeof rolled = [];
@@ -916,9 +1059,7 @@ export class Raid {
     if (this.player.position.distanceTo(c) <= o.shockwave.radius) this.overload.add(o.shockwave.overload);
     this.carried.dna += o.dnaDrop;
     this.kills++;
-    const cache = new BioPod(`${o.container}-${n.id}`, o.container, c.x + 3.5, c.z);
-    this.pods.push(cache);
-    this.scene.add(cache.root);
+    this.dropContainer(o.container, c.x + 3.5, c.z, `${o.container}-${n.id}`);
     this.noise(c, HOST.noiseRadius.egoCharge, 'nest');
     this.bus.emit('nestDestroyed', { id: n.id, type: n.type, dna: o.dnaDrop, container: o.container });
   }
@@ -1037,17 +1178,43 @@ export class Raid {
     };
   }
 
+  /** World & Level calls this when the host reaches a named landmark (zones.json landmarks); contracts count it. */
+  visit(landmark: string): void {
+    if (this.log.visited.has(landmark)) return;
+    this.log.visit(landmark);
+    this.bus.emit('landmarkVisited', { landmark });
+  }
+
+  /** PvE AI calls this when a bosses.json boss dies; contracts count it. */
+  bossKilled(boss: string): void {
+    this.log.killBoss(boss);
+    this.bus.emit('bossKilled', { boss });
+  }
+
+  /**
+   * Places a lootable container (any id in data/loot.json containers) on the ground: its contents roll from the
+   * loot table when it is first opened, through the same hold-E and transfer flow as the map's pods. PvE AI's
+   * Brood Heart calls this with 'broodCache' when it dies.
+   */
+  dropContainer(type: string, x: number, z: number, id = `${type}-drop-${this.pods.length}`): BioPod {
+    if (!LOOT.containers[type]) throw new Error(`unknown container ${type}`);
+    const pod = new BioPod(id, type, x, z);
+    this.pods.push(pod);
+    this.scene.add(pod.root);
+    return pod;
+  }
+
   /** State for tests/raid.mjs and tooling. */
   testState(): Record<string, unknown> {
     return {
-      phase: this.phase, armLook: this.hostArm.current, biomass: this.biomass.current, overload: this.overload.value, overloaded: this.overload.overloaded,
+      phase: this.phase, zone: this.zone, log: { harvested: Object.fromEntries(this.log.harvested), killed: Object.fromEntries(this.log.killed), opened: Object.fromEntries(this.log.opened), visited: [...this.log.visited], bosses: [...this.log.bosses] }, armLook: this.hostArm.current, biomass: this.biomass.current, overload: this.overload.value, overloaded: this.overload.overloaded,
       ammo: this.weapon.state.ammo, ego: this.weapon.ego, timeLeft: this.timeLeft, kills: this.kills,
       carried: this.carried.snapshot(), extractProgress: this.extract.progress,
       extractPosition: [this.extract.x, this.extract.z], pods: this.pods.map((q) => ({ id: q.id, position: [q.position.x, q.position.z], opened: q.opened })),
       enemies: this.creatures.map((c) => ({ id: c.id, kind: c.kind, alive: c.alive, state: c.state, biomass: c.biomass, position: [c.position.x, c.position.y, c.position.z], centre: [c.centre.x, c.centre.y, c.centre.z] })),
       result: this.result, gore: gore.stats(),
       nests: this.nests.map((n) => ({ id: n.id, state: n.state, biomass: n.biomass, wave: n.wave, brood: n.brood.size, position: [n.position.x, n.position.z] })),
-      virus: this.injection.active, injecting: this.injection.pending, parasites: this.parasites.length, harvested: [...this.harvested], maxBiomass: this.biomass.max,
+      reviving: this.reviveLeft > 0, grenades: this.grenades.length, mines: this.mines.length, virus: this.injection.active, injecting: this.injection.pending, parasites: this.parasites.length, harvested: [...this.harvested], maxBiomass: this.biomass.max,
     };
   }
 
@@ -1075,7 +1242,15 @@ export class Raid {
       setTimeScale: (k: number) => { this.timeScale = k; },
       setTimeLeft: (t: number) => { this.elapsed = RAID.raidTime - t; },
       give: (item: string, n = 1) => this.carried.add(item, n),
+      melee: () => { this.meleeQueued = true; },
+      grenade: () => this.throwGrenade(),
+      mine: () => this.placeMine(),
       pouch: (item: string, n = 1) => this.carried.pouch.add(item, n),
+      /** Drops a container at the host's feet (offset 1.2 m on x); returns its id. */
+      dropContainer: (type: string) => this.dropContainer(type, this.player.position.x - 1.2, this.player.position.z).id,
+      openContainer: () => this.openContainer(),
+      visit: (landmark: string) => this.visit(landmark),
+      bossKilled: (boss: string) => this.bossKilled(boss),
       /** Injects the first carried vial of `item` (cavities, then pouch). */
       inject: (item: string) => {
         for (const zone of ['cavity', 'pouch'] as const) {
