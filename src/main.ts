@@ -28,7 +28,8 @@ function deployNow(): void {
   const d = deploy(profile);
   save();
   menu.hide();
-  void Promise.resolve(canvas.requestPointerLock?.()).catch(() => { /* headless or denied: click the canvas to lock */ });
+  // Lock the mouse for play. Automated runs (tests, playtest bot) skip it: headless pointer lock halves software-rendered fps.
+  if (!navigator.webdriver) void Promise.resolve(canvas.requestPointerLock?.()).catch(() => { /* denied: click the canvas to lock */ });
   raid.deploy(d);
 }
 const menu = new HiveMenu(profile, save, deployNow, loaded.notice);
