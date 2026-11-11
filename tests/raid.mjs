@@ -175,7 +175,8 @@ try {
   await freezeAndScreenshot(page, 'tests/out/raid-collapse.png', { resume: true });
   await call('setTimeLeft', 500);
 
-  // --- Extract.
+  // --- Extract. Waits run at 8x sim speed so the two raid smokes fit CI's 35 min job (software rendering is ~1 fps).
+  await call('setTimeScale', 8);
   await call('extractNow');
   for (let i = 0; i < 120; i++) { await frames(4); s = await state(); if (s.phase !== 'raid') break; }
   if (s.phase !== 'extracted') await fail(`expected extracted, got ${s.phase} (progress ${s.extractProgress})`);
@@ -212,6 +213,8 @@ try {
   await call('begin');
   await frames(2);
   await call('give', 'synapseLens', 1);
+  await call('killAll');
+  await call('setTimeScale', 8);
   // Brood Cache: the container PvE AI's Brood Heart drops on death always holds a Brood Heart Seed.
   const cacheId = await call('dropContainer', 'broodCache');
   await frames(1);
