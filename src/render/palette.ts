@@ -39,6 +39,18 @@ export const ZONE7_SHADE = {
   skyZenith: '#07031A',
 } as const;
 
+/**
+ * Natural, lit tones (Art Bible, "Ethereal, not neon"): wet flesh, bone, amber and mist for bodies that are
+ * lit rather than glowing, such as the held weapon, hands and hides. Glow colours above stay accents on these.
+ */
+export const ORGANIC = {
+  wetFlesh: '#7A4756',
+  wetFleshDeep: '#3A1C2A',
+  vein: '#6E2E4A',
+  amber: '#C98A3E',
+  mist: '#8C9BB4',
+} as const;
+
 /** Colour grading targets for the final post pass (split-tone shadows and highlights). */
 export const GRADE = {
   zone7Shadow: '#1C0A3D',
@@ -46,4 +58,4 @@ export const GRADE = {
   hiveShadow: '#03120E',
   hiveHighlight: '#E6FFD9',
 } as const;
-export const ALL_COLOURS: Record<string, string> = { ...HIVE, ...PATH, ...ZONE7, ...ZONE7_SHADE, ...GRADE };
+export const ALL_COLOURS: Record<string, string> = { ...HIVE, ...PATH, ...ZONE7, ...ZONE7_SHADE, ...ORGANIC, ...GRADE };
