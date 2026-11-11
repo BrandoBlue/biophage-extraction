@@ -52,7 +52,9 @@ jobs:
   browser:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # 35 min per suite unless the entry sets its own. Raid suites render a full raid on the CPU (~6x slower
+    # than a laptop), so they get more room; split a suite into two entries before raising this further.
+    timeout-minutes: ${{ matrix.timeout || 35 }}
     strategy:
       fail-fast: false
       matrix:
@@ -61,12 +63,16 @@ jobs:
             run: npm run smoke && npm run smoke:release && npm run budget
           - name: raid
             run: npm run smoke:raid
+            timeout: 50
           - name: raid-release
             run: npm run smoke:raid:release
+            timeout: 50
           - name: raid-hive
             run: npm run smoke:raid:hive
+            timeout: 50
           - name: raid-hive-release
             run: npm run smoke:raid:hive:release
+            timeout: 50
           - name: creatures
             run: npm run smoke:creatures
     name: browser (${{ matrix.name }})
