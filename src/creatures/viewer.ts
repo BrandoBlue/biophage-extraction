@@ -2,12 +2,13 @@ import * as THREE from 'three';
 import { BroodHeart } from './broodheart';
 import { Reliquary, type ReliquaryPhase } from './reliquary';
 import { Warden, type WardenPhase } from './warden';
+import { PaleVigil, type VigilPhase } from './palevigil';
 import { MOD_SLOTS, WEAPON_BODIES, createWeaponBody, type ModSlot, type WeaponBody } from './weapons/bodies';
 import { HostArm, VIRUS_LOOKS, type VirusLook } from './hostarm';
 import { organMesh } from './organs';
 import { HostBody } from './hosts';
 import type { ClassId } from '../../data';
-import { HIVE, PATH, ZONE7 } from '../render/palette';
+import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { bioSurface, bioNode } from '../render/materials';
 import { createPipeline, simplifyForSoftware, type Pipeline } from '../render/pipeline';
 import { buildZone7, groundHeight } from '../world/zone7';
@@ -113,12 +114,15 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
   let creatures: Creature[] = [];
   let lineup = q.has('lineup');
   // Non-creature specimens: the Brood Heart nest, the harvest organs, the host arm.
-  type Extra = 'nest' | 'organs' | 'arm' | 'host' | 'boss' | 'warden' | 'weapons' | null;
+  type Extra = 'nest' | 'organs' | 'arm' | 'host' | 'boss' | 'warden' | 'vigil' | 'weapons' | null;
   let extra: Extra = null;
   const extras = new THREE.Group();
   scene.add(extras);
   let boss: Reliquary | null = null;
   let warden: Warden | null = null;
+  let vigil: PaleVigil | null = null;
+  /** Cave ceiling the Vigil hangs from: above ground, so the lure sways at head height. */
+  const VIGIL_CEILING = 9.5;
   let guns: { body: WeaponBody; t: number; eq: number; shot: number }[] = [];
   let gunAim = 0;
   let heart: BroodHeart | null = null, arm: HostArm | null = null, host: HostBody | null = null;
@@ -149,7 +153,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     <div class="row">
       <button id="v-walk">Walk</button><button id="v-strike">Strike</button><button id="v-sever">Sever limb</button>
       <button id="v-kill">Gib</button><button id="v-seed">New seed</button><button id="v-lineup">Lineup</button>
-      <button id="v-nest">Brood Heart</button><button id="v-organs">Organs</button><button id="v-arm">Host arm</button><button id="v-host">Hosts</button><button id="v-boss">Reliquary</button><button id="v-warden">Warden</button><button id="v-weapons">Weapons</button>
+      <button id="v-nest">Brood Heart</button><button id="v-organs">Organs</button><button id="v-arm">Host arm</button><button id="v-host">Hosts</button><button id="v-boss">Reliquary</button><button id="v-warden">Warden</button><button id="v-vigil">Pale Vigil</button><button id="v-weapons">Weapons</button>
       <button id="v-env">${env === 'zone7' ? 'Hive lab' : 'Zone 7'}</button>
     </div>
     <div class="card" id="v-card"></div>`;
@@ -180,6 +184,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
   $('#v-weapons').onclick = () => { if (extra === 'weapons') api.reloadGuns(); else api.weapons(); };
   $('#v-boss').onclick = () => { if (extra === 'boss') api.phase(); else api.boss(); };
   $('#v-warden').onclick = () => { if (extra === 'warden') api.wardenPhase(); else api.warden(); };
+  $('#v-vigil').onclick = () => { if (extra === 'vigil') api.vigilPhase(); else api.vigil(); };
   $('#v-organs').onclick = () => api.organs();
   $('#v-host').onclick = () => api.host(HOSTS[(HOSTS.indexOf(host?.classId as ClassId) + 1) % HOSTS.length]);
   $('#v-arm').onclick = () => { if (extra !== 'arm') api.arm(); else api.arm(VIRUS_LOOKS[(VIRUS_LOOKS.indexOf(arm!.current as VirusLook) + 1) % VIRUS_LOOKS.length]); };
@@ -192,10 +197,11 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     $('#v-walk').classList.toggle('on', st.walking);
     $('#v-lineup').classList.toggle('on', lineup);
     const t = (ABOMINATIONS as Record<string, Abomination>)[st.species];
-    for (const k of ['nest', 'organs', 'arm', 'host', 'boss', 'warden', 'weapons']) $(`#v-${k}`).classList.toggle('on', extra === k);
+    for (const k of ['nest', 'organs', 'arm', 'host', 'boss', 'warden', 'vigil', 'weapons']) $(`#v-${k}`).classList.toggle('on', extra === k);
     if (extra) {
       $('#v-card').innerHTML = extra === 'weapons' ? '<b>Living weapons</b><br>The grown roster. Click again to reload them all; Strike fires.'
         : extra === 'warden' ? `<b>The Warden of the Long Seed</b><br>Phase ${warden?.drive.phase} · pods ${warden?.podsAlive}. Click again for the next phase; Walk sends it round the stage, Strike thrusts the root spear, Sever shatters a seed pod, Gib kills it.`
+        : extra === 'vigil' ? `<b>The Pale Vigil</b><br>Phase ${vigil?.drive.phase} · limbs ${vigil?.limbsIntact}/4. Click again for the next phase (stalk unfolds it, unravel splits the skin); Walk shrieks, Strike snatches at you, Sever takes a limb, Gib kills it.`
         : extra === 'boss' ? `<b>The Reliquary</b><br>Phase ${boss?.drive.phase} · legs ${boss?.legsIntact}/6. Click again for the next phase; Walk circles it, Strike stamps, Sever takes a leg (or a heart in bloom), Gib kills it.`
         : extra === 'nest' ? '<b>Brood Heart</b><br>Wave nest. Click again to pulse a wave; sever pops a weak point; gib destroys it.'
         : extra === 'organs' ? '<b>Harvest organs</b><br>Gland, song sac, lens, eye, marrow.'
@@ -218,7 +224,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
 
   function clearExtras(): void {
     extras.clear();
-    heart = null; arm = null; host = null; boss = null; warden = null; guns = []; extra = null;
+    heart = null; arm = null; host = null; boss = null; warden = null; vigil = null; guns = []; extra = null;
   }
 
   function clearAll(): void {
@@ -249,6 +255,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     if (extra === 'nest') { target.set(origin.x, origin.y + 2.3, origin.z); dist = 15; }
     else if (extra === 'weapons') { target.set(origin.x, origin.y + 1.2, origin.z); dist = guns.length > 1 ? 3.6 : 2.4; }
     else if (extra === 'warden') { target.set(origin.x, origin.y + 2.2, origin.z - 6); dist = 24; }
+    else if (extra === 'vigil') { target.set(origin.x, origin.y + 5.2, origin.z); dist = 17; }
     else if (extra === 'boss') { target.set(origin.x, origin.y + 4.2, origin.z); dist = 26; }
     else if (extra === 'organs') { target.set(origin.x, origin.y + 1.2, origin.z); dist = 1.75; }
     else if (extra === 'host') { target.set(origin.x, origin.y + 1.1, origin.z); dist = 4.2; }
@@ -362,6 +369,30 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
       warden.plant();
       refreshUi();
     },
+    /** The Pale Vigil hanging upside down from a cave ceiling over the stage (Fungal Cave boss). */
+    vigil() {
+      clearAll();
+      extra = 'vigil';
+      const top = ground(origin.x, origin.z) + VIGIL_CEILING;
+      const roof = new THREE.Mesh(new THREE.CircleGeometry(9, 40).rotateX(Math.PI / 2), new THREE.MeshStandardMaterial({ color: ZONE7_SHADE.rockDeep, roughness: 0.95 }));
+      roof.position.set(origin.x, top + 0.05, origin.z);
+      extras.add(roof);
+      vigil = new PaleVigil(st.seed, scene);
+      vigil.root.position.set(origin.x, top, origin.z);
+      vigil.root.rotation.set(0, 0, Math.PI);
+      extras.add(vigil.root);
+      if (soft) simplifyForSoftware(vigil.root);
+      vigil.plant();
+      refreshUi();
+    },
+    /** Set (or cycle) the Vigil's phase: hang folds it to the ceiling, stalk unfolds it, unravel splits its skin. */
+    vigilPhase(p?: VigilPhase) {
+      if (!vigil) return;
+      const order: VigilPhase[] = ['hang', 'stalk', 'unravel'];
+      vigil.drive.phase = p ?? order[(order.indexOf(vigil.drive.phase) + 1) % order.length];
+      vigil.drive.hanging = vigil.drive.phase === 'hang' ? 1 : 0;
+      refreshUi();
+    },
     /** Set (or cycle) the Warden's phase; overheat opens two seams, meltdown all four and pulses. */
     wardenPhase(p?: WardenPhase) {
       if (!warden) return;
@@ -426,6 +457,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
         const w = boss.weakPoints.findIndex((p) => p.alive); boss.popWeakPoint(w); return w >= 0;
       }
       if (warden) { const i = warden.weakPoints.findIndex((w) => w.alive); warden.popWeakPoint(i); refreshUi(); return i >= 0; }
+      if (vigil) { const i = vigil.limbs.findIndex((l) => !l.severed); if (i >= 0) vigil.severLimb(i); else vigil.popWeakPoint(0); refreshUi(); return i >= 0; }
       if (heart) { const i = heart.weakPoints.findIndex((w) => w.alive); heart.popWeakPoint(i); heart.hurt((i + 1) / heart.weakPoints.length * 0.5); return i >= 0; }
       const c = creatures[0];
       const limb = id ?? [...c.rig.limbs.values()].filter((l) => !l.severed && l.spec.severable).map((l) => l.spec.id)[0];
@@ -435,6 +467,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
       if (heart) { heart.destroy(); return; }
       if (boss) { boss.destroy(); return; }
       if (warden) { warden.destroy(); return; }
+      if (vigil) { vigil.destroy(); return; }
       const c = creatures[0];
       creatureGore.burstAll(scene, c, new THREE.Vector3(0, 2, 0));
       creatureGore.pool(scene, c);
@@ -443,7 +476,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     walk(on: boolean) { st.walking = on; refreshUi(); },
     strike() { st.striking = 1.2; },
     view(y: number, p = pitch, z = 1) { yaw = y; pitch = p; zoom = z; },
-    state() { return { ...st, lineup, extra, arm: arm?.current ?? null, host: host?.classId ?? null, nestWeak: heart?.weakPoints.filter((w) => w.alive).length ?? null, nestAlive: heart?.alive ?? null, weapons: guns.length, warden: warden ? { phase: warden.drive.phase, pods: warden.podsAlive, seams: warden.seamsAlive, alive: warden.alive } : null, boss: boss ? { phase: boss.drive.phase, legs: boss.legsIntact, weak: boss.weakPoints.filter((w) => w.alive).length, alive: boss.alive } : null, creatures: creatures.map((c) => ({ species: c.species, stage: c.plan.stage, limbs: c.rig.limbs.size, severed: [...c.rig.limbs.values()].filter((l) => l.severed).length })) }; },
+    state() { return { ...st, lineup, extra, arm: arm?.current ?? null, host: host?.classId ?? null, nestWeak: heart?.weakPoints.filter((w) => w.alive).length ?? null, nestAlive: heart?.alive ?? null, weapons: guns.length, vigil: vigil ? { phase: vigil.drive.phase, limbs: vigil.limbsIntact, lure: vigil.lureAlive, alive: vigil.alive } : null, warden: warden ? { phase: warden.drive.phase, pods: warden.podsAlive, seams: warden.seamsAlive, alive: warden.alive } : null, boss: boss ? { phase: boss.drive.phase, legs: boss.legsIntact, weak: boss.weakPoints.filter((w) => w.alive).length, alive: boss.alive } : null, creatures: creatures.map((c) => ({ species: c.species, stage: c.plan.stage, limbs: c.rig.limbs.size, severed: [...c.rig.limbs.values()].filter((l) => l.severed).length })) }; },
     stats() { const i = pipeline.renderer.info; return { calls: i.render.calls, triangles: i.render.triangles, programs: i.programs?.length ?? 0 }; },
   };
   (window as unknown as { __biophageViewer: typeof api }).__biophageViewer = api;
@@ -504,6 +537,14 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
         warden.root.rotation.y = Math.atan2(-Math.sin(walkAngle), Math.cos(walkAngle));
       }
       warden.update(dt);
+    }
+    if (vigil) {
+      const d = vigil.drive;
+      d.look = camera.position;
+      d.windup = st.striking > 0 ? Math.min(1, (1.2 - st.striking) / 0.6) : 0;
+      d.strike = st.striking > 0 && st.striking < 0.6 ? camera.position.clone().lerp(vigil.root.position, 0.4) : null;
+      d.rear = st.walking && vigil.alive ? Math.max(0, Math.sin(clock.elapsedTime * 0.8)) : 0;
+      vigil.update(dt);
     }
     for (const g of guns) {
       g.t += dt;
