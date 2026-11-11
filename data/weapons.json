@@ -1,19 +1,43 @@
 {
-  "_note": "Synapse Burster: a living spore gun. Projectiles, not hitscan. Damage is per spore. Distances in metres, times in seconds. See docs/gdd/03-combat.md.",
+  "_note": "Weapon roster. Living bio-weapons, projectiles not hitscan. Distances m, times s, damage per projectile (per pellet when pellets > 1). fireRate = shots/s (inside a burst for burst weapons; burstDelay = gap between bursts). reload.style picks the animation: magazine (swap a sac), perShell (feed one at a time), regrow (heals in place). ads: false = no zoom at all; zoom is the FOV divisor (1.25 a sight, 3+ a scope); scope true draws the scope overlay. ammo = feed item id in loot.json, null = never needs ammo. handling.moveSpeed multiplies class speed while held. synapseBurster keeps its Spore fields (reloadTime, adsTime, burst, egoCharge) for src/game/raid.ts. See docs/gdd/09-weapons-and-habitats.md. modSlots: graft sockets (barrel, sight, under, chamber); see mods.json. unlock {class, level}: a class signature weapon, grown in the Hive Armoury once that class reaches the level (progression.json armoury).",
   "synapseBurster": {
     "label": "Synapse Burster",
+    "class": "carbine",
+    "rarity": "common",
+    "milestone": "spore",
+    "fantasy": "The starter: a living spore gun with three eyes and feed tentacles in the host arm; it grows with the Synapse tree.",
+    "fireMode": "auto",
+    "pellets": 1,
+    "ammo": null,
     "damage": 14,
     "fireRate": 8,
-    "burst": { "radius": 0.8, "damage": 4 },
+    "burst": {
+      "radius": 0.8,
+      "damage": 4
+    },
     "magazine": 42,
     "reserve": "infinite",
     "reloadTime": 2.2,
     "projectileSpeed": 90,
     "projectileGravity": 2,
-    "spread": { "hip": 1.6, "ads": 0.35, "movingPenalty": 1.2, "sprintBlocksFire": true },
-    "range": { "falloffStart": 35, "falloffEnd": 70, "minMultiplier": 0.6, "maxDistance": 120 },
+    "spread": {
+      "hip": 1.6,
+      "ads": 0.35,
+      "movingPenalty": 1.2,
+      "sprintBlocksFire": true
+    },
+    "range": {
+      "falloffStart": 35,
+      "falloffEnd": 70,
+      "minMultiplier": 0.6,
+      "maxDistance": 120
+    },
     "weakPointMultiplier": 2.0,
-    "recoil": { "pitch": 0.35, "yawJitter": 0.15, "recovery": 9 },
+    "recoil": {
+      "pitch": 0.35,
+      "yawJitter": 0.15,
+      "recovery": 9
+    },
     "adsTime": 0.18,
     "egoCharge": {
       "chargePerHit": 1,
@@ -26,6 +50,904 @@
       "seekTurnRate": 4,
       "projectileSpeed": 45,
       "burstRadius": 2.5
-    }
+    },
+    "reload": {
+      "style": "regrow",
+      "time": 2.2
+    },
+    "projectile": {
+      "look": "spore",
+      "speed": 90,
+      "gravity": 2,
+      "splash": {
+        "radius": 0.8,
+        "damage": 4
+      }
+    },
+    "ads": {
+      "zoom": 1.3,
+      "time": 0.18,
+      "scope": false
+    },
+    "handling": {
+      "equipTime": 0.5,
+      "moveSpeed": 1
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
+  },
+  "quillet": {
+    "label": "Quillet",
+    "class": "sidearm",
+    "rarity": "common",
+    "milestone": "larva",
+    "fantasy": "A porcupine-quill pistol: a fist-sized gland with a fan of quills along its back that re-sprout as you fire.",
+    "fireMode": "semi",
+    "damage": 22,
+    "pellets": 1,
+    "fireRate": 4.5,
+    "magazine": 14,
+    "ammo": "needleFeed",
+    "reload": {
+      "style": "magazine",
+      "time": 1.5,
+      "emptyExtra": 0.3
+    },
+    "projectile": {
+      "look": "needle",
+      "speed": 140,
+      "gravity": 0
+    },
+    "spread": {
+      "hip": 1.1,
+      "ads": 0.4,
+      "movingPenalty": 1.1
+    },
+    "range": {
+      "falloffStart": 18,
+      "falloffEnd": 40,
+      "minMultiplier": 0.55,
+      "maxDistance": 80
+    },
+    "weakPointMultiplier": 2.0,
+    "recoil": {
+      "pitch": 0.5,
+      "yawJitter": 0.12,
+      "recovery": 12
+    },
+    "ads": {
+      "zoom": 1.2,
+      "time": 0.14,
+      "scope": false
+    },
+    "handling": {
+      "equipTime": 0.3,
+      "moveSpeed": 1
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
+  },
+  "marrowHand": {
+    "label": "Marrow Hand",
+    "class": "sidearm",
+    "rarity": "uncommon",
+    "milestone": "larva",
+    "fantasy": "A bone hand-cannon shaped like a clenched fist; you push marrow shards into the knuckle cylinder one at a time and it cracks like a joint when it fires.",
+    "fireMode": "semi",
+    "damage": 48,
+    "pellets": 1,
+    "fireRate": 1.6,
+    "magazine": 6,
+    "ammo": "shardFeed",
+    "reload": {
+      "style": "perShell",
+      "time": 0.6,
+      "perShellTime": 0.45
+    },
+    "projectile": {
+      "look": "shard",
+      "speed": 110,
+      "gravity": 1
+    },
+    "spread": {
+      "hip": 1.4,
+      "ads": 0.35,
+      "movingPenalty": 1.3
+    },
+    "range": {
+      "falloffStart": 15,
+      "falloffEnd": 40,
+      "minMultiplier": 0.6,
+      "maxDistance": 90
+    },
+    "weakPointMultiplier": 2.2,
+    "recoil": {
+      "pitch": 1.6,
+      "yawJitter": 0.35,
+      "recovery": 7
+    },
+    "ads": {
+      "zoom": 1.15,
+      "time": 0.16,
+      "scope": false
+    },
+    "handling": {
+      "equipTime": 0.35,
+      "moveSpeed": 1
+    },
+    "unlock": {
+      "class": "venomWraith",
+      "level": 6
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
+  },
+  "hiveSpitter": {
+    "label": "Hive Spitter",
+    "class": "smg",
+    "rarity": "common",
+    "milestone": "larva",
+    "fantasy": "A paper-comb wasp nest grown round the forearm; it sprays a hot cloud of spores. No sights: you point it and hold.",
+    "fireMode": "auto",
+    "damage": 9,
+    "pellets": 1,
+    "fireRate": 15,
+    "magazine": 50,
+    "ammo": "sporeFeed",
+    "reload": {
+      "style": "magazine",
+      "time": 2.0,
+      "emptyExtra": 0.4
+    },
+    "projectile": {
+      "look": "spore",
+      "speed": 75,
+      "gravity": 3
+    },
+    "spread": {
+      "hip": 2.2,
+      "movingPenalty": 1.05
+    },
+    "range": {
+      "falloffStart": 12,
+      "falloffEnd": 30,
+      "minMultiplier": 0.45,
+      "maxDistance": 55
+    },
+    "weakPointMultiplier": 1.6,
+    "recoil": {
+      "pitch": 0.22,
+      "yawJitter": 0.25,
+      "recovery": 10
+    },
+    "ads": false,
+    "handling": {
+      "equipTime": 0.4,
+      "moveSpeed": 1.03
+    },
+    "modSlots": [
+      "barrel",
+      "under",
+      "chamber"
+    ]
+  },
+  "stingerChoir": {
+    "label": "Stinger Choir",
+    "class": "smg",
+    "rarity": "uncommon",
+    "milestone": "larva",
+    "fantasy": "Three stingers on a translucent cicada abdomen that fire together in one ringing chord.",
+    "fireMode": "burst",
+    "burstCount": 3,
+    "burstDelay": 0.22,
+    "damage": 16,
+    "pellets": 1,
+    "fireRate": 11,
+    "magazine": 36,
+    "ammo": "needleFeed",
+    "reload": {
+      "style": "magazine",
+      "time": 1.9,
+      "emptyExtra": 0.35
+    },
+    "projectile": {
+      "look": "needle",
+      "speed": 120,
+      "gravity": 0
+    },
+    "spread": {
+      "hip": 1.5,
+      "ads": 0.5,
+      "movingPenalty": 1.1
+    },
+    "range": {
+      "falloffStart": 18,
+      "falloffEnd": 40,
+      "minMultiplier": 0.55,
+      "maxDistance": 70
+    },
+    "weakPointMultiplier": 1.8,
+    "recoil": {
+      "pitch": 0.4,
+      "yawJitter": 0.15,
+      "recovery": 11
+    },
+    "ads": {
+      "zoom": 1.25,
+      "time": 0.16,
+      "scope": false
+    },
+    "handling": {
+      "equipTime": 0.4,
+      "moveSpeed": 1.02
+    },
+    "unlock": {
+      "class": "venomWraith",
+      "level": 3
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
+  },
+  "vertebraRifle": {
+    "label": "Vertebra Rifle",
+    "class": "rifle",
+    "rarity": "rare",
+    "milestone": "larva",
+    "fantasy": "A long spine of fused vertebrae; each shot cracks a disc forward along it, and the recoil is heavy enough to feel.",
+    "fireMode": "auto",
+    "damage": 20,
+    "pellets": 1,
+    "fireRate": 7.5,
+    "magazine": 30,
+    "ammo": "shardFeed",
+    "reload": {
+      "style": "magazine",
+      "time": 2.6,
+      "emptyExtra": 0.5
+    },
+    "projectile": {
+      "look": "shard",
+      "speed": 150,
+      "gravity": 1
+    },
+    "spread": {
+      "hip": 1.8,
+      "ads": 0.3,
+      "movingPenalty": 1.25
+    },
+    "range": {
+      "falloffStart": 35,
+      "falloffEnd": 75,
+      "minMultiplier": 0.65,
+      "maxDistance": 130
+    },
+    "weakPointMultiplier": 2.0,
+    "recoil": {
+      "pitch": 0.6,
+      "yawJitter": 0.22,
+      "recovery": 8
+    },
+    "ads": {
+      "zoom": 1.5,
+      "time": 0.22,
+      "scope": false
+    },
+    "handling": {
+      "equipTime": 0.6,
+      "moveSpeed": 0.97
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
+  },
+  "cicadine": {
+    "label": "Cicadine",
+    "class": "rifle",
+    "rarity": "uncommon",
+    "milestone": "larva",
+    "fantasy": "A beetle-carapace burst rifle; its wing-cases snap open and shut with every four-round burst.",
+    "fireMode": "burst",
+    "burstCount": 4,
+    "burstDelay": 0.35,
+    "damage": 24,
+    "pellets": 1,
+    "fireRate": 12,
+    "magazine": 32,
+    "ammo": "needleFeed",
+    "reload": {
+      "style": "magazine",
+      "time": 2.3,
+      "emptyExtra": 0.4
+    },
+    "projectile": {
+      "look": "needle",
+      "speed": 160,
+      "gravity": 0
+    },
+    "spread": {
+      "hip": 1.6,
+      "ads": 0.25,
+      "movingPenalty": 1.25
+    },
+    "range": {
+      "falloffStart": 40,
+      "falloffEnd": 80,
+      "minMultiplier": 0.65,
+      "maxDistance": 140
+    },
+    "weakPointMultiplier": 2.0,
+    "recoil": {
+      "pitch": 0.55,
+      "yawJitter": 0.12,
+      "recovery": 9
+    },
+    "ads": {
+      "zoom": 1.6,
+      "time": 0.22,
+      "scope": false
+    },
+    "handling": {
+      "equipTime": 0.55,
+      "moveSpeed": 0.98
+    },
+    "unlock": {
+      "class": "neuroInfiltrator",
+      "level": 3
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
+  },
+  "gulletScatter": {
+    "label": "Gullet Scatter",
+    "class": "shotgun",
+    "rarity": "uncommon",
+    "milestone": "larva",
+    "fantasy": "A toothed throat on a gristle stock; you feed it shells one by one and it gags out a spray of teeth.",
+    "fireMode": "semi",
+    "damage": 11,
+    "pellets": 8,
+    "fireRate": 1.2,
+    "magazine": 6,
+    "ammo": "shardFeed",
+    "reload": {
+      "style": "perShell",
+      "time": 0.5,
+      "perShellTime": 0.5
+    },
+    "projectile": {
+      "look": "shard",
+      "speed": 85,
+      "gravity": 2
+    },
+    "spread": {
+      "hip": 5.5,
+      "movingPenalty": 1.1
+    },
+    "range": {
+      "falloffStart": 6,
+      "falloffEnd": 18,
+      "minMultiplier": 0.25,
+      "maxDistance": 35
+    },
+    "weakPointMultiplier": 1.4,
+    "recoil": {
+      "pitch": 2.2,
+      "yawJitter": 0.4,
+      "recovery": 6
+    },
+    "ads": false,
+    "handling": {
+      "equipTime": 0.5,
+      "moveSpeed": 0.98
+    },
+    "unlock": {
+      "class": "goreBehemoth",
+      "level": 3
+    },
+    "modSlots": [
+      "barrel",
+      "under",
+      "chamber"
+    ]
+  },
+  "bloomcannon": {
+    "label": "Bloomcannon",
+    "class": "shotgun",
+    "rarity": "rare",
+    "milestone": "larva",
+    "fantasy": "A flower-head drum that spins and spits sticky seed globs; the petals close over the muzzle while it regrows its drum.",
+    "fireMode": "auto",
+    "damage": 10,
+    "pellets": 6,
+    "fireRate": 3,
+    "magazine": 10,
+    "ammo": "sporeFeed",
+    "reload": {
+      "style": "magazine",
+      "time": 3.0,
+      "emptyExtra": 0.5
+    },
+    "projectile": {
+      "look": "glob",
+      "speed": 60,
+      "gravity": 4
+    },
+    "spread": {
+      "hip": 6.5,
+      "movingPenalty": 1.1
+    },
+    "range": {
+      "falloffStart": 5,
+      "falloffEnd": 15,
+      "minMultiplier": 0.25,
+      "maxDistance": 30
+    },
+    "weakPointMultiplier": 1.3,
+    "recoil": {
+      "pitch": 1.4,
+      "yawJitter": 0.5,
+      "recovery": 6
+    },
+    "ads": false,
+    "handling": {
+      "equipTime": 0.6,
+      "moveSpeed": 0.95
+    },
+    "unlock": {
+      "class": "goreBehemoth",
+      "level": 6
+    },
+    "modSlots": [
+      "barrel",
+      "under",
+      "chamber"
+    ]
+  },
+  "eyestalkMarksman": {
+    "label": "Eyestalk Marksman",
+    "class": "marksman",
+    "rarity": "rare",
+    "milestone": "larva",
+    "fantasy": "A long fleshy stalk ending in a living eye that is the scope: it focuses as you aim and blinks shut on reload.",
+    "fireMode": "semi",
+    "damage": 70,
+    "pellets": 1,
+    "fireRate": 1.6,
+    "magazine": 10,
+    "ammo": "shardFeed",
+    "reload": {
+      "style": "magazine",
+      "time": 2.8,
+      "emptyExtra": 0.5
+    },
+    "projectile": {
+      "look": "shard",
+      "speed": 220,
+      "gravity": 0.5
+    },
+    "spread": {
+      "hip": 3.5,
+      "ads": 0.05,
+      "movingPenalty": 1.6
+    },
+    "range": {
+      "falloffStart": 60,
+      "falloffEnd": 140,
+      "minMultiplier": 0.7,
+      "maxDistance": 250
+    },
+    "weakPointMultiplier": 2.0,
+    "recoil": {
+      "pitch": 1.8,
+      "yawJitter": 0.2,
+      "recovery": 6
+    },
+    "ads": {
+      "zoom": 3,
+      "time": 0.3,
+      "scope": true
+    },
+    "handling": {
+      "equipTime": 0.7,
+      "moveSpeed": 0.95
+    },
+    "unlock": {
+      "class": "neuroInfiltrator",
+      "level": 6
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
+  },
+  "leviathanQuill": {
+    "label": "Leviathan Quill",
+    "class": "sniper",
+    "rarity": "epic",
+    "milestone": "larva",
+    "fantasy": "A single huge harpoon quill grown from a deep-sea jaw; each shot is loaded by hand and the jaw clamps it shut.",
+    "fireMode": "semi",
+    "damage": 160,
+    "pellets": 1,
+    "fireRate": 0.6,
+    "magazine": 4,
+    "ammo": "needleFeed",
+    "reload": {
+      "style": "perShell",
+      "time": 0.8,
+      "perShellTime": 0.8
+    },
+    "projectile": {
+      "look": "needle",
+      "speed": 320,
+      "gravity": 0.3,
+      "pierce": 1
+    },
+    "spread": {
+      "hip": 6,
+      "ads": 0.0,
+      "movingPenalty": 2.0
+    },
+    "range": {
+      "falloffStart": 90,
+      "falloffEnd": 220,
+      "minMultiplier": 0.8,
+      "maxDistance": 400
+    },
+    "weakPointMultiplier": 2.5,
+    "recoil": {
+      "pitch": 3.5,
+      "yawJitter": 0.3,
+      "recovery": 4
+    },
+    "ads": {
+      "zoom": 6,
+      "time": 0.4,
+      "scope": true
+    },
+    "handling": {
+      "equipTime": 0.9,
+      "moveSpeed": 0.9
+    },
+    "unlock": {
+      "class": "venomWraith",
+      "level": 10
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
+  },
+  "broodMortar": {
+    "label": "Brood Mortar",
+    "class": "launcher",
+    "rarity": "rare",
+    "milestone": "larva",
+    "fantasy": "A swollen egg sac on a ribbed throat; it lobs bursting brood globs in a high arc and you push each egg back in by hand.",
+    "fireMode": "semi",
+    "damage": 40,
+    "pellets": 1,
+    "fireRate": 0.9,
+    "magazine": 4,
+    "ammo": "boltFeed",
+    "reload": {
+      "style": "perShell",
+      "time": 0.7,
+      "perShellTime": 0.7
+    },
+    "projectile": {
+      "look": "glob",
+      "speed": 30,
+      "gravity": 9.8,
+      "splash": {
+        "radius": 4,
+        "damage": 70
+      }
+    },
+    "spread": {
+      "hip": 1.2,
+      "movingPenalty": 1.2
+    },
+    "range": {
+      "falloffStart": 10,
+      "falloffEnd": 60,
+      "minMultiplier": 1,
+      "maxDistance": 80
+    },
+    "weakPointMultiplier": 1.0,
+    "recoil": {
+      "pitch": 2.5,
+      "yawJitter": 0.2,
+      "recovery": 5
+    },
+    "ads": false,
+    "handling": {
+      "equipTime": 0.8,
+      "moveSpeed": 0.92
+    },
+    "selfDamage": true,
+    "unlock": {
+      "class": "goreBehemoth",
+      "level": 10
+    },
+    "modSlots": [
+      "barrel",
+      "under",
+      "chamber"
+    ]
+  },
+  "tumorLauncher": {
+    "label": "Tumor Launcher",
+    "class": "launcher",
+    "rarity": "epic",
+    "milestone": "larva",
+    "fantasy": "Fires tumorous bolts that stick where they hit, swell for a second, then burst.",
+    "fireMode": "semi",
+    "damage": 25,
+    "pellets": 1,
+    "fireRate": 1.2,
+    "magazine": 6,
+    "ammo": "boltFeed",
+    "reload": {
+      "style": "magazine",
+      "time": 2.8,
+      "emptyExtra": 0.5
+    },
+    "projectile": {
+      "look": "bolt",
+      "speed": 55,
+      "gravity": 3,
+      "stick": true,
+      "fuse": 1.0,
+      "splash": {
+        "radius": 3,
+        "damage": 85
+      }
+    },
+    "spread": {
+      "hip": 1.4,
+      "ads": 0.4,
+      "movingPenalty": 1.2
+    },
+    "range": {
+      "falloffStart": 15,
+      "falloffEnd": 50,
+      "minMultiplier": 1,
+      "maxDistance": 90
+    },
+    "weakPointMultiplier": 1.0,
+    "recoil": {
+      "pitch": 1.6,
+      "yawJitter": 0.2,
+      "recovery": 6
+    },
+    "ads": {
+      "zoom": 1.3,
+      "time": 0.25,
+      "scope": false
+    },
+    "handling": {
+      "equipTime": 0.8,
+      "moveSpeed": 0.93
+    },
+    "selfDamage": true,
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
+  },
+  "lumenLance": {
+    "label": "Lumen Lance",
+    "class": "beam",
+    "rarity": "epic",
+    "milestone": "larva",
+    "fantasy": "A glass-bone lance that gathers liquid light along its length and lets it go in one piercing bolt; the glass regrows its charge, so it needs no ammo but heats the host.",
+    "fireMode": "charge",
+    "damage": 120,
+    "pellets": 1,
+    "fireRate": 1.0,
+    "magazine": 8,
+    "ammo": null,
+    "reload": {
+      "style": "regrow",
+      "time": 3.5
+    },
+    "projectile": {
+      "look": "bolt",
+      "speed": 400,
+      "gravity": 0,
+      "pierce": 2
+    },
+    "spread": {
+      "hip": 0.8,
+      "ads": 0.05,
+      "movingPenalty": 1.4
+    },
+    "range": {
+      "falloffStart": 50,
+      "falloffEnd": 150,
+      "minMultiplier": 0.75,
+      "maxDistance": 260
+    },
+    "weakPointMultiplier": 1.8,
+    "recoil": {
+      "pitch": 1.2,
+      "yawJitter": 0.1,
+      "recovery": 7
+    },
+    "ads": {
+      "zoom": 2,
+      "time": 0.28,
+      "scope": false
+    },
+    "handling": {
+      "equipTime": 0.7,
+      "moveSpeed": 0.95
+    },
+    "charge": {
+      "time": 0.9,
+      "minFraction": 0.35,
+      "overloadPerShot": 6
+    },
+    "unlock": {
+      "class": "neuroInfiltrator",
+      "level": 10
+    },
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
+  },
+  "reliquaryHymn": {
+    "label": "Reliquary Hymn",
+    "class": "relic",
+    "rarity": "relic",
+    "milestone": "larva",
+    "fantasy": "A singing ribcage fragment torn from the Reliquary; it hums while held and looses three piercing bolts in a fan.",
+    "fireMode": "charge",
+    "damage": 55,
+    "pellets": 3,
+    "fireRate": 1.4,
+    "magazine": 12,
+    "ammo": null,
+    "reload": {
+      "style": "regrow",
+      "time": 4.0
+    },
+    "projectile": {
+      "look": "bolt",
+      "speed": 180,
+      "gravity": 0,
+      "pierce": 1
+    },
+    "spread": {
+      "hip": 1.0,
+      "ads": 0.3,
+      "movingPenalty": 1.2
+    },
+    "range": {
+      "falloffStart": 30,
+      "falloffEnd": 80,
+      "minMultiplier": 0.65,
+      "maxDistance": 140
+    },
+    "weakPointMultiplier": 1.8,
+    "recoil": {
+      "pitch": 1.0,
+      "yawJitter": 0.2,
+      "recovery": 8
+    },
+    "ads": {
+      "zoom": 1.4,
+      "time": 0.22,
+      "scope": false
+    },
+    "handling": {
+      "equipTime": 0.7,
+      "moveSpeed": 0.97
+    },
+    "charge": {
+      "time": 0.6,
+      "minFraction": 1,
+      "fanDegrees": 9,
+      "overloadPerShot": 4
+    },
+    "dropsFrom": "reliquary",
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
+  },
+  "coreburner": {
+    "label": "Coreburner",
+    "class": "relic",
+    "rarity": "relic",
+    "milestone": "host",
+    "fantasy": "A reactor-seed heart from the Warden that still beats; full-auto molten bolts until it overheats and has to cool.",
+    "fireMode": "auto",
+    "damage": 26,
+    "pellets": 1,
+    "fireRate": 9,
+    "magazine": 60,
+    "ammo": null,
+    "reload": {
+      "style": "regrow",
+      "time": 4.0
+    },
+    "projectile": {
+      "look": "bolt",
+      "speed": 130,
+      "gravity": 0.5,
+      "splash": {
+        "radius": 1.2,
+        "damage": 8
+      }
+    },
+    "spread": {
+      "hip": 1.6,
+      "ads": 0.45,
+      "movingPenalty": 1.2
+    },
+    "range": {
+      "falloffStart": 25,
+      "falloffEnd": 60,
+      "minMultiplier": 0.6,
+      "maxDistance": 110
+    },
+    "weakPointMultiplier": 1.8,
+    "recoil": {
+      "pitch": 0.45,
+      "yawJitter": 0.2,
+      "recovery": 9
+    },
+    "ads": {
+      "zoom": 1.3,
+      "time": 0.22,
+      "scope": false
+    },
+    "handling": {
+      "equipTime": 0.8,
+      "moveSpeed": 0.93
+    },
+    "dropsFrom": "warden",
+    "modSlots": [
+      "barrel",
+      "sight",
+      "under",
+      "chamber"
+    ]
   }
 }

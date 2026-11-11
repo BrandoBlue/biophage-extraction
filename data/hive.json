@@ -17,7 +17,8 @@
             ]
           },
           "recipes": [
-            "clotGelFromGlands"
+            "clotGelFromGlands",
+            "lampreyFromGlands"
           ]
         },
         {
@@ -37,7 +38,10 @@
           "recipes": [
             "clotGelFromGlands",
             "mutagenFromMarrow",
-            "neuroSpikeFromLens"
+            "neuroSpikeFromLens",
+            "lampreyFromGlands",
+            "hushGillFromEyes",
+            "acidStrainFromSacs"
           ]
         },
         {
@@ -58,7 +62,11 @@
             "clotGelFromGlands",
             "mutagenFromMarrow",
             "neuroSpikeFromLens",
-            "virusFromEmbryo"
+            "virusFromEmbryo",
+            "lampreyFromGlands",
+            "hushGillFromEyes",
+            "acidStrainFromSacs",
+            "nightEyeFromLens"
           ]
         }
       ]
@@ -250,6 +258,58 @@
         "count": 1
       },
       "time": 3600
+    },
+    "lampreyFromGlands": {
+      "inputs": [
+        {
+          "item": "needlemawGland",
+          "count": 3
+        }
+      ],
+      "output": {
+        "item": "lampreyMouth",
+        "count": 1
+      },
+      "time": 900
+    },
+    "hushGillFromEyes": {
+      "inputs": [
+        {
+          "item": "oculimothEye",
+          "count": 3
+        }
+      ],
+      "output": {
+        "item": "hushGill",
+        "count": 1
+      },
+      "time": 1200
+    },
+    "nightEyeFromLens": {
+      "inputs": [
+        {
+          "item": "glasswalkerLens",
+          "count": 2
+        }
+      ],
+      "output": {
+        "item": "nightEye",
+        "count": 1
+      },
+      "time": 1800
+    },
+    "acidStrainFromSacs": {
+      "inputs": [
+        {
+          "item": "cantorSongSac",
+          "count": 2
+        }
+      ],
+      "output": {
+        "item": "acidStrain",
+        "count": 1
+      },
+      "time": 1800
     }
   }
 }

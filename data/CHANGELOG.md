@@ -2,6 +2,15 @@
 
 Every tuning change to `data/*.json`, newest first, with the reason.
 
+## Weapons and habitats (2026-11-11, after Brandon's second playtest)
+- weapons.json: 15 new guns across sidearm, SMG, rifle, shotgun, marksman, sniper, launcher, beam and relic. The Synapse Burster keeps every Spore number and gains the shared schema fields.
+- loot.json: weapon and ammo items. Four feeds (Spore, Needle, Shard, Bolt). Guns and feeds added to the Bio-Pod, cargo crate, sealed locker, Brood cache and Gene Bloom tables. The Reliquary Hymn is guaranteed from the Reliquary Cage. Bio-Pod odds for non-weapon loot drop slightly because the table grew.
+- vendors.json: weapon and feed stock by reputation. The Gullet Broker prefers weapons (×1.15).
+- Class signature guns: `unlock {class, level}`, three per class at levels 3, 6 and 10, grown in the Armoury at 60% of value. profile.json `weaponSlots: 2`.
+- mods.json (new): 15 graft mods across the barrel, sight, under and chamber sockets. Added to loot tables, vendor stock and four new Gestation Vat recipes.
+- weapon-feel.json (new): reload beats, fire kick/shake/push per class, idle breathing.
+- habitats.json (new): homes per species per zone. Glowmire head-count is unchanged from raid.json spawnGroups, so only placement changes.
+
 ## Economy, zones and bosses (2026-11-11, after Brandon's v0.1 playtest)
 - New: vendors.json (Mother Clot, the Archivist, the Gullet Broker), contracts.json (11 contracts in 3 chains), hive.json (Hive Body organs and recipes), zones.json (5 zones), bosses.json (the Reliquary, the Warden).
 - New items: Seed Key, Black Box, Coolant Rod, Reliquary Heart, Ribchoir Bone, Warden Seed-Core, Embryo Pod; containers Reliquary Cage, Sealed Locker, Cargo Crate.
