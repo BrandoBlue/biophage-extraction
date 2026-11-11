@@ -34,6 +34,7 @@ const states: Record<string, Partial<HudView>> = {
   gear: { carried: [...base.carried, { item: 'neuroSpikeGrenade', label: 'Neuro-Spike Grenade', count: 2, kind: 'tech' }, { item: 'mawSeedMine', label: 'Maw-Seed Mine', count: 1, kind: 'tech' }, { item: 'heartHusk', label: 'Heart Husk', count: 1, kind: 'organ' }] },
   boss: { boss: { label: 'Brood Heart', fraction: 0.58, wave: 2, waves: 4 }, overload: 0.4 },
   prompt: {},
+  'boss-phase': { boss: { label: 'The Sandwidow', fraction: 0.52, wave: 0, waves: 0 }, overload: 0.2 },
   scope: { weapon: { id: 'eyestalkMarksman' }, aiming: true },
   'scope-reload': { weapon: { id: 'eyestalkMarksman' }, aiming: true, reloading: 0.6 },
   shotgun: { weapon: { id: 'gulletScatter' }, crosshair: { radius: 0.11, onTarget: true } },
