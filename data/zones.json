@@ -1,0 +1,169 @@
+{
+  "_note": "Zone roster. Each zone is its own raid map chosen on the raid-select screen. Design numbers live here; geometry and positions live in World & Level's data/zone7.json keyed by the same ids. Look notes follow Brandon's direction: ethereal, misty, grounded; glow is an accent on creatures, fungi and liquid light, never a neon wash.",
+  "glowmireIsle": {
+    "label": "Glowmire Isle",
+    "milestone": "spore",
+    "order": 1,
+    "pitch": "The first island: a misty floating isle of liquid-light marsh and giant pale fungi, ringed by void.",
+    "look": "soft fog, pale bioluminescent fungi, slow liquid-light falls over the rim, dusk sky with a ringed planet; colour in accents only",
+    "size": {
+      "playableRadius": 150
+    },
+    "raidTime": 600,
+    "threat": [
+      1,
+      3
+    ],
+    "access": "open",
+    "structures": [
+      "Hollow Chitin Tower (3 floors, spiral ramp, loot on each floor, sniper roost on top)",
+      "Long Seed Debris Field (torn hull sections you can walk through, cargo crates, black box)",
+      "Sunken Bowl (the Reliquary's arena)",
+      "Fungal Caves under the east cliff (dark, tight, Glasswalker ambushes)"
+    ],
+    "landmarks": [
+      "longSeedDebris",
+      "chitinTower",
+      "sunkenBowl",
+      "fungalCaves",
+      "seedSpireNorth",
+      "seedSpireEast"
+    ],
+    "creatures": [
+      "needlemaw",
+      "bilecantor",
+      "glasswalker",
+      "oculimoth",
+      "mournback"
+    ],
+    "nests": [
+      "broodHeart"
+    ],
+    "boss": "reliquary",
+    "lootFocus": "organs and first viruses; the Reliquary Heart",
+    "containers": {
+      "bioPod": 4,
+      "cargoCrate": 3
+    },
+    "extracts": "two Seed Spires (north from the start, east opens at 4:00)",
+    "why": "learn the loop, farm organs for Mother Clot and the Gestation Vat, take the Reliquary when ready"
+  },
+  "longSeedWreck": {
+    "label": "Wreck of the Long Seed",
+    "milestone": "larva",
+    "order": 2,
+    "pitch": "Inside the crashed seedship: corridors, cargo holds, crew warrens and a reactor that is not quite dead.",
+    "look": "dark interior lit by failing amber emergency strips and green embryo tanks, roots breaking through bulkheads, dust in shafts of light from hull breaches, outside a sliver of the misty island",
+    "size": {
+      "footprint": [
+        220,
+        90
+      ],
+      "floors": 3
+    },
+    "raidTime": 900,
+    "threat": [
+      2,
+      4
+    ],
+    "access": "contract signalInTheWreck (Archivist)",
+    "structures": [
+      "Breached Prow (exterior entry ramp, open sky)",
+      "Cargo Holds (big rooms, stacked crates, flanking routes over the top)",
+      "Crew Warrens (tight corridors, doors, vents the Wraith can crawl)",
+      "Embryo Gallery (rows of glass tanks; some hatch when you pass)",
+      "Sealed Lockers (need Seed Keys)",
+      "Reactor Chamber (the Warden's arena; catwalks; 4 coolant valves)"
+    ],
+    "landmarks": [
+      "breachedProw",
+      "cargoHoldA",
+      "cargoHoldB",
+      "crewWarrens",
+      "embryoGallery",
+      "reactorChamber",
+      "escapePodBay"
+    ],
+    "creatures": [
+      "glasswalker",
+      "needlemaw",
+      "oculimoth",
+      "titheWeaver",
+      "huskMimic"
+    ],
+    "boss": "warden",
+    "lootFocus": "tech (Synapse Lenses, Coolant Rods, Black Boxes, Embryo Pods) and sealed-room jackpots",
+    "containers": {
+      "cargoCrate": 10,
+      "sealedLocker": 4
+    },
+    "mechanics": {
+      "powerState": {
+        "description": "inserting 3 Coolant Rods at the reactor console restores power: sealed doors open, lights come on, the escape pods work, and the Warden wakes (Host)",
+        "rodsNeeded": 3
+      },
+      "doors": "bulkhead doors open slowly and loudly; the Behemoth can force them"
+    },
+    "extracts": "Breached Prow (always), Escape Pod Bay (only with power restored; fast, 5 s), Cargo Lift (paid 100 DNA)",
+    "why": "tech for the Archivist and the Memory Coral, Seed-Key gambling on sealed lockers, and later the Warden's core"
+  },
+  "expanse": {
+    "label": "The Expanse",
+    "milestone": "host",
+    "order": 3,
+    "pitch": "The full 1 km of Zone 7: five biomes, rival hosts, shifting extracts and anomalies.",
+    "see": "raid.json host",
+    "look": "long sightlines through haze, floating island chains, the Lumen Grazers drifting overhead",
+    "size": {
+      "playableRadius": 500
+    },
+    "raidTime": 1500,
+    "threat": [
+      1,
+      4
+    ],
+    "access": "host level 5 or contract theReliquary",
+    "creatures": [
+      "needlemaw",
+      "bilecantor",
+      "glasswalker",
+      "oculimoth",
+      "mournback",
+      "titheWeaver",
+      "huskMimic",
+      "lumenGrazer"
+    ],
+    "nests": [
+      "broodHeart"
+    ],
+    "boss": null,
+    "lootFocus": "everything; the Lumen Grazer's lantern glands; rival hosts' loadouts",
+    "why": "the big PvPvE zone: long raids, rivals, the richest and riskiest loot"
+  },
+  "hollowChoir": {
+    "label": "The Hollow Choir",
+    "milestone": "apex",
+    "order": 4,
+    "pitch": "A vertical cave-cathedral under Zone 7 where sound is light: noise makes the walls glow and gives you away.",
+    "look": "black stone, mineral curtains, light that only blooms where sound hits it",
+    "threat": [
+      3,
+      5
+    ],
+    "access": "apex",
+    "why": "stealth zone; Wraith territory; a choir-boss at the bottom"
+  },
+  "ossuaryReef": {
+    "label": "The Ossuary Reef",
+    "milestone": "apex",
+    "order": 5,
+    "pitch": "A dried sea floor of bone coral in low gravity, drifting between ribs of things the size of mountains.",
+    "look": "pale bone, dust, a huge dim sun, slow floating debris",
+    "threat": [
+      4,
+      5
+    ],
+    "access": "apex",
+    "why": "Behemoth territory; huge open fights; the hardest zone"
+  }
+}
