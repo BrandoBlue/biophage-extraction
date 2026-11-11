@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
-const URL = 'http://localhost:4174/?quality=high';
+const URL = `http://localhost:4174/?quality=${process.env.QUALITY || 'high'}`;
 const POSES = {
   spawn: { at: [-41, 113], eye: 1.7, yaw: -0.35, pitch: 0.08 },
   pool: { at: [-5, 66], eye: 3, yaw: 0.45, pitch: -0.12 },

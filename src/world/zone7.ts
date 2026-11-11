@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { ZONE7, ZONE7_SHADE } from '../render/palette';
 import { bioNode, crystal, fungusCap, fungusStem, liquidLight, membrane, zoneRock, bioTime } from '../render/materials';
 import { capGeometry, crystalClusterGeometry, floatingIslandGeometry, ISLAND_TOP, ribbonGeometry, stemGeometry } from '../render/geometry';
-import { cloudSea, planet, sporeField, zone7Sky } from '../render/sky';
+import { cloudSea, planet, sporeField, starField, zone7Sky } from '../render/sky';
 
 /** Deterministic RNG so every raid pocket (and every screenshot test) is reproducible. */
 export function mulberry32(seed: number): () => number {
@@ -331,7 +331,7 @@ export function buildZone7(scene: THREE.Scene, seed = 7): void {
   giant.position.copy(giantAt);
   const moon = planet({ radius: 60, band: ZONE7.magenta, rim: ZONE7.magenta, lightDir, seed: 9 });
   moon.position.set(560, 300, -860);
-  scene.add(giant, moon, cloudSea(-240));
+  scene.add(giant, moon, cloudSea(-240), starField(rand));
   scene.add(sporeField(rand, 700, 60, 40, [ZONE7.cyan, ZONE7.lime, ZONE7.magenta]));
 
   // Extraction beacon: the goal the Gameplay department wires up in Spore.
