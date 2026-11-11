@@ -322,6 +322,13 @@ export interface AiRules {
   flyer: { orbitRadius: Range; orbitSpeed: number; diveGap: number; faceHeight: number; flockRadius: number; calmHeight: Range; diveSpeed: number; diveTime: number; climbTime: number; screechTell: number; turnRate: number };
   tank: { turnRate: number; chargeTurnRate: number; hornReach: number; chargeRange: Range; chargeAimCone: number; chargeDistance: number; chargeKnockback: number; slamTrigger: number; slamWindup: number; recoverTime: number; approachFactor: number };
   nestSpawn: { ejectSpeed: number; ejectRadius: number; startAwareness: number };
+  menace: {
+    reaction: [number, number];
+    search: { predictTime: number; maxPredict: number; spread: number; sweepTime: number };
+    ambush: { chance: number; range: number; time: number };
+    wounded: { limpBelow: number; limpFactor: number; fleeBelow: number; fleeChance: number; fleeTime: number };
+    dodge: { chance: number; aimCone: number; range: number; minNoise: number; speed: number; cooldown: number };
+  };
 }
 const stripDeep = (o: unknown): unknown => {
   if (Array.isArray(o) || o === null || typeof o !== 'object') return o;
@@ -502,6 +509,7 @@ export interface Boss {
   size: Record<string, number>; biomass: number;
   arena: Record<string, unknown>;
   dormantUntil: string; songRadius: number; wakeRadius: number; songLoops: boolean;
+  silent?: { footstepNoise: number; note: string };
   weakPoints: Record<string, Record<string, unknown>>;
   phases: BossPhase[];
   enrage: { after: number; effect: string };
@@ -512,6 +520,8 @@ export interface Zone {
   label: string; milestone: string; order: number; pitch: string; look: string;
   size?: Record<string, unknown>; raidTime?: number; threat: Range; access: string;
   structures?: string[]; landmarks?: string[]; creatures?: string[]; nests?: string[]; boss?: string | null;
+  /** Every boss in the zone when it has more than one; `boss` stays the headline boss. */
+  bosses?: string[];
   lootFocus?: string; containers?: Record<string, number>; mechanics?: Record<string, unknown>; extracts?: string; why: string; see?: string;
 }
 

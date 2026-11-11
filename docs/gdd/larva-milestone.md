@@ -82,6 +82,7 @@ Brandon asked for depth: a reason to play and extract, vendors, more zones, stru
 - [ ] **Hive Body**: Gestation Vat, Spore Garden (offline DNA, capped), Memory Coral (`HIVE_ORGANS`, `RECIPES`).
 - [ ] **Glowmire Isle structures**: chitin tower, Long Seed debris field, fungal caves, the sunken bowl.
 - [ ] **The Reliquary** boss in the sunken bowl (`BOSSES.reliquary`, `bossPhase`).
+- [ ] **The Pale Vigil** boss in the fungal caves (`BOSSES.paleVigil`): silent ceiling hunter, lure, snatch and pin.
 - [ ] **Wreck of the Long Seed** as a second zone, unlocked by *Signal in the Wreck*: interior rooms, Seed-Key lockers, cargo crates; reactor cold (the Warden is Host).
 - [ ] Raid select lists the zones with access state.
 

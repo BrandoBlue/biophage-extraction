@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
+import { HIVE, ORGANIC, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { traceSkin, type SdfPrim } from './sdf';
 import { rng, type Rand } from './parts';
 import type { BodyPlan, HitSpec, LimbSpec, Palette, PartSpec, SpeciesId } from './plan';
@@ -20,10 +20,33 @@ const tint = (h: string, k = 1) => col(h).multiplyScalar(k);
 /** Vein and rim glow colours are dimmed: flesh should read wet and grounded, the nodes carry the light. */
 const dim = (h: string, k: number) => hex(col(h).multiplyScalar(k));
 
+/**
+ * Brandon (2026-11-11): "not neon... more realistic or easier to look at... weirder, cool texture". Every species
+ * palette is pulled toward lit, natural ORGANIC tones: wet meat, stained bone, dull amber bioluminescence. The
+ * species hue survives as a tint, so they stay told apart, but nothing reads as a neon sign. Eyes keep the most
+ * colour: they are the weak points and the thing you should be afraid of.
+ */
+export function naturalise(p: Palette): Palette {
+  const boneDark = mix(HIVE.bone, ORGANIC.wetFleshDeep, 0.55);
+  return {
+    ...p,
+    flesh: mix(p.flesh, ORGANIC.wetFlesh, 0.7, 0.85),
+    vein: mix(p.vein, ORGANIC.vein, 0.75),
+    rim: mix(p.rim, ORGANIC.mist, 0.85, 0.75),
+    chitin: mix(p.chitin, boneDark, 0.8, 0.75),
+    chitinGlow: mix(p.chitinGlow, ORGANIC.amber, 0.7, 0.6),
+    bone: mix(p.bone, boneDark, 0.3),
+    glow: mix(p.glow, ORGANIC.amber, 0.75, 0.8),
+    fluid: mix(p.fluid, ORGANIC.vein, 0.7),
+    membrane: mix(p.membrane, ORGANIC.mist, 0.7, 0.8),
+    iris: mix(p.iris, ORGANIC.amber, 0.35),
+  };
+}
+
 class PlanBuilder {
   plan: BodyPlan;
   constructor(species: SpeciesId, seed: number, stage: number, init: Omit<BodyPlan, 'species' | 'seed' | 'stage' | 'bones' | 'skin' | 'limbs' | 'parts' | 'hits'>) {
-    this.plan = { species, seed, stage, bones: [], skin: [], limbs: [], parts: [], hits: [], ...init };
+    this.plan = { species, seed, stage, bones: [], skin: [], limbs: [], parts: [], hits: [], ...init, palette: naturalise(init.palette) };
   }
   bone(name: string, parent: number, at: THREE.Vector3): number { this.plan.bones.push({ name, parent, at }); return this.plan.bones.length - 1; }
   skin(p: SdfPrim): void { this.plan.skin.push(p); }

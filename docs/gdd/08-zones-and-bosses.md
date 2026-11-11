@@ -27,6 +27,32 @@ Enrage at 7:00: the whole bowl floor floods; only the ledge is safe.
 **Arena (World):** a sunken bowl 60 m across and 9 m deep, two entrances, a 3 m ledge around half the rim, 4 destructible cover pieces, a liquid-light pool at the centre, an exit within 80 m.
 **Rewards:** 400 DNA; the Reliquary Cage container (Reliquary Heart, Ribchoir Bones, 4 rich rolls); a harvestable Reliquary Heart (6 s, loud); 1000 XP. Respawns every raid, dormant until someone enters the bowl.
 
+## The Pale Vigil (Glowmire Isle, fungal caves, Larva)
+Glowmire's second boss, made for Brandon's "harder, scarier" ask. Where the Reliquary is a loud fight in the open, the Vigil is a silent horror in the dark. It is a 7 m, starvation-thin thing that hangs upside down from the cave ceiling on four long jointed limbs. Its body is a pale, translucent sack of folded skin, and you can see its slow organs through it. A long stalk hangs from its chest and ends in a soft, warm-glowing lure that sways at head height, like a lantern someone left behind. It has no face, only a vertical slit that opens to the ribs when it shrieks. It makes no sound until it has you, and the only tell is the lure going still.
+
+**2400 Biomass.** Weak points:
+- the lure (×2.5; destroying it ends the hang phase early)
+- 3 spines (×2, exposed while it hangs or rears to shriek)
+- 4 limbs (severable from the stalk phase; each slows it 12%; with all four gone it cannot climb)
+
+| Phase | Biomass | Behaviour | How to fight it |
+| --- | --- | --- | --- |
+| **Hang** | 100–70% | Crawls the ceiling and parks the lure over the paths through the cave. Looking at the lure fills Overload (5/s). Walk under it and it drops (40), or snatches you up to the ceiling and pins you for 2.5 s (35, then 12/s; teammates free you with 120 damage) | Don't stand under the light; shoot the lure and the spines |
+| **Stalk** | 70–35% | Drops to the floor and hunts in total silence. It lunges only from outside your view (55), rakes up close (30), then climbs into the dark and comes back from behind 3 s later | Keep your back to a wall; sever limbs |
+| **Unravel** | 35–0% | Its skin splits and it shrieks (18 m, 25 Overload, stagger). The ceiling falls in four places, with dust as a 1.5 s warning (60 each). Chains three fast lunges | Shoot the spines while it shrieks; watch for falling dust |
+
+Enrage at 6:00: web-roots seal the cave mouths and the ceiling falls every 6 s.
+
+**Arena (World):** the main chamber of the fungal caves under the east cliff:
+- 34 m across and 16 m high
+- 3 entrances
+- ceiling roots it can climb
+- 5 glow-fungus patches (the only light besides the lure)
+- 6 pieces of cover
+- an exit within 70 m
+
+**Rewards:** 350 DNA. Vigil's Cocoon is a hanging silk bundle holding the gear of hosts it took: a guaranteed Hush Gill, plus rolls for Night Eye, Splinter Strain, marksman and sniper guns, and needle feed. You can harvest the Vigil Lure (a catalyst, 5 s), and the kill gives 900 XP. The Archivist's contract *The Light Under the Cliff* asks for the lure. The Vigil respawns every raid.
+
 ## The Warden of the Long Seed (Wreck boss, Host)
 The seedship's gardener, a caretaker grown to tend the embryos the ship carried, now fused with its reactor. A 20 m centipede body of hull plates and roots that runs along walls and ceiling. Its head is a cluster of glass seed-pods, each holding a dormant embryo of a never-born species that twitches when hurt. It glows only where the reactor shows through cracked plates.
 
@@ -42,7 +68,7 @@ Enrage at 9:00: pulses every 8 s. **Arena:** reactor chamber 30 m across and 24 
 | Department | Build |
 | --- | --- |
 | World & Level | Glowmire Isle structures (chitin tower, debris field, fungal caves, sunken bowl arena); the Long Seed as its own map with the rooms above, doors, vents and the reactor chamber; landmarks named as in `zones.json` so contracts can target them. Keep the look misty and natural-lit, with glow as accents. |
-| Creature & Mutation | The Reliquary body (built from the concept above) with severable legs, the opening ribcage and heart chambers; the Warden later. |
-| PvE AI & Encounters | Reliquary phase logic, attacks and brood drops; dormancy and zone-wide song; Warden wall-crawling (Host). |
+| Creature & Mutation | The Reliquary body (built from the concept above) with severable legs, the opening ribcage and heart chambers; the Pale Vigil (ceiling hang, lure, splitting skin, severable limbs); the Warden later. |
+| PvE AI & Encounters | Reliquary phase logic, attacks and brood drops; dormancy and zone-wide song; Pale Vigil ceiling movement, lure, snatch-and-pin, silent stalking from behind, collapse; Warden wall-crawling (Host). |
 | Gameplay Engineering | Boss damage, phases and weak points from `bosses.json`; landmark visits; Long Seed power state, doors, Seed-Key lockers and escape pods. |
 | UI & HUD | Raid select with zone cards (threat, raid time, access, boss state with Memory Coral); a boss bar in bone and flesh, never a neon bar. |

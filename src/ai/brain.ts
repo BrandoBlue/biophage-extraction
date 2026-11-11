@@ -4,7 +4,7 @@
  * onto Creature.drive (velocity, look, excite, windup, strike, altitude) plus camouflage visibility and one-shot
  * events (melee, spit, screech, slam, charge, notice, alert).
  *
- *   calm ──(suspicious)──▶ investigate ──(awareness 1)──▶ hunt ──(lost for loseInterest)──▶ investigate ──▶ calm
+ *   calm ──(suspicious)──▶ investigate ──(awareness 1)──▶ hunt ──(lost for loseInterest)──▶ investigate ──▶ calm / ambush
  *     ▲                                                    │ ▲
  *     └──────────── host dead / hidden ◀───────────────────┘ └── stagger (from damage) returns here
  */
@@ -19,6 +19,10 @@ const damp = (a: number, b: number, k: number, dt: number) => b + (a - b) * Math
 
 /** Seconds a hunter keeps tracking the host's true position after losing sight (scent, footfalls). */
 const TRACK_GRACE = 1.5;
+/** Tuning that makes hunters frightening: the stare, the fanned-out search, the ambush, the wounded retreat. */
+const M = AI.menace;
+
+export type LurkHow = 'hatch' | 'disguise' | 'ambush';
 
 export interface Body { x: number; z: number; yaw: number; vx: number; vz: number; altitude: number }
 
@@ -44,8 +48,32 @@ export abstract class Brain {
   protected roam = AI.wander.radius;
   /** Calm height for flyers that roost (habitats.json `height`); null: the archetype's own. */
   protected roost: number | null = null;
-  /** Lying in wait: in a tank until the host comes within `range` (hatch), or posing as a crate (disguise). */
-  private lurk: { how: 'hatch' | 'disguise'; range: number } | null = null;
+  /**
+   * Lying in wait: in a tank until the host comes within `range` (hatch), posing as a crate (disguise), or crouched
+   * motionless where it lost the host's trail (ambush, gives up after `time` s).
+   */
+  private lurk: { how: LurkHow; range: number; time: number } | null = null;
+  /** Saw the host itself: holds still and stares for this long before it comes (ai.json menace.reaction). */
+  private spotFor = 0;
+  /** The host's velocity the last time it was tracked, so a cold search heads where it was going. */
+  private hostVel: Vec2 = { x: 0, z: 0 };
+  /** Cold-trail search: the point this searcher is checking, and how many it has checked. */
+  private searchTo: Vec2 | null = null;
+  private searchPts = 0;
+  private sweepFor = 0;
+  /** Chased the host this encounter (an ambush is only laid after a real chase). */
+  private chased = false;
+  /** Biomass left, 0..1 (from the Abomination). Below menace.wounded.limpBelow it limps. */
+  private woundLeft = 1;
+  private fleeFor = 0;
+  private fled = false;
+  /** Archetypes that crouch in wait where they lost the host (swarm, stalker). */
+  protected readonly ambusher: boolean = false;
+  /** Archetypes that break off to run when badly hurt (not the tank). */
+  protected readonly flees: boolean = true;
+  /** Agile archetypes that juke sideways when the host aims at them and fires (swarm, flyer). */
+  protected readonly dodges: boolean = false;
+  private dodgeCd = 0;
   protected phaseTime = 0;
   protected cooldown = 0;
   private staggerFor = 0;
@@ -78,12 +106,16 @@ export abstract class Brain {
     this.home = { x, z };
     if (o.roam !== undefined) this.roam = o.roam;
     if (o.height !== undefined) this.roost = o.height;
-    if (o.hatchOnApproach) this.lurk = { how: 'hatch', range: o.hatchOnApproach };
-    else if (o.disguise) this.lurk = { how: 'disguise', range: this.data.attackRange + 1.5 };
+    if (o.hatchOnApproach) this.lurk = { how: 'hatch', range: o.hatchOnApproach, time: Infinity };
+    else if (o.disguise) this.lurk = { how: 'disguise', range: this.data.attackRange + 1.5, time: Infinity };
   }
 
-  /** Still in its tank or disguise (the body should show the tank or the crate). */
+  /** Still in its tank, disguise or ambush (the body should show the tank or the crate, or crouch). */
   get lurking(): boolean { return this.lurk !== null; }
+  /** How it is lying in wait, if it is. */
+  get lurkHow(): LurkHow | null { return this.lurk?.how ?? null; }
+  /** Wounded enough to limp, or running to recover. */
+  get wounded(): boolean { return this.woundLeft < M.wounded.limpBelow; }
 
   private reveal(): void {
     if (!this.lurk) return;
@@ -113,7 +145,16 @@ export abstract class Brain {
   }
 
   /** The creature was wounded: archetypes can react (Glasswalker reveal). Also alerts. */
-  hurt(): void { this.reveal(); this.alert(null); this.onHurt(); }
+  hurt(): void { this.reveal(); this.spotFor = 0; this.alert(null); this.onHurt(); }
+
+  /** Biomass left as a fraction (0..1). Badly hurt, it may break off and run, then return with its pack. */
+  wound(left: number): void {
+    this.woundLeft = Math.max(0, Math.min(1, left));
+    if (this.flees && !this.fled && this.mode !== 'dead' && this.woundLeft > 0 && this.woundLeft < M.wounded.fleeBelow) {
+      this.fled = true;
+      if (this.rand() < M.wounded.fleeChance) this.fleeFor = M.wounded.fleeTime;
+    }
+  }
 
   kill(): void {
     this.mode = 'dead';
@@ -131,10 +172,14 @@ export abstract class Brain {
     const b = this.body, host = w.host;
     if (this.lurk) {
       // Lying in wait: no senses, no movement, until the host walks into reach.
+      this.lurk.time -= dt;
       if (host.alive && !host.hidden && Math.hypot(host.x - b.x, host.z - b.z) <= this.lurk.range) {
         this.reveal();
         this.alert({ x: host.x, z: host.z });
-      } else { b.vx = 0; b.vz = 0; this.excite = 0; return; }
+      } else if (this.lurk.time <= 0) {
+        this.lurk = null; // the ambush went cold: slink home
+        this.mode = 'calm'; this.phaseTime = 0;
+      } else { b.vx = 0; b.vz = 0; this.excite = 0; this.look = null; this.windup = 0; return; }
     }
     this.phaseTime += dt;
     this.cooldown = Math.max(0, this.cooldown - dt);
@@ -149,11 +194,15 @@ export abstract class Brain {
       this.slow(dt, 6);
       if (this.staggerFor <= 0) { this.mode = lostHost ? 'calm' : 'hunt'; this.setPhase('recover'); }
     } else if (!lostHost && (this.awareness.hunting || this.pendingHunt) && this.mode !== 'hunt') {
+      // It found the host itself (not told by a packmate or a wound): it stops dead and stares before it comes.
+      const [r0, r1] = M.reaction;
+      this.spotFor = this.pendingHunt ? 0 : r0 + this.rand() * (r1 - r0);
       this.mode = 'hunt';
+      this.chased = true;
       this.awareness.level = 1;
       this.events.push({ type: 'alert' });
-      this.setPhase('engage');
-      this.onEngage(w);
+      this.setPhase(this.spotFor > 0 ? 'spot' : 'engage');
+      if (this.spotFor <= 0) this.onEngage(w);
     } else if (this.mode === 'calm' && this.awareness.suspicious && this.awareness.lastKnown) {
       this.mode = 'investigate';
       this.investigateFor = AI.awareness.investigateTime;
@@ -174,12 +223,25 @@ export abstract class Brain {
           this.onInterrupted();
           break;
         }
+        if (this.fleeFor > 0) { this.flee(dt, w); break; }
+        if (this.spotFor > 0) {
+          this.spotFor -= dt;
+          this.slow(dt, 8);
+          this.face(this.yawTo(host.x, host.z), this.turnRate, dt);
+          this.look = { x: host.x, y: host.y + 1.5, z: host.z };
+          this.windup = 0;
+          if (this.spotFor <= 0) { this.setPhase('engage'); this.onEngage(w); }
+          break;
+        }
         if (fresh) {
           const tgt = { x: host.x, y: host.y, z: host.z };
           this.awareness.lastKnown = { x: host.x, z: host.z };
+          this.hostVel = { x: host.vx, z: host.vz };
+          this.searchTo = null; this.searchPts = 0;
           const dx = tgt.x - b.x, dz = tgt.z - b.z;
           const dist = Math.hypot(dx, dz) || 1e-6;
           this.hunt(dt, w, tgt, dist, dx / dist, dz / dist);
+          this.dodge(dt, w, dist);
         } else this.search(dt, w);
         break;
       }
@@ -231,6 +293,11 @@ export abstract class Brain {
     if (!lk || (this.investigateFor <= 0 && !this.awareness.suspicious)) {
       this.mode = 'calm';
       this.phaseTime = 0;
+      // After a real chase, a hunter may not go home at all: it crouches where the trail died and waits.
+      if (this.chased && this.ambusher && this.rand() < M.ambush.chance) {
+        this.lurk = { how: 'ambush', range: M.ambush.range, time: M.ambush.time };
+      }
+      this.chased = false;
       return;
     }
     this.look = { x: lk.x, y: 1, z: lk.z };
@@ -246,11 +313,58 @@ export abstract class Brain {
     this.strike = null;
     const lk = this.awareness.lastKnown;
     if (!lk) { this.sweep(dt); return; }
-    this.look = { x: lk.x, y: 1, z: lk.z };
-    const d = Math.hypot(lk.x - this.body.x, lk.z - this.body.z);
-    if (d > 2) this.moveToward(lk.x, lk.z, this.data.speed * 0.85, 4, dt);
-    else this.sweep(dt);
+    // Head where the host was going, not where it was; each searcher checks its own spot so a pack fans out.
+    if (!this.searchTo) {
+      const S = M.search;
+      const sp = Math.hypot(this.hostVel.x, this.hostVel.z);
+      const lead = Math.min(S.maxPredict, sp * S.predictTime) / (sp || 1);
+      const a = this.id * 2.39996 + this.searchPts * 1.7 + this.rand() * 0.6;
+      const r = this.searchPts === 0 && this.id % 3 === 0 ? 0 : S.spread * (0.5 + this.rand() * 0.5);
+      this.searchTo = { x: lk.x + this.hostVel.x * lead + Math.cos(a) * r, z: lk.z + this.hostVel.z * lead + Math.sin(a) * r };
+      this.sweepFor = S.sweepTime;
+    }
+    const t = this.searchTo;
+    this.look = { x: t.x, y: 1, z: t.z };
+    const d = Math.hypot(t.x - this.body.x, t.z - this.body.z);
+    if (d > 2) this.moveToward(t.x, t.z, this.data.speed * 0.85, 4, dt);
+    else {
+      this.sweep(dt);
+      this.sweepFor -= dt;
+      if (this.sweepFor <= 0) { this.searchPts++; this.searchTo = null; this.hostVel = { x: 0, z: 0 }; }
+    }
     this.setPhase('search');
+  }
+
+  /**
+   * Under fire: if the host is aiming at it (inside menace.dodge.aimCone) and a shot just went off at the host, an
+   * agile hunter may juke sideways. Never while winding up or lunging, so committed attacks stay punishable.
+   */
+  private dodge(dt: number, w: BrainWorld, dist: number): void {
+    this.dodgeCd -= dt;
+    const D = M.dodge, h = w.host, f = h.forward;
+    if (!this.dodges || this.dodgeCd > 0 || !f || this.windup > 0.05 || this.strike || dist > D.range) return;
+    const shot = w.noises.some((n) => Math.hypot(n.x - h.x, n.z - h.z) < 1.5 && n.radius >= D.minNoise);
+    if (!shot) return;
+    const tx = (this.body.x - h.x) / (dist || 1), tz = (this.body.z - h.z) / (dist || 1);
+    if (f.x * tx + f.z * tz < Math.cos((D.aimCone * Math.PI) / 360)) return;
+    this.dodgeCd = D.cooldown;
+    if (this.rand() >= D.chance) return;
+    const side = this.rand() < 0.5 ? -1 : 1;
+    this.impulse(-tz * side * D.speed, tx * side * D.speed);
+    this.setPhase(this.phase); // keep the archetype's sub-state
+    this.events.push({ type: 'dodge' });
+  }
+
+  /** Badly hurt: breaks off and runs from the host, then turns and calls its pack before coming back. */
+  private flee(dt: number, w: BrainWorld): void {
+    this.fleeFor -= dt;
+    this.releaseToken(w);
+    this.onInterrupted();
+    this.look = null;
+    const h = w.host, dx = this.body.x - h.x, dz = this.body.z - h.z, d = Math.hypot(dx, dz) || 1;
+    this.moveToward(this.body.x + (dx / d) * 10, this.body.z + (dz / d) * 10, this.data.speed, 6, dt);
+    this.setPhase('flee');
+    if (this.fleeFor <= 0) { this.events.push({ type: 'alert' }); this.setPhase('engage'); }
   }
 
   private sweep(dt: number): void {
@@ -261,6 +375,7 @@ export abstract class Brain {
 
   private calmDown(w: BrainWorld): void {
     this.mode = 'calm';
+    this.chased = false; this.spotFor = 0; this.fleeFor = 0; this.searchTo = null;
     this.awareness.level = 0;
     this.releaseToken(w);
     this.onInterrupted();
@@ -304,8 +419,9 @@ export abstract class Brain {
 
   private integrate(dt: number, w: BrainWorld): void {
     const b = this.body;
-    b.x += b.vx * dt;
-    b.z += b.vz * dt;
+    const gait = this.woundLeft < M.wounded.limpBelow ? M.wounded.limpFactor : 1;
+    b.x += b.vx * dt * gait;
+    b.z += b.vz * dt * gait;
     // Separation: creatures of a kind do not stack (other kinds may brush past; a Mournback shoulders everything).
     for (const o of w.allies) {
       if (o.id === this.id || !o.alive) continue;

@@ -296,5 +296,177 @@
       "xp": 1500
     },
     "respawn": "every raid, after power is restored"
+  },
+  "paleVigil": {
+    "label": "The Pale Vigil",
+    "zone": "glowmireIsle",
+    "milestone": "larva",
+    "brief": "A 7 m tall, starvation-thin thing that hangs upside down from the fungal cave ceiling by four long jointed limbs, its body a pale, translucent sack of folded skin you can see its slow organs through. From its chest hangs a single long stalk ending in a soft, warm-glowing lure that sways at head height like a lantern someone left behind. It has no face, only a vertical slit that opens to the ribs when it shrieks. It never makes a sound until it has you. Mixes: anglerfish, harvestman spider, cave weta, a hanged coat. Pale skin, wet dark limbs, the lure the only light: no neon.",
+    "size": {
+      "height": 7,
+      "limbSpan": 9,
+      "lureLength": 4
+    },
+    "biomass": 2400,
+    "arena": {
+      "shape": "fungal cave chamber",
+      "diameter": 34,
+      "height": 16,
+      "entrances": 3,
+      "ceilingRoots": true,
+      "glowFungusPatches": 5,
+      "hardCover": 6,
+      "exitWithin": 70,
+      "landmark": "fungalCaves"
+    },
+    "dormantUntil": "a host walks under the lure, or shoots it",
+    "songRadius": 0,
+    "wakeRadius": 12,
+    "songLoops": false,
+    "silent": {
+      "footstepNoise": 0,
+      "note": "no sound at all until it grabs or shrieks; the only tell is the lure going still"
+    },
+    "weakPoints": {
+      "lure": {
+        "biomass": 250,
+        "multiplier": 2.5,
+        "onDestroyed": "no more lure pull or drop tell; forces the stalk phase if still hanging"
+      },
+      "spines": {
+        "count": 3,
+        "biomassEach": 200,
+        "multiplier": 2.0,
+        "exposedWhile": "hanging or rearing to shriek"
+      },
+      "limbs": {
+        "count": 4,
+        "biomassEach": 220,
+        "severedFrom": "stalk",
+        "slowPerSevered": 0.12,
+        "onAllSevered": "cannot climb: stuck on the floor"
+      }
+    },
+    "phases": [
+      {
+        "id": "hang",
+        "from": 1.0,
+        "to": 0.7,
+        "speed": 0,
+        "ceilingSpeed": 3,
+        "turnRate": 1.2,
+        "holdDistance": 0,
+        "attacks": {
+          "lureGlow": {
+            "range": 14,
+            "overloadPerSecond": 5,
+            "needsLineOfSight": true,
+            "note": "looking at the lure fills Neural Overload"
+          },
+          "drop": {
+            "damage": 40,
+            "radius": 3,
+            "triggerUnderLure": 2.5,
+            "windup": 0.6,
+            "cooldown": 8,
+            "note": "the lure goes still for 0.6 s, then it drops"
+          },
+          "snatch": {
+            "damage": 35,
+            "pinDamagePerSecond": 12,
+            "pin": 2.5,
+            "liftHeight": 6,
+            "freedByDamage": 120,
+            "range": 4,
+            "windup": 0.5,
+            "cooldown": 12,
+            "note": "lifts a host to the ceiling; allies free them by damage, a solo host by melee"
+          }
+        },
+        "note": "it crawls the ceiling and positions the lure over the paths through the cave; shoot the lure or the spines, never stand under it"
+      },
+      {
+        "id": "stalk",
+        "from": 0.7,
+        "to": 0.35,
+        "speed": 5.5,
+        "turnRate": 2.2,
+        "holdDistance": 3,
+        "attacks": {
+          "ambushLunge": {
+            "damage": 55,
+            "range": 8,
+            "windup": 0.35,
+            "cooldown": 6,
+            "fromBehindArc": 120,
+            "note": "only from outside the host's view"
+          },
+          "limbRake": {
+            "damage": 30,
+            "range": 3.5,
+            "windup": 0.5,
+            "cooldown": 3
+          },
+          "vanish": {
+            "afterAttack": true,
+            "climbTime": 1.0,
+            "hiddenFor": 3,
+            "reappear": "behind the host, in the darkest patch"
+          }
+        },
+        "note": "drops to the floor and hunts in silence; after every lunge it climbs into the dark and comes back from behind; limbs can now be severed"
+      },
+      {
+        "id": "unravel",
+        "from": 0.35,
+        "to": 0.0,
+        "speed": 7,
+        "turnRate": 3,
+        "holdDistance": 0,
+        "bodyDamageMultiplier": 1.4,
+        "attacks": {
+          "shriek": {
+            "radius": 18,
+            "damage": 10,
+            "overload": 25,
+            "stagger": 0.8,
+            "windup": 0.9,
+            "cooldown": 12,
+            "note": "the chest slit opens and the spines stand out: shoot them"
+          },
+          "ceilingCollapse": {
+            "count": 4,
+            "radius": 3,
+            "damage": 60,
+            "warning": 1.5,
+            "cooldown": 15,
+            "note": "dust and spores fall first where each chunk will land"
+          },
+          "frenzyLunge": {
+            "damage": 45,
+            "range": 10,
+            "windup": 0.4,
+            "cooldown": 2.5,
+            "chain": 3
+          }
+        },
+        "note": "it comes apart: skin splits, it shrieks, the ceiling falls; fast and loud now"
+      }
+    ],
+    "enrage": {
+      "after": 360,
+      "effect": "web-roots seal the cave mouths; ceiling collapse every 6 s until it dies"
+    },
+    "rewards": {
+      "dna": 350,
+      "xp": 900,
+      "container": "vigilCocoon",
+      "harvest": {
+        "item": "vigilLure",
+        "time": 5,
+        "noise": 30
+      }
+    },
+    "respawn": "every raid"
   }
 }
