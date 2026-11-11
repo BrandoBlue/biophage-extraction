@@ -1,6 +1,6 @@
 # 02 Host classes
 
-The **Neuro-Infiltrator (medium) is the 100% baseline**; the others are stated against it. Only the Infiltrator is playable in Spore; the other two arrive in Host.
+The **Neuro-Infiltrator (medium) is the 100% baseline**; the others are stated against it. Only the Infiltrator is playable in Spore; the other two arrive in Host. Kits, Synapse trees and evolutions: [host-milestone](host-milestone.md). The Wraith speed call is one value, `venomWraith.moveSpeed` (7.3 = +40%, 9.4 = +80%).
 
 ## Final stats (`data/classes.json`)
 | | Venom-Wraith (light) | Neuro-Infiltrator (medium) | Gore-Behemoth (heavy) |
@@ -13,7 +13,7 @@ The **Neuro-Infiltrator (medium) is the 100% baseline**; the others are stated a
 | Impact vulnerability | +30% taken | 0 | −25% taken (shell armour) |
 | Toxin resistance | 0 | +20% | 0 |
 | Extract channel | ×0.7 | ×1.0 | ×2.0 |
-| Stash slots | 40 | 60 | 80 |
+| Stash slots (superseded: the stash is shared by the profile) | 40 | 60 | 80 |
 | Internal-cavity grid | 4×3 | 5×4 | 6×5 |
 | Mutagen cost | ×1.0 | ×1.15 | ×1.0 |
 | Special negative | Low HP, fragile | Overload decays at half speed in toxic gas | Cannot use stealth paths, slow extract |

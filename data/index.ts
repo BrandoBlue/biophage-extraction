@@ -12,6 +12,12 @@ import raidJson from './raid.json';
 import virusesJson from './viruses.json';
 import nestsJson from './nests.json';
 import profileJson from './profile.json';
+import kitsJson from './kits.json';
+import synapseJson from './synapse.json';
+import progressionJson from './progression.json';
+import viralLabJson from './viral-lab.json';
+import marketJson from './market.json';
+import rivalsJson from './rivals.json';
 
 export type Range = [number, number];
 
@@ -27,6 +33,7 @@ export interface HostClass {
   impactVulnerability: number;
   toxinResistance: number;
   extractTimeMultiplier: number;
+  /** Deprecated from Host: the stash is shared by the profile (profile.json); kept for compatibility. */
   stashSlots: number;
   cavityGrid: Range;
   overloadDecayMultiplier: number;
@@ -169,6 +176,18 @@ export interface RaidRules {
     extracts: (Placement & { label: string; opensAt: number })[];
     corpseHarvest: boolean;
   };
+  host: {
+    playableRadius: number;
+    raidTime: number;
+    biomes: (Placement & { id: string; label: string; threat: number; look: string })[];
+    spawns: { radius: number; count: number; minSeparation: number };
+    extracts: {
+      pool: Placement[]; openAtStart: number; shiftEvery: number; warnBeforeShift: number; maxOpen: number;
+      paidExtract: { bearing: number; costDna: number; extractTime: number };
+    };
+    anomalies: { id: string; label: string; chancePerRaid: number; duration?: number; radius?: number; effect: Record<string, unknown>; look: string }[];
+    rivals: boolean;
+  };
 }
 
 const strip = <T>(o: object): T => {
@@ -239,4 +258,89 @@ export function layoutPosition(p: Placement, radius = RAID.playableRadius): [num
   const b = (p.bearing * Math.PI) / 180;
   const r = p.radius * radius;
   return [Math.sin(b) * r, -Math.cos(b) * r];
+}
+
+// ---------- Host milestone (docs/gdd/host-milestone.md) ----------
+
+export interface KitAbility { label: string; slot: number; overloadCost?: number; cooldown?: number; see?: string; [tunable: string]: unknown }
+export interface ClassKit {
+  weapon: { id: string; label: string; kind: string; [tunable: string]: unknown };
+  melee: { id: string; label: string; damage: number; cooldown: number; range: number; [tunable: string]: unknown };
+  abilities: Record<string, KitAbility>;
+  passives: Record<string, string>;
+}
+
+/** Key of PATH in src/render/palette.ts. */
+export type PathColour = 'stealth' | 'melee' | 'viral' | 'dna';
+export interface SynapseNode { id: string; label: string; dna: number; mutagens: number; level: number; effect: Record<string, unknown>; visual: string }
+export interface SynapsePath { label: string; colour: PathColour; nodes: SynapseNode[] }
+
+export interface Evolution {
+  id: string; label: string; level: number; milestone: 'host' | 'apex';
+  statDelta?: Record<string, number>; grants?: Record<string, unknown>;
+  /** Art brief for Creature & Mutation. */
+  body: string;
+}
+export interface Progression {
+  xp: { kill: Record<string, number>; extract: number; extractPerHaulDna: number; death: number; harvest: number; nestDestroyed: number };
+  /** Total XP needed to reach level index+1. */
+  levels: number[];
+  evolutions: Record<ClassId, Evolution[]>;
+}
+
+export interface ViralLab {
+  genomeSlots: number; permanentStrength: number;
+  cost: Record<string, { dna: number; mutagens: number }>;
+  viralLoad: { perStrain: number; stable: Record<ClassId, number> };
+  instability: { id: string; label: string; effect: Record<string, unknown>; look: string }[];
+  purge: { dna: number; description: string };
+}
+
+export interface FleshMarket {
+  vendor: { label: string; brief: string };
+  buyRate: number; stockSize: number; rotateHours: number;
+  mood: { start: number; min: number; max: number; priceMultiplierPerStep: number; likes: ItemKind[]; dislikes: ItemKind[]; perLikedSale: number; perDislikedSale: number };
+  catalogue: { item: string; price: number; weight: number }[];
+  contraband: Record<string, Item & Record<string, unknown>>;
+}
+
+export interface RivalRules {
+  perRaid: Range; spawnDelay: Range;
+  classMix: Record<ClassId, number>;
+  personalities: Record<string, { weight: number; aggression: number; lootPriority: number; extractAt: number; fleeBelow: number; ambushNearExtract?: boolean }>;
+  skill: { reactionTime: Range; aimError: Range; aimErrorPerMetre: number; strafe: boolean };
+  loadoutTiers: { weight: number; items: { item: string; count: number }[] }[];
+  kill: { dropsCavity: boolean; stealKillDnaFraction: number };
+  evolutionChance: number;
+}
+
+const synapseData = strip<Record<string, unknown>>(synapseJson);
+export const KITS = strip<Record<ClassId, ClassKit>>(kitsJson);
+export const SYNAPSE = synapseData as Record<ClassId, Record<string, SynapsePath>>;
+export const PROGRESSION = strip<Progression>(progressionJson);
+export const VIRAL_LAB = strip<ViralLab>(viralLabJson);
+export const MARKET = strip<FleshMarket>(marketJson);
+export const RIVALS = strip<RivalRules>(rivalsJson);
+
+/** Every item id that exists: loot items plus Flesh Market contraband. */
+export function itemDef(id: string): Item | undefined {
+  return LOOT.items[id] ?? MARKET.contraband[id];
+}
+
+/** Class level (1-based) for a total XP. */
+export function levelForXp(xp: number): number {
+  let lvl = 0;
+  while (lvl < PROGRESSION.levels.length && xp >= PROGRESSION.levels[lvl]) lvl++;
+  return Math.max(1, lvl);
+}
+
+/** Mutagen cost of a Synapse node for a class, after the class multiplier (rounded up). */
+export function nodeMutagenCost(cls: ClassId, node: SynapseNode): number {
+  return Math.ceil(node.mutagens * CLASSES[cls].mutagenCostMultiplier);
+}
+
+/** Flesh Market sell price of a catalogue entry at a given mood. */
+export function marketPrice(basePrice: number, mood: number): number {
+  const m = Math.max(MARKET.mood.min, Math.min(MARKET.mood.max, mood));
+  return Math.round(basePrice * (1 + m * MARKET.mood.priceMultiplierPerStep));
 }

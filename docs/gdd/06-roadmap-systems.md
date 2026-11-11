@@ -1,6 +1,6 @@
 # 06 Systems after Spore: decisions already made
 
-Short on purpose: these become full docs and data when their iteration starts. Recorded now so Spore code does not paint later systems into a corner.
+Short on purpose: these become full docs and data when their iteration starts. Larva is now fully specced in [larva-milestone](larva-milestone.md) and Host in [host-milestone](host-milestone.md); where they differ from this page, they win. Recorded now so Spore code does not paint later systems into a corner.
 
 ## Currencies and resources
 - **DNA:** the banked currency. Earned by extracting kills and DNA-valued items. Spent on the Genetic Synapse tree and at the Flesh Market.

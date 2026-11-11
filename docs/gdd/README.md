@@ -19,7 +19,8 @@ Owned by the Game Design department. Short living docs, one per system. **Every 
 | [05-raid-and-extraction](05-raid-and-extraction.md) | Raid timer, layout, spawns, Bio-Pod loot, Seed Spire extraction, death |
 | [06-roadmap-systems](06-roadmap-systems.md) | Decisions already made for Larva and Host: inventory, stash, viruses, Synapse tree, Flesh Market, PvP |
 | [spore-milestone](spore-milestone.md) | The Spore feature list with acceptance criteria per department |
-| [larva-milestone](larva-milestone.md) | **The Larva feature list: stash, cavities, harvesting, viruses, three new creatures, the Brood Heart** |
+| [larva-milestone](larva-milestone.md) | The Larva feature list: stash, cavities, harvesting, viruses, three new creatures, the Brood Heart |
+| [host-milestone](host-milestone.md) | **The Host feature list: three class kits, Synapse trees, first evolutions, Viral Lab, Flesh Market, rival hosts, the 1 km map, three more creatures** |
 
 ## Data files
 | File | Contents | Main readers |
@@ -34,6 +35,12 @@ Owned by the Game Design department. Short living docs, one per system. **Every 
 | `data/viruses.json` | Mid-raid viruses, injection rules, mutation art briefs | Gameplay, Creatures, Rendering |
 | `data/nests.json` | Brood Heart waves and rewards | AI, Gameplay |
 | `data/profile.json` | Persistent profile, stash, gut pouch, death rules | Gameplay, UI |
+| `data/kits.json` | Class weapons, melee, abilities, passives (Host) | Gameplay, Creatures, UI |
+| `data/synapse.json` | Genetic Synapse trees with a visual brief per node | Gameplay, Creatures, UI |
+| `data/progression.json` | XP, levels, evolutions with body briefs | Gameplay, Creatures, UI |
+| `data/viral-lab.json` | Virus integration, Viral Load, instabilities | Gameplay, UI |
+| `data/market.json` | The Gullet Broker: catalogue, mood, contraband | Gameplay, UI, Audio |
+| `data/rivals.json` | Rival host bots | AI |
 
 `tests/data.test.ts` checks cross-references and the balance targets stated in these docs, so a tuning change that breaks a design promise fails CI.
 

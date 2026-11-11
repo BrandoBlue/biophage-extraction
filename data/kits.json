@@ -1,0 +1,166 @@
+{
+  "_note": "Host milestone class kits: innate weapon, melee, abilities (slot 1-2 class abilities, slots 3-5 come from the Synapse tree and viruses), passive traits. Numbers follow the conventions of weapons.json and abilities.json (m, s, Biomass). Base stats stay in classes.json; venomWraith.moveSpeed there is the single value for the Wraith speed call (7.3 = +40%; 9.4 = the brief's +80%). See docs/gdd/host-milestone.md.",
+  "venomWraith": {
+    "weapon": {
+      "id": "venomLancet",
+      "label": "Venom Lancet",
+      "kind": "projectile",
+      "fantasy": "a segmented ovipositor that runs along the right forearm and spits glassy venom needles",
+      "damage": 9,
+      "fireRate": 11,
+      "magazine": 36,
+      "reloadTime": 1.6,
+      "projectileSpeed": 120,
+      "spread": {
+        "hip": 1.2,
+        "ads": 0.25
+      },
+      "range": {
+        "falloffStart": 20,
+        "falloffEnd": 45,
+        "minMultiplier": 0.5
+      },
+      "venom": {
+        "damagePerSecond": 3,
+        "duration": 3,
+        "maxStacks": 5
+      },
+      "weakPointMultiplier": 2.2
+    },
+    "melee": {
+      "id": "bladeForearms",
+      "label": "Blade Forearms",
+      "damage": 45,
+      "backstabMultiplier": 2.5,
+      "cooldown": 0.7,
+      "range": 2.6,
+      "lunge": 4
+    },
+    "abilities": {
+      "phaseDash": {
+        "label": "Phase Dash",
+        "slot": 1,
+        "overloadCost": 20,
+        "cooldown": 5,
+        "distance": 9,
+        "duration": 0.25,
+        "invulnerable": true,
+        "charges": 2
+      },
+      "wingGlide": {
+        "label": "Wing Glide",
+        "slot": 2,
+        "overloadCost": 0,
+        "overloadPerSecond": 12,
+        "cooldown": 0,
+        "fallSpeed": 2.5,
+        "forwardSpeed": 11,
+        "noiseMultiplier": 0.3
+      }
+    },
+    "passives": {
+      "silentSprint": "sprinting footsteps use the walk noise radius",
+      "rapidExtraction": "extract channel ×0.7 (classes.json)"
+    }
+  },
+  "neuroInfiltrator": {
+    "weapon": {
+      "id": "synapseBurster",
+      "label": "Synapse Burster",
+      "kind": "projectile",
+      "see": "weapons.json"
+    },
+    "melee": {
+      "id": "cranialButt",
+      "label": "Cranial Spike",
+      "damage": 30,
+      "cooldown": 0.9,
+      "range": 2.2,
+      "lunge": 1.5
+    },
+    "abilities": {
+      "neuralPulse": {
+        "label": "Psych-Wave Pulse",
+        "slot": 1,
+        "see": "abilities.json"
+      },
+      "bioRadarTotem": {
+        "label": "Bio-Radar Bulb",
+        "slot": 2,
+        "overloadCost": 30,
+        "cooldown": 30,
+        "duration": 40,
+        "radius": 30,
+        "biomass": 40,
+        "pingInterval": 2,
+        "maxPlaced": 1
+      }
+    },
+    "passives": {
+      "weaponHandling": "reload and ADS ×0.85 time on every weapon",
+      "toxinResistance": "+20% (classes.json)"
+    }
+  },
+  "goreBehemoth": {
+    "weapon": {
+      "id": "marrowCannon",
+      "label": "Marrow Cannon",
+      "kind": "pellet",
+      "fantasy": "a ribcage on the left arm that cracks open and fires a fan of bone shards grown in the marrow",
+      "pellets": 9,
+      "damagePerPellet": 11,
+      "fireRate": 1.4,
+      "magazine": 6,
+      "reloadTime": 2.8,
+      "projectileSpeed": 70,
+      "spread": {
+        "hip": 6,
+        "ads": 3.5
+      },
+      "range": {
+        "falloffStart": 8,
+        "falloffEnd": 25,
+        "minMultiplier": 0.3
+      },
+      "weakPointMultiplier": 1.6,
+      "knockback": 3
+    },
+    "melee": {
+      "id": "crushingSlam",
+      "label": "Crushing Slam",
+      "damage": 80,
+      "cooldown": 1.6,
+      "range": 3.2,
+      "radius": 2.5,
+      "staggers": true
+    },
+    "abilities": {
+      "crashThrough": {
+        "label": "Crash Through",
+        "slot": 1,
+        "overloadCost": 35,
+        "cooldown": 10,
+        "distance": 14,
+        "speed": 13,
+        "impactDamage": 60,
+        "breaksBarriers": true,
+        "knockback": 10
+      },
+      "shellBrace": {
+        "label": "Shell Brace",
+        "slot": 2,
+        "overloadCost": 0,
+        "overloadPerSecond": 15,
+        "cooldown": 3,
+        "frontDamageMultiplier": 0.2,
+        "moveMultiplier": 0.35,
+        "arc": 140
+      }
+    },
+    "passives": {
+      "ignoresMinorHits": "hits under 8 damage do not cause flinch or slow",
+      "mutationAbsorbingSkin": "virus side-effects ×0.5",
+      "noStealthPaths": "cannot fit through crawl tunnels"
+    }
+  }
+}

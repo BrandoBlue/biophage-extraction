@@ -1,0 +1,136 @@
+{
+  "_note": "Class levels and evolutions (Host introduces level-ups and the first evolution per class; later evolutions are Apex). XP is per class. Evolution unlock levels follow reference 02. An evolution is a new body form: stat deltas plus a full new silhouette.",
+  "xp": {
+    "kill": {
+      "needlemaw": 10,
+      "oculimoth": 4,
+      "bilecantor": 35,
+      "glasswalker": 30,
+      "mournback": 120,
+      "rivalHost": 150,
+      "titheWeaver": 30,
+      "huskMimic": 40,
+      "lumenGrazer": 300
+    },
+    "extract": 200,
+    "extractPerHaulDna": 0.25,
+    "death": 40,
+    "harvest": 5,
+    "nestDestroyed": 250
+  },
+  "levels": [
+    0,
+    600,
+    1500,
+    2800,
+    4600,
+    7000,
+    10000,
+    14000,
+    19000,
+    25000,
+    32000,
+    40000,
+    49000,
+    59000,
+    70000,
+    82000,
+    95000,
+    109000,
+    124000,
+    140000
+  ],
+  "evolutions": {
+    "venomWraith": [
+      {
+        "id": "acidParasite",
+        "label": "Acid Parasite",
+        "level": 2,
+        "milestone": "host",
+        "statDelta": {
+          "biomass": 10,
+          "moveSpeed": 0
+        },
+        "grants": {
+          "venomLancet.acid": true
+        },
+        "body": "The Wraith's abdomen elongates into a translucent acid bladder you can see sloshing green; the wings shrink to stubs edged with acid-burn lace; the blades corrode into pitted hooks that smoke. Mixes: wasp, sea slug, pitcher plant."
+      },
+      {
+        "id": "shadowStalker",
+        "label": "Shadow-Stalker",
+        "level": 5,
+        "milestone": "apex",
+        "body": "Light-eating velvet body, eyes that only glow when it strikes."
+      },
+      {
+        "id": "xenoflyer",
+        "label": "Xenoflyer",
+        "level": 12,
+        "milestone": "apex",
+        "body": "Four huge veined wings, true flight, a tail like a dragonfly's that ends in a stinger."
+      }
+    ],
+    "neuroInfiltrator": [
+      {
+        "id": "neuroHound",
+        "label": "Neuro-Hound",
+        "level": 3,
+        "milestone": "host",
+        "statDelta": {
+          "moveSpeed": 0.6,
+          "biomass": 20
+        },
+        "grants": {
+          "neuralPulse.markedTargetsTakeDamage": 1.15
+        },
+        "body": "Drops to a four-legged lope: the bulbous cranium stretches forward into a long eyeless snout ringed with sensory antennae that sweep like a radar dish, the spine shows a ridge of glowing nerve nodes, and the gun arm becomes a forelimb with the Burster grafted along it. Mixes: star-nosed mole, greyhound, electric eel."
+      },
+      {
+        "id": "sporeCaster",
+        "label": "Spore-Caster",
+        "level": 6,
+        "milestone": "apex",
+        "body": "A walking fungal bloom: caps and gills cover the back and fire spore mortars."
+      },
+      {
+        "id": "psychWarlock",
+        "label": "Psych-Warlock",
+        "level": 15,
+        "milestone": "apex",
+        "body": "Levitating, skull split into a halo of floating neural lobes linked by light."
+      }
+    ],
+    "goreBehemoth": [
+      {
+        "id": "crustaceanGrunt",
+        "label": "Crustacean Grunt",
+        "level": 1,
+        "milestone": "host",
+        "statDelta": {
+          "biomass": 40,
+          "moveSpeed": -0.1
+        },
+        "grants": {
+          "impactVulnerability": -0.35,
+          "marrowCannon.knockback": 5
+        },
+        "body": "The raw red muscle is sealed under segmented crab-plate that clicks as it moves; one forearm swells into a heavy crushing claw that holds the Marrow Cannon, barnacle-like bone growths crust the shoulders, and eye stalks rise from the bone crown. Mixes: mantis shrimp, rhinoceros, coral."
+      },
+      {
+        "id": "goreGorgon",
+        "label": "Gore-Gorgon",
+        "level": 8,
+        "milestone": "apex",
+        "body": "A head of writhing flesh-serpents, each with a mouth; muscle exposed and steaming."
+      },
+      {
+        "id": "juggernautTitan",
+        "label": "Juggernaut-Titan",
+        "level": 20,
+        "milestone": "apex",
+        "body": "Twice the size, a walking fortress of fused bone, glowing furnace heart in the chest."
+      }
+    ]
+  }
+}

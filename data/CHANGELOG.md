@@ -2,6 +2,10 @@
 
 Every tuning change to `data/*.json`, newest first, with the reason.
 
+## Host spec (2026-11-11)
+- New tables: kits, synapse, progression, viral-lab, market, rivals, `RAID.host`; Tithe Weaver, Husk Mimic and Lumen Grazer added with their organs. No Spore or Larva values changed.
+- `classes.json` `stashSlots` is deprecated: the stash is shared by the profile (see Larva).
+
 ## Spore tuning pass 1 (2026-11-11)
 Measured with `scripts/playtest.mjs` (headless bot: beelines to the Bio-Pod then the Seed Spire, sprints under 70 Overload, stops to shoot threats with aim error 0.5 m + 5 cm per metre, heals under 80 Biomass).
 
