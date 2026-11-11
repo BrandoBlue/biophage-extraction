@@ -128,7 +128,7 @@ export function zoneRock(opts: { veinColour?: string; mossColour?: string; scale
       diffuseColor.rgb = col;
       roughnessFactor = mix(roughnessFactor, 0.35, mossMask * colony);
       totalEmissiveRadiance += uVein * veinMask * pulse * 0.7 + uMossGlow * specks * 1.2 + uMossGlow * mossMask * 0.02
-        + rivCol * riv * pulse * 0.9 + mix(uVein, uMossGlow, colony) * fres * mossMask * 0.12;
+        + rivCol * riv * pulse * 0.4 + mix(uVein, uMossGlow, colony) * fres * mossMask * 0.12;
       // Edges facing down darken to void; reads as mass hanging in space.
       diffuseColor.rgb *= mix(0.35, 1.0, smoothstep(-0.8, 0.2, vBioNormal.y));
     `,
@@ -151,7 +151,10 @@ export function fungusCap(glow: string = ZONE7.cyan): THREE.MeshPhysicalMaterial
       #endif
       float under = (1.0 - smoothstep(-0.4, 0.1, vBioNormal.y));           // gills face down
       float radial = length(vBioLocal.xz);
-      float gills = 0.5 + 0.5 * sin(atan(vBioLocal.z, vBioLocal.x) * 64.0);
+      // Gill ridges fade out where they get finer than a pixel, so far caps never shimmer into moire.
+      float gillA = atan(vBioLocal.z, vBioLocal.x) * 48.0;
+      float gillAA = 1.0 - clamp(length(vec2(dFdx(gillA), dFdy(gillA))) * 0.6 - 0.2, 0.0, 1.0);
+      float gills = 0.5 + 0.5 * sin(gillA) * gillAA;
       float spots = (1.0 - smoothstep(0.12, 0.3, bioCells(vBioLocal * 5.0 + vBioSeed)));
       float rim = smoothstep(0.75, 1.02, radial) * (1.0 - under);   // luminous lip
       float mottling = bioFbm(vBioLocal * 4.0 + vBioSeed);
@@ -196,7 +199,7 @@ export function crystal(glow: string = ZONE7.violet): THREE.MeshPhysicalMaterial
       #endif
       float core = bioFbm(vBioLocal * 3.0 + vBioSeed + bioTime * 0.15);
       float tip = smoothstep(0.0, 1.0, vBioLocal.y);
-      totalEmissiveRadiance = glowCol * (0.08 + core * 0.4 + tip * 0.7);
+      totalEmissiveRadiance = glowCol * (0.03 + core * 0.18 + tip * tip * 0.6);
     `,
   });
 }
@@ -343,6 +346,58 @@ export function alienEye(iris: string, sclera: string): THREE.MeshPhysicalMateri
       diffuseColor.rgb *= 1.0 - pupil;
       float dilate = 0.85 + 0.15 * sin(bioTime * 0.9 + vBioSeed.y);
       totalEmissiveRadiance = emissive * irisMask * (1.0 - pupil) * (streaks * 0.8 + ring * 0.7) * dilate + uCap * caps * 0.25;
+    `,
+  });
+}
+
+/**
+ * Grown architecture: carapace and bone plates in relief for structure faces 5 to 20 m across (towers,
+ * arena walls, nests). World-space, projected on the face's dominant axis, so plain boxes read as built
+ * without UVs. Plates are irregular (Voronoi), each with faint growth rings like a shell; seams are deep,
+ * dark and show pale bone; weathering streaks run down the walls. Glow is limited to rare, thin capillaries
+ * in the seams (and passes through bioGlow).
+ */
+export function grownWall(opts: { base?: string; seam?: string; vein?: string; plate?: number } = {}): THREE.MeshStandardMaterial {
+  const mat = new THREE.MeshStandardMaterial({ color: opts.base ?? ZONE7_SHADE.rock, roughness: 0.7, metalness: 0.05, emissive: opts.vein ?? ZONE7.cyan });
+  return bioSurface(mat, {
+    uniforms: { uBase: u(opts.base ?? ZONE7_SHADE.rock), uSeamCol: u(opts.seam ?? ZONE7_SHADE.rockDeep), uBone: u(HIVE.bone), uPlate: { value: opts.plate ?? 1.6 } },
+    declarations: 'uniform vec3 uBase, uSeamCol, uBone; uniform float uPlate;\n',
+    fragment: /* glsl */ `
+      vec3 an = abs(normalize(vBioNormal));
+      vec2 q = an.y > max(an.x, an.z) ? vBioWorld.xz : (an.x > an.z ? vBioWorld.zy : vBioWorld.xy);
+      // Plates stretch horizontally a little, like overlapping scutes.
+      vec2 g = q / uPlate * vec2(0.8, 1.0);
+      vec2 ci = floor(g), cf = fract(g);
+      float f1 = 8.0, f2 = 8.0; vec2 best = vec2(0.0);
+      for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+        vec2 o = vec2(float(x), float(y));
+        vec2 jp = o + vec2(bioHash(vec3(ci + o, 1.0)), bioHash(vec3(ci + o, 2.0))) * 0.85 - cf;
+        float d = dot(jp, jp);
+        if (d < f1) { f2 = f1; f1 = d; best = ci + o; } else if (d < f2) { f2 = d; }
+      }
+      float edge = sqrt(f2) - sqrt(f1);
+      float id = bioHash(vec3(best, 5.0));
+      float seam = 1.0 - smoothstep(0.03, 0.12, edge);
+      float bevel = smoothstep(0.04, 0.35, edge);
+      float rings = 0.5 + 0.5 * sin(sqrt(f1) * 40.0 + id * 6.0);
+      float grain = bioFbm(vec3(q * 2.2, id * 7.0));
+      float fine = bioNoise(vec3(q * 11.0, 2.0));
+      float streak = bioNoise(vec3(q.x * 5.0, q.y * 0.35, 5.0)) * (1.0 - an.y);
+      vec3 plateCol = mix(uBase, mix(uBase, uBone, 0.3), id * 0.6) * (0.6 + grain * 0.6) * (0.92 + fine * 0.16) * (0.93 + rings * 0.07 * bevel);
+      plateCol *= 1.0 - streak * 0.3;
+      vec3 seamCol = mix(uSeamCol, uBone * 0.35, smoothstep(0.02, 0.07, edge) * 0.6);
+      diffuseColor.rgb = mix(seamCol, plateCol, bevel);
+      roughnessFactor = mix(0.9, 0.5, bevel * (0.4 + grain * 0.6));
+      // Relief: plates dome up from their seams; growth rings and grain add fine bumps.
+      float hgt = (bevel * 0.7 + rings * 0.04 * bevel + grain * 0.2 + fine * 0.04) * 0.14;
+      vec3 sx = dFdx(-vViewPosition), sy = dFdy(-vViewPosition);
+      vec3 r1 = cross(sy, normal), r2 = cross(normal, sx);
+      float det = dot(sx, r1) * (gl_FrontFacing ? 1.0 : -1.0);
+      vec3 grad = sign(det) * (dFdx(hgt) * r1 + dFdy(hgt) * r2);
+      normal = normalize(abs(det) * normal - grad);
+      // Rare capillaries in the seams.
+      float cap = seam * bioVein(vec3(q * 0.9, 3.0)) * step(0.7, bioHash(vec3(best, 9.0)));
+      totalEmissiveRadiance = emissive * cap * (0.5 + 0.3 * sin(bioTime * 1.2 + id * 6.0));
     `,
   });
 }
