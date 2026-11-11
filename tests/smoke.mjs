@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 import { freezeAndScreenshot } from './lib/harness.mjs';
 
+const WALK_FRAMES = 15;
 const release = process.argv.includes('--release');
 const label = release ? 'release' : 'preview';
 const PREVIEW_URL = 'http://localhost:4173/';
@@ -36,7 +37,8 @@ try {
     executablePath: process.env.CHROMIUM_PATH || undefined,
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
   });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+  // 960x540 keeps the software-rendered raid above ~1 fps on CI runners; look-dev captures cover full-res visuals.
+  const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -55,7 +57,9 @@ try {
   await page.keyboard.down('KeyW');
   const from = await page.evaluate(() => window.__biophage.frames);
   const tWalk = Date.now();
-  await page.waitForFunction((f) => window.__biophage.frames > f + 40, from, { timeout: 120000 });
+  // A short walk proves input reaches the host; frame time is capped at 50 ms so 15 frames move ~4 m.
+  // The timeout is generous because CI renders on the CPU at around 0.3-1 fps once the raid is up.
+  await page.waitForFunction((t) => window.__biophage.frames > t, from + WALK_FRAMES, { timeout: 600000 });
   const walkMs = Date.now() - tWalk;
   await page.keyboard.up('KeyW');
   const end = await page.evaluate(() => window.__biophage.position);
@@ -71,7 +75,7 @@ try {
   if (moved < 1) fail(`player did not move (moved ${moved.toFixed(2)} m)`);
 
   // Software-rendered fps says nothing about a real GPU; it is logged to spot big regressions between runs.
-  const report = { target: label, build, firstFrameMs, swiftshaderFps: +(40000 / walkMs).toFixed(1), movedM: +moved.toFixed(2), screenshot: shot };
+  const report = { target: label, build, firstFrameMs, swiftshaderFps: +((WALK_FRAMES * 1000) / walkMs).toFixed(1), movedM: +moved.toFixed(2), screenshot: shot };
   writeFileSync(`tests/out/smoke-${label}.json`, JSON.stringify(report, null, 2));
   if (process.env.GITHUB_STEP_SUMMARY) {
     appendFileSync(process.env.GITHUB_STEP_SUMMARY,

@@ -17,6 +17,7 @@ import { freezeAndScreenshot } from './lib/harness.mjs';
 const release = process.argv.includes('--release');
 const LOOT = JSON.parse(readFileSync('data/loot.json', 'utf8'));
 const PROFILE = JSON.parse(readFileSync('data/profile.json', 'utf8'));
+const HOST_BIOMASS = JSON.parse(readFileSync('data/classes.json', 'utf8')).neuroInfiltrator.biomass;
 const starter = (item) => PROFILE.newProfile.stash.find((k) => k.item === item).count;
 const label = release ? 'release' : 'preview';
 const PREVIEW_URL = 'http://localhost:4173/';
@@ -123,6 +124,16 @@ try {
   log(`gore live: ${s.gore.splats} splats, ${s.gore.bursts} bursts`);
   log(`killed a Needlemaw; kills ${s.kills}, kill DNA ${s.carried.dna}, biomass ${Math.round(s.biomass)}`);
 
+  // --- Harvest the Needlemaw's gland: hold E on the corpse.
+  const corpse = s.enemies.find((x) => x.id === pick.id);
+  await call('teleport', corpse.position[0] + 1, corpse.position[2]);
+  await frames(2);
+  await call('hold', 'KeyE', true);
+  for (let i = 0; i < 60; i++) { await frames(3); s = await state(); if (s.harvested.includes(pick.id)) break; }
+  await call('hold', 'KeyE', false);
+  if (!s.harvested.includes(pick.id) || !s.carried.items.some((i) => i.item === 'needlemawGland')) await fail(`harvest failed: ${JSON.stringify(s.carried.items)}`);
+  log('harvested a Needlemaw gland');
+
   // Clear the island so the rest of the script is deterministic.
   await call('killAll');
   await frames(5);
@@ -137,6 +148,23 @@ try {
   if (!s.pods[0].opened) await fail('Bio-Pod did not open while holding E');
   if (!s.carried.items.length) await fail('Bio-Pod gave no items');
   log(`Bio-Pod: ${s.carried.items.map((i) => `${i.count}x ${i.item}`).join(', ')}; haul ${s.carried.value}`);
+
+  // --- In-raid inventory: put the gland into the open pod and take it back (UI's Tab overlay API).
+  const gland = s.carried.cavity.findIndex((e) => e.item === 'needlemawGland');
+  if ((await call('transfer', 'cavity', gland, 'pod')) !== 1) await fail('could not move the gland into the open pod');
+  await frames(1);
+  s = await state();
+  if (s.carried.items.some((i) => i.item === 'needlemawGland')) await fail('gland still carried after moving it to the pod');
+  if ((await call('transfer', 'pod', 0, 'cavity')) !== 1) await fail('could not take the gland back from the pod');
+
+  // --- Inject the Adrenaline Virus: 3 s channel, then it takes hold and lowers max Biomass.
+  const vials = (st) => st.carried.items.filter((i) => i.item === 'adrenalineVirus').reduce((n, i) => n + i.count, 0);
+  const vialsBefore = vials(s);
+  await call('give', 'adrenalineVirus', 1);
+  if (!(await call('inject', 'adrenalineVirus'))) await fail('injection did not start');
+  for (let i = 0; i < 40; i++) { await frames(3); s = await state(); if (s.virus) break; }
+  if (s.virus !== 'adrenalineVirus' || !(s.maxBiomass < HOST_BIOMASS) || vials(s) !== vialsBefore) await fail(`virus did not take hold: ${s.virus}, max ${s.maxBiomass}`);
+  log(`injected ${s.virus}; max Biomass ${s.maxBiomass}`);
 
   // --- Zone collapse warning must be readable (issue #8): a backed, enlarged banner.
   await call('setTimeLeft', 120.2);

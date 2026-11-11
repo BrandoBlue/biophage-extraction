@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ABILITIES, ABOMINATIONS, CLASSES, HOST, LOOT, RAID, WEAPONS, extractTimeFor, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
+import { ABILITIES, ABOMINATIONS, CLASSES, HOST, LOOT, RAID, VIRUSES, VIRUS_RULES, WEAPONS, extractTimeFor, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
 import { groundHeight, ISLAND_RADIUS, mulberry32 } from '../world/zone7';
 import { Abomination, type AbominationContext, type AbominationKind, type HitSphere } from './abominations';
 import { AbilitySystem } from './abilities';
@@ -8,6 +8,8 @@ import { ExtractionPoint } from './extraction';
 import { Fx, GORE } from './fx';
 import { Carried, type CarriedSnapshot } from './inventory';
 import type { Deployment } from './profile';
+import type { Placed } from './grid';
+import { Injection, SporeInfection, virusForItem, virusModifiers } from './virus';
 import type { Noise } from './perception';
 import { Player } from './player';
 import { Projectiles, segmentSphere, type Projectile } from './projectiles';
@@ -38,6 +40,11 @@ export interface HudState {
   interact: { text: string; progress: number } | null;
   scanner: { x: number; z: number; yaw: number; extract: { x: number; z: number }; pods: { x: number; z: number; opened: boolean }[]; pings: ScannerPing[]; range: number };
   healing: boolean;
+  /** Larva: active virus id, the virus being injected, and channel progress 0..1. */
+  activeVirus: string | null;
+  injecting: string | null;
+  injectProgress: number;
+  harvestProgress: number;
 }
 
 const tmp = new THREE.Vector3();
@@ -82,6 +89,18 @@ export class Raid {
   private debugTrigger: boolean | null = null;
   private debugAim: THREE.Vector3 | null = null;
   private interactTarget: BioPod | null = null;
+  private interactText: { text: string; progress: number } | null = null;
+  /** Mid-raid virus: the injection channel and the active virus (Larva). */
+  readonly injection = new Injection();
+  private injectingItem: string | null = null;
+  private spores = new SporeInfection();
+  private parasites: { mesh: THREE.Mesh; target: Abomination | null; life: number }[] = [];
+  private parasiteMat = new THREE.MeshBasicMaterial({ color: GORE.limeFluid });
+  private parasiteGeo = new THREE.SphereGeometry(0.12, 8, 6);
+  /** Corpse harvesting (Larva). */
+  private harvestTarget: Abomination | null = null;
+  private harvestProgress = 0;
+  private harvested = new Set<number>();
   private healLeft = 0;
   private healRate = 0;
   private useLeft = 0;
@@ -323,13 +342,18 @@ export class Raid {
     gore.splat(this.scene, { point: hit.point, normal, target: hit.object as THREE.Mesh, size: weak ? 0.45 : 0.3, colour });
   }
 
-  private damageCreature(c: Abomination, amount: number, weak: boolean, dir: THREE.Vector3 | null, at: THREE.Vector3, _source: string, sphere?: HitSphere): void {
+  private damageCreature(c: Abomination, amount: number, weak: boolean, dir: THREE.Vector3 | null, at: THREE.Vector3, source: string, sphere?: HitSphere): void {
     if (!c.alive) return;
     const kill = c.damage(amount, dir, sphere);
     this.fx.bleed(at, dir ?? new THREE.Vector3(0, -1, 0), c.fluid, weak ? 12 : 5);
     this.wound(c, at, dir, weak);
     this.bus.emit('hit', { target: c.kind, id: c.id, damage: amount, weakPoint: weak, kill, position: { x: at.x, y: at.y, z: at.z } });
-    if (kill) {
+    if (!kill && this.injection.active === 'plagueStalkerStrain' && source !== 'debug') this.spores.infect(c.id);
+    if (kill) this.onKill(c);
+  }
+
+  private onKill(c: Abomination): void {
+    {
       this.kills++;
       const dna = ABOMINATIONS[c.kind].dnaDrop;
       this.carried.dna += dna;
@@ -346,7 +370,132 @@ export class Raid {
         this.hazards.deathCloud(c.position.x, c.centre.y - 1.5, c.position.z, cloud.radius, cloud.damagePerSecond, cloud.overloadPerSecond, cloud.duration);
       }
       this.bus.emit('creatureDeath', { id: c.id, type: c.kind, position: { x: c.position.x, y: c.position.y, z: c.position.z }, dna });
+      // Plague-Stalker: an infected death spreads spores to its neighbours.
+      if (this.spores.stacksOf(c.id) > 0) {
+        this.spores.clear(c.id);
+        for (const o of this.creatures) if (o.alive && o.position.distanceTo(c.position) <= this.spores.r.spreadOnDeathRadius) this.spores.infect(o.id);
+        this.fx.burst(c.centre.clone(), GORE.violetFluid, 1.2);
+      }
+      if (this.injection.active === 'splicedParasites') this.spawnParasite(c.centre);
     }
+  }
+
+  // ------------------------------------------------------------------ viruses
+  /** Starts injecting the virus stack at `index` of a cavity or pouch zone. Returns false if it cannot. */
+  inject(zone: 'cavity' | 'pouch', index: number): boolean {
+    if (this.phase !== 'raid' || this.injection.injecting) return false;
+    const grid = zone === 'cavity' ? this.carried.cavity : this.carried.pouch;
+    const e = grid.entries[index];
+    const virus = e ? virusForItem(e.item) : null;
+    if (!e || !virus || !this.injection.start(virus)) return false;
+    if (--e.count <= 0) grid.take(e);
+    this.injectingItem = e.item;
+    this.noise(this.player.position, VIRUS_RULES.injectNoise, 'inject');
+    this.bus.emit('virusInjectStart', { virus, time: VIRUS_RULES.injectTime });
+    return true;
+  }
+
+  /** Aborts an injection; the vial goes back into the cavities (or pouch). */
+  cancelInject(): boolean {
+    const virus = this.injection.cancel();
+    if (!virus) return false;
+    if (this.injectingItem) this.carried.add(this.injectingItem, 1);
+    this.injectingItem = null;
+    this.bus.emit('virusInjectCancel', { virus });
+    return true;
+  }
+
+  private onVirus(virus: string): void {
+    this.biomass.scaleMax(virusModifiers(virus).biomassMax);
+    const item = this.injectingItem ?? VIRUSES[virus].item;
+    this.injectingItem = null;
+    this.bus.emit('virusInjected', { virus, item });
+  }
+
+  private spawnParasite(at: THREE.Vector3): void {
+    const mesh = new THREE.Mesh(this.parasiteGeo, this.parasiteMat);
+    mesh.position.copy(at);
+    this.scene.add(mesh);
+    const r = (VIRUSES.splicedParasites.effect as { parasiteOnKill: { lifetime: number } }).parasiteOnKill;
+    this.parasites.push({ mesh, target: null, life: r.lifetime });
+  }
+
+  private updateVirusEffects(dt: number): void {
+    // Spore infection damage over time (no hit gore per tick, just the kill).
+    for (const [id, dmg] of this.spores.update(dt)) {
+      const c = this.creatures.find((x) => x.id === id);
+      if (!c?.alive) { this.spores.clear(id); continue; }
+      if (c.damage(dmg, null)) { this.bus.emit('hit', { target: c.kind, id: c.id, damage: dmg, weakPoint: false, kill: true, position: { x: c.centre.x, y: c.centre.y, z: c.centre.z } }); this.onKill(c); }
+    }
+    // Parasites seek the nearest Abomination and bite once.
+    if (!this.parasites.length) return;
+    const r = (VIRUSES.splicedParasites.effect as { parasiteOnKill: { damage: number; seekRadius: number; speed: number } }).parasiteOnKill;
+    const drain = Number((VIRUSES.splicedParasites.cost as { biomassDrainPerSecondWhileParasiteAlive?: number }).biomassDrainPerSecondWhileParasiteAlive ?? 0);
+    for (let i = this.parasites.length - 1; i >= 0; i--) {
+      const q = this.parasites[i];
+      q.life -= dt;
+      if (!q.target?.alive) {
+        q.target = null;
+        let bd = r.seekRadius;
+        for (const c of this.creatures) { const d = c.alive ? c.centre.distanceTo(q.mesh.position) : Infinity; if (d < bd) { bd = d; q.target = c; } }
+      }
+      let bit = false;
+      if (q.target) {
+        const to = q.target.centre.clone().sub(q.mesh.position);
+        const d = to.length();
+        if (d < 0.7) {
+          this.damageCreature(q.target, r.damage, false, to.normalize(), q.target.centre.clone(), 'parasite');
+          bit = true;
+        } else q.mesh.position.addScaledVector(to, Math.min(1, (r.speed * dt) / d));
+      }
+      if (bit || q.life <= 0) { this.scene.remove(q.mesh); this.parasites.splice(i, 1); }
+    }
+    if (this.parasites.length && drain > 0) {
+      this.biomass.damage(drain * dt);
+      if (this.biomass.dead) this.lose('spliced parasites');
+    }
+  }
+
+  // ------------------------------------------------------------------ in-raid inventory (UI & HUD's Tab overlay)
+  /** The opened Bio-Pod within reach, as the third inventory zone, or null. */
+  openContainer(): { id: string; type: string; items: { item: string; count: number }[] } | null {
+    const pod = this.nearOpenPod();
+    return pod ? { id: pod.id, type: pod.type, items: pod.remaining.map((s) => ({ ...s })) } : null;
+  }
+
+  private nearOpenPod(): BioPod | null {
+    const p = this.player.position;
+    return this.pods.find((q) => q.opened && Math.hypot(q.position.x - p.x, q.position.z - p.z) < 2.4) ?? null;
+  }
+
+  /**
+   * Moves the stack at `index` of zone `from` into zone `to`: at (x, y, rotated) when given, otherwise stacked and
+   * first-fit. 'pod' is the opened Bio-Pod in reach (`openContainer`). Returns how many moved; never drops anything.
+   */
+  transfer(from: 'cavity' | 'pouch' | 'pod', index: number, to: 'cavity' | 'pouch' | 'pod', x?: number, y?: number, rotated = false): number {
+    if (this.phase !== 'raid' || from === to) return 0;
+    const pod = this.nearOpenPod();
+    const grid = (z: string) => (z === 'cavity' ? this.carried.cavity : z === 'pouch' ? this.carried.pouch : null);
+    let src: Placed | { item: string; count: number } | undefined;
+    if (from === 'pod') src = pod?.remaining[index]; else src = grid(from)!.entries[index];
+    if (!src || (to === 'pod' && !pod) || (from === 'pod' && !pod)) return 0;
+    let moved: number;
+    const dst = grid(to);
+    if (dst) {
+      if (x !== undefined && y !== undefined) moved = dst.place(src.item, src.count, x, y, rotated) ? src.count : 0;
+      else moved = src.count - dst.add(src.item, src.count);
+    } else {
+      const s = pod!.remaining.find((r) => r.item === src!.item);
+      if (s) s.count += src.count; else pod!.remaining.push({ item: src.item, count: src.count });
+      moved = src.count;
+    }
+    if (moved <= 0) return 0;
+    src.count -= moved;
+    if (src.count <= 0) {
+      if (from === 'pod') pod!.remaining.splice(index, 1); else grid(from)!.take(src as Placed);
+    }
+    this.bus.emit('inventoryChanged', { from, to, item: src.item, count: moved });
+    return moved;
   }
 
   private lose(cause: string): void {
@@ -409,7 +558,11 @@ export class Raid {
     // Movement and Overload.
     p.canSprint = !this.overload.overloaded && this.useLeft <= 0;
     p.slowed = this.useLeft > 0 ? Number(ABILITIES.clotGel.movementMultiplierWhileUsing ?? 0.6) : 1;
-    p.speedMultiplier = 1;
+    p.speedMultiplier = this.injection.injecting ? VIRUS_RULES.injectMovementMultiplier : 1;
+    const mods = virusModifiers(this.injection.active);
+    p.sprintBoost = mods.sprint;
+    p.footstepScale = mods.footstep;
+    this.overload.decayBoost = mods.overloadDecay;
     const wasOver = this.overload.overloaded;
     p.update(dt);
     if (live && p.sprinting) this.overload.add(HOST.neuralOverload.sprintFillPerSecond * dt);
@@ -428,6 +581,13 @@ export class Raid {
       this.healLeft -= step;
       const h = this.biomass.heal(this.healRate * step);
       if (h > 0) this.bus.emit('healed', { amount: h, biomass: this.biomass.current });
+    }
+
+    // Virus: injection channel, spore infection ticks, parasites.
+    if (live) {
+      const done = this.injection.update(dt);
+      if (done) this.onVirus(done);
+      this.updateVirusEffects(dt);
     }
 
     // Weapon.
@@ -513,6 +673,30 @@ export class Raid {
       } else pod.progress = 0;
     }
 
+    // Corpse harvesting: hold E on a dead Abomination (when no Bio-Pod is in reach).
+    let corpse: Abomination | null = null;
+    if (live && !this.interactTarget) {
+      let bd = 2.6;
+      for (const c of this.creatures) {
+        if (c.alive || this.harvested.has(c.id) || !ABOMINATIONS[c.kind].harvest) continue;
+        const d = Math.hypot(c.position.x - p.position.x, c.position.z - p.position.z);
+        if (d < bd) { bd = d; corpse = c; }
+      }
+    }
+    if (corpse !== this.harvestTarget) { this.harvestTarget = corpse; this.harvestProgress = 0; }
+    if (corpse) {
+      const h = ABOMINATIONS[corpse.kind].harvest!;
+      if (p.keys.has('KeyE')) {
+        if (this.harvestProgress === 0) { this.bus.emit('harvestStart', { type: corpse.kind, time: h.time }); this.noise(corpse.position, h.noise, 'harvest'); }
+        this.harvestProgress = Math.min(1, this.harvestProgress + dt / h.time);
+        this.bus.emit('harvestProgress', { progress: this.harvestProgress });
+        if (this.harvestProgress >= 1) this.harvest(corpse);
+      } else this.harvestProgress = 0;
+    }
+    this.interactText = this.interactTarget
+      ? { text: this.interactTarget.opened ? 'HOLD E · TAKE WHAT IS LEFT' : `HOLD E · TEAR OPEN ${LOOT.containers[this.interactTarget.type].label.toUpperCase()}`, progress: this.interactTarget.progress }
+      : this.harvestTarget ? { text: `HOLD E · HARVEST ${LOOT.items[ABOMINATIONS[this.harvestTarget.kind].harvest!.item].label.toUpperCase()}`, progress: this.harvestProgress } : null;
+
     // Seed Spire.
     if (live) {
       const change = this.extract.update(p.position.x, p.position.z, dt);
@@ -553,6 +737,18 @@ export class Raid {
     const v = best.centre.clone();
     this.camera.worldToLocal(v);
     return v.normalize();
+  }
+
+  private harvest(c: Abomination): void {
+    const item = ABOMINATIONS[c.kind].harvest!.item;
+    this.harvestProgress = 0;
+    if (this.carried.add(item, 1) > 0) { this.bus.emit('cavityFull', { items: [{ item, count: 1 }] }); return; }
+    this.harvested.add(c.id);
+    this.harvestTarget = null;
+    const colour = `#${c.fluid.getHexString()}`;
+    gore.burst(this.scene, { point: c.centre.clone(), colour, count: 50, speed: 4 });
+    this.bus.emit('harvestDone', { item, type: c.kind });
+    this.bus.emit('pickup', { items: [{ item, count: 1 }], dna: 0, source: c.kind });
   }
 
   private openPod(pod: BioPod): void {
@@ -649,7 +845,6 @@ export class Raid {
   hud(): HudState {
     const p = this.player.position;
     const w = this.weapon;
-    const nearestPod = this.interactTarget;
     return {
       phase: this.phase,
       biomass: this.biomass.current, biomassMax: this.biomass.max,
@@ -661,7 +856,7 @@ export class Raid {
       carried: this.carried.items.map((s) => ({ item: s.item, label: LOOT.items[s.item].label, count: s.count, kind: LOOT.items[s.item].kind })),
       dna: this.carried.dna, value: this.carried.value, kills: this.kills,
       extract: { progress: this.extract.progress, inside: this.extract.inside, distance: Math.hypot(this.extract.x - p.x, this.extract.z - p.z), label: RAID.extract.label },
-      interact: nearestPod ? { text: nearestPod.opened ? 'HOLD E · TAKE WHAT IS LEFT' : `HOLD E · TEAR OPEN ${LOOT.containers[nearestPod.type].label.toUpperCase()}`, progress: nearestPod.progress } : null,
+      interact: this.interactText,
       scanner: {
         x: p.x, z: p.z, yaw: this.player.yaw, range: 60,
         extract: { x: this.extract.x, z: this.extract.z },
@@ -669,6 +864,10 @@ export class Raid {
         pings: this.creatures.filter((c) => c.alive && (c.revealed > 0 || (c.engaged && c.position.distanceTo(p) < 25))).map((c) => ({ x: c.position.x, z: c.position.z, kind: c.kind, revealed: c.revealed > 0 })),
       },
       healing: this.useLeft > 0 || this.healLeft > 0,
+      activeVirus: this.injection.active,
+      injecting: this.injection.pending,
+      injectProgress: this.injection.progress,
+      harvestProgress: this.harvestTarget ? this.harvestProgress : 0,
     };
   }
 
@@ -681,6 +880,7 @@ export class Raid {
       extractPosition: [this.extract.x, this.extract.z], pods: this.pods.map((q) => ({ id: q.id, position: [q.position.x, q.position.z], opened: q.opened })),
       enemies: this.creatures.map((c) => ({ id: c.id, kind: c.kind, alive: c.alive, state: c.state, biomass: c.biomass, position: [c.position.x, c.position.y, c.position.z], centre: [c.centre.x, c.centre.y, c.centre.z] })),
       result: this.result, gore: gore.stats(),
+      virus: this.injection.active, injecting: this.injection.pending, parasites: this.parasites.length, harvested: [...this.harvested], maxBiomass: this.biomass.max,
     };
   }
 
@@ -707,6 +907,15 @@ export class Raid {
       setTimeLeft: (t: number) => { this.elapsed = RAID.raidTime - t; },
       give: (item: string, n = 1) => this.carried.add(item, n),
       pouch: (item: string, n = 1) => this.carried.pouch.add(item, n),
+      /** Injects the first carried vial of `item` (cavities, then pouch). */
+      inject: (item: string) => {
+        for (const zone of ['cavity', 'pouch'] as const) {
+          const i = (zone === 'cavity' ? this.carried.cavity : this.carried.pouch).entries.findIndex((e) => e.item === item);
+          if (i >= 0) return this.inject(zone, i);
+        }
+        return false;
+      },
+      transfer: (from: 'cavity' | 'pouch' | 'pod', i: number, to: 'cavity' | 'pouch' | 'pod', x?: number, y?: number, r?: boolean) => this.transfer(from, i, to, x, y, r),
     };
   }
 }

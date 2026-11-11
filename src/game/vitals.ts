@@ -3,7 +3,10 @@ import type { HostRules } from '../../data';
 
 export class Biomass {
   current: number;
-  constructor(readonly max: number) { this.current = max; }
+  readonly base: number;
+  constructor(public max: number) { this.current = max; this.base = max; }
+  /** Rescales the maximum (virus costs); current Biomass is clamped, never raised. */
+  scaleMax(k: number): void { this.max = this.base * k; this.current = Math.min(this.current, this.max); }
   get dead(): boolean { return this.current <= 0; }
   get fraction(): number { return this.current / this.max; }
   /** Returns the damage actually applied. */
@@ -30,6 +33,8 @@ export class NeuralOverload {
   value = 0;
   lockedFor = 0;
   private sinceHeat = Infinity;
+  /** Extra decay multiplier from the active virus. */
+  decayBoost = 1;
   constructor(readonly t: OverloadRules, private decayMultiplier = 1) {}
 
   get fraction(): number { return this.value / this.t.max; }
@@ -51,6 +56,6 @@ export class NeuralOverload {
       return;
     }
     this.sinceHeat += dt;
-    if (this.sinceHeat >= this.t.decayDelay) this.value = Math.max(0, this.value - this.t.decayPerSecond * this.decayMultiplier * dt);
+    if (this.sinceHeat >= this.t.decayDelay) this.value = Math.max(0, this.value - this.t.decayPerSecond * this.decayMultiplier * this.decayBoost * dt);
   }
 }
