@@ -133,6 +133,191 @@
     }
   },
   "longSeedWreck": {
-    "_note": "Zone 2 (the Wreck of the Long Seed as its own map). Geometry comes with its build PR."
+    "_note": "Zone 2, the Wreck of the Long Seed (World & Level, src/world/wreck.ts). Metres in the wreck's own frame: hull along X, prow east (+X), deck 0 at y 0. Rooms are landmark boxes named as in zones.json; the pod bay is listed before the reactor so it wins where they overlap. Extract opensAt null = closed until Gameplay opens it (power restored).",
+    "hull": {
+      "halfLength": 100,
+      "halfWidth": 20,
+      "height": 18,
+      "deck": 6,
+      "thickness": 0.6
+    },
+    "spawn": {
+      "x": 114,
+      "z": 4
+    },
+    "rooms": [
+      {
+        "id": "breachedProw",
+        "x0": 70,
+        "x1": 125,
+        "z0": -32,
+        "z1": 32
+      },
+      {
+        "id": "cargoHoldA",
+        "x0": 35,
+        "x1": 70,
+        "z0": -20,
+        "z1": 20
+      },
+      {
+        "id": "cargoHoldB",
+        "x0": 0,
+        "x1": 35,
+        "z0": -20,
+        "z1": 20
+      },
+      {
+        "id": "crewWarrens",
+        "x0": -35,
+        "x1": 0,
+        "z0": -20,
+        "z1": 20
+      },
+      {
+        "id": "embryoGallery",
+        "x0": -62,
+        "x1": -35,
+        "z0": -20,
+        "z1": 20
+      },
+      {
+        "id": "escapePodBay",
+        "x0": -100,
+        "x1": -76,
+        "z0": -20,
+        "z1": -13
+      },
+      {
+        "id": "reactorChamber",
+        "x0": -100,
+        "x1": -62,
+        "z0": -20,
+        "z1": 20
+      }
+    ],
+    "extracts": [
+      {
+        "id": "breachedProw",
+        "label": "Breached Prow",
+        "x": 88,
+        "z": -9,
+        "opensAt": 0
+      },
+      {
+        "id": "escapePodBay",
+        "label": "Escape Pod Bay",
+        "x": -88,
+        "z": -15.5,
+        "opensAt": null
+      }
+    ],
+    "loot": [
+      {
+        "id": "wreck-crate-0",
+        "container": "cargoCrate",
+        "x": 62,
+        "y": 0,
+        "z": -12
+      },
+      {
+        "id": "wreck-crate-1",
+        "container": "cargoCrate",
+        "x": 64,
+        "y": 0,
+        "z": 10
+      },
+      {
+        "id": "wreck-crate-2",
+        "container": "cargoCrate",
+        "x": 40,
+        "y": 0,
+        "z": -16
+      },
+      {
+        "id": "wreck-crate-3",
+        "container": "cargoCrate",
+        "x": 56,
+        "y": 6,
+        "z": 17
+      },
+      {
+        "id": "wreck-crate-4",
+        "container": "cargoCrate",
+        "x": 28,
+        "y": 0,
+        "z": 12
+      },
+      {
+        "id": "wreck-crate-5",
+        "container": "cargoCrate",
+        "x": 10,
+        "y": 0,
+        "z": -12
+      },
+      {
+        "id": "wreck-crate-6",
+        "container": "cargoCrate",
+        "x": 18,
+        "y": 6,
+        "z": -18
+      },
+      {
+        "id": "wreck-crate-7",
+        "container": "cargoCrate",
+        "x": 3,
+        "y": 6,
+        "z": 0
+      },
+      {
+        "id": "wreck-crate-8",
+        "container": "cargoCrate",
+        "x": 96,
+        "y": 0,
+        "z": 12
+      },
+      {
+        "id": "wreck-crate-9",
+        "container": "cargoCrate",
+        "x": -50,
+        "y": 0,
+        "z": 0
+      },
+      {
+        "id": "wreck-locker-0",
+        "container": "sealedLocker",
+        "x": -27,
+        "y": 0,
+        "z": -12
+      },
+      {
+        "id": "wreck-locker-1",
+        "container": "sealedLocker",
+        "x": -9,
+        "y": 0,
+        "z": 12
+      },
+      {
+        "id": "wreck-locker-2",
+        "container": "sealedLocker",
+        "x": -21,
+        "y": 6,
+        "z": 12
+      },
+      {
+        "id": "wreck-locker-3",
+        "container": "sealedLocker",
+        "x": -15,
+        "y": 6,
+        "z": -12
+      }
+    ],
+    "reactor": {
+      "x": -86,
+      "z": 0,
+      "coreRadius": 4,
+      "ringRadius": 8,
+      "valves": 4
+    }
   }
 }
