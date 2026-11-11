@@ -254,7 +254,7 @@ export function meshSdf(prims: SdfPrim[], boneCount: number, opts: SdfOptions = 
     });
     for (let s = 0; s < 4; s++) {
       skinIndex[v * 4 + s] = order[s] ?? 0;
-      skinWeight[v * 4 + s] = sum > 0 ? w4[s] / sum : s === 0 ? 1 : 0;
+      skinWeight[v * 4 + s] = sum > 0 ? (w4[s] ?? 0) / sum : s === 0 ? 1 : 0; // bodies with fewer than 4 bones pad with 0
     }
   }
 

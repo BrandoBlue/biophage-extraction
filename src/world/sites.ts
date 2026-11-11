@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GRADE, PATH, ZONE7 } from '../render/palette';
+import { GRADE, ORGANIC, PATH, ZONE7_SHADE } from '../render/palette';
 import { bioNode, bioTime, crystal, fungusStem, liquidLight, membrane } from '../render/materials';
 import { crystalClusterGeometry, stemGeometry } from '../render/geometry';
 import { ZONE7_SITES } from '../../data';
@@ -47,10 +47,10 @@ export function buildSites(layout: Zone7Layout, height: Height, seed = 7): SiteD
   const group = new THREE.Group();
   group.name = 'zone7-sites';
 
-  const ribMat = fungusStem(ZONE7.cyan);
-  const liveRing = bioNode(ZONE7.lime, 3);
-  const lateRing = bioNode(ZONE7.violet, 1.2);
-  const deadCrystal = crystal(ZONE7.violet);
+  const ribMat = fungusStem(ORGANIC.mist);
+  const liveRing = bioNode(ORGANIC.amber, 2);
+  const lateRing = bioNode(ORGANIC.mist, 1.2);
+  const deadCrystal = crystal(ORGANIC.mist);
   const padRadius = ZONE7_SITES.padRadius;
 
   // ---- Seed Spire pads. Live pads get a glowing ring and a sky beacon; dormant pads are broken husks.
@@ -81,7 +81,7 @@ export function buildSites(layout: Zone7Layout, height: Height, seed = 7): SiteD
 
   // ---- Brood Heart crater: roots radiating from the heart's bed up over the rim, a clutch of egg sacs.
   const crater = ZONE7_SITES.broodCrater;
-  const rootMat = fungusStem(ZONE7.magenta);
+  const rootMat = fungusStem(ORGANIC.vein);
   const sacPos: { pos: THREE.Vector3; scale: number }[] = [];
   for (const n of layout.nests) {
     for (let i = 0; i < 14; i++) {
@@ -102,7 +102,7 @@ export function buildSites(layout: Zone7Layout, height: Height, seed = 7): SiteD
     }
   }
   if (sacPos.length) {
-    const sacs = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 14, 10), membrane(ZONE7.magenta, 0.7), sacPos.length);
+    const sacs = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 14, 10), membrane(ORGANIC.wetFlesh, 0.7), sacPos.length);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3();
     sacPos.forEach((p, i) => sacs.setMatrixAt(i, m.compose(p.pos, q, s.set(p.scale, p.scale * 1.3, p.scale))));
     sacs.name = 'brood-egg-sacs';
@@ -137,7 +137,7 @@ export function buildSites(layout: Zone7Layout, height: Height, seed = 7): SiteD
     group.add(mesh);
     return mesh;
   };
-  mk(stemGeometry(0.22, 6), fungusStem(ZONE7.lime), stalkM, 'gene-bloom-stalks');
+  mk(stemGeometry(0.22, 6), fungusStem(ORGANIC.amber), stalkM, 'gene-bloom-stalks');
   const bloomBulbs = mk(new THREE.SphereGeometry(1, 16, 12), membrane(PATH.dna, 0.6), bulbM, 'gene-bloom-bulbs');
   const bloomCores = mk(new THREE.IcosahedronGeometry(1, 1), bioNode(PATH.dna, 2.6), coreM, 'gene-bloom-cores');
 
@@ -147,17 +147,17 @@ export function buildSites(layout: Zone7Layout, height: Height, seed = 7): SiteD
   const anomaly = new THREE.Group();
   anomaly.name = `anomaly-${an.kind}`;
   anomaly.position.set(an.x, ay, an.z);
-  const basin = new THREE.Mesh(new THREE.CircleGeometry(an.radius * 0.55, 48).rotateX(-Math.PI / 2), liquidLight({ pool: true, a: ZONE7.violet, b: ZONE7.magenta, c: ZONE7.cyan, flow: 0.3 }));
+  const basin = new THREE.Mesh(new THREE.CircleGeometry(an.radius * 0.55, 48).rotateX(-Math.PI / 2), liquidLight({ pool: true, a: ZONE7_SHADE.rockDeep, b: ORGANIC.vein, c: ORGANIC.mist, flow: 0.3 }));
   basin.position.y = 0.25;
-  const lensMat = membrane(ZONE7.violet, 0.4);
+  const lensMat = membrane(ORGANIC.mist, 0.4);
   const lensA = new THREE.Mesh(new THREE.TorusGeometry(an.radius * 0.46, 0.5, 10, 72), lensMat);
   const lensB = new THREE.Mesh(new THREE.TorusGeometry(an.radius * 0.3, 0.35, 10, 72), lensMat);
-  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.8, 2), bioNode(ZONE7.violet, 1.4));
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.8, 2), bioNode(ORGANIC.mist, 1.4));
   lensA.position.y = lensB.position.y = core.position.y = 13;
   // A faint shaft of violet light from basin to lens: the anomaly reads from across the island.
   const shaft = new THREE.Mesh(
     new THREE.CylinderGeometry(an.radius * 0.05, an.radius * 0.3, 26, 24, 1, true),
-    new THREE.MeshBasicMaterial({ color: ZONE7.violet, transparent: true, opacity: 0.08, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }),
+    new THREE.MeshBasicMaterial({ color: ORGANIC.mist, transparent: true, opacity: 0.05, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }),
   );
   shaft.position.y = 13;
   shaft.name = 'anomaly-shaft';
@@ -228,11 +228,11 @@ export function clearings(layout: Zone7Layout): (Site & { radius: number })[] {
 }
 
 /**
- * Extract beacon: a pale, broken shaft of light rising from the pad. Lime only where it leaves the ground,
+ * Extract beacon: a pale, broken shaft of light rising from the pad. Warm amber only where it leaves the ground,
  * then washed-out and fading, split into uneven pieces so it reads as spore haze, not a neon tube.
  */
 function beaconGeometry(rand: () => number, height = 80): THREE.BufferGeometry {
-  const lime = new THREE.Color(ZONE7.lime), pale = new THREE.Color(GRADE.zone7Highlight), c = new THREE.Color();
+  const lime = new THREE.Color(ORGANIC.amber), pale = new THREE.Color(GRADE.zone7Highlight), c = new THREE.Color();
   const pos: number[] = [], col: number[] = [];
   const sides = 14;
   const vert = (a: number, h: number, fade: number) => {

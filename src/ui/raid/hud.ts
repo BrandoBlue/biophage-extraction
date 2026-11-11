@@ -397,7 +397,8 @@ export class OrganicHud {
       const r = rel(p.x, p.z);
       if (Math.abs(r) > span) continue;
       const big = p.kind === 'bilecantor' || p.kind === 'mournback';
-      c.fillStyle = HIVE.danger; c.globalAlpha = (p.revealed ? 1 : 0.55) * (1 - 0.6 * (d / sc.range));
+      // Online raids: squadmates read in bone, everything hostile in danger red.
+      c.fillStyle = p.kind === 'squad' ? HIVE.bone : HIVE.danger; c.globalAlpha = (p.revealed ? 1 : 0.55) * (1 - 0.6 * (d / sc.range));
       c.beginPath(); c.arc(toX(r), H - 7, big ? 4.2 : 3, 0, Math.PI * 2); c.fill();
     }
     c.globalAlpha = 1;

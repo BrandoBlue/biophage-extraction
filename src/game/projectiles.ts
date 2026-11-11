@@ -11,6 +11,8 @@ export interface Projectile {
   origin: THREE.Vector3;
   /** Seeking projectiles (Ego Charge) steer toward a target each step. */
   seek?: { radius: number; turnRate: number };
+  /** A harmless copy of a shot fired on another host's machine (online raids, src/net). */
+  remote?: boolean;
 }
 
 export interface SegmentHit { point: THREE.Vector3; t: number }
@@ -38,9 +40,12 @@ export class Projectiles {
   readonly list: Projectile[] = [];
   private pool: Record<Projectile['kind'], THREE.Mesh[]> = { spore: [], ego: [], bile: [] };
 
+  /** Called for every projectile fired here (not replicas): online raids replay it on the other hosts' machines. */
+  onFire: ((p: Projectile) => void) | null = null;
+
   constructor(private scene: THREE.Scene, private looks: Record<Projectile['kind'], () => THREE.Mesh>) {}
 
-  fire(kind: Projectile['kind'], owner: Owner, from: THREE.Vector3, vel: THREE.Vector3, o: { damage: number; splashRadius?: number; splashDamage?: number; gravity?: number; life?: number; seek?: { radius: number; turnRate: number } }): Projectile {
+  fire(kind: Projectile['kind'], owner: Owner, from: THREE.Vector3, vel: THREE.Vector3, o: { damage: number; splashRadius?: number; splashDamage?: number; gravity?: number; life?: number; seek?: { radius: number; turnRate: number }; remote?: boolean }): Projectile {
     if (this.list.length >= MAX) this.kill(this.list[0]);
     const mesh = this.pool[kind].pop() ?? this.looks[kind]();
     mesh.visible = true;
@@ -49,9 +54,10 @@ export class Projectiles {
     this.scene.add(mesh);
     const p: Projectile = {
       pos: from.clone(), prev: from.clone(), vel: vel.clone(), life: o.life ?? 2.5, owner, damage: o.damage,
-      splashRadius: o.splashRadius ?? 0, splashDamage: o.splashDamage ?? 0, gravity: o.gravity ?? 0, kind, mesh, alive: true, origin: from.clone(), seek: o.seek,
+      splashRadius: o.splashRadius ?? 0, splashDamage: o.splashDamage ?? 0, gravity: o.gravity ?? 0, kind, mesh, alive: true, origin: from.clone(), seek: o.seek, remote: o.remote,
     };
     this.list.push(p);
+    if (!o.remote) this.onFire?.(p);
     return p;
   }
 
