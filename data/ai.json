@@ -150,5 +150,27 @@
       "speed": 7,
       "cooldown": 1.4
     }
+  },
+  "warden": {
+    "_note": "The Warden of the Long Seed (src/ai/warden.ts); attack numbers stay in bosses.json `warden`. wake.trigger: 'approach' (a host enters the reactor chamber or comes within radius m) until Gameplay's ship-power objective exists, then 'power'. It crawls walls and ceiling at crawlSpeed in tend, re-perching every perchTime s; later phases hold holdDistance m on the floor at floorSpeed. The root spear reaches spearRange m and lands where the host was heading (velocity x spearLead s), hitting within spearRadius m. A vented valve opens its seam for seamOpenTime s. Tells for attacks bosses.json gives no wind-up: steamTell, birthTell. Enraged, the reactor pulses every enragePulseEvery s.",
+    "wake": {
+      "trigger": "approach",
+      "radius": 16
+    },
+    "crawlSpeed": 4.5,
+    "floorSpeed": 5,
+    "perchTime": [
+      5,
+      9
+    ],
+    "holdDistance": 7,
+    "spearRange": 16,
+    "spearRadius": 1.6,
+    "spearLead": 0.35,
+    "seamOpenTime": 8,
+    "swarmFirstDelay": 10,
+    "steamTell": 0.8,
+    "birthTell": 1.2,
+    "enragePulseEvery": 8
   }
 }

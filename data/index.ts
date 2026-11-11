@@ -323,6 +323,12 @@ export interface AiRules {
   flyer: { orbitRadius: Range; orbitSpeed: number; diveGap: number; faceHeight: number; flockRadius: number; calmHeight: Range; diveSpeed: number; diveTime: number; climbTime: number; screechTell: number; turnRate: number };
   tank: { turnRate: number; chargeTurnRate: number; hornReach: number; chargeRange: Range; chargeAimCone: number; chargeDistance: number; chargeKnockback: number; slamTrigger: number; slamWindup: number; recoverTime: number; approachFactor: number };
   nestSpawn: { ejectSpeed: number; ejectRadius: number; startAwareness: number };
+  warden: {
+    wake: { trigger: 'approach' | 'power'; radius: number };
+    crawlSpeed: number; floorSpeed: number; perchTime: [number, number]; holdDistance: number;
+    spearRange: number; spearRadius: number; spearLead: number; seamOpenTime: number; swarmFirstDelay: number;
+    steamTell: number; birthTell: number; enragePulseEvery: number;
+  };
   menace: {
     reaction: [number, number];
     search: { predictTime: number; maxPredict: number; spread: number; sweepTime: number };
