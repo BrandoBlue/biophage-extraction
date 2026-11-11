@@ -128,8 +128,27 @@ const smooth = (a: number, b: number, t: number) => { const k = Math.min(1, Math
 
 /** The active map's ground, when it is not the island (the Long Seed wreck is a flat deck). */
 let terrain: ((x: number, z: number) => number) | null = null;
-/** Swap the ground every system reads through groundHeight(); null restores the island. */
-export function setTerrain(fn: ((x: number, z: number) => number) | null): void { terrain = fn; }
+/** Steepest ground (rise per metre) a body may walk up on the active map; Infinity means no limit (the island). */
+let maxSlope = Infinity;
+/**
+ * Swap the ground every system reads through groundHeight(); null restores the island. `maxSlope` makes cliff faces
+ * in the terrain itself block walking (the Marrow Pit's walls); maps without it keep the old free-climbing ground.
+ */
+export function setTerrain(fn: ((x: number, z: number) => number) | null, opts: { maxSlope?: number } = {}): void {
+  terrain = fn;
+  maxSlope = opts.maxSlope ?? Infinity;
+}
+
+/**
+ * True when a body with feet at `feetY` moving from (x0, z0) to (x1, z1) would walk up terrain steeper than the
+ * map allows. The Player reverts that part of its move, so terrain cliffs act as walls.
+ */
+export function climbBlocked(feetY: number, x0: number, z0: number, x1: number, z1: number): boolean {
+  if (maxSlope === Infinity) return false;
+  const rise = groundHeight(x1, z1) - feetY;
+  if (rise <= 0.05) return false;
+  return rise > Math.hypot(x1 - x0, z1 - z0) * maxSlope;
+}
 
 /** Height of the island surface at (x, z). Shared by the mesh and the player controller. */
 export function groundHeight(x: number, z: number): number {

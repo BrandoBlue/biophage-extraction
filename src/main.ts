@@ -116,7 +116,7 @@ function bootRaid(): void {
     raid.update(dt);
     online.tick(dt);
     // Landmarks (Design's zones.json) count toward contracts the first time the host walks into one.
-    if (!menu.visible) { const lm = world.landmarkAt(camera.position.x, camera.position.z); if (lm) raid.visit(lm); }
+    if (!menu.visible) { const lm = world.landmarkAt(camera.position.x, camera.position.z, raid.player.position.y); if (lm) raid.visit(lm); }
     hud.update(dt, raid.hud());
     // The main menu draws the 3D Hive lab with the host on its pedestal; other Hive screens cover the whole view, so
     // the 3D frame behind them is skipped (the loop and frame counter keep running). The first frames always render
