@@ -29,7 +29,7 @@ export interface SunShadows { update(scene: THREE.Scene, camera: THREE.Camera): 
 export function sunShadows(renderer: THREE.WebGLRenderer, enabled: boolean): SunShadows {
   if (enabled) {
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap; // PCF with shadow.radius softening; PCFSoftShadowMap was removed in this three version
   }
   const seen = new WeakSet<THREE.Object3D>();
   const keys = new WeakMap<THREE.Scene, { light: THREE.DirectionalLight | null; dir: THREE.Vector3 }>();

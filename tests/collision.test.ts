@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CollisionWorld, STEP_HEIGHT, type Vec3Like } from '../src/world/collision';
 import { hollowSpire, longSeedDebris, reliquaryBowl } from '../src/world/structures';
+import { fungalCaves } from '../src/world/cave';
+import { BOSSES, ZONE7_SITES } from '../data';
 
 const flat = () => 0;
 
@@ -141,21 +143,68 @@ describe('the Long Seed debris field', () => {
   });
 });
 
-describe('the Fungal Caves', () => {
-  it('walks in through the mouth, between the columns, to the cache in the back chamber', async () => {
-    const { fungalCaves } = await import('../src/world/structures');
-    const w = new CollisionWorld(flat);
-    const yaw = -0.9, ru = 22, rv = 15;
-    const cave = fungalCaves(w, 10, -5, yaw, ru, rv, 11, 0);
-    const at = (u: number, v: number): [number, number] => [10 + u * Math.cos(yaw) + v * Math.sin(yaw), -5 - u * Math.sin(yaw) + v * Math.cos(yaw)];
-    const [sx, sz] = at(-ru - 6, -1);
-    const p = walk(w, { x: sx, y: 0, z: sz }, [at(-2, -1), at(9, -1), at(9, 3), at(0.78 * ru, 3.3)]);
-    const cache = cave.loot[0];
-    expect(Math.hypot(p.x - cache.x, p.z - cache.z)).toBeLessThan(0.5);
-    // The walls hold: walking straight out through the side of the dome stops at it.
-    const out = walk(w, { x: cache.x, y: 0, z: cache.z }, [at(0, rv + 8)]);
-    const [ox, oz] = at(0, rv + 8);
-    expect(Math.hypot(out.x - ox, out.z - oz)).toBeGreaterThan(5);
-    expect(cave.glow.length).toBeGreaterThan(20);
+describe('the Fungal Caves (the Pale Vigil lair)', () => {
+  const spec = { ...ZONE7_SITES.caves[0], x: 10, z: -5, yaw: -50 };
+  const yaw = (spec.yaw * Math.PI) / 180;
+  const at = (u: number, v: number): [number, number] => [10 + u * Math.cos(yaw) + v * Math.sin(yaw), -5 - u * Math.sin(yaw) + v * Math.cos(yaw)];
+  const build = () => { const w = new CollisionWorld(flat); return { w, cave: fungalCaves(w, spec, 0) }; };
+
+  it("matches Design's arena spec (bosses.json paleVigil.arena)", () => {
+    const { cave } = build();
+    const arena = (BOSSES as Record<string, { arena?: Record<string, number> }>).paleVigil?.arena ?? { diameter: 34, height: 16, entrances: 3, glowFungusPatches: 5, hardCover: 6, exitWithin: 70 };
+    const L = cave.lair;
+    expect(L.radius * 2).toBe(arena.diameter);
+    expect(L.height).toBe(arena.height);
+    expect(L.entrances).toHaveLength(arena.entrances);
+    expect(L.glowPatches).toHaveLength(arena.glowFungusPatches);
+    expect(L.cover).toHaveLength(arena.hardCover);
+    expect(Math.hypot(L.exit.x - L.x, L.exit.z - L.z)).toBeLessThan(arena.exitWithin);
+    expect(L.collapsePoints.length).toBeGreaterThanOrEqual(4);
+    for (const q of L.collapsePoints) expect(Math.hypot(q.x - L.x, q.z - L.z)).toBeLessThan(L.radius);
+  });
+
+  it('has a ceiling the boss can crawl: roots joined into one climb graph under the dome', () => {
+    const { cave } = build();
+    const { anchors, links } = cave.lair.ceiling;
+    expect(anchors.length).toBeGreaterThan(40);
+    for (const a of anchors) {
+      expect(a.y).toBeLessThan(cave.lair.ceilingAt(a.x, a.z) + 0.01);
+      expect(a.y).toBeGreaterThan(2.5);
+    }
+    // Every anchor is reachable from the first one.
+    const seen = new Set([0]), stack = [0];
+    while (stack.length) { const i = stack.pop()!; for (const [a, b] of links) { const j = a === i ? b : b === i ? a : -1; if (j >= 0 && !seen.has(j)) { seen.add(j); stack.push(j); } } }
+    expect(seen.size).toBe(anchors.length);
+    expect(cave.lair.ceilingAt(cave.lair.x, cave.lair.z)).toBeGreaterThan(13);
+  });
+
+  it('walks in at every entrance, holds its walls, and the web-roots seal the way out', () => {
+    const { w, cave } = build();
+    const L = cave.lair;
+    for (const e of L.entrances) {
+      const out: [number, number] = [e.x + e.out.x * 4, e.z + e.out.z * 4];
+      expect(Math.hypot(out[0] - L.x, out[1] - L.z)).toBeGreaterThan(Math.hypot(e.x - L.x, e.z - L.z));
+      const p = walk(w, { x: out[0], y: 0, z: out[1] }, [[e.x, e.z], [L.x, L.z]], 0.15);
+      expect(Math.hypot(p.x - L.x, p.z - L.z), e.id).toBeLessThan(0.5);
+    }
+    // Straight out through the dome's back wall: stopped.
+    const back = at(spec.radius + 8, 0);
+    const p = walk(w, { x: L.x, y: 0, z: L.z }, [back]);
+    expect(Math.hypot(p.x - back[0], p.z - back[1])).toBeGreaterThan(6);
+    // Sealed, the mouth stops a body leaving; unsealed it lets it through.
+    const mouth = L.entrances[0];
+    mouth.seal();
+    expect(mouth.sealed).toBe(true);
+    const shut = walk(w, { x: L.x, y: 0, z: L.z }, [[L.exit.x, L.exit.z]]);
+    expect(Math.hypot(shut.x - L.exit.x, shut.z - L.exit.z)).toBeGreaterThan(3);
+    mouth.unseal();
+    const open = walk(w, { x: L.x, y: 0, z: L.z }, [[L.exit.x, L.exit.z]]);
+    expect(Math.hypot(open.x - L.exit.x, open.z - L.exit.z)).toBeLessThan(0.5);
+    // Cover blocks a body.
+    const c0 = L.cover[0];
+    const blocked = walk(w, { x: L.x, y: 0, z: L.z }, [[c0.x, c0.z]]);
+    expect(Math.hypot(blocked.x - c0.x, blocked.z - c0.z)).toBeGreaterThan(c0.radius * 0.6);
+    expect(cave.glow.length).toBeGreaterThanOrEqual(L.glowPatches.length * 5);
+    expect(cave.loot[0].id).toBe('cave-cache');
   });
 });

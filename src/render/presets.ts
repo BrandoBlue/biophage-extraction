@@ -18,17 +18,17 @@ export interface GradePreset {
 }
 
 export const GRADE_PRESETS = {
-  /** Reference 04, read through Brandon's note: ethereal and atmospheric, glow as accent, restrained bloom, shadows kept dark. */
+  /** Grounded and eerie (Brandon, 2026-11-11 evening): a cold, low-saturation night, deep shadows, film grain, bloom only on true highlights. */
   zone7: {
-    exposure: 1.05,
-    environment: 0.55,
-    bloom: { strength: 0.38, radius: 0.5, threshold: 1.15 },
-    aberration: 0.0012,
-    vignette: 0.42,
-    saturation: 0.98,
-    contrast: 1.04,
-    grain: 0.03,
-    split: 0.2,
+    exposure: 1.15,
+    environment: 0.6,
+    bloom: { strength: 0.26, radius: 0.45, threshold: 1.45 },
+    aberration: 0.0007,
+    vignette: 0.55,
+    saturation: 0.7,
+    contrast: 1.12,
+    grain: 0.05,
+    split: 0.3,
     shadow: GRADE.zone7Shadow,
     highlight: GRADE.zone7Highlight,
     hit: ZONE7.magenta,

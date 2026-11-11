@@ -25,18 +25,18 @@ export const ZONE7 = {
 
 
 /**
- * Zone 7 surface tones: the dark, desaturated bodies that the emissive palette above glows against.
- * Rock and fungus flesh stay deep so bloom and bioluminescence carry the frame (reference 04).
+ * Zone 7 surface tones (Art Bible, "Grounded and eerie", Brandon 2026-11-11 evening): weathered stone, olive moss,
+ * bruise-brown flesh and a cold grey-teal night. Bodies are natural and lit; the glow palette above is a rare accent.
  */
 export const ZONE7_SHADE = {
-  rock: '#3A2768',
-  rockDeep: '#0D0626',
-  moss: '#12424A',
-  stem: '#3B2457',
-  flesh: '#5A2A55',
-  planet: '#1A0B3A',
-  skyHorizon: '#3A1466',
-  skyZenith: '#07031A',
+  rock: '#4A453E',
+  rockDeep: '#101012',
+  moss: '#26301F',
+  stem: '#4A3E39',
+  flesh: '#523437',
+  planet: '#17171D',
+  skyHorizon: '#3A3F46',
+  skyZenith: '#050607',
 } as const;
 
 /**
@@ -44,17 +44,17 @@ export const ZONE7_SHADE = {
  * lit rather than glowing, such as the held weapon, hands and hides. Glow colours above stay accents on these.
  */
 export const ORGANIC = {
-  wetFlesh: '#7A4756',
+  wetFlesh: '#6E4E4C',
   wetFleshDeep: '#3A1C2A',
-  vein: '#6E2E4A',
+  vein: '#5A3036',
   amber: '#C98A3E',
   mist: '#8C9BB4',
 } as const;
 
 /** Colour grading targets for the final post pass (split-tone shadows and highlights). */
 export const GRADE = {
-  zone7Shadow: '#1C0A3D',
-  zone7Highlight: '#BFF6FF',
+  zone7Shadow: '#0B1315',
+  zone7Highlight: '#DCD6C8',
   hiveShadow: '#03120E',
   hiveHighlight: '#E6FFD9',
 } as const;
