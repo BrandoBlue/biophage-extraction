@@ -412,7 +412,7 @@ export interface Boss {
   label: string; zone: string; milestone: string; brief: string;
   size: Record<string, number>; biomass: number;
   arena: Record<string, unknown>;
-  dormantUntil: string; songRadius: number;
+  dormantUntil: string; songRadius: number; wakeRadius: number; songLoops: boolean;
   weakPoints: Record<string, Record<string, unknown>>;
   phases: BossPhase[];
   enrage: { after: number; effect: string };
