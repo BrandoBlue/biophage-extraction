@@ -392,6 +392,12 @@ try {
   await page.waitForFunction(() => window.__biophage?.state?.phase === 'briefing', null, { timeout: 90000 });
   await boot();
 
+  // --- Hive Body (UI): the tab opens with one card per organ in data/hive.json, the garden and the vat panels.
+  await tab('body');
+  const organCards = await page.locator('#hive .bd-organ').count();
+  if (organCards < 4 || !(await page.isVisible('#hive .bd-garden')) || !(await page.isVisible('#hive .bd-vat'))) await fail(`HIVE BODY shows ${organCards} organs`);
+  log(`Hive Body shows ${organCards} organs, the garden and the vat`);
+
   // --- Hive vendors: Mother Clot lists rep-gated stock and contracts, buys from the stash, and a contract can be taken.
   await tab('vendors');
   if (!(await page.isVisible('#hive .scr-vendor'))) await fail('VENDORS did not open the Hive vendors');

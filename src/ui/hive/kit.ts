@@ -35,6 +35,7 @@ export const NAV: { id: string; label: string; sub?: string; locked?: string }[]
   { id: 'synapse', label: 'SYNAPSE & SKILLS', locked: 'HOST' },
   { id: 'lab', label: 'VIRAL LAB', locked: 'HOST' },
   { id: 'vendors', label: 'VENDORS', sub: 'Trade & contracts', locked: 'LARVA' },
+  { id: 'body', label: 'HIVE BODY', sub: 'Organs & vat', locked: 'LARVA' },
   { id: 'hivemind', label: 'HIVE-MIND', sub: 'Multiplayer', locked: 'HIVE' },
 ];
 
