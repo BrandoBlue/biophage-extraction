@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  ABILITIES, ABOMINATIONS, CLASSES, HOST, LOOT, NESTS, PROFILE, RAID, VIRUSES, WEAPONS,
+  ABILITIES, ABOMINATIONS, CLASSES, HOST, KITS, LOOT, MARKET, NESTS, PROFILE, PROGRESSION, RAID, RIVALS, SYNAPSE, VIRAL_LAB, VIRUSES, WEAPONS,
+  itemDef, levelForXp, marketPrice, nodeMutagenCost,
   extractTimeFor, haulValue, layoutPosition, stashRowCost, projectileDamage, rollContainer,
 } from '../data';
 import { mulberry32 } from '../src/world/zone7';
+import { PATH } from '../src/render/palette';
 
 describe('design data integrity', () => {
   it('every loot table entry and guaranteed item exists', () => {
@@ -155,5 +157,86 @@ describe('Larva data (docs/gdd/larva-milestone.md)', () => {
     const gun = WEAPONS.synapseBurster;
     expect(gun.magazine * gun.damage * m.frontArmour.multiplier).toBeLessThan(m.biomass);
     expect(gun.magazine * gun.damage).toBeGreaterThan(m.biomass * 0.6);
+  });
+});
+
+describe('Host data (docs/gdd/host-milestone.md)', () => {
+  const classIds = ['venomWraith', 'neuroInfiltrator', 'goreBehemoth'] as const;
+  it('every class has a kit with two ability slots', () => {
+    for (const c of classIds) {
+      const slots = Object.values(KITS[c].abilities).map((a) => a.slot).sort();
+      expect(slots, c).toEqual([1, 2]);
+    }
+  });
+  it('every class has three Synapse paths of five nodes with rising cost and level, each with a visual brief', () => {
+    const ids = new Set<string>();
+    for (const c of classIds) {
+      const paths = Object.values(SYNAPSE[c]);
+      expect(paths, c).toHaveLength(3);
+      for (const p of paths) {
+        expect(PATH[p.colour], p.label).toBeDefined();
+        expect(p.nodes).toHaveLength(5);
+        for (let i = 0; i < p.nodes.length; i++) {
+          const n = p.nodes[i];
+          expect(ids.has(`${c}.${n.id}`), n.id).toBe(false);
+          ids.add(`${c}.${n.id}`);
+          expect(n.visual.length, n.id).toBeGreaterThan(20);
+          if (i > 0) {
+            expect(n.dna).toBeGreaterThan(p.nodes[i - 1].dna);
+            expect(n.level).toBeGreaterThanOrEqual(p.nodes[i - 1].level);
+          }
+        }
+      }
+    }
+  });
+  it('each class has exactly one Host-milestone evolution with a body brief, at the reference-02 level', () => {
+    const want = { venomWraith: 2, neuroInfiltrator: 3, goreBehemoth: 1 };
+    for (const c of classIds) {
+      const host = PROGRESSION.evolutions[c].filter((e) => e.milestone === 'host');
+      expect(host, c).toHaveLength(1);
+      expect(host[0].level).toBe(want[c]);
+      expect(host[0].body.length).toBeGreaterThan(80);
+    }
+  });
+  it('levels are strictly increasing and levelForXp is consistent', () => {
+    const L = PROGRESSION.levels;
+    for (let i = 1; i < L.length; i++) expect(L[i]).toBeGreaterThan(L[i - 1]);
+    expect(levelForXp(0)).toBe(1);
+    expect(levelForXp(L[1])).toBe(2);
+    expect(levelForXp(1e12)).toBe(L.length);
+    for (const k of Object.keys(PROGRESSION.xp.kill)) if (k !== 'rivalHost') expect(ABOMINATIONS[k], k).toBeDefined();
+  });
+  it('the Infiltrator pays its +15% mutagen tax', () => {
+    const node = SYNAPSE.neuroInfiltrator.mind.nodes[4];
+    expect(nodeMutagenCost('neuroInfiltrator', node)).toBeGreaterThan(nodeMutagenCost('venomWraith', node));
+  });
+  it('Viral Lab and Flesh Market reference real items', () => {
+    for (const id of Object.keys(VIRAL_LAB.cost)) expect(Object.values(VIRUSES).some((v) => v.item === id), id).toBe(true);
+    for (const e of MARKET.catalogue) expect(itemDef(e.item), e.item).toBeDefined();
+    for (const t of RIVALS.loadoutTiers) for (const it of t.items) expect(itemDef(it.item), it.item).toBeDefined();
+  });
+  it('the Flesh Market never buys for more than it sells', () => {
+    for (const e of MARKET.catalogue) {
+      const buyBack = itemDef(e.item)!.value * MARKET.buyRate;
+      expect(marketPrice(e.price, MARKET.mood.max), e.item).toBeGreaterThan(buyBack);
+    }
+    expect(marketPrice(100, 99)).toBe(marketPrice(100, MARKET.mood.max));
+  });
+  it('rival class mix and personality weights sum to 1', () => {
+    const sum = (o: Record<string, number>) => Object.values(o).reduce((a, b) => a + b, 0);
+    expect(sum(RIVALS.classMix)).toBeCloseTo(1);
+    expect(sum(Object.fromEntries(Object.entries(RIVALS.personalities).map(([k, v]) => [k, v.weight])))).toBeCloseTo(1);
+  });
+  it('the Host map holds 3 to 5 biomes and enough extracts to shift', () => {
+    expect(RAID.host.biomes.length).toBeGreaterThanOrEqual(3);
+    expect(RAID.host.biomes.length).toBeLessThanOrEqual(5);
+    expect(RAID.host.extracts.pool.length).toBeGreaterThan(RAID.host.extracts.maxOpen);
+  });
+  it('class melee and weapon kits keep the light-to-heavy shape', () => {
+    expect(KITS.goreBehemoth.melee.damage).toBeGreaterThan(KITS.venomWraith.melee.damage);
+    const lancet = KITS.venomWraith.weapon as unknown as { damage: number; fireRate: number };
+    const cannon = KITS.goreBehemoth.weapon as unknown as { pellets: number; damagePerPellet: number; fireRate: number };
+    expect(cannon.pellets * cannon.damagePerPellet).toBeGreaterThan(lancet.damage * 5);
+    expect(lancet.fireRate).toBeGreaterThan(cannon.fireRate);
   });
 });

@@ -1,0 +1,588 @@
+{
+  "_note": "Genetic Synapse trees (Host). Per class, three paths of five nodes, unlocked in order along each path. Cost is DNA plus Raw Mutagen Vials (× the class mutagenCostMultiplier); level is the class level required. effect is applied by the ability/stat system; visual is the brief for Creature & Mutation: every node changes the silhouette or glow pattern (Art Bible rule 2). Mutation stages grow in order nodes → growths → new limbs/carapace (rule 3). colour names a key of PATH in src/render/palette.ts (never a hex here).",
+  "venomWraith": {
+    "ghost": {
+      "label": "Path of the Ghost",
+      "colour": "stealth",
+      "nodes": [
+        {
+          "id": "camouflagePores",
+          "label": "Camouflage Pores",
+          "dna": 120,
+          "mutagens": 0,
+          "level": 1,
+          "effect": {
+            "stealthWhileStill": 0.3
+          },
+          "visual": "rows of pinhole pores open along the flanks and breathe out a refracting haze"
+        },
+        {
+          "id": "acousticDampeners",
+          "label": "Acoustic Dampeners",
+          "dna": 200,
+          "mutagens": 1,
+          "level": 2,
+          "effect": {
+            "noiseMultiplier": 0.8
+          },
+          "visual": "soft felted pads swell on every foot; the antennae fold flat"
+        },
+        {
+          "id": "phaseDashPlus",
+          "label": "Phase Dash: Afterimage",
+          "dna": 320,
+          "mutagens": 1,
+          "level": 4,
+          "effect": {
+            "phaseDash.leavesDecoy": 2.0
+          },
+          "visual": "wing membranes go glass-clear and leave a smeared ghost of the body behind each dash"
+        },
+        {
+          "id": "lightEater",
+          "label": "Light-Eater Scales",
+          "dna": 480,
+          "mutagens": 2,
+          "level": 6,
+          "effect": {
+            "revealedByPulseDuration": 0.5
+          },
+          "visual": "black velvet scales grow over the thorax and drink the light around them"
+        },
+        {
+          "id": "hollowStep",
+          "label": "Hollow Step",
+          "dna": 700,
+          "mutagens": 3,
+          "level": 9,
+          "effect": {
+            "crawlTunnelSpeed": 1.5,
+            "fallDamage": 0
+          },
+          "visual": "the body thins and hollows; the ribs show through like a lantern"
+        }
+      ]
+    },
+    "stinger": {
+      "label": "Path of the Stinger",
+      "colour": "melee",
+      "nodes": [
+        {
+          "id": "neurotoxicBlades",
+          "label": "Neurotoxic Blades",
+          "dna": 120,
+          "mutagens": 0,
+          "level": 1,
+          "effect": {
+            "bladeForearms.venomDps": 6
+          },
+          "visual": "amber venom channels split open along both blades and drip"
+        },
+        {
+          "id": "serratedReach",
+          "label": "Serrated Reach",
+          "dna": 200,
+          "mutagens": 1,
+          "level": 2,
+          "effect": {
+            "bladeForearms.range": 3.2
+          },
+          "visual": "the forearm blades lengthen and grow a second serrated edge"
+        },
+        {
+          "id": "adrenalineSpike",
+          "label": "Adrenaline Spike",
+          "dna": 320,
+          "mutagens": 1,
+          "level": 4,
+          "effect": {
+            "onKill.overloadReset": 30,
+            "onKill.speedBoost": [
+              1.25,
+              3
+            ]
+          },
+          "visual": "a spiked dorsal gland sprouts between the wings and flares orange on kills"
+        },
+        {
+          "id": "mantisLock",
+          "label": "Mantis Lock",
+          "dna": 480,
+          "mutagens": 2,
+          "level": 6,
+          "effect": {
+            "backstab.pinDuration": 1.2
+          },
+          "visual": "a third pair of folded raptorial arms grows from the chest"
+        },
+        {
+          "id": "frenzyClaws",
+          "label": "Frenzy Claws",
+          "dna": 700,
+          "mutagens": 3,
+          "level": 9,
+          "effect": {
+            "bladeForearms.cooldownMultiplier": 0.6
+          },
+          "visual": "the blades split into four twitching claws per arm"
+        }
+      ]
+    },
+    "phageCarrier": {
+      "label": "Path of the Phage-Carrier",
+      "colour": "viral",
+      "nodes": [
+        {
+          "id": "infectiousSpores",
+          "label": "Infectious Spores",
+          "dna": 120,
+          "mutagens": 0,
+          "level": 1,
+          "effect": {
+            "venomLancet.infectChance": 0.2
+          },
+          "visual": "violet spore sacs bud on the abdomen"
+        },
+        {
+          "id": "aerosolSpit",
+          "label": "Aerosol Spit",
+          "dna": 200,
+          "mutagens": 1,
+          "level": 2,
+          "effect": {
+            "ability.aerosolSpit": {
+              "cloudRadius": 4,
+              "damagePerSecond": 8,
+              "duration": 5
+            }
+          },
+          "visual": "the mandibles fuse into a flared spitting siphon"
+        },
+        {
+          "id": "viralSlot",
+          "label": "Brood Gland",
+          "dna": 320,
+          "mutagens": 1,
+          "level": 4,
+          "effect": {
+            "virusSlots": 2
+          },
+          "visual": "a translucent brood gland swells under the wings, visibly full of floating strains"
+        },
+        {
+          "id": "plagueBloom",
+          "label": "Plague Bloom",
+          "dna": 480,
+          "mutagens": 2,
+          "level": 6,
+          "effect": {
+            "onKill.cloud": {
+              "radius": 3,
+              "damagePerSecond": 5,
+              "duration": 4
+            }
+          },
+          "visual": "fungal frills bloom along the spine and shed spores"
+        },
+        {
+          "id": "hyperVeloStrain",
+          "label": "Hyper-Velo Viral Strain",
+          "dna": 700,
+          "mutagens": 3,
+          "level": 9,
+          "effect": {
+            "virusEffectMultiplier": 1.4
+          },
+          "visual": "the whole exoskeleton veins violet and pulses in time with the virus"
+        }
+      ]
+    }
+  },
+  "neuroInfiltrator": {
+    "mind": {
+      "label": "Path of the Mind",
+      "colour": "dna",
+      "nodes": [
+        {
+          "id": "wideBand",
+          "label": "Wide-Band Antennae",
+          "dna": 120,
+          "mutagens": 0,
+          "level": 1,
+          "effect": {
+            "neuralPulse.radius": 55
+          },
+          "visual": "antennae branch into feathered fans that glow on each pulse"
+        },
+        {
+          "id": "echoMemory",
+          "label": "Echo Memory",
+          "dna": 200,
+          "mutagens": 1,
+          "level": 2,
+          "effect": {
+            "neuralPulse.revealDuration": 7
+          },
+          "visual": "the cranium grows a second translucent lobe with visible flickering neurons"
+        },
+        {
+          "id": "psychicHook",
+          "label": "Psychic Hook",
+          "dna": 320,
+          "mutagens": 1,
+          "level": 4,
+          "effect": {
+            "neuralPulse.pullStrength": 6
+          },
+          "visual": "a crown of fine tendrils rises from the skull and arcs with cyan light"
+        },
+        {
+          "id": "overclock",
+          "label": "Overclock Cortex",
+          "dna": 480,
+          "mutagens": 2,
+          "level": 6,
+          "effect": {
+            "overloadMax": 130
+          },
+          "visual": "glowing node clusters bead along the spine like fibre-optic pearls"
+        },
+        {
+          "id": "hiveVoice",
+          "label": "Hive Voice",
+          "dna": 700,
+          "mutagens": 3,
+          "level": 9,
+          "effect": {
+            "neuralPulse.confuseDuration": 3
+          },
+          "visual": "the cranium splits into three lobes that pulse out of phase"
+        }
+      ]
+    },
+    "spore": {
+      "label": "Path of the Spore",
+      "colour": "viral",
+      "nodes": [
+        {
+          "id": "denseSpores",
+          "label": "Dense Spores",
+          "dna": 120,
+          "mutagens": 0,
+          "level": 1,
+          "effect": {
+            "synapseBurster.damage": 15.5
+          },
+          "visual": "the gun's eyes multiply from three to five"
+        },
+        {
+          "id": "deepMagazine",
+          "label": "Deep Magazine",
+          "dna": 200,
+          "mutagens": 1,
+          "level": 2,
+          "effect": {
+            "synapseBurster.magazine": 56
+          },
+          "visual": "the gun's body swells into a second spore bladder"
+        },
+        {
+          "id": "seekerCharge",
+          "label": "Seeker Charge",
+          "dna": 320,
+          "mutagens": 1,
+          "level": 4,
+          "effect": {
+            "egoCharge.projectiles": 9
+          },
+          "visual": "the crystal implant grows into a cluster of three crystals"
+        },
+        {
+          "id": "toxicBurst",
+          "label": "Toxic Burst",
+          "dna": 480,
+          "mutagens": 2,
+          "level": 6,
+          "effect": {
+            "synapseBurster.burst.radius": 1.4,
+            "burst.toxinDps": 4
+          },
+          "visual": "fungal caps sprout from the gun's barrel tentacles"
+        },
+        {
+          "id": "symbiont",
+          "label": "Symbiont Bond",
+          "dna": 700,
+          "mutagens": 3,
+          "level": 9,
+          "effect": {
+            "synapseBurster.regrowWhileFiring": true
+          },
+          "visual": "the gun's feed tentacles grow into the host's shoulder: one organism"
+        }
+      ]
+    },
+    "graft": {
+      "label": "Path of the Graft",
+      "colour": "stealth",
+      "nodes": [
+        {
+          "id": "chitinPlates",
+          "label": "Chitin Plates",
+          "dna": 120,
+          "mutagens": 0,
+          "level": 1,
+          "effect": {
+            "biomassMax": 220
+          },
+          "visual": "ivory chitin plates grow over the shoulders"
+        },
+        {
+          "id": "clotGlands",
+          "label": "Clot Glands",
+          "dna": 200,
+          "mutagens": 1,
+          "level": 2,
+          "effect": {
+            "clotGel.heal": 90
+          },
+          "visual": "wet amber glands bead along the ribs"
+        },
+        {
+          "id": "filterLungs",
+          "label": "Filter Lungs",
+          "dna": 320,
+          "mutagens": 1,
+          "level": 4,
+          "effect": {
+            "toxinResistance": 0.45
+          },
+          "visual": "gill-like filter slits open along the neck"
+        },
+        {
+          "id": "secondHeart",
+          "label": "Second Heart",
+          "dna": 480,
+          "mutagens": 2,
+          "level": 6,
+          "effect": {
+            "naturalRegen": 1.5,
+            "regenDelay": 6
+          },
+          "visual": "a second heart beats visibly under translucent skin at the hip"
+        },
+        {
+          "id": "graftCarapace",
+          "label": "Graft Carapace",
+          "dna": 700,
+          "mutagens": 3,
+          "level": 9,
+          "effect": {
+            "limbDamageMultiplier": 0.5,
+            "biomassMax": 250
+          },
+          "visual": "a full articulated carapace closes over torso and limbs"
+        }
+      ]
+    }
+  },
+  "goreBehemoth": {
+    "bulwark": {
+      "label": "Path of the Bulwark",
+      "colour": "dna",
+      "nodes": [
+        {
+          "id": "boneCrown",
+          "label": "Bone Crown",
+          "dna": 120,
+          "mutagens": 0,
+          "level": 1,
+          "effect": {
+            "headDamageMultiplier": 1.3
+          },
+          "visual": "the bone crown thickens and grows a second ring of spikes"
+        },
+        {
+          "id": "braceSpines",
+          "label": "Brace Spines",
+          "dna": 200,
+          "mutagens": 1,
+          "level": 2,
+          "effect": {
+            "shellBrace.reflectDamage": 0.25
+          },
+          "visual": "spines erupt along both forearms when bracing"
+        },
+        {
+          "id": "ossuaryPlates",
+          "label": "Ossuary Plates",
+          "dna": 320,
+          "mutagens": 1,
+          "level": 4,
+          "effect": {
+            "impactVulnerability": -0.4
+          },
+          "visual": "skull-like plates fuse across the back"
+        },
+        {
+          "id": "anchorClaws",
+          "label": "Anchor Claws",
+          "dna": 480,
+          "mutagens": 2,
+          "level": 6,
+          "effect": {
+            "knockbackImmune": true
+          },
+          "visual": "the feet split into hooked anchor claws that bite the ground"
+        },
+        {
+          "id": "livingFortress",
+          "label": "Living Fortress",
+          "dna": 700,
+          "mutagens": 3,
+          "level": 9,
+          "effect": {
+            "shellBrace.allyCover": true,
+            "shellBrace.frontDamageMultiplier": 0.05
+          },
+          "visual": "a towering bone shield-crest grows from the shoulders"
+        }
+      ]
+    },
+    "ravager": {
+      "label": "Path of the Ravager",
+      "colour": "melee",
+      "nodes": [
+        {
+          "id": "tuskJaw",
+          "label": "Tusk Jaw",
+          "dna": 120,
+          "mutagens": 0,
+          "level": 1,
+          "effect": {
+            "crushingSlam.damage": 95
+          },
+          "visual": "the lower jaw grows twin ivory tusks"
+        },
+        {
+          "id": "splinterShot",
+          "label": "Splinter Shot",
+          "dna": 200,
+          "mutagens": 1,
+          "level": 2,
+          "effect": {
+            "marrowCannon.pellets": 12
+          },
+          "visual": "the arm's ribcage gains extra ribs and visibly packed marrow"
+        },
+        {
+          "id": "rampage",
+          "label": "Rampage",
+          "dna": 320,
+          "mutagens": 1,
+          "level": 4,
+          "effect": {
+            "crashThrough.cooldown": 6,
+            "crashThrough.chain": 2
+          },
+          "visual": "the hump swells and the muscles split, glowing red beneath"
+        },
+        {
+          "id": "goreFeast",
+          "label": "Gore Feast",
+          "dna": 480,
+          "mutagens": 2,
+          "level": 6,
+          "effect": {
+            "onMeleeKill.heal": 40
+          },
+          "visual": "a second mouth opens across the belly"
+        },
+        {
+          "id": "earthbreaker",
+          "label": "Earthbreaker",
+          "dna": 700,
+          "mutagens": 3,
+          "level": 9,
+          "effect": {
+            "crushingSlam.radius": 5,
+            "crushingSlam.shockwave": true
+          },
+          "visual": "the fists fuse into bone mauls that crack the ground"
+        }
+      ]
+    },
+    "plagueHulk": {
+      "label": "Path of the Plague-Hulk",
+      "colour": "viral",
+      "nodes": [
+        {
+          "id": "absorbentHide",
+          "label": "Absorbent Hide",
+          "dna": 120,
+          "mutagens": 0,
+          "level": 1,
+          "effect": {
+            "virusSideEffectMultiplier": 0.25
+          },
+          "visual": "the skin goes spongy and pocked, glowing violet in the pores"
+        },
+        {
+          "id": "bileSacks",
+          "label": "Bile Sacks",
+          "dna": 200,
+          "mutagens": 1,
+          "level": 2,
+          "effect": {
+            "onDamaged.acidSplash": {
+              "radius": 2,
+              "damage": 6
+            }
+          },
+          "visual": "swollen bile sacks hang from the flanks and burst when hit"
+        },
+        {
+          "id": "broodHump",
+          "label": "Brood Hump",
+          "dna": 320,
+          "mutagens": 1,
+          "level": 4,
+          "effect": {
+            "virusSlots": 2
+          },
+          "visual": "the hump becomes translucent and full of drifting larvae"
+        },
+        {
+          "id": "swarmVent",
+          "label": "Swarm Vent",
+          "dna": 480,
+          "mutagens": 2,
+          "level": 6,
+          "effect": {
+            "ability.swarmVent": {
+              "parasites": 4,
+              "damage": 15,
+              "cooldown": 20
+            }
+          },
+          "visual": "vents open on the hump and release a cloud of parasitic flies"
+        },
+        {
+          "id": "pestilentTitan",
+          "label": "Pestilent Titan",
+          "dna": 700,
+          "mutagens": 3,
+          "level": 9,
+          "effect": {
+            "aura": {
+              "radius": 5,
+              "damagePerSecond": 4,
+              "overloadPerSecond": 5
+            }
+          },
+          "visual": "the whole body crusts with luminous fungal growths and leaks a violet mist"
+        }
+      ]
+    }
+  }
+}

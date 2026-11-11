@@ -1,0 +1,98 @@
+{
+  "_note": "Rival host bots (Host): single-player PvPvE. They use the same class kits, damage and rules as the player. Personalities weight their behaviour. Killing one drops its full cavity loot and 50% of its carried kill DNA.",
+  "perRaid": [
+    2,
+    4
+  ],
+  "spawnDelay": [
+    20,
+    90
+  ],
+  "classMix": {
+    "venomWraith": 0.35,
+    "neuroInfiltrator": 0.4,
+    "goreBehemoth": 0.25
+  },
+  "personalities": {
+    "looter": {
+      "weight": 0.4,
+      "aggression": 0.25,
+      "lootPriority": 0.9,
+      "extractAt": 0.55,
+      "fleeBelow": 0.45
+    },
+    "hunter": {
+      "weight": 0.3,
+      "aggression": 0.85,
+      "lootPriority": 0.3,
+      "extractAt": 0.85,
+      "fleeBelow": 0.2
+    },
+    "rat": {
+      "weight": 0.3,
+      "aggression": 0.4,
+      "lootPriority": 0.6,
+      "extractAt": 0.4,
+      "fleeBelow": 0.6,
+      "ambushNearExtract": true
+    }
+  },
+  "skill": {
+    "reactionTime": [
+      0.35,
+      0.6
+    ],
+    "aimError": [
+      0.6,
+      1.4
+    ],
+    "aimErrorPerMetre": 0.05,
+    "strafe": true
+  },
+  "loadoutTiers": [
+    {
+      "weight": 0.5,
+      "items": [
+        {
+          "item": "clotGel",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "weight": 0.35,
+      "items": [
+        {
+          "item": "clotGel",
+          "count": 2
+        },
+        {
+          "item": "mutagenVial",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "weight": 0.15,
+      "items": [
+        {
+          "item": "clotGel",
+          "count": 2
+        },
+        {
+          "item": "adrenalineVirus",
+          "count": 1
+        },
+        {
+          "item": "synapseLens",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "kill": {
+    "dropsCavity": true,
+    "stealKillDnaFraction": 0.5
+  },
+  "evolutionChance": 0.3
+}

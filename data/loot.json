@@ -144,6 +144,36 @@
         2
       ],
       "stack": 1
+    },
+    "weaverGanglion": {
+      "label": "Weaver Ganglion",
+      "kind": "organ",
+      "value": 80,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 2
+    },
+    "mimicLure": {
+      "label": "Mimic Lure Sac",
+      "kind": "organ",
+      "value": 95,
+      "size": [
+        1,
+        2
+      ],
+      "stack": 1
+    },
+    "lanternGland": {
+      "label": "Lumen Lantern Gland",
+      "kind": "organ",
+      "value": 220,
+      "size": [
+        2,
+        2
+      ],
+      "stack": 1
     }
   },
   "containers": {

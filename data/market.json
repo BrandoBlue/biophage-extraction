@@ -1,0 +1,107 @@
+{
+  "_note": "The Flesh Market (Host): a cyber-organic vendor in the Hive. Sells contraband for DNA, buys any item at value × buyRate. Stock rotates every real-time day (seeded by date). Appetite: feeding it organs it craves raises its mood, which lowers prices; selling it what it hates sours it.",
+  "vendor": {
+    "label": "The Gullet Broker",
+    "brief": "A vast, sessile organism grown into the Hive wall: a translucent gullet three storeys tall with a choir of small human-sized hands reaching out of it to hand you goods, an iris of cybernetic lenses where a face should be, and a payment slit that swallows DNA. It speaks through a dozen throats at once, slightly out of sync. It is pleased by organs and offended by tech."
+  },
+  "buyRate": 0.6,
+  "stockSize": 6,
+  "rotateHours": 24,
+  "mood": {
+    "start": 0,
+    "min": -3,
+    "max": 3,
+    "priceMultiplierPerStep": -0.06,
+    "likes": [
+      "organ"
+    ],
+    "dislikes": [
+      "tech"
+    ],
+    "perLikedSale": 0.25,
+    "perDislikedSale": -0.5
+  },
+  "catalogue": [
+    {
+      "item": "clotGel",
+      "price": 30,
+      "weight": 30
+    },
+    {
+      "item": "mutagenVial",
+      "price": 140,
+      "weight": 20
+    },
+    {
+      "item": "adrenalineVirus",
+      "price": 260,
+      "weight": 12
+    },
+    {
+      "item": "plagueStalkerStrain",
+      "price": 380,
+      "weight": 10
+    },
+    {
+      "item": "splicedParasites",
+      "price": 420,
+      "weight": 8
+    },
+    {
+      "item": "neuroSpikeGrenade",
+      "price": 90,
+      "weight": 14
+    },
+    {
+      "item": "mawSeedMine",
+      "price": 120,
+      "weight": 10
+    },
+    {
+      "item": "heartHusk",
+      "price": 600,
+      "weight": 3
+    }
+  ],
+  "contraband": {
+    "neuroSpikeGrenade": {
+      "label": "Neuro-Spike Grenade",
+      "kind": "consumable",
+      "value": 45,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 3,
+      "fuse": 1.5,
+      "radius": 6,
+      "damage": 70,
+      "overload": 40
+    },
+    "mawSeedMine": {
+      "label": "Maw-Seed Mine",
+      "kind": "consumable",
+      "value": 60,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 2,
+      "armTime": 2,
+      "triggerRadius": 2.5,
+      "damage": 110,
+      "root": 2
+    },
+    "heartHusk": {
+      "label": "Heart Husk",
+      "kind": "consumable",
+      "value": 300,
+      "size": [
+        2,
+        2
+      ],
+      "stack": 1,
+      "effect": "on death, revive once with 50% Biomass after 3 s; the husk bursts out of your back"
+    }
+  }
+}

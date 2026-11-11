@@ -159,5 +159,124 @@
       }
     ],
     "corpseHarvest": true
+  },
+  "host": {
+    "_note": "Host raid: the 1 km Zone 7 map (World & Level builds it). Biome positions are radius fraction + bearing like the rest of this file, against playableRadius below.",
+    "playableRadius": 500,
+    "raidTime": 1500,
+    "biomes": [
+      {
+        "id": "glowmireFlats",
+        "label": "Glowmire Flats",
+        "radius": 0.2,
+        "bearing": 0,
+        "threat": 1,
+        "look": "shallow liquid-light marsh, giant glowing fungi, the drop zone"
+      },
+      {
+        "id": "chitinSpires",
+        "label": "Chitin Spires",
+        "radius": 0.55,
+        "bearing": 60,
+        "threat": 2,
+        "look": "forest of hollow chitin towers, wind-whistling, Glasswalker country"
+      },
+      {
+        "id": "wreckOfTheLongSeed",
+        "label": "Wreck of the Long Seed",
+        "radius": 0.6,
+        "bearing": 170,
+        "threat": 3,
+        "look": "a crashed bio-tech seedship split open, tech loot, Mournbacks graze in its ribs"
+      },
+      {
+        "id": "choirChasm",
+        "label": "Choir Chasm",
+        "radius": 0.55,
+        "bearing": 270,
+        "threat": 3,
+        "look": "floating island chain over the void, Bile Cantor colonies singing, liquid-light falls"
+      },
+      {
+        "id": "broodHollow",
+        "label": "Brood Hollow",
+        "radius": 0.8,
+        "bearing": 330,
+        "threat": 4,
+        "look": "fleshy crater field with two Brood Hearts, highest loot"
+      }
+    ],
+    "spawns": {
+      "radius": 0.9,
+      "count": 6,
+      "minSeparation": 250
+    },
+    "extracts": {
+      "pool": [
+        {
+          "radius": 0.85,
+          "bearing": 20
+        },
+        {
+          "radius": 0.9,
+          "bearing": 110
+        },
+        {
+          "radius": 0.85,
+          "bearing": 200
+        },
+        {
+          "radius": 0.9,
+          "bearing": 290
+        },
+        {
+          "radius": 0.3,
+          "bearing": 140
+        }
+      ],
+      "openAtStart": 2,
+      "shiftEvery": 300,
+      "warnBeforeShift": 60,
+      "maxOpen": 3,
+      "paidExtract": {
+        "bearing": 140,
+        "costDna": 150,
+        "extractTime": 5
+      }
+    },
+    "anomalies": [
+      {
+        "id": "psychWaveStorm",
+        "label": "Psych-Wave Storm",
+        "chancePerRaid": 0.5,
+        "duration": 120,
+        "effect": {
+          "scannerDisabled": true,
+          "overloadPerSecond": 3
+        },
+        "look": "the sky tears into magenta bands; the scanner fills with static"
+      },
+      {
+        "id": "gravityBloom",
+        "label": "Gravity Bloom",
+        "chancePerRaid": 0.35,
+        "radius": 40,
+        "effect": {
+          "gravityMultiplier": 0.35
+        },
+        "look": "a slowly turning lens of violet light lifts debris and bodies into the air"
+      },
+      {
+        "id": "redTide",
+        "label": "Red Tide",
+        "chancePerRaid": 0.25,
+        "effect": {
+          "abominationSpeedMultiplier": 1.2,
+          "dnaDropMultiplier": 1.5
+        },
+        "look": "every Abomination's glow turns red and they hunt in frenzy"
+      }
+    ],
+    "rivals": true
   }
 }

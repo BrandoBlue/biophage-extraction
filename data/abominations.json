@@ -216,5 +216,127 @@
       "time": 4,
       "noise": 20
     }
+  },
+  "titheWeaver": {
+    "label": "Tithe Weaver",
+    "role": "trap-layer",
+    "introducedIn": "host",
+    "biomass": 160,
+    "speed": 4.5,
+    "damage": 12,
+    "attackRange": 20,
+    "cooldown": 3,
+    "windup": 0.6,
+    "web": {
+      "maxStrands": 6,
+      "strandLength": 14,
+      "rootDuration": 1.8,
+      "alertRadius": 40,
+      "strandBiomass": 15
+    },
+    "weakPoint": {
+      "name": "ganglion knot",
+      "multiplier": 2.5
+    },
+    "perception": {
+      "sight": 20,
+      "fov": 360,
+      "hearing": 20,
+      "alertShare": 40,
+      "loseInterest": 15
+    },
+    "packSize": [
+      1,
+      1
+    ],
+    "staggerThreshold": 40,
+    "dnaDrop": 25,
+    "harvest": {
+      "item": "weaverGanglion",
+      "time": 2.5,
+      "noise": 8
+    }
+  },
+  "huskMimic": {
+    "label": "Husk Mimic",
+    "role": "ambusher that impersonates rival hosts",
+    "introducedIn": "host",
+    "biomass": 180,
+    "speed": 5.2,
+    "lungeSpeed": 12,
+    "damage": 38,
+    "attackRange": 2.8,
+    "cooldown": 1.8,
+    "windup": 0.4,
+    "disguise": {
+      "revealDistance": 8,
+      "wearsClassOf": "random"
+    },
+    "weakPoint": {
+      "name": "finger-maw",
+      "multiplier": 2.0
+    },
+    "perception": {
+      "sight": 35,
+      "fov": 180,
+      "hearing": 25,
+      "alertShare": 0,
+      "loseInterest": 20
+    },
+    "packSize": [
+      1,
+      1
+    ],
+    "staggerThreshold": 45,
+    "dnaDrop": 30,
+    "harvest": {
+      "item": "mimicLure",
+      "time": 2.5,
+      "noise": 10
+    }
+  },
+  "lumenGrazer": {
+    "label": "Lumen Grazer",
+    "role": "huge passive sky-grazer that panics when hurt",
+    "introducedIn": "host",
+    "biomass": 2400,
+    "speed": 3,
+    "flightHeight": [
+      25,
+      60
+    ],
+    "damage": 90,
+    "attackRange": 10,
+    "cooldown": 8,
+    "windup": 2,
+    "temperament": {
+      "passiveUntilDamaged": true,
+      "panicDives": 3,
+      "calmAfter": 30
+    },
+    "weakPoint": {
+      "name": "lantern glands",
+      "count": 6,
+      "multiplier": 2.0,
+      "biomassEach": 120
+    },
+    "perception": {
+      "sight": 60,
+      "fov": 360,
+      "hearing": 10,
+      "alertShare": 0,
+      "loseInterest": 30
+    },
+    "packSize": [
+      1,
+      1
+    ],
+    "staggerThreshold": 9999,
+    "dnaDrop": 200,
+    "harvest": {
+      "item": "lanternGland",
+      "time": 5,
+      "noise": 25
+    }
   }
 }

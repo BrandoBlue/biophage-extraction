@@ -1,0 +1,65 @@
+{
+  "_note": "Viral Lab (Host): permanently integrate an extracted virus into a host class. The strain item is consumed. Each integrated strain adds Viral Load; above the class's stable load the host gains a random instability side effect each raid. Integrated strains apply at a fraction of their raid-injection strength but never wear off, and change the host's resting look.",
+  "genomeSlots": 3,
+  "permanentStrength": 0.5,
+  "cost": {
+    "plagueStalkerStrain": {
+      "dna": 300,
+      "mutagens": 2
+    },
+    "adrenalineVirus": {
+      "dna": 250,
+      "mutagens": 2
+    },
+    "splicedParasites": {
+      "dna": 350,
+      "mutagens": 3
+    }
+  },
+  "viralLoad": {
+    "perStrain": 1,
+    "stable": {
+      "venomWraith": 2,
+      "neuroInfiltrator": 3,
+      "goreBehemoth": 2
+    }
+  },
+  "instability": [
+    {
+      "id": "tremor",
+      "label": "Tremor",
+      "effect": {
+        "aimSway": 1.5
+      },
+      "look": "hands visibly tremble in first person"
+    },
+    {
+      "id": "feverGlow",
+      "label": "Fever Glow",
+      "effect": {
+        "stealth": -0.2
+      },
+      "look": "skin glows faintly at all times"
+    },
+    {
+      "id": "tumourGrowth",
+      "label": "Tumour Growth",
+      "effect": {
+        "moveSpeedMultiplier": 0.92
+      },
+      "look": "a pulsing growth bulges on one shoulder"
+    },
+    {
+      "id": "neuralStatic",
+      "label": "Neural Static",
+      "effect": {
+        "overloadDecayMultiplier": 0.8
+      },
+      "look": "scanner and HUD flicker with static"
+    }
+  ],
+  "purge": {
+    "dna": 150,
+    "description": "removes one integrated strain; the strain is lost"
+  }
+}
