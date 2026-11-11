@@ -31,6 +31,7 @@ const states: Record<string, Partial<HudView>> = {
   mutated: { activeVirus: 'plagueStalkerStrain' },
   harvest: { harvestProgress: 0.62, interact: { text: 'HOLD E · HARVEST NEEDLEMAW GLAND', progress: 0.62 } },
   extract: { extract: { progress: 0.4, inside: true, distance: 2, label: 'Seed Spire', time: 10 }, activeVirus: 'adrenalineVirus' },
+  gear: { carried: [...base.carried, { item: 'neuroSpikeGrenade', label: 'Neuro-Spike Grenade', count: 2, kind: 'tech' }, { item: 'mawSeedMine', label: 'Maw-Seed Mine', count: 1, kind: 'tech' }, { item: 'heartHusk', label: 'Heart Husk', count: 1, kind: 'organ' }] },
   boss: { boss: { label: 'Brood Heart', fraction: 0.58, wave: 2, waves: 4 }, overload: 0.4 },
   low: { biomass: 38, overload: 0.92, overloaded: false, collapse: true, timeLeft: 94, activeVirus: 'splicedParasites', ammo: 6 },
 };

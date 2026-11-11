@@ -13,16 +13,17 @@ import { drawOrbit, HOST_ORDER, hostSelect, mainMenu, raidSelect, results } from
 import type { ResultData } from './screens';
 import { stashScreen } from './stash';
 import { marketScreen } from './market';
+import { vendorRow, vendorScreen } from './vendors';
 import { CLASSES } from '../../../data';
 import type { ClassId } from '../../../data';
 
-export type Tab = 'menu' | 'host' | 'stash' | 'raid' | 'market' | 'settings' | 'results';
+export type Tab = 'menu' | 'host' | 'stash' | 'raid' | 'market' | 'vendors' | 'settings' | 'results';
 
 const TITLES: Record<Tab, string> = {
   menu: 'THE HIVE', host: 'STARTER HOST SELECT & PROGRESSION', stash: 'STASH & INTERNAL CAVITIES',
-  raid: 'EXCLUSION ZONE SELECT', market: 'FLESH MARKET', settings: 'SETTINGS', results: 'RAID DEBRIEF',
+  raid: 'EXCLUSION ZONE SELECT', market: 'FLESH MARKET', vendors: 'HIVE VENDORS', settings: 'SETTINGS', results: 'RAID DEBRIEF',
 };
-const NAV_TAB: Partial<Record<Tab, string>> = { menu: 'menu', host: 'host', stash: 'stash', raid: 'raid', market: 'market' };
+const NAV_TAB: Partial<Record<Tab, string>> = { menu: 'menu', host: 'host', stash: 'stash', raid: 'raid', market: 'vendors', vendors: 'vendors' };
 
 export interface HiveUIOptions {
   /** Called when the host changes (Gameplay stores it on the profile). */
@@ -52,18 +53,25 @@ export class HiveUI {
     const p = this.view();
     const f = frame({ title: TITLES[tab], tab: NAV_TAB[tab], callsign: p.callsign, dna: p.dna,
       extras: [{ label: 'HOST', value: CLASSES[p.host].label.replace('The ', '').toUpperCase(), tone: 'lime' }, { label: 'EXTRACTS', value: String(p.stats.extracts), tone: 'amber' }],
-      unlocked: this.actions.market ? ['market'] : [] });
+      unlocked: this.trades() ? ['vendors'] : [] });
     f.nav.addEventListener('click', (e) => {
       const t = (e.target as HTMLElement).closest<HTMLButtonElement>('.tab');
-      if (t && !t.disabled) this.show(t.dataset.tab as Tab);
+      if (t && !t.disabled) this.show(t.dataset.tab === 'vendors' ? this.tradeTab() : t.dataset.tab as Tab);
     });
     let screen: HTMLElement & { dispose?: () => void };
     switch (tab) {
-      case 'menu': screen = mainMenu(p, { go: (t) => this.show(t as Tab), deploy: () => this.show('host'), quit: () => this.quit(), market: !!this.actions.market }); break;
+      case 'menu': screen = mainMenu(p, { go: (t) => this.show(t === 'vendors' ? this.tradeTab() : t as Tab), deploy: () => this.show('host'), quit: () => this.quit(), market: this.trades() }); break;
       case 'host': screen = hostSelect(p, { pick: (id) => { this.opts.pickHost?.(id); this.show('host'); }, next: () => this.show('stash') }); break;
       case 'stash': screen = stashScreen(p, { actions: this.actions, next: () => this.show('raid'), changed: () => this.show('stash'), notice: (m, t) => this.notice(m, t) }); break;
-      case 'market': screen = marketScreen(p, { actions: this.actions, changed: () => this.show('market'), notice: (m, t) => this.notice(m, t), next: () => this.show('stash') }); break;
-      case 'raid': screen = raidSelect(p, { deploy: () => this.actions.deploy(), notice: (m, t) => this.notice(m, t) }); this.animateOrbit(screen); break;
+      case 'market': {
+        screen = marketScreen(p, { actions: this.actions, changed: () => this.show('market'), notice: (m, t) => this.notice(m, t), next: () => this.show('stash') });
+        const vs = this.actions.vendors?.() ?? [];
+        if (vs.length) screen.prepend(vendorRow(vs, 'gulletBroker', (id) => { this.vendor = id; this.show('vendors'); }, () => this.show('market')));
+        break;
+      }
+      case 'vendors': screen = vendorScreen(p, this.vendor, { actions: this.actions, changed: () => this.show('vendors'), notice: (m, t) => this.notice(m, t), next: () => this.show('stash'),
+        market: () => this.show('market'), pick: (id) => { this.vendor = id; this.show('vendors'); } }); break;
+      case 'raid': screen = raidSelect(p, { deploy: () => this.actions.deploy(), notice: (m, t) => this.notice(m, t), zones: this.actions.zones, selectZone: this.actions.selectZone, changed: () => this.show('raid') }); this.animateOrbit(screen); break;
       case 'results': screen = results(this.lastResult!, { again: () => (this.opts.afterResults ? this.opts.afterResults() : this.show('stash')) }); break;
       default: screen = this.settingsScreen();
     }
@@ -75,6 +83,12 @@ export class HiveUI {
     this.cur = screen;
     this.root.dataset.tab = tab;
   }
+
+  /** Vendor shown on the VENDORS tab. */
+  vendor = 'motherClot';
+  private trades(): boolean { return !!(this.actions.vendors || this.actions.market); }
+  /** VENDORS opens the Hive vendors when the economy is there, otherwise straight to the Flesh Market. */
+  private tradeTab(): Tab { return this.actions.vendors ? 'vendors' : 'market'; }
 
   showResults(r: ResultData): void { this.lastResult = r; this.show('results'); }
 
@@ -144,7 +158,7 @@ export class HiveUI {
 
   private onKey = (e: KeyboardEvent) => {
     if (!this.visible || (e.target as HTMLElement)?.tagName === 'INPUT') return;
-    const back: Partial<Record<Tab, Tab>> = { host: 'menu', stash: 'host', raid: 'stash', market: 'menu', settings: 'menu' };
+    const back: Partial<Record<Tab, Tab>> = { host: 'menu', stash: 'host', raid: 'stash', market: 'menu', vendors: 'menu', settings: 'menu' };
     if (e.code === 'Escape' && back[this.tab]) { this.show(back[this.tab]); return; }
     if (e.code === 'Enter') {
       if (this.tab === 'menu') this.show('host');
@@ -157,7 +171,13 @@ export class HiveUI {
     if (this.tab === 'menu') {
       if (e.code === 'KeyS') this.show('stash');
       if (e.code === 'KeyH') this.show('host');
-      if (e.code === 'KeyM' && this.actions.market) this.show('market');
+      if (e.code === 'KeyM' && this.trades()) this.show(this.tradeTab());
+    }
+    if (this.tab === 'vendors' && e.code === 'Tab') {
+      e.preventDefault();
+      const ids = (this.actions.vendors?.() ?? []).map((v) => v.id);
+      this.vendor = ids[(ids.indexOf(this.vendor) + 1) % ids.length] ?? this.vendor;
+      this.show('vendors');
     }
     if (this.tab === 'host' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) {
       const open = HOST_ORDER.filter((id) => CLASSES[id].playableFrom !== 'host');

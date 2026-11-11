@@ -25,7 +25,11 @@ function el(tag: string, cls: string, html = ''): HTMLElement {
 
 /** Full control list, shown on the briefing prompt and whenever the mouse is released mid-raid. */
 export const CONTROLS = '<small>WASD move · SHIFT sprint · C slide/crouch · SPACE jump · ESC release · TAB cavities</small>'
-  + '<small>LMB fire · RMB aim · R regrow · F ego charge · 1/Q psych-wave pulse · 2 clot gel · hold E harvest</small>';
+  + '<small>LMB fire · RMB aim · R regrow · F ego charge · V melee · 1/Q psych-wave pulse · 2 clot gel · hold E harvest</small>'
+  + '<small>G neuro-spike grenade · X maw-seed mine · a Heart Husk in your cavities revives you once</small>';
+
+/** Flesh Market gear the HUD counts from what the host carries: key, item, short label. */
+export const GEAR: [string, string, string][] = [['G', 'neuroSpikeGrenade', 'SPIKE'], ['X', 'mawSeedMine', 'MINE'], ['', 'heartHusk', 'HUSK']];
 
 export const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
@@ -51,6 +55,8 @@ export class OrganicHud {
   private bannerLeft = 0;
   private lootKey = '';
   private bossKey = '';
+  private gearKey = '';
+  private reviveLeft = 0;
 
   constructor(root: HTMLElement, bus?: Bus) {
     applyTheme();
@@ -83,6 +89,8 @@ export class OrganicHud {
         <div class="ammo" data-q="ammoBox"><b data-q="ammo">42</b> / ∞ <small>SPORES</small></div>
         <div class="ego" data-q="ego"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="40"/><circle class="val" cx="50" cy="50" r="40" data-q="egoRing"/></svg><span>EGO<br/>CHARGE</span></div>
       </div>
+      <div class="h-gear" data-q="gear"></div>
+      <div class="h-revive hidden" data-q="revive"><b>HEART HUSK</b><span>THE HUSK SPLITS · REBIRTH IN <i data-q="reviveT">0.0</i></span></div>
       <div class="h-centre">
         <div class="hitmarker" data-q="hit"></div>
         <div class="h-interact hidden" data-q="interact"><span></span><div class="bar"><div></div></div></div>
@@ -128,6 +136,9 @@ export class OrganicHud {
     on<{ virus: string }>('virusInjected', (e) => this.mutate(e.virus));
     on<{ item: string }>('harvestDone', (e) => this.say(`CUT OUT ${(itemOf(e.item)?.label ?? e.item).toUpperCase()}`, 'cyan'));
     on<{ id: string; slot: number }>('ability', () => { this.bannerLeft = 1.4; });
+    on<{ hit: number | null }>('melee', (e) => { if (e.hit !== null) { this.hitLeft = 0.18; this.q.hit.className = 'hitmarker on'; } });
+    on<{ time: number }>('reviving', (e) => { this.reviveLeft = e.time; this.q.revive.classList.remove('hidden'); });
+    on('revived', () => { this.reviveLeft = 0; this.q.revive.classList.add('hidden'); this.say('REBORN FROM THE HUSK', 'lime', 2.5); });
     on<{ label: string }>('nestAwake', (e) => this.say(`${e.label.toUpperCase()} STIRS`, 'danger', 3));
     on<{ wave: number; of: number }>('nestWave', (e) => this.say(`BROOD WAVE ${e.wave} OF ${e.of}`, 'danger', 2.5));
     on<{ dna: number }>('nestDestroyed', (e) => this.say(`THE HEART BURSTS · +${e.dna} DNA · BROOD CACHE EXPOSED`, 'lime', 4));
@@ -256,8 +267,19 @@ export class OrganicHud {
     if (this.mutateLeft <= 0) q.mutate.classList.remove('on');
 
     this.updateBoss(dt, s.boss ?? null);
+    this.updateGear(s);
+    if (this.reviveLeft > 0) { this.reviveLeft = Math.max(0, this.reviveLeft - dt); q.reviveT.textContent = this.reviveLeft.toFixed(1); }
     this.drawScanner(s);
     if (s.phase !== this.lastPhase) this.lastPhase = s.phase;
+  }
+
+  /** Gear chips over the weapon panel: only what is carried, with its key and count. */
+  private updateGear(s: HudView): void {
+    const have = GEAR.map(([key, item, label]) => ({ key, item, label, n: s.carried.filter((c) => c.item === item).reduce((a, c) => a + c.count, 0) })).filter((g) => g.n > 0);
+    const k = have.map((g) => `${g.item}${g.n}`).join(',');
+    if (k === this.gearKey) return;
+    this.gearKey = k;
+    this.q.gear.innerHTML = have.map((g) => `<div class="gchip">${g.key ? `<kbd>${g.key}</kbd>` : ''}<i>${itemIcon(g.item)}</i><span>${g.label}</span><b>×${g.n}</b></div>`).join('');
   }
 
   /** Boss bar under the objective: bone-and-flesh sinew, a pale damage ghost, one notch per brood wave. */
