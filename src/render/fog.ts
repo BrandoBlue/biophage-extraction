@@ -12,7 +12,7 @@ export const heightFog = {
   /** Height over which density falls by e. */
   falloff: { value: 9 },
   /** Extra density multiplier inside the layer, on top of scene.fog.density. */
-  layer: { value: 9 },
+  layer: { value: 13 },
   /** Patchiness 0..1. */
   noise: { value: 0.6 },
 };
