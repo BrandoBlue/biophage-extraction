@@ -52,6 +52,38 @@ export interface HiveActions {
   /** Zone roster with access, and picking the raid-select zone. */
   zones?(): ZoneView[];
   selectZone?(id: string): boolean;
+  /** The Hive Body (Gameplay's src/game/hive.ts). The HIVE BODY tab unlocks with it. */
+  hiveBody?(): HiveBodyView;
+  growOrgan?(id: string): boolean;
+  /** Banks the Spore Garden; returns the DNA collected. */
+  collectGarden?(): number;
+  startRecipe?(id: string): boolean;
+  /** Takes the finished vat job into the stash; null when nothing is ready or the stash is full. */
+  collectVat?(): { item: string; count: number } | null;
+}
+
+export type OrganState = 'ok' | 'max' | 'coming' | 'locked' | 'dna' | 'items';
+export type RecipeState = 'ok' | 'no-vat' | 'unknown' | 'busy' | 'items';
+export interface CostLine { item: string; count: number; have: number }
+export interface OrganView {
+  id: string; label: string; brief: string; level: number; max: number;
+  /** What the current level does (data/hive.json level fields), empty before the first level. */
+  now: string[];
+  /** Next level: its cost and what it adds. Null at max. */
+  next: { dna: number; items: CostLine[]; adds: string[] } | null;
+  state: OrganState;
+  /** Contract title that unlocks the organ, while it is locked. */
+  lockedBy?: string | null;
+}
+export interface HiveBodyView {
+  organs: OrganView[];
+  /** Spore Garden, when grown: DNA ready to collect, its cap and rate. */
+  garden: { stored: number; cap: number; perHour: number } | null;
+  /** Gestation Vat, when grown: the recipes it knows and the job growing. */
+  vat: {
+    recipes: { id: string; inputs: CostLine[]; output: { item?: string; pool?: string[]; count: number }; time: number; state: RecipeState }[];
+    job: { recipe: string; secondsLeft: number; total: number; ready: boolean } | null;
+  } | null;
 }
 
 export type ZoneView = { id: string; label: string; access: { state: 'open' } | { state: 'locked' | 'coming'; reason: string } };
