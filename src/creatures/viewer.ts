@@ -1,4 +1,9 @@
 import * as THREE from 'three';
+import { BroodHeart } from './broodheart';
+import { HostArm, VIRUS_LOOKS, type VirusLook } from './hostarm';
+import { organMesh } from './organs';
+import { HostBody } from './hosts';
+import type { ClassId } from '../../data';
 import { HIVE, PATH, ZONE7 } from '../render/palette';
 import { bioSurface, bioNode } from '../render/materials';
 import { createPipeline, simplifyForSoftware, type Pipeline } from '../render/pipeline';
@@ -104,6 +109,14 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
   };
   let creatures: Creature[] = [];
   let lineup = q.has('lineup');
+  // Non-creature specimens: the Brood Heart nest, the harvest organs, the host arm.
+  type Extra = 'nest' | 'organs' | 'arm' | 'host' | null;
+  let extra: Extra = null;
+  const extras = new THREE.Group();
+  scene.add(extras);
+  let heart: BroodHeart | null = null, arm: HostArm | null = null, host: HostBody | null = null;
+  const HOSTS: ClassId[] = ['neuroInfiltrator', 'venomWraith', 'goreBehemoth'];
+  const ORGANS = ['needlemawGland', 'cantorSongSac', 'glasswalkerLens', 'oculimothEye', 'mournbackMarrow'];
   let yaw = Number(q.get('yaw') ?? 0.6), pitch = 0.12, zoom = 1;
   let walkAngle = 0;
 
@@ -129,6 +142,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     <div class="row">
       <button id="v-walk">Walk</button><button id="v-strike">Strike</button><button id="v-sever">Sever limb</button>
       <button id="v-kill">Gib</button><button id="v-seed">New seed</button><button id="v-lineup">Lineup</button>
+      <button id="v-nest">Brood Heart</button><button id="v-organs">Organs</button><button id="v-arm">Host arm</button><button id="v-host">Hosts</button>
       <button id="v-env">${env === 'zone7' ? 'Hive lab' : 'Zone 7'}</button>
     </div>
     <div class="card" id="v-card"></div>`;
@@ -155,6 +169,10 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
   $('#v-kill').onclick = () => api.gib();
   $('#v-seed').onclick = () => { st.seed = (st.seed * 7919 + 13) % 100000; rebuild(); };
   $('#v-lineup').onclick = () => { lineup = !lineup; rebuild(); };
+  $('#v-nest').onclick = () => { if (extra === 'nest') api.pulse(); else api.nest(); };
+  $('#v-organs').onclick = () => api.organs();
+  $('#v-host').onclick = () => api.host(HOSTS[(HOSTS.indexOf(host?.classId as ClassId) + 1) % HOSTS.length]);
+  $('#v-arm').onclick = () => { if (extra !== 'arm') api.arm(); else api.arm(VIRUS_LOOKS[(VIRUS_LOOKS.indexOf(arm!.current as VirusLook) + 1) % VIRUS_LOOKS.length]); };
   $('#v-env').onclick = () => { const u = new URL(location.href); u.searchParams.set('env', env === 'zone7' ? 'hive' : 'zone7'); location.href = u.href; };
   addEventListener('keydown', (e) => { if (e.key === 'h' || e.key === 'H') ui.classList.toggle('hidden'); });
 
@@ -164,6 +182,13 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     $('#v-walk').classList.toggle('on', st.walking);
     $('#v-lineup').classList.toggle('on', lineup);
     const t = (ABOMINATIONS as Record<string, Abomination>)[st.species];
+    for (const k of ['nest', 'organs', 'arm', 'host']) $(`#v-${k}`).classList.toggle('on', extra === k);
+    if (extra) {
+      $('#v-card').innerHTML = extra === 'nest' ? '<b>Brood Heart</b><br>Wave nest. Click again to pulse a wave; sever pops a weak point; gib destroys it.'
+        : extra === 'organs' ? '<b>Harvest organs</b><br>Gland, song sac, lens, eye, marrow.'
+        : extra === 'host' ? `<b>Host</b><br>${host?.classId} · click again for the next class` : `<b>Host arm</b><br>${arm?.current ?? 'clean'} · click again for the next virus`;
+      return;
+    }
     $('#v-card').innerHTML = lineup ? '<b>Larva roster</b><br>All five Abominations at the selected stage.' :
       `<b>${t?.label ?? st.species}</b> · ${t?.role ?? ''}<br>Biomass ${t?.biomass ?? '?'} · weak point: ${(t?.weakPoint as { name?: string })?.name ?? '?'}<br>Seed ${st.seed} · mutation stage ${st.stage}/${MAX_STAGE}`;
   };
@@ -178,9 +203,19 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     c.plant();
   };
 
-  function rebuild(): void {
+  function clearExtras(): void {
+    extras.clear();
+    heart = null; arm = null; host = null; extra = null;
+  }
+
+  function clearAll(): void {
     for (const c of creatures) c.root.removeFromParent();
     creatures = [];
+    clearExtras();
+  }
+
+  function rebuild(): void {
+    clearAll();
     if (lineup) {
       // Small ones in front, the big ones behind: one group shot of the roster.
       const spots: [SpeciesId, number, number, number][] = [
@@ -198,7 +233,11 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
   const frame = () => {
     const c = creatures[0];
     let target = new THREE.Vector3(origin.x, origin.y + 1, origin.z), dist = 6;
-    if (lineup) { target.set(origin.x + 0.4, origin.y + 2.0, origin.z - 0.8); dist = 13; }
+    if (extra === 'nest') { target.set(origin.x, origin.y + 2.3, origin.z); dist = 15; }
+    else if (extra === 'organs') { target.set(origin.x, origin.y + 1.2, origin.z); dist = 1.75; }
+    else if (extra === 'host') { target.set(origin.x, origin.y + 1.1, origin.z); dist = 4.2; }
+    else if (extra === 'arm') { target.set(origin.x, origin.y + 1.25, origin.z); dist = 0.75; }
+    else if (lineup) { target.set(origin.x + 0.4, origin.y + 2.0, origin.z - 0.8); dist = 13; }
     else if (c) {
       const r = c.plan.radius, h = c.plan.bodyHeight;
       const top = c.plan.locomotion === 'walker' ? h : h;
@@ -240,12 +279,62 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
       for (const p of next.rig.parts.values()) if (p.mesh.userData.growth) mutation.growIn(p.mesh, { duration: 2.2, colour: next.plan.palette.glow });
       refreshUi();
     },
+    /** The Brood Heart nest on the stage. */
+    nest() {
+      clearAll();
+      extra = 'nest';
+      heart = new BroodHeart(st.seed, scene);
+      heart.root.position.copy(origin);
+      extras.add(heart.root);
+      if (soft) simplifyForSoftware(heart.root);
+      heart.refresh();
+      refreshUi();
+    },
+    pulse() { heart?.pulse(); },
+    /** The five Larva harvest organs in a row. */
+    organs() {
+      clearAll();
+      extra = 'organs';
+      ORGANS.forEach((id, i) => {
+        const o = organMesh(id);
+        o.position.set(origin.x + (i - 2) * 0.24, origin.y + 1.2, origin.z);
+        o.userData.spin = true;
+        extras.add(o);
+      });
+      if (soft) simplifyForSoftware(extras);
+      refreshUi();
+    },
+    /** The host's forearm; pass a virus to dissolve-grow into it. */
+    arm(virus?: VirusLook) {
+      if (extra !== 'arm') {
+        clearAll();
+        extra = 'arm';
+        arm = new HostArm();
+        arm.root.position.set(origin.x - 0.18, origin.y + 1.25, origin.z);
+        arm.root.rotation.set(0, 0, -Math.PI / 2);
+        extras.add(arm.root);
+      }
+      if (virus) arm!.mutate(virus, 2.5);
+      refreshUi();
+    },
+    /** A playable host body (Hive menu look). */
+    host(classId: ClassId = 'neuroInfiltrator') {
+      clearAll();
+      extra = 'host';
+      host = new HostBody(classId);
+      host.root.position.copy(origin);
+      extras.add(host.root);
+      if (soft) simplifyForSoftware(host.root);
+      refreshUi();
+    },
     sever(id?: string) {
+      if (heart) { const i = heart.weakPoints.findIndex((w) => w.alive); heart.popWeakPoint(i); heart.hurt((i + 1) / heart.weakPoints.length * 0.5); return i >= 0; }
       const c = creatures[0];
       const limb = id ?? [...c.rig.limbs.values()].filter((l) => !l.severed && l.spec.severable).map((l) => l.spec.id)[0];
       return limb ? creatureGore.sever(scene, c, limb, new THREE.Vector3(Math.random() * 2 - 1, 0, 1.5)) : false;
     },
     gib() {
+      if (heart) { heart.destroy(); return; }
       const c = creatures[0];
       creatureGore.burstAll(scene, c, new THREE.Vector3(0, 2, 0));
       creatureGore.pool(scene, c);
@@ -254,7 +343,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
     walk(on: boolean) { st.walking = on; refreshUi(); },
     strike() { st.striking = 1.2; },
     view(y: number, p = pitch, z = 1) { yaw = y; pitch = p; zoom = z; },
-    state() { return { ...st, lineup, creatures: creatures.map((c) => ({ species: c.species, stage: c.plan.stage, limbs: c.rig.limbs.size, severed: [...c.rig.limbs.values()].filter((l) => l.severed).length })) }; },
+    state() { return { ...st, lineup, extra, arm: arm?.current ?? null, host: host?.classId ?? null, nestWeak: heart?.weakPoints.filter((w) => w.alive).length ?? null, nestAlive: heart?.alive ?? null, creatures: creatures.map((c) => ({ species: c.species, stage: c.plan.stage, limbs: c.rig.limbs.size, severed: [...c.rig.limbs.values()].filter((l) => l.severed).length })) }; },
     stats() { const i = pipeline.renderer.info; return { calls: i.render.calls, triangles: i.render.triangles, programs: i.programs?.length ?? 0 }; },
   };
   (window as unknown as { __biophageViewer: typeof api }).__biophageViewer = api;
@@ -286,6 +375,10 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
       c.update(dt);
     }
     creatureGore.update(dt);
+    heart?.update(dt);
+    arm?.update(dt);
+    host?.update(dt);
+    for (const o of extras.children) if (o.userData.spin) o.rotation.y += dt * 0.6;
     frame();
     pipeline.render(dt);
     frames++;

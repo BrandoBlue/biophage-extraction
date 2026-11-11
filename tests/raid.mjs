@@ -223,6 +223,22 @@ try {
   await call('begin');
   await frames(2);
   await call('give', 'synapseLens', 1);
+  // Brood Heart (PvE AI): walking up wakes it, it pulses out a wave, and killing it drops a Brood Cache.
+  s = await state();
+  if (s.nests?.length) {
+    const nest = s.nests[0];
+    await call('teleport', nest.position[0] + 18, nest.position[1] + 6);
+    await call('aimAt', nest.position[0], 3, nest.position[1]);
+    for (let i = 0; i < 40; i++) { await frames(2); s = await state(); if (s.nests[0].brood > 0) break; }
+    if (s.nests[0].state !== 'active' || s.nests[0].wave < 1 || s.nests[0].brood < 1) await fail(`Brood Heart did not wake and spawn: ${JSON.stringify(s.nests[0])}`);
+    await freezeAndScreenshot(page, 'tests/out/raid-nest.png', { resume: true });
+    const pods = s.pods.length;
+    await call('hitNest', 0, 1e6, null);
+    await frames(2);
+    s = await state();
+    if (s.nests[0].state !== 'destroyed' || s.pods.length !== pods + 1) await fail(`Brood Heart kill did not drop a Brood Cache: ${JSON.stringify(s.nests[0])}`);
+    log(`Brood Heart woke, sent wave ${s.nests[0].wave} (${s.nests[0].brood} spawn), died and dropped a Brood Cache`);
+  }
   await call('damage', 10000);
   await frames(3);
   s = await state();
