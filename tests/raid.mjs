@@ -239,8 +239,18 @@ try {
   if (p.cavity.length || total(p.stash, 'dnaStrand') || total(p.stash, 'synapseLens') > total(haul, 'synapseLens')) await fail(`death did not empty the cavities: ${JSON.stringify(p)}`);
   if (total(p.gutPouch, 'clotGel') !== pouchGel) await fail(`gut pouch did not survive death: ${JSON.stringify(p.gutPouch)}`);
   if (p.stats.deaths !== 1 || p.dna !== expectDna) await fail(`death record or banked DNA wrong: ${JSON.stringify(p.stats)} DNA ${p.dna}`);
-  await freezeAndScreenshot(page, 'tests/out/raid-hive-after.png');
+  await freezeAndScreenshot(page, 'tests/out/raid-hive-after.png', { resume: true });
   log('after death: cavities empty, gut pouch kept, banked DNA untouched');
+
+  // --- Flesh Market: today's stock is listed and selling one stash item pays DNA.
+  await tab('market');
+  const cards = await page.locator('#hive .mk-card').count();
+  if (cards < 1) await fail('Flesh Market shows no stock');
+  const before = (await profile()).dna;
+  await page.click('#hive [data-sell="0"]');
+  if (!((await profile()).dna > before)) await fail('selling at the Flesh Market paid no DNA');
+  await freezeAndScreenshot(page, 'tests/out/raid-market.png');
+  log(`Flesh Market: ${cards} offers, sold one item for ${(await profile()).dna - before} DNA`);
 
   if (errors.length) await fail(`console errors:\n${errors.join('\n')}`);
   await browser.close();

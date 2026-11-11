@@ -11,7 +11,7 @@ import { cta, esc, h, keyHints, panel } from './kit';
 import type { BuyState, HiveActions, MarketView, ProfileView } from './model';
 import { tile } from './screens';
 
-const WHY: Record<Exclude<BuyState, 'ok'>, string> = { 'not-stocked': 'SOLD OUT', dna: 'NOT ENOUGH DNA', space: 'STASH FULL' };
+const WHY: Record<Exclude<BuyState, 'ok'>, string> = { 'not-stocked': 'SOLD OUT', dna: 'NEED DNA', space: 'STASH FULL' };
 const MOOD_WORDS = ['SOURED', 'SULLEN', 'WARY', 'INDIFFERENT', 'CURIOUS', 'PLEASED', 'SATED'];
 
 export const moodWord = (mood: number) => MOOD_WORDS[Math.max(0, Math.min(6, Math.round(mood + 3)))];

@@ -4,10 +4,13 @@
  * debrief. main.ts keeps the same small surface it had with the interim menu: construct, hide, say, visible,
  * plus showResults for the debrief.
  */
-import { CLASSES, PROFILE } from '../../data';
+import { CLASSES, MARKET, PROFILE } from '../../data';
 import type { ClassId } from '../../data';
 import { ItemGrid } from '../game/grid';
-import { expandStash, nextStashRowCost, placeAt, pouchUpgradeCost, stashGrid, upgradePouch, type Profile } from '../game/profile';
+import {
+  buy, canBuy, expandStash, marketStock, marketWindow, nextStashRowCost, placeAt, pouchUpgradeCost, sell, sellPrice, stashGrid, upgradePouch,
+  type Profile,
+} from '../game/profile';
 import { HiveUI } from './hive/hive-ui';
 import type { HiveActions, ProfileView } from './hive/model';
 import type { ResultData } from './hive/screens';
@@ -35,6 +38,14 @@ export class HiveMenu {
       },
       upgradePouch: () => { const ok = upgradePouch(p); if (ok) onChange(); return ok; },
       deploy: onDeploy,
+      market: () => {
+        const now = new Date();
+        const next = (marketWindow(now) + 1) * MARKET.rotateHours * 3600e3;
+        return { mood: p.marketMood, rotatesIn: Math.max(0, (next - now.getTime()) / 1000), sellPrice: (item) => sellPrice(p, item),
+          stock: marketStock(p, now).map((s) => ({ ...s, state: canBuy(p, s.item, now) })) };
+      },
+      sell: (zone, index, count) => { const paid = sell(p, zone, index, count); if (paid) onChange(); return paid; },
+      buy: (item) => { const ok = buy(p, item); if (ok) onChange(); return ok; },
     };
     this.ui = new HiveUI(root, () => this.view(), actions, {
       pickHost: (id) => this.pickHost(id),

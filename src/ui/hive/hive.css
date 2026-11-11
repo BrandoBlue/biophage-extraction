@@ -308,8 +308,8 @@
 .mk-quote { margin:calc(var(--u) * .8) 0 0; font-size:calc(var(--u) * .95); text-transform:none; letter-spacing:.02em; opacity:.7; line-height:1.35; }
 
 .mk-stock { left:calc(var(--u) * 27.5); width:calc(var(--u) * 41); }
-.mk-cards { display:grid; grid-template-columns:repeat(2, 1fr); gap:calc(var(--u) * .7); }
-.mk-card { display:grid; grid-template-columns:auto 1fr auto; grid-template-rows:auto auto; gap:calc(var(--u) * .35) calc(var(--u) * .8); align-items:center; padding:calc(var(--u) * .7);
+.mk-cards { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:calc(var(--u) * .7); }
+.mk-card { display:grid; grid-template-columns:auto minmax(0, 1fr) auto; min-width:0; grid-template-rows:auto auto; gap:calc(var(--u) * .35) calc(var(--u) * .8); align-items:center; padding:calc(var(--u) * .7);
   background:color-mix(in srgb, var(--background) 55%, transparent); border:1px solid color-mix(in srgb, var(--bone) 16%, transparent); }
 .mk-card .tile { grid-row:1 / span 2; }
 .mk-card .mk-name { grid-column:2; grid-row:1 / span 2; }
