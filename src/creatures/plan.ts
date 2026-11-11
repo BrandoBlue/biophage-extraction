@@ -17,7 +17,7 @@ export type SpeciesId =
   | ZoneSpeciesId;
 /** New-zone species (src/creatures/zones): Ochre Reach, Marrow Pit, Weeping Fen. */
 export type ZoneSpeciesId = 'dunewake' | 'bristleback' | 'shroudling'
-  | 'cablecrawler' | 'veilwing' | 'hollowed';
+  | 'cablecrawler' | 'veilwing' | 'hollowed' | 'fenstalker' | 'mirebrood' | 'mistwader';
 export type Locomotion = 'walker' | 'hover' | 'flyer';
 export type MaterialSlot = 'flesh' | 'chitin' | 'bone' | 'glow' | 'glass' | 'eye' | 'membrane' | 'raw';
 

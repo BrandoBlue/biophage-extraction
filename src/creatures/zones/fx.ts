@@ -10,14 +10,16 @@ import { FAUNA } from '../../render/palette';
  */
 
 const mats = new Map<string, THREE.MeshStandardMaterial>();
-function fxMat(kind: 'sand' | 'dust' | 'water'): THREE.MeshStandardMaterial {
+function fxMat(kind: 'sand' | 'dust' | 'water' | 'spray'): THREE.MeshStandardMaterial {
   let m = mats.get(kind);
   if (!m) {
     m = kind === 'sand'
       ? new THREE.MeshStandardMaterial({ color: FAUNA.sandDeep, roughness: 1 })
       : kind === 'dust'
         ? new THREE.MeshStandardMaterial({ color: FAUNA.dustPale, roughness: 1, transparent: true, opacity: 0.34, depthWrite: false })
-        : new THREE.MeshStandardMaterial({ color: FAUNA.water, roughness: 0.15, metalness: 0.2, transparent: true, opacity: 0.4, depthWrite: false });
+        : kind === 'spray'
+          ? new THREE.MeshStandardMaterial({ color: FAUNA.pearl, roughness: 0.2, metalness: 0.1, transparent: true, opacity: 0.3, depthWrite: false })
+          : new THREE.MeshStandardMaterial({ color: FAUNA.water, roughness: 0.15, metalness: 0.2, transparent: true, opacity: 0.4, depthWrite: false });
     mats.set(kind, m);
   }
   return m;
@@ -26,14 +28,14 @@ let moundGeo: THREE.BufferGeometry | null = null;
 let puffGeo: THREE.BufferGeometry | null = null;
 let ringGeo: THREE.BufferGeometry | null = null;
 
-interface Bit { mesh: THREE.Mesh; age: number; life: number; v: THREE.Vector3; size: number; kind: 'mound' | 'puff' | 'ring' }
+interface Bit { mesh: THREE.Mesh; age: number; life: number; v: THREE.Vector3; size: number; kind: 'mound' | 'puff' | 'ring' | 'spray' }
 
 export class GroundFx {
   readonly group = new THREE.Group();
   private bits: Bit[] = [];
   private inv = new THREE.Matrix4();
 
-  constructor(private owner: THREE.Object3D, kinds: { mounds?: number; puffs?: number; rings?: number }) {
+  constructor(private owner: THREE.Object3D, kinds: { mounds?: number; puffs?: number; rings?: number; sprays?: number }) {
     this.group.name = 'zone-fx';
     this.group.matrixAutoUpdate = false;
     moundGeo ??= new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2);
@@ -51,6 +53,7 @@ export class GroundFx {
     add(kinds.mounds ?? 0, 'mound', moundGeo, fxMat('sand'));
     add(kinds.puffs ?? 0, 'puff', puffGeo, fxMat('dust'));
     add(kinds.rings ?? 0, 'ring', ringGeo, fxMat('water'));
+    add(kinds.sprays ?? 0, 'spray', puffGeo, fxMat('spray'));
     owner.add(this.group);
   }
 
@@ -71,8 +74,13 @@ export class GroundFx {
   }
 
   /** Dust thrown up and drifting down. */
-  puff(at: THREE.Vector3, size: number, up = 2, life = 1.1): void {
-    const b = this.take('puff');
+  puff(at: THREE.Vector3, size: number, up = 2, life = 1.1): void { this.throw('puff', at, size, up, life); }
+
+  /** Water thrown up when something bursts out of a pool or slams into it. */
+  spray(at: THREE.Vector3, size: number, up = 3, life = 0.9): void { this.throw('spray', at, size, up, life); }
+
+  private throw(kind: 'puff' | 'spray', at: THREE.Vector3, size: number, up: number, life: number): void {
+    const b = this.take(kind);
     if (!b) return;
     b.age = 0; b.life = life; b.size = size;
     b.mesh.position.copy(at);
@@ -104,15 +112,14 @@ export class GroundFx {
       if (b.kind === 'mound') {
         const rise = Math.min(1, k * 6), settle = 1 - k;
         b.mesh.scale.set(b.size * (0.7 + k * 0.6), b.size * 0.22 * rise * settle, b.size * (1.2 + k * 0.5));
-      } else if (b.kind === 'puff') {
-        b.v.y -= 2.5 * dt;
+      } else if (b.kind === 'puff' || b.kind === 'spray') {
+        b.v.y -= (b.kind === 'spray' ? 9 : 2.5) * dt;
         b.v.multiplyScalar(1 - dt * 1.5);
         b.mesh.position.addScaledVector(b.v, dt);
         const s = b.size * (0.5 + k * 1.4) * (1 - k * k);
         b.mesh.scale.setScalar(Math.max(0.001, s));
       } else {
         b.mesh.scale.setScalar(b.size * (0.3 + k * 1.4));
-        b.mesh.position.y += dt * 0;
       }
     }
   }
