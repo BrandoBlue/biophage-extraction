@@ -35,8 +35,9 @@ The 60 fps at 1080p target needs a real GPU, so CI cannot measure it. CI logs so
 1. All iteration PRs merged to `main`, CI green.
 2. Bump `version` in `package.json` (Spore 0.1.0, Larva 0.2.0, Host 0.3.0, Hive 0.4.0, Apex 0.5.0; previews `0.1.0-preview.1`).
 3. Write patch notes in `docs/releases/v<version>.md` from `docs/releases/TEMPLATE.md`.
-4. Merge, then tag: `git tag v<version> && git push origin v<version>`. The Release workflow re-runs every gate
-   and publishes a GitHub release with the file and a screenshot attached.
+4. Merge. The Release workflow sees the new version on `main`, re-runs every gate, creates tag `v<version>` and
+   publishes a GitHub release with the file and screenshots attached. (Threads cannot push tags from their
+   sandbox, so the workflow tags; it can also be started by hand from the Actions tab.)
 5. The Build thread republishes the play link from the same file and reports it to the coordinator.
 
 ## Bug bash
