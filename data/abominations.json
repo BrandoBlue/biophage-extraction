@@ -1,0 +1,26 @@
+{
+  "_note": "Spore Abominations. Speeds in m/s, perception in metres (hearing radius is multiplied by the target's class noise). dnaDrop is banked only on extraction. Creature briefs: docs/gdd/04-abominations.md.",
+  "needlemaw": {
+    "label": "Needlemaw", "role": "fast melee crawler",
+    "biomass": 60, "speed": 6.8, "lungeSpeed": 14,
+    "damage": 14, "attackRange": 3.0, "cooldown": 1.3, "windup": 0.35,
+    "weakPoint": { "name": "throat sac", "multiplier": 2.0 },
+    "perception": { "sight": 30, "fov": 140, "hearing": 22, "alertShare": 20, "loseInterest": 8 },
+    "packSize": [3, 5],
+    "staggerThreshold": 20,
+    "dnaDrop": 5
+  },
+  "bilecantor": {
+    "label": "Bile Cantor", "role": "slow hovering ranged spitter",
+    "biomass": 220, "speed": 2.4, "hoverHeight": [3, 6],
+    "damage": 22, "attackRange": 45, "preferredRange": [18, 35], "cooldown": 2.8, "windup": 0.8,
+    "projectile": { "speed": 22, "gravity": 9.8, "leadTarget": 0.5 },
+    "acidPool": { "radius": 2.5, "damagePerSecond": 6, "duration": 4 },
+    "weakPoint": { "name": "song pustule", "count": 3, "multiplier": 2.5, "biomassEach": 45, "allPoppedKills": true },
+    "deathCloud": { "radius": 4, "duration": 4, "damagePerSecond": 5, "overloadPerSecond": 10 },
+    "perception": { "sight": 50, "fov": 360, "hearing": 30, "alertShare": 35, "loseInterest": 12 },
+    "packSize": [1, 1],
+    "staggerThreshold": 60,
+    "dnaDrop": 20
+  }
+}

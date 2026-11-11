@@ -1,0 +1,35 @@
+{
+  "_note": "Rules shared by every host. Neural Overload is a heat meter: it fills from 0 to max and decays when idle. Hitting max causes an Overload. See docs/gdd/03-combat.md.",
+  "neuralOverload": {
+    "max": 100,
+    "sprintFillPerSecond": 9,
+    "jumpFill": 4,
+    "decayPerSecond": 16,
+    "decayDelay": 1.0,
+    "overloadedDuration": 2.5,
+    "resetTo": 60
+  },
+  "hitZones": {
+    "head": 1.8,
+    "torso": 1.0,
+    "limb": 0.75
+  },
+  "fallDamage": {
+    "safeHeight": 6,
+    "damagePerMetre": 8
+  },
+  "healing": {
+    "naturalRegen": 0
+  },
+  "interactTime": {
+    "default": 0.6
+  },
+  "noiseRadius": {
+    "footstepWalk": 8,
+    "footstepSprint": 16,
+    "jumpLand": 10,
+    "gunfire": 25,
+    "egoCharge": 30,
+    "reload": 6
+  }
+}
