@@ -47,6 +47,21 @@ float bioCells(vec3 p) {
 }
 `;
 
+/**
+ * Relief without textures: BIO_BUMP(height, scale) tilts the shading normal by the screen-space slope of a procedural
+ * height field (in metres times scale), so surfaces catch light across grain, pores and plates. Use it inside a
+ * bioSurface fragment; it compiles to nothing on the software tier.
+ */
+export const GLSL_BUMP = /* glsl */ `
+#ifndef BIO_LOW
+#define BIO_BUMP(h, k) { float bh_ = (h) * (k); vec3 bsx_ = dFdx(-vViewPosition), bsy_ = dFdy(-vViewPosition); \\
+  vec3 br1_ = cross(bsy_, normal), br2_ = cross(normal, bsx_); float bdet_ = dot(bsx_, br1_) * (gl_FrontFacing ? 1.0 : -1.0); \\
+  vec3 bg_ = sign(bdet_) * (dFdx(bh_) * br1_ + dFdy(bh_) * br2_); normal = normalize(abs(bdet_) * normal - bg_); }
+#else
+#define BIO_BUMP(h, k)
+#endif
+`;
+
 interface SurfaceOptions {
   /** GLSL run before lighting. In scope: vBioWorld, vBioLocal, vBioSeed (per-object/instance offset), vBioNormal (world), bioTime, diffuseColor, totalEmissiveRadiance, roughnessFactor (standard) and uniforms you declare. */
   fragment: string;
@@ -78,7 +93,7 @@ export function bioSurface<T extends THREE.MeshStandardMaterial>(mat: T, opts: S
       vBioWorld = (bioModel * vec4(transformed, 1.0)).xyz;
       vBioNormal = normalize(mat3(bioModel) * objectNormal);`,
     );
-    shader.fragmentShader = varyings + 'uniform float bioTime;\nuniform float bioGlow, bioSat;\n' + (opts.declarations ?? '') + GLSL_NOISE + shader.fragmentShader.replace(
+    shader.fragmentShader = varyings + 'uniform float bioTime;\nuniform float bioGlow, bioSat;\n' + (opts.declarations ?? '') + GLSL_NOISE + GLSL_BUMP + shader.fragmentShader.replace(
       '#include <emissivemap_fragment>',
       `#include <emissivemap_fragment>
       {
@@ -125,6 +140,11 @@ export function zoneRock(opts: { veinColour?: string; mossColour?: string; scale
       float specks = (1.0 - smoothstep(0.02, 0.12, bioCells(vBioWorld * 1.6))) * mossMask;
       // Wet sheen: moss reads glossy and catches a teal rim at grazing angles.
       float fres = pow(1.0 - abs(dot(normalize(vBioNormal), normalize(cameraPosition - vBioWorld))), 3.0);
+      // Relief: strata, grain and gravel tilt the shading normal; moss sits softer. Hollows darken (cheap cavity AO).
+      float gravel = bioNoise(vBioWorld * 9.0 * uScale);
+      float relief = strata * 0.5 + grain * 0.35 + gravel * 0.08 - mossMask * colony * 0.2;
+      BIO_BUMP(relief, 0.14);
+      col *= (0.72 + 0.28 * smoothstep(0.2, 0.9, relief)) * (0.94 + gravel * 0.12);
       diffuseColor.rgb = col;
       roughnessFactor = mix(roughnessFactor, 0.35, mossMask * colony);
       totalEmissiveRadiance += uVein * veinMask * pulse * 0.7 + uMossGlow * specks * 1.2 + uMossGlow * mossMask * 0.02
@@ -213,7 +233,9 @@ export function chitin(base: string = HIVE.bone, glow: string = ZONE7.cyan, scal
     fragment: /* glsl */ `
       vec3 q = vBioLocal * uScale + vBioSeed;
       float plates = smoothstep(0.05, 0.12, bioCells(q * 4.0));
-      diffuseColor.rgb *= mix(0.35, 1.0, plates) * (0.8 + 0.4 * bioNoise(q * 9.0));
+      float grainC = bioNoise(q * 9.0);
+      diffuseColor.rgb *= mix(0.35, 1.0, plates) * (0.8 + 0.4 * grainC);
+      BIO_BUMP(plates * 0.8 + grainC * 0.15, 0.012);
       totalEmissiveRadiance += uGlow * bioVein(q * 6.0) * (1.0 - plates) * 0.8;
     `,
   });
@@ -317,6 +339,8 @@ export function livingFlesh(base: string, vein: string, rim: string, scale = 28)
       float pores = 1.0 - smoothstep(0.05, 0.16, bioCells(p * 1.8));
       diffuseColor.rgb *= 1.0 - pores * 0.45;
       float veins = max(bioVein(p * 0.5), bioVein(p * 1.3 + 4.0) * 0.6);
+      // Skin relief: mottled swells, sunken pores, raised veins.
+      BIO_BUMP(mott * 0.5 - pores * 0.6 + veins * 0.3, 0.012);
       float flow = 0.55 + 0.45 * sin(bioTime * 3.0 - dot(vBioLocal, vec3(0.0, 0.0, 40.0)));
       vec3 V = normalize(cameraPosition - vBioWorld);
       float fres = pow(1.0 - abs(dot(normalize(vBioNormal), V)), 2.5);

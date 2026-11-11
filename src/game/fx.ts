@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { groundHeight, mulberry32 } from '../world/zone7';
 import { HIVE, ZONE7 } from '../render/palette';
-import { shotFx } from '../render/shotfx';
+import { shotFx, shotStyle } from '../render/shotfx';
 
 /** Colours derived from the Art Bible palette (never raw hex here). */
 export const GORE = {
@@ -17,6 +17,7 @@ const tmpM = new THREE.Matrix4();
 const tmpQ = new THREE.Quaternion();
 const tmpS = new THREE.Vector3();
 const tmpV = new THREE.Vector3();
+const BONE = new THREE.Color(HIVE.bone);
 const UP = new THREE.Vector3(0, 1, 0);
 
 interface Particle { p: THREE.Vector3; v: THREE.Vector3; life: number; max: number; size: number; drag: number; grav: number; spin: number; stretch: number }
@@ -101,11 +102,15 @@ export class Fx {
   private r(a = 1): number { return (this.rand() * 2 - 1) * a; }
 
   /** Small burst where a spore lands. */
-  impact(at: THREE.Vector3, colour: THREE.Color, n = 8, speed = 6): void {
-    shotFx.flash(this.scene, at, colour, 0.35 + n * 0.035);
-    for (let i = 0; i < n; i++) {
-      tmpV.set(this.r(), this.rand() * 0.8 + 0.2, this.r()).normalize().multiplyScalar(speed * (0.4 + this.rand()));
-      this.sparks.spawn(at, tmpV, colour, 0.05 + this.rand() * 0.05, 0.25 + this.rand() * 0.3, { drag: 4, grav: 6, stretch: 0.08 });
+  impact(at: THREE.Vector3, colour: THREE.Color, n = 8, speed = 6, style?: string): void {
+    // The look of each weapon's impact (count, pool, size, motion) comes from Rendering's SHOT_STYLES table.
+    const s = shotStyle(style);
+    const k = n / 8, c = colour.clone().lerp(BONE, s.bone);
+    if (s.flash > 0) shotFx.flash(this.scene, at, colour, (0.35 + n * 0.035) * s.flash);
+    const count = Math.round(s.n * k), v = s.speed * (speed / 6);
+    for (let i = 0; i < count; i++) {
+      tmpV.set(this.r(), this.rand() * 0.8 + 0.2, this.r()).normalize().multiplyScalar(v * (0.4 + this.rand()));
+      this[s.pool].spawn(at, tmpV, c, s.size[0] + this.rand() * (s.size[1] - s.size[0]), s.life[0] + this.rand() * (s.life[1] - s.life[0]), { drag: s.drag, grav: s.grav, stretch: s.stretch });
     }
   }
 

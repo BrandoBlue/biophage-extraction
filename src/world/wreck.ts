@@ -3,6 +3,7 @@ import { HIVE, ORGANIC, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { bioNode, bioTime, grownWall, liquidLight, membrane, zoneRock } from '../render/materials';
 import { hazeVolume, lightShaft } from '../render/atmos';
 import { zone7Sky, cloudSea, starField } from '../render/sky';
+import { horizonLands } from '../render/horizon';
 import { ZONE_SITES } from '../../data';
 import { mulberry32 } from './rng';
 import type { Collider } from './collision';
@@ -77,7 +78,7 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
   // ---- Outside: a sliver of the misty island seen through the breaches.
   const sky = zone7Sky();
   sky.userData.bake = true;
-  scene.add(sky, cloudSea(-240), starField(rand));
+  scene.add(sky, cloudSea(-240), starField(rand), horizonLands({ seed: 23 }));
   scene.background = new THREE.Color(ZONE7.void);
   scene.fog = new THREE.FogExp2(ZONE7_SHADE.skyHorizon, 0.006);
   scene.add(new THREE.HemisphereLight(ORGANIC.mist, ORGANIC.wetFleshDeep, 0.55));
