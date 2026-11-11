@@ -1,17 +1,22 @@
 // Scripted raid: proves a Spore raid can be finished both ways, driving the game through window.__biophage.debug.
 //   npm run smoke:raid                 -> against dist/ via `vite preview` (run `npm run build` first)
 //   npm run smoke:raid -- --release    -> against release/index.html from disk
-// Fights a Needlemaw with the Synapse Burster, tears open the Bio-Pod, extracts at the Seed Spire, checks the
-// EXTRACTED screen, deploys again, dies, checks the HOST LOST screen. Screenshots go to tests/out/.
+// Boots into the Hive with a fresh profile, loads Clot Gel into the cavities and deploys. Fights a Needlemaw with the
+// Synapse Burster, tears open the Bio-Pod, extracts at the Seed Spire, checks the EXTRACTED screen, returns to the
+// Hive (page reload) and checks the haul is in the stash. Then deploys with a gut pouch item, dies, checks the HOST
+// LOST screen and that the cavities were lost while the gut pouch came home. Screenshots go to tests/out/.
 // Software rendering is slow: every wait is on simulated frames, never wall-clock time.
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 import { freezeAndScreenshot } from './lib/harness.mjs';
 
 const release = process.argv.includes('--release');
+const LOOT = JSON.parse(readFileSync('data/loot.json', 'utf8'));
+const PROFILE = JSON.parse(readFileSync('data/profile.json', 'utf8'));
+const starter = (item) => PROFILE.newProfile.stash.find((k) => k.item === item).count;
 const label = release ? 'release' : 'preview';
 const PREVIEW_URL = 'http://localhost:4173/';
 let server;
@@ -49,6 +54,9 @@ try {
   const frames = (n) => page.evaluate((k) => window.__biophage.frames + k, n).then((target) =>
     page.waitForFunction((t) => window.__biophage.frames >= t, target, { timeout: 180000 }));
   const call = (fn, ...args) => page.evaluate(([f, a]) => window.__biophage.debug[f](...a), [fn, args]);
+  const profile = () => page.evaluate(() => JSON.parse(JSON.stringify(window.__biophage.profile)));
+  const total = (entries, item) => entries.filter((e) => e.item === item).reduce((n, e) => n + e.count, 0);
+  const menuItem = (zone, item) => `#hive [data-zone="${zone}"] [data-item="${item}"]`;
   const boot = async () => {
     await page.waitForFunction(() => window.__biophage?.frames > 3, null, { timeout: 90000 });
   };
@@ -57,6 +65,15 @@ try {
   await boot();
   let s = await state();
   if (s.phase !== 'briefing') await fail(`expected briefing, got ${s.phase}`);
+
+  // --- The Hive: a fresh profile with Design's starter kit.
+  let p = await profile();
+  if (!(await page.isVisible('#hive'))) await fail('Hive menu is not shown at boot');
+  if (p.dna !== PROFILE.newProfile.dna || !PROFILE.newProfile.stash.every((k) => total(p.stash, k.item) === k.count)) await fail(`unexpected new profile ${JSON.stringify(p)}`);
+  await page.click(menuItem('stash', 'clotGel'));
+  p = await profile();
+  if (total(p.cavity, 'clotGel') !== starter('clotGel') || total(p.stash, 'clotGel') !== 0) await fail(`Clot Gel did not move into the cavities: ${JSON.stringify(p.cavity)}`);
+  await freezeAndScreenshot(page, 'tests/out/raid-hive.png', { resume: true });
   const hudText = await page.evaluate(() => document.querySelector('#vitals')?.textContent ?? '');
   if (!/BIOMASS/.test(hudText) || !/NEURAL OVERLOAD/.test(hudText)) await fail('HUD is missing Biomass or Neural Overload');
 
@@ -65,7 +82,13 @@ try {
 
   // Run the simulation 3x faster per frame so the scripted raid fits in CI time (the dt clamp keeps steps small).
   await call('setTimeScale', 3);
-  await call('begin');
+  await page.click('#deploy');
+  await frames(2);
+  s = await state();
+  if (s.phase !== 'raid') await fail(`Deploy did not start the raid (${s.phase})`);
+  if (await page.isVisible('#hive')) await fail('Hive menu still visible in raid');
+  if (!s.carried.items.some((i) => i.item === 'clotGel' && i.count === starter('clotGel'))) await fail(`loadout not carried: ${JSON.stringify(s.carried.items)}`);
+  if ((await profile()).cavity.length) await fail('saved profile still holds the deployed loadout (a mid-raid quit would keep it)');
 
   // --- Fight: hunt the nearest Needlemaw until it dies.
   s = await state();
@@ -128,11 +151,26 @@ try {
   if (promptShown) await fail('enter prompt shows behind the result screen (issue #7)');
   await freezeAndScreenshot(page, 'tests/out/raid-extracted.png', { resume: true });
   log(`EXTRACTED with haul ${s.result.value}`);
+  const haul = s.result.cavity.filter((e) => e.item !== 'dnaStrand');
+  const strands = total(s.result.cavity, 'dnaStrand');
 
-  // --- Deploy again, then die.
+  // --- Return to the Hive (reload): the haul must be in the stash, kill DNA and strands banked.
   await page.click('#deploy-again');
   await page.waitForFunction(() => window.__biophage?.state?.phase === 'briefing', null, { timeout: 90000 });
   await boot();
+  p = await profile();
+  for (const h of haul) if (total(p.stash, h.item) < h.count) await fail(`${h.item} missing from the stash after reload: ${JSON.stringify(p.stash)}`);
+  const expectDna = PROFILE.newProfile.dna + s.result.dna + strands * LOOT.items.dnaStrand.value;
+  if (p.dna !== expectDna) await fail(`banked DNA ${p.dna}, expected ${expectDna}`);
+  if (p.stats.extracts !== 1 || p.stats.raids !== 1) await fail(`raid record wrong: ${JSON.stringify(p.stats)}`);
+  log(`after reload: stash ${p.stash.map((e) => `${e.count}x ${e.item}`).join(', ')}; DNA ${p.dna}`);
+
+  // --- Second raid: a starter DNA bundle in the cavities, Clot Gel in the gut pouch, then die.
+  await page.click(menuItem('stash', 'dnaStrand'));
+  await page.click(menuItem('stash', 'clotGel'), { modifiers: ['Shift'] });
+  p = await profile();
+  if (total(p.cavity, 'dnaStrand') !== starter('dnaStrand') || total(p.gutPouch, 'clotGel') < 1) await fail(`loadout not set: cavity ${JSON.stringify(p.cavity)} pouch ${JSON.stringify(p.gutPouch)}`);
+  const pouchGel = total(p.gutPouch, 'clotGel');
   await call('setTimeScale', 3);
   await call('begin');
   await frames(2);
@@ -143,13 +181,22 @@ try {
   if (s.phase !== 'lost') await fail(`expected lost, got ${s.phase}`);
   const lost = await page.evaluate(() => document.querySelector('.results h1')?.textContent);
   if (lost !== 'HOST LOST') await fail(`result screen says ${lost}`);
-  await freezeAndScreenshot(page, 'tests/out/raid-lost.png');
+  await freezeAndScreenshot(page, 'tests/out/raid-lost.png', { resume: true });
   log(`HOST LOST; lost value ${s.result.value}`);
+  await page.click('#deploy-again');
+  await page.waitForFunction(() => window.__biophage?.state?.phase === 'briefing', null, { timeout: 90000 });
+  await boot();
+  p = await profile();
+  if (p.cavity.length || total(p.stash, 'dnaStrand') || total(p.stash, 'synapseLens') > total(haul, 'synapseLens')) await fail(`death did not empty the cavities: ${JSON.stringify(p)}`);
+  if (total(p.gutPouch, 'clotGel') !== pouchGel) await fail(`gut pouch did not survive death: ${JSON.stringify(p.gutPouch)}`);
+  if (p.stats.deaths !== 1 || p.dna !== expectDna) await fail(`death record or banked DNA wrong: ${JSON.stringify(p.stats)} DNA ${p.dna}`);
+  await freezeAndScreenshot(page, 'tests/out/raid-hive-after.png');
+  log('after death: cavities empty, gut pouch kept, banked DNA untouched');
 
   if (errors.length) await fail(`console errors:\n${errors.join('\n')}`);
   await browser.close();
   server?.kill();
-  console.log(`RAID OK [${label}]: fight, loot, extract and death all reachable; screenshots in tests/out/raid-*.png`);
+  console.log(`RAID OK [${label}]: Hive deploy, fight, loot, extract, stash across reload, and death all reachable; screenshots in tests/out/raid-*.png`);
   process.exit(0);
 } catch (e) {
   await fail(e.stack || e);

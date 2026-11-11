@@ -23,6 +23,8 @@ export class BioPod {
   readonly root = new THREE.Group();
   opened = false;
   progress = 0;
+  /** Items left behind because the cavities were full; the pod can be emptied again. */
+  remaining: { item: string; count: number }[] = [];
   private membrane: THREE.Mesh;
   private contents: THREE.Mesh[] = [];
   private coreMat: THREE.MeshStandardMaterial;
@@ -71,6 +73,12 @@ export class BioPod {
     (this.membrane.material as THREE.MeshPhysicalMaterial).opacity = 0.25;
     for (const c of this.contents) c.visible = false;
   }
+
+  /** Leaves `items` inside the opened pod for a later grab. */
+  reseal(items: { item: string; count: number }[]): void { this.remaining = items; this.progress = 0; }
+
+  /** True while there is something left to take. */
+  get lootable(): boolean { return !this.opened || this.remaining.length > 0; }
 
   update(dt: number): void {
     this.time += dt;

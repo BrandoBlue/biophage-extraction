@@ -32,7 +32,7 @@ try {
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`${m.type()}: ${m.text()}`); });
   await page.goto(URL);
-  await page.addStyleTag({ content: '#prompt{display:none!important}' });
+  await page.addStyleTag({ content: '#prompt,#hive{display:none!important}' });
   await page.waitForFunction(() => window.__biophage?.frames > 3, null, { timeout: 120000 });
   mkdirSync('tests/out', { recursive: true });
   const only = process.argv[2];
