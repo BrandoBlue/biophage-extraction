@@ -23,6 +23,9 @@ Rule for every department: no dynamic `import()` and no runtime `fetch` of files
 | Smoke, shipped file | `npm run smoke:release` | same, on the single file opened from `file://` |
 | Budget | `npm run budget` | file over 15 MiB, gzip over 6 MiB, or first frame over 15 s in CI |
 
+Headless tests take screenshots with `freezeAndScreenshot` from `tests/lib/harness.mjs`, which pauses the game
+loop first; a plain `page.screenshot` can time out on slow CI runners.
+
 CI also uploads, per PR, the smoke screenshots and a **playable build** zip (`biophage-playable-<sha>`).
 
 The 60 fps at 1080p target needs a real GPU, so CI cannot measure it. CI logs software-rendered fps in

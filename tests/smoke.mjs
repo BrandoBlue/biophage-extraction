@@ -8,6 +8,7 @@ import { mkdirSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
+import { freezeAndScreenshot } from './lib/harness.mjs';
 
 const release = process.argv.includes('--release');
 const label = release ? 'release' : 'preview';
@@ -58,7 +59,7 @@ try {
 
   mkdirSync('tests/out', { recursive: true });
   const shot = `tests/out/smoke${release ? '-release' : ''}.png`;
-  await page.screenshot({ path: shot });
+  await freezeAndScreenshot(page, shot);
   await browser.close();
 
   if (errors.length) fail(`console errors:\n${errors.join('\n')}`);
