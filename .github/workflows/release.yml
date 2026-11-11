@@ -1,34 +1,55 @@
-# Cut a release by pushing a tag: git tag v0.1.0 && git push origin v0.1.0
-# The tag must match package.json's version. Patch notes come from docs/releases/<tag>.md.
+# Releases cut themselves: when a version bump in package.json lands on main and no tag v<version> exists
+# yet, this re-runs every gate, then creates the tag and a GitHub release with the playable file attached.
+# Patch notes come from docs/releases/v<version>.md. Can also be started by hand from the Actions tab.
 name: Release
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths: [package.json, .github/workflows/release.yml]
+  workflow_dispatch:
 permissions:
   contents: write
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Tag matches package.json
-        run: |
-          v="v$(node -p "require('./package.json').version")"
-          [ "$v" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME does not match package.json $v"; exit 1; }
-      - run: npm run check
-      - name: Publish GitHub release
+          fetch-depth: 0
+      - name: Version not yet released?
+        id: v
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes="docs/releases/$GITHUB_REF_NAME.md"
-          [ -f "$notes" ] || { echo "Missing patch notes $notes"; exit 1; }
-          prerelease=""; case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease";; esac
-          gh release create "$GITHUB_REF_NAME" release/biophage-*.html tests/out/smoke-release.png \
-            --title "BIOPHAGE: EXTRACTION $GITHUB_REF_NAME" --notes-file "$notes" $prerelease
+          tag="v$(node -p "require('./package.json').version")"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null || gh release view "$tag" >/dev/null 2>&1; then
+            echo "$tag already released, nothing to do"; echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            [ -f "docs/releases/$tag.md" ] || { echo "Missing patch notes docs/releases/$tag.md"; exit 1; }
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.v.outputs.skip == 'false'
+        with:
+          node-version: 22
+          cache: npm
+      - if: steps.v.outputs.skip == 'false'
+        run: npm ci
+      - if: steps.v.outputs.skip == 'false'
+        run: npx playwright install --with-deps chromium
+      - if: steps.v.outputs.skip == 'false'
+        run: npm run check
+      - name: Tag and publish GitHub release
+        if: steps.v.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.v.outputs.tag }}
+        run: |
+          prerelease=""; case "$TAG" in *-*) prerelease="--prerelease";; esac
+          gh release create "$TAG" release/biophage-*.html tests/out/smoke-release.png tests/out/raid-*.png \
+            --target "$GITHUB_SHA" --title "BIOPHAGE: EXTRACTION $TAG" --notes-file "docs/releases/$TAG.md" $prerelease
