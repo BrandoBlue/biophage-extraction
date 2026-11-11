@@ -58,6 +58,8 @@ export interface GameEvents {
   bossAttack: { boss: string; attack: string };
   bossDamaged: { boss: string; biomass: number; fraction: number; weakPoint: boolean; part: string };
   bossPartDestroyed: { boss: string; part: string };
+  /** A coolant valve in the Warden's reactor chamber was shot open (its seam beside it cracks). */
+  valveVented: { boss: string; valve: string };
   bossCoverBroken: { boss: string; pillar: string };
   bossDefeated: { boss: string; dna: number; container: string | null };
   extractStart: { label: string; time: number };
