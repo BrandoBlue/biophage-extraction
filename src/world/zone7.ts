@@ -104,8 +104,8 @@ const BEND = 0.22;
 function fungusMeshes(list: Fungus[]): THREE.Group {
   const g = new THREE.Group();
   g.name = 'fungi';
-  const stems = new THREE.InstancedMesh(stemGeometry(BEND), fungusStem(), list.length);
-  const caps = new THREE.InstancedMesh(capGeometry(), fungusCap(), list.length);
+  const stems = new THREE.InstancedMesh(stemGeometry(BEND, 8), fungusStem(), list.length);
+  const caps = new THREE.InstancedMesh(capGeometry(20), fungusCap(), list.length);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), s = new THREE.Vector3(), top = new THREE.Vector3(), col = new THREE.Color();
   list.forEach((f, i) => {
     e.set(f.tilt, f.yaw, f.tilt * 0.5);
@@ -302,7 +302,7 @@ export function buildZone7(scene: THREE.Scene, seed = 7): void {
     const s = 0.08 + rand() * 0.22;
     pustules.push({ pos: new THREE.Vector3(x, groundHeight(x, z) + s * 0.3, z), scale: s, yaw: 0, colour: rand() < 0.5 ? ZONE7.lime : ZONE7.magenta });
   }
-  const pustuleMesh = instanced(new THREE.SphereGeometry(1, 12, 8), bioNode(ZONE7.lime), pustules, 'pustules');
+  const pustuleMesh = instanced(new THREE.SphereGeometry(1, 8, 6), bioNode(ZONE7.lime), pustules, 'pustules');
   scene.add(pustuleMesh);
 
   // A handful of real lights where the glow is strongest; everything else is emissive + bloom.

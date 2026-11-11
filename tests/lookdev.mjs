@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
-const URL = 'http://localhost:4174/';
+const URL = 'http://localhost:4174/?quality=high';
 const POSES = {
   spawn: { at: [-41, 113], eye: 1.7, yaw: -0.35, pitch: 0.08 },
   pool: { at: [-5, 66], eye: 3, yaw: 0.45, pitch: -0.12 },
@@ -16,7 +16,7 @@ const server = spawn('npx', ['vite', 'preview', '--port', '4174', '--strictPort'
 const fail = (msg) => { console.error(`LOOKDEV FAIL: ${msg}`); server.kill(); process.exit(1); };
 try {
   for (let i = 0; i < 40; i++) {
-    try { if ((await fetch(URL)).ok) break; } catch { /* not up yet */ }
+    try { if ((await fetch('http://localhost:4174/')).ok) break; } catch { /* not up yet */ }
     await new Promise((r) => setTimeout(r, 250));
   }
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });

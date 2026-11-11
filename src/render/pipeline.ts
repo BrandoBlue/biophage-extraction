@@ -72,6 +72,9 @@ export interface Pipeline {
 
 /** Headless CI runs SwiftShader; keep it cheap there so frame-counted tests stay fast. */
 export function detectQuality(renderer: THREE.WebGLRenderer): Quality {
+  // ?quality=high|low overrides detection (look-dev captures use high on SwiftShader).
+  const forced = new URLSearchParams(location.search).get('quality');
+  if (forced === 'high' || forced === 'low') return forced;
   const gl = renderer.getContext();
   const info = gl.getExtension('WEBGL_debug_renderer_info');
   const name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : '';
@@ -100,11 +103,12 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
     baked = true;
     const sky = scene.children.find((o) => o.userData.bake);
     if (!sky) return;
-    const rt = new THREE.WebGLCubeRenderTarget(quality === 'high' ? 1024 : 512, { type: THREE.HalfFloatType });
+    const rt = new THREE.WebGLCubeRenderTarget(quality === 'high' ? 1024 : 128, { type: THREE.HalfFloatType });
     const bakeScene = new THREE.Scene();
     bakeScene.add(sky);
     new THREE.CubeCamera(1, 2000, rt).update(renderer, bakeScene);
     scene.background = rt.texture;
+    if (quality === 'low') return; // software rendering: skip PMREM, hemisphere + key lights carry it
     const pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromCubemap(rt.texture).texture;
     scene.environmentIntensity = preset.environment;
