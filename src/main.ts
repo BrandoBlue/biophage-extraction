@@ -15,12 +15,11 @@ const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1500);
 // Each raid draws its live sites (which Seed Spires open, which Gene Blooms grow, where the anomaly sits)
-// from a seed. `?seed=N` pins it. Seed 1 is Design's RAID.larva layout (spires at bearings 20 and 110), which is
-// what the Raid itself still uses until it reads its sites from the layout; then this becomes a fresh seed per raid.
+// from a fresh seed. `?seed=N` pins it; automated runs use seed 1 (Design's RAID.larva layout) so tests are reproducible.
 const seedParam = Number(new URLSearchParams(location.search).get('seed'));
-const raidSeed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : 1;
+const raidSeed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : navigator.webdriver ? 1 : 1 + Math.floor(Math.random() * 1e6);
 const world = buildZone7(scene, zone7Layout(raidSeed));
-const raid = new Raid(scene, camera, canvas);
+const raid = new Raid(scene, camera, canvas, world.layout, world.sites);
 const hud = new RaidHud(raid.bus, () => location.reload());
 const labels = Object.fromEntries(Object.entries(LOOT.items).map(([k, v]) => [k, v.label]));
 

@@ -34,6 +34,8 @@ export interface GameEvents {
   harvestStart: { type: string; time: number };
   harvestProgress: { progress: number };
   harvestDone: { item: string; type: string };
+  /** A late Seed Spire has opened (World layout; RAID.larva.extracts opensAt). */
+  extractOpened: { label: string; x: number; z: number };
   extractStart: { label: string; time: number };
   extractProgress: { progress: number; timeLeft: number };
   extractCancel: Record<string, never>;
