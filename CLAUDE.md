@@ -12,6 +12,7 @@ Read `docs/PLAN.md` (your department brief and the current iteration) and `docs/
 - Assets: only code-generated, CC0, or assets Brandon has provided. Log every third-party asset and its licence in `assets/LICENSES.md`.
 - Performance budget: 60 fps at 1080p on an RTX 3060 class GPU, initial load under 15 s.
 - Add a test for every system you add (Vitest for logic, extend `tests/smoke.mjs` for anything visible).
+- The shipped build is one self-contained HTML file (`npm run release`, see `docs/RELEASING.md`): no dynamic `import()`, no runtime `fetch` of files; import assets through Vite.
 
 ## Stack
 TypeScript, Vite, Three.js. HTML/CSS overlay for UI. Rapier for physics (add when needed). Colyseus server from the Hive iteration. Headless Chromium via Playwright for smoke tests (software rendering: wait on `window.__biophage.frames`, never on wall-clock time).
