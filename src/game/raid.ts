@@ -39,7 +39,8 @@ import { LivingWeapon, STARTER_WEAPON, projectileLooks } from './weapon';
 import { isWeapon, weaponSlots } from './arsenal';
 import { WeaponRig } from './weapon-rig';
 import { createWeaponModel } from './weapon-view';
-import { weaponSpec, WEAPONS as WEAPON_DATA } from '../../data';
+import { weaponSpec, WEAPONS as WEAPON_DATA, WEAPON_FEEL, type WeaponSpec } from '../../data';
+import { applyMods } from './mods';
 import { DEFAULT_ZONE, RaidLog } from './economy';
 
 export type Phase = 'briefing' | 'raid' | 'extracted' | 'lost';
@@ -126,6 +127,10 @@ export class Raid {
   private raycaster = new THREE.Raycaster();
   private lastDecal = new Map<number, number>();
   private noises: Noise[] = [];
+  /** Acid graft burns (mods special 'acid'): damage per second on a creature until it runs out. */
+  /** Reload feel beats already played this reload (or this shell). */
+  private reloadBeat = { idx: 0, last: 0 };
+  private acidBurns: { c: Abomination; dps: number; left: number }[] = [];
   private trigger = false;
   private aimHeld = false;
   private egoQueued = false;
@@ -160,7 +165,7 @@ export class Raid {
   private collapseWarned = false;
   private spireSignal = 0;
   private sinceHit = 99;
-  private result: (CarriedSnapshot & { cause?: string; weapons: string[] }) | null = null;
+  private result: (CarriedSnapshot & { cause?: string; weapons: string[]; mods: string[][] }) | null = null;
   private classId: ClassId = 'neuroInfiltrator';
   private spawnScale: number;
 
@@ -360,7 +365,7 @@ export class Raid {
   deploy(d: Deployment): void {
     if (this.phase !== 'briefing') return;
     this.carried.load(d.loadout, d.cavitySize, d.pouchSize);
-    if (d.weapons?.length) this.arm(d.weapons);
+    if (d.weapons?.length) this.arm(d.weapons, d.mods);
     this.zone = d.zone ?? DEFAULT_ZONE;
     this.log = new RaidLog(this.zone);
     this.begin();
@@ -738,7 +743,7 @@ export class Raid {
   private lose(cause: string): void {
     if (this.phase !== 'raid') return;
     this.phase = 'lost';
-    this.result = { ...this.carried.snapshot(), cause, weapons: this.weapons.map((w) => w.id) };
+    this.result = { ...this.carried.snapshot(), cause, weapons: this.weapons.map((w) => w.id), mods: this.weapons.map((w) => [...w.spec.mods]) };
     this.player.enabled = false;
     this.trigger = false;
     this.bus.emit('death', { cause, items: this.result.items, dna: this.result.dna, value: this.result.value });
@@ -749,7 +754,7 @@ export class Raid {
   private win(): void {
     if (this.phase !== 'raid') return;
     this.phase = 'extracted';
-    this.result = { ...this.carried.snapshot(), weapons: this.weapons.map((w) => w.id) };
+    this.result = { ...this.carried.snapshot(), weapons: this.weapons.map((w) => w.id), mods: this.weapons.map((w) => [...w.spec.mods]) };
     this.player.enabled = false;
     this.trigger = false;
     this.spire.launch();
@@ -840,13 +845,15 @@ export class Raid {
       const rc = w.spec.recoil;
       p.kick(rc.pitch * (Math.PI / 180) * fire.shots * (1 - w.aim * 0.5));
       p.yaw += (this.rand() - 0.5) * rc.yawJitter * (Math.PI / 180) * fire.shots;
-      p.addTrauma(0.03 * Math.min(3, w.spec.pellets > 1 ? 2 : 1));
+      // Screen shake per class from Design's feel table, halved while aiming down the sight.
+      p.addTrauma((WEAPON_FEEL.fire[w.spec.class]?.shake ?? 0.06) * (1 - w.aim * 0.5));
       for (let i = 0; i < fire.shots; i++) this.rig.fired(fire.kick);
       if (w.spec.overloadPerShot) this.overload.add(w.spec.overloadPerShot * fire.shots); // charge weapons heat the host
-      this.noise(p.position, HOST.noiseRadius.gunfire, 'gunfire');
+      this.noise(p.position, HOST.noiseRadius.gunfire * w.spec.noise.gunfire, 'gunfire');
       this.bus.emit('shot', { weapon: w.id, ammo: w.state.ammo, position: { x: p.position.x, y: p.position.y, z: p.position.z }, ego: false });
     }
     if (fire.startedReload) this.onReload();
+    this.playReloadBeats(w, fire.startedReload);
     if (fire.reloaded) this.bus.emit('reloaded', { weapon: w.id, ammo: w.state.ammo });
     if (this.egoQueued) {
       this.egoQueued = false;
@@ -872,6 +879,7 @@ export class Raid {
 
     // Projectiles.
     this.projectiles.update(dt, (pr, a, b) => this.projectileHit(pr, a, b), (pr, at) => this.projectileLand(pr, at), (pr, sdt) => this.steer(pr, sdt));
+    this.updateAcid(dt);
 
     // Creatures.
     const ctx: AbominationContext = {
@@ -1182,6 +1190,7 @@ export class Raid {
     this.kills++;
     this.dropContainer(o.container, c.x + 3.5, c.z, `${o.container}-${n.id}`);
     this.noise(c, HOST.noiseRadius.egoCharge, 'nest');
+    this.log.destroyNest();
     this.bus.emit('nestDestroyed', { id: n.id, type: n.type, dna: o.dnaDrop, container: o.container });
   }
 
@@ -1262,10 +1271,52 @@ export class Raid {
     const dir = pr.vel.clone().normalize();
     (pr.hit ??= new Set()).add(bestC.id);
     this.damageCreature(bestC, dmg, weak, dir, point, pr.kind, bestS);
-    if (pr.weapon) this.weaponFor(pr)?.credit(weak);
+    if (pr.weapon) { this.weaponFor(pr)?.credit(weak); this.graftHit(pr.weapon, bestC, dmg, point); }
     this.fx.impact(point, weak ? GORE.limeFluid : GORE.spore, weak ? 12 : 6);
     this.splash(pr, point, bestC);
     return { point, t: bestT };
+  }
+
+  /** Walks the reload's feel beats (Design's weapon-feel.json) and tells the body and the sound about each. */
+  private playReloadBeats(w: LivingWeapon, started: boolean): void {
+    const b = this.reloadBeat;
+    if (!w.state.isReloading) { b.idx = 0; b.last = 0; return; }
+    const style = w.state.reloadStyle;
+    const beats = WEAPON_FEEL.reload[style]?.beats ?? [];
+    const prog = w.state.reloadProgress;
+    if (started || prog < b.last) b.idx = 0; // a new reload, or the next shell
+    b.last = prog;
+    while (b.idx < beats.length && prog >= beats[b.idx].at) {
+      w.model.beat?.(b.idx, beats[b.idx].pose);
+      this.bus.emit('reloadBeat', { weapon: w.id, style, beat: b.idx, cue: beats[b.idx].cue });
+      b.idx++;
+    }
+  }
+
+  /** Grafted behaviours on a creature hit (mods.json effects.special): acid burn, leech, splinter shards. */
+  private graftHit(spec: WeaponSpec, c: Abomination, dmg: number, at: THREE.Vector3): void {
+    for (const sp of spec.specials) {
+      const n = (k: string, d: number) => Number(sp[k] ?? d);
+      if (sp.id === 'acid') {
+        const b = this.acidBurns.find((x) => x.c === c);
+        if (b) b.left = n('duration', 3); else this.acidBurns.push({ c, dps: n('dps', 3), left: n('duration', 3) });
+      } else if (sp.id === 'leech' && this.phase === 'raid') {
+        this.biomass.heal(dmg * n('fraction', 0.04));
+      } else if (sp.id === 'splinter') {
+        const others = this.creatures.filter((o) => o.alive && o !== c && o.centre.distanceTo(at) < 6)
+          .sort((a, b) => a.centre.distanceTo(at) - b.centre.distanceTo(at)).slice(0, n('shards', 3));
+        for (const o of others) this.damageCreature(o, n('damage', 8), false, o.centre.clone().sub(at).normalize(), o.centre.clone(), 'splinter');
+        this.fx.impact(at, GORE.bone, 8);
+      }
+    }
+  }
+
+  private updateAcid(dt: number): void {
+    for (const b of this.acidBurns) {
+      b.left -= dt;
+      if (b.c.alive) this.damageCreature(b.c, b.dps * dt, false, null, b.c.centre, 'acid');
+    }
+    this.acidBurns = this.acidBurns.filter((b) => b.left > 0 && b.c.alive);
   }
 
   /** The carried weapon that fired a player round (Ego Charge is credited to it). */
@@ -1273,13 +1324,13 @@ export class Raid {
 
   // ------------------------------------------------------------------ arsenal
   /** Loads the raid's weapon slots (weapons.json ids; unknown ids are skipped) and holds the first. */
-  arm(ids: string[]): void {
-    const known = ids.filter((id) => WEAPON_DATA[id]);
-    if (!known.length) known.push(STARTER_WEAPON);
+  arm(ids: string[], mods: string[][] = []): void {
+    const known = ids.map((id, i) => ({ id, mods: mods[i] ?? [] })).filter((k) => WEAPON_DATA[k.id]);
+    if (!known.length) known.push({ id: STARTER_WEAPON, mods: [] });
     for (const w of this.weapons) w.model.root.removeFromParent();
     this.weapons.length = 0;
-    for (const id of known) {
-      const spec = weaponSpec(id);
+    for (const { id, mods: grafts } of known) {
+      const spec = applyMods(weaponSpec(id), grafts);
       const w = new LivingWeapon(spec, createWeaponModel(spec), this.projectiles, spec.ammo ? this.ammoFeed(id, spec.ammo) : null);
       this.weapons.push(w);
       this.rig.add(w.model);
@@ -1295,6 +1346,7 @@ export class Raid {
     if (prev) { prev.state.cancelReload(); prev.aim = 0; }
     this.held = i;
     const w = this.weapons[i];
+    this.rig.setFeel(WEAPON_FEEL.fire[w.spec.class]);
     if (instant) this.rig.equip(w.model, 0); else this.rig.swap(w.model, w.spec.handling.equipTime);
     // Creature & Mutation: the host's forearm (and its virus mutation) moves onto the drawn weapon's grip.
     if (w.model.grip) {
@@ -1454,7 +1506,7 @@ export class Raid {
       ammo: this.weapon.state.ammo, ego: this.weapon.ego, timeLeft: this.timeLeft, kills: this.kills,
       carried: this.carried.snapshot(), extractProgress: this.extract.progress,
       extractPosition: [this.extract.x, this.extract.z], pods: this.pods.map((q) => ({ id: q.id, position: [q.position.x, q.position.z], opened: q.opened })),
-      weapons: { held: this.held, zoom: this.player.zoom, fov: this.player.camera.fov, list: this.weapons.map((w) => ({ id: w.id, ammo: w.state.ammo, reloading: w.state.isReloading, aim: w.aim, charge: w.state.charge })) },
+      weapons: { held: this.held, zoom: this.player.zoom, fov: this.player.camera.fov, list: this.weapons.map((w) => ({ id: w.id, ammo: w.state.ammo, reloading: w.state.isReloading, aim: w.aim, charge: w.state.charge, mods: w.spec.mods, magazine: w.spec.magazine })) },
       enemies: this.creatures.map((c) => ({ id: c.id, kind: c.kind, alive: c.alive, state: c.state, biomass: c.biomass, position: [c.position.x, c.position.y, c.position.z], centre: [c.centre.x, c.centre.y, c.centre.z] })),
       result: this.result, gore: gore.stats(),
       boss: this.boss ? { state: this.boss.brain.state, phase: this.boss.brain.phase.id, action: this.boss.brain.action, biomass: this.boss.biomass, fraction: this.boss.fraction, hearts: [...this.boss.hearts], sac: this.boss.sac, legs: [...this.boss.legs], pinned: this.boss.pinned, pool: this.boss.poolRadius, position: [this.boss.position.x, this.boss.position.y, this.boss.position.z], centre: this.boss.centre(new THREE.Vector3()).toArray() } : null,
@@ -1479,7 +1531,7 @@ export class Raid {
       trigger: (on: boolean | null) => { this.debugTrigger = on; },
       ego: () => { this.weapon.ego = this.weapon.spec.egoCharge?.chargeToFire ?? 0; this.egoQueued = true; },
       /** Loads these weapons.json ids as the raid's weapon slots. */
-      arm: (ids: string[]) => this.arm(ids),
+      arm: (ids: string[], mods?: string[][]) => this.arm(ids, mods),
       pickUpWeapons: () => this.pickUpWeapons(),
       /** Spawns an Abomination at (x, z) and returns its id (weapon tests need a target). */
       spawn: (kind: string, x: number, z: number) => this.addCreature(kind as AbominationKind, x, z).id,

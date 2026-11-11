@@ -8,6 +8,7 @@
  */
 import * as THREE from 'three';
 import { HIVE, ORGANIC } from '../render/palette';
+import { WEAPON_FEEL, type FireFeel } from '../../data';
 import { DEFAULT_KICK, type KickProfile, type WeaponFrame, type WeaponModel } from './weapon-view';
 
 /** Rig motion. Rendering may retune any of these. */
@@ -27,6 +28,11 @@ export const RIG = {
   reloadRoll: 0.35,
   flash: { intensity: 3.5, life: 0.06 },
 };
+
+/** The fire feel the RIG numbers above were tuned for (weapon-feel.json carbine). */
+const FEEL_BASE = { push: 0.02, settle: 0.08, flash: 0.15 };
+/** Every gun breathes (weapon-feel.json idle.breathe): angular rate and amplitude in metres. */
+const BREATHE = { w: (2 * Math.PI) / (WEAPON_FEEL.idle?.breathe.period ?? 4.8), a: WEAPON_FEEL.idle?.breathe.amplitude ?? 0.004 };
 
 export interface RigMotion { yaw: number; pitch: number; speed: number; sprinting: boolean; grounded: boolean }
 
@@ -51,6 +57,8 @@ export class WeaponRig {
   private equipDur = 1;
   private flashLight: THREE.PointLight;
   private flashLife = 0;
+  private flashPeak = 0;
+  private feel: FireFeel | null = null;
   private sightLocal = new THREE.Vector3();
   /** Models kept visible for their first frames so their shaders compile before the first swap. */
   private warm = new Set<WeaponModel>();
@@ -116,10 +124,18 @@ export class WeaponRig {
     for (const m of this.holder.children) if (m !== model.root && !this.isWarm(m)) m.visible = this.holderIsLight(m);
   }
 
+  /**
+   * Per-class fire feel (Design's weapon-feel.json): `push` scales how hard the body slams back (the carbine's
+   * 0.02 m is the baseline), `settle` how long the spring takes home, `flash` the muzzle bloom.
+   */
+  setFeel(feel: FireFeel | undefined): void { this.feel = feel ?? null; }
+
   fired(kick?: KickProfile | void): void {
     if (kick) this.kickShape = kick;
-    this.kickVel += RIG.kickImpulse * (1 - Math.min(1, this.kick / RIG.kickMax));
-    this.flashLife = RIG.flash.life;
+    const push = this.feel ? this.feel.push / FEEL_BASE.push : 1;
+    this.kickVel += RIG.kickImpulse * push * (1 - Math.min(1, this.kick / (RIG.kickMax * Math.max(1, push))));
+    this.flashLife = RIG.flash.life * (this.feel ? Math.max(0.6, this.feel.flash / FEEL_BASE.flash) : 1);
+    this.flashPeak = this.flashLife;
   }
 
   private isWarm(o: THREE.Object3D): boolean { for (const m of this.warm) if (m.root === o) return true; return false; }
@@ -142,7 +158,9 @@ export class WeaponRig {
     this.sway.x = THREE.MathUtils.damp(this.sway.x + THREE.MathUtils.clamp(dYaw, -0.1, 0.1) * 0.6 * steady, 0, 8, dt);
     this.sway.y = THREE.MathUtils.damp(this.sway.y + THREE.MathUtils.clamp(dPitch, -0.1, 0.1) * 0.6 * steady, 0, 8, dt);
     // Spring recoil: back and up, then settle past rest and home.
-    const { stiffness, damping } = RIG.kickSpring;
+    // A slower settle (shotgun, sniper) softens the spring; the damping ratio stays the same so it still overshoots.
+    const sk = this.feel ? FEEL_BASE.settle / Math.max(0.03, this.feel.settle) : 1;
+    const stiffness = RIG.kickSpring.stiffness * sk * sk, damping = RIG.kickSpring.damping * sk;
     for (let left = dt; left > 0; left -= 1 / 120) {
       const h = Math.min(left, 1 / 120);
       this.kickVel += (-stiffness * this.kick - damping * this.kickVel) * h;
@@ -153,11 +171,11 @@ export class WeaponRig {
     const bob = (cam.grounded ? Math.min(1, cam.speed / 6) : 0) * (1 - f.aim * 0.85);
     const bt = t * (cam.sprinting ? 13 : 9);
     const ks = this.kickShape;
-    let rx = this.sway.y * 0.6 + this.kick * ks.pitch * (1 - f.aim * 0.5) + Math.sin(t * 1.3) * 0.006 * steady;
+    let rx = this.sway.y * 0.6 + this.kick * ks.pitch * (1 - f.aim * 0.5) + Math.sin(t * BREATHE.w) * BREATHE.a * 1.5 * steady;
     let ry = this.sway.x * 0.8;
     let rz = this.kick * ks.roll;
     let px = RIG.hip.x + this.sway.x * 0.05 + Math.cos(bt * 0.5) * 0.012 * bob;
-    let py = RIG.hip.y - this.sway.y * 0.05 + Math.abs(Math.sin(bt * 0.5)) * 0.014 * bob + Math.sin(t * 1.3) * 0.004 * steady;
+    let py = RIG.hip.y - this.sway.y * 0.05 + Math.abs(Math.sin(bt * 0.5)) * 0.014 * bob + Math.sin(t * BREATHE.w) * BREATHE.a * steady;
     let pz = RIG.hip.z + this.kick * ks.back;
     py -= this.dip * RIG.reloadDip; rz += this.dip * RIG.reloadRoll; rx += this.dip * 0.12;
     if (cam.sprinting) { rx += RIG.sprint.rx; ry += RIG.sprint.ry; px += RIG.sprint.px; py += RIG.sprint.py; }
@@ -198,6 +216,8 @@ export class WeaponRig {
     for (const m of this.warm) if (m !== this.model) m.update(dt, { ...f, aim: 0 });
 
     this.flashLife = Math.max(0, this.flashLife - dt);
-    this.flashLight.intensity = this.flashLife > 0 ? RIG.flash.intensity * (this.flashLife / RIG.flash.life) : 0;
+    const bloom = this.feel ? this.feel.flash / FEEL_BASE.flash : 1;
+    this.flashLight.intensity = this.flashLife > 0 ? RIG.flash.intensity * Math.sqrt(bloom) * (this.flashLife / (this.flashPeak || RIG.flash.life)) : 0;
+    this.flashLight.distance = 6 * Math.max(0.7, Math.sqrt(bloom));
   }
 }

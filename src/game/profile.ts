@@ -11,6 +11,7 @@ import type { CarriedSnapshot, Loadout } from './inventory';
 import { earnedPerk, newEconomy, normaliseEconomy, type EconomyState } from './economy';
 import { newHive, normaliseHive, type HiveState } from './hive';
 import { normaliseSlots, raidWeapons, STARTER_WEAPON } from './arsenal';
+import { normaliseWeaponMods } from './mods';
 
 export interface RaidRecord { raids: number; extracts: number; deaths: number; kills: number }
 
@@ -32,6 +33,10 @@ export interface Profile {
   hive: HiveState;
   /** Weapons equipped besides the innate starter (weapons.json ids; src/game/arsenal.ts). Lost on death. */
   weaponSlots: (string | null)[];
+  /** Grafts per loadout gun: [0] the starter's, [1 + i] weapon slot i's (mods.json ids; src/game/mods.ts). */
+  weaponMods: string[][];
+  /** Total XP per host class (progression.json; src/game/progression.ts). */
+  classXp: Partial<Record<ClassId, number>>;
 }
 
 /** Key/value store; `localStorage` in the browser, a Map in tests or when storage is blocked. */
@@ -84,6 +89,8 @@ export function newProfile(): Profile {
     economy: newEconomy(),
     hive: newHive(),
     weaponSlots: normaliseSlots([]),
+    weaponMods: normaliseWeaponMods([], normaliseSlots([])),
+    classXp: {},
   };
 }
 
@@ -100,7 +107,10 @@ function normalise(raw: Partial<Profile>): Profile {
     economy: normaliseEconomy(raw.economy),
     hive: normaliseHive(raw.hive),
     weaponSlots: normaliseSlots(raw.weaponSlots),
+    weaponMods: [],
+    classXp: Object.fromEntries(Object.entries(raw.classXp ?? {}).filter(([k, v]) => CLASSES[k as ClassId] && Number(v) > 0).map(([k, v]) => [k, Math.floor(Number(v))])),
   };
+  p.weaponMods = normaliseWeaponMods(raw.weaponMods, p.weaponSlots);
   p.stashRows = Math.min(PROFILE.stash.rowExpansion.maxRows, Math.max(PROFILE.stash.rowsBase, Math.floor(Number(p.stashRows) || 0)));
   p.gutPouchLevel = Math.min(PROFILE.gutPouch.upgrades.length, Math.max(0, Math.floor(Number(p.gutPouchLevel) || 0)));
   p.dna = Math.max(0, Math.floor(Number(p.dna) || 0));
@@ -209,7 +219,7 @@ export function upgradePouch(p: Profile): boolean {
 }
 
 // ------------------------------------------------------------------ raid transitions
-export interface Deployment { /** weapons.json ids in slot order, the starter first. */ weapons: string[]; loadout: Loadout; cavitySize: [number, number]; pouchSize: [number, number]; freeKit: number; /** Raid-select zone id (data/zones.json). */ zone: string }
+export interface Deployment { /** weapons.json ids in slot order, the starter first. */ weapons: string[]; /** Grafts on each of those weapons (parallel to `weapons`). */ mods: string[][]; loadout: Loadout; cavitySize: [number, number]; pouchSize: [number, number]; freeKit: number; /** Raid-select zone id (data/zones.json). */ zone: string }
 
 /**
  * Hands the cavity loadout and gut pouch to the raid. The saved profile keeps the gut pouch (it is secure) but its
@@ -227,11 +237,14 @@ export function deploy(p: Profile): Deployment {
   if (gift) g[gift.to === 'cavity' ? 'cavity' : 'pouch'].add(gift.item, gift.count);
   const loadout = { cavity: g.cavity.snapshot(), pouch: g.pouch.snapshot() };
   const weapons = raidWeapons(p);
-  // Equipped weapons ride with the host: a quit or a death costs them, an extraction brings them home.
+  const mods = [p.weaponMods[0] ?? [], ...p.weaponSlots.flatMap((w, i) => (w ? [p.weaponMods[i + 1] ?? []] : []))].map((l) => [...l]);
+  // Equipped weapons (and their grafts) ride with the host: a quit or a death costs them, an extraction brings
+  // them home. The innate starter keeps its grafts either way.
   p.weaponSlots = normaliseSlots([]);
+  p.weaponMods = [p.weaponMods[0] ?? [], ...p.weaponSlots.map(() => [])];
   p.cavity = [];
   p.stats.raids++;
-  return { weapons, loadout, cavitySize: cavitySize(p), pouchSize: pouchSize(p.gutPouchLevel), freeKit, zone: p.economy.zone };
+  return { weapons, mods, loadout, cavitySize: cavitySize(p), pouchSize: pouchSize(p.gutPouchLevel), freeKit, zone: p.economy.zone };
 }
 
 export interface Settlement { toStash: { item: string; count: number }[]; overflow: { item: string; count: number }[]; dnaBanked: number }
@@ -241,9 +254,13 @@ export interface Settlement { toStash: { item: string; count: number }[]; overfl
  * kill DNA is banked, the gut pouch returns as carried. Items the stash has no room for wait in the cavities
  * and become the next loadout.
  */
-export function extract(p: Profile, c: Pick<CarriedSnapshot, 'cavity' | 'pouch' | 'dna'> & { weapons?: string[] }, kills: number): Settlement {
-  // Weapons carried out go back into their slots (the starter is innate).
-  p.weaponSlots = normaliseSlots((c.weapons ?? []).filter((w) => w !== STARTER_WEAPON));
+export function extract(p: Profile, c: Pick<CarriedSnapshot, 'cavity' | 'pouch' | 'dna'> & { weapons?: string[]; mods?: string[][] }, kills: number): Settlement {
+  // Weapons carried out go back into their slots with their grafts (the starter is innate).
+  const out = (c.weapons ?? []).map((w, i) => ({ w, mods: c.mods?.[i] ?? [] }));
+  const others = out.filter((o) => o.w !== STARTER_WEAPON);
+  p.weaponSlots = normaliseSlots(others.map((o) => o.w));
+  const starter = out.find((o) => o.w === STARTER_WEAPON);
+  p.weaponMods = normaliseWeaponMods([starter ? starter.mods : p.weaponMods[0], ...p.weaponSlots.map((w) => others.find((o) => o.w === w)?.mods ?? [])], p.weaponSlots);
   const stash = stashGrid(p);
   const [cc, cr] = cavitySize(p);
   const leftover = new ItemGrid(cc, cr);

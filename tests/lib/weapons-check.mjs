@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs';
 import { freezeAndScreenshot } from './harness.mjs';
 
 const WEAPONS = JSON.parse(readFileSync('data/weapons.json', 'utf8'));
+const MODS = JSON.parse(readFileSync('data/mods.json', 'utf8'));
 
 export async function checkWeapons({ page, call, frames, state, fail, log }) {
   const ids = ['synapseBurster', 'gulletScatter', 'eyestalkMarksman', 'lumenLance', 'tumorLauncher'].filter((id) => WEAPONS[id]);
@@ -99,4 +100,16 @@ export async function checkWeapons({ page, call, frames, state, fail, log }) {
   s = await state();
   if (!taken.includes('quillet') || !s.weapons.list.some((w) => w.id === 'quillet')) await fail(`found Quillet not taken into a slot: ${JSON.stringify(s.weapons.list)}`);
   log('weapon pickup: Quillet went into a free slot');
+
+  // A grafted gun: the mod list rides into the raid and changes the gun (a magazine graft resizes the magazine).
+  const magMod = Object.keys(MODS).find((m) => MODS[m]?.effects?.mult?.magazine && (!MODS[m].fits || MODS[m].fits.includes(WEAPONS.synapseBurster.class)));
+  if (magMod) {
+    await call('arm', ['synapseBurster'], [[magMod]]);
+    await frames(1);
+    s = await state();
+    const want = Math.max(1, Math.round(WEAPONS.synapseBurster.magazine * MODS[magMod].effects.mult.magazine));
+    const g = s.weapons.list[0];
+    if (g.mods?.[0] !== magMod || g.magazine !== want) await fail(`graft ${magMod} not applied: ${JSON.stringify(g)}`);
+    log(`graft: ${magMod} on the Synapse Burster, magazine ${g.magazine}`);
+  }
 }

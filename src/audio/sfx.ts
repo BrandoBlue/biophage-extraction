@@ -46,7 +46,7 @@ export class Sfx {
     addEventListener('keydown', start);
     addEventListener('biophage:settings', () => this.applyVolume());
     bus.on('shot', (e) => this.shot(e.weapon, e.ego));
-    bus.on('reload', (e) => this.squelch(0.35, 1.0, Math.min(0.5, e.time * 0.3)));
+    bus.on('reloadBeat', (e) => this.cue(e.cue));
     bus.on('ammoFed', () => this.gulp());
     bus.on('reloaded', () => this.click(900, 0.35));
     bus.on('weaponSwap', () => this.whoosh());
@@ -136,6 +136,17 @@ export class Sfx {
     const t = ctx.currentTime;
     this.burst(t, 700 * pitch, 5, len, gain, 0.25);
     this.tone(t, 260 * pitch, 90 * pitch, len * 0.8, gain * 0.5);
+  }
+
+  /** A reload beat's sound cue (weapon-feel.json), matched by its words: wet, tearing, hard or breathing sounds. */
+  private cue(cue: string): void {
+    const c = cue.toLowerCase();
+    if (/rip|tear/.test(c)) { const ctx = this.ready(); if (ctx) this.burst(ctx.currentTime, 1600, 0.8, 0.18, 0.35, 0.4); }
+    else if (/click|clack|chitin|snap/.test(c)) this.click(/soft/.test(c) ? 600 : 900, 0.3);
+    else if (/gulp/.test(c)) this.gulp();
+    else if (/hum|heart|exhale|breath/.test(c)) { const ctx = this.ready(); if (ctx) this.tone(ctx.currentTime, /heart/.test(c) ? 70 : 140, /exhale/.test(c) ? 60 : 90, 0.35, 0.3); }
+    else if (/creak/.test(c)) { const ctx = this.ready(); if (ctx) this.tone(ctx.currentTime, 220, 120, 0.25, 0.2, 'sawtooth'); }
+    else this.squelch(0.35, /suck/.test(c) ? 1.3 : 1.0, 0.3); // squelch, suck and anything wet
   }
 
   /** One round gulped down a per-shell feed. */

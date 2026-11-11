@@ -6,6 +6,7 @@
  */
 import { PROFILE, WEAPONS } from '../../data';
 import { stashGrid, type Profile } from './profile';
+import { stripMods } from './mods';
 
 /** The weapon every host starts with and never loses. */
 export const STARTER_WEAPON = 'synapseBurster';
@@ -30,24 +31,27 @@ export const raidWeapons = (p: Profile): string[] => [STARTER_WEAPON, ...p.weapo
  */
 export function equipWeapon(p: Profile, slot: number, weapon: string): boolean {
   if (slot < 0 || slot >= weaponSlots() || !isWeapon(weapon) || weapon === STARTER_WEAPON) return false;
-  const g = stashGrid(p);
-  const e = g.entries.find((x) => x.item === weapon);
-  if (!e) return false;
+  if (stashGrid(p).count(weapon) < 1) return false;
   const old = p.weaponSlots[slot];
-  e.count -= 1;
-  if (e.count <= 0) g.take(e);
-  if (old && g.add(old, 1) > 0) return false; // no room for the old one: nothing changes (g is a copy)
+  const before = { stash: p.stash, mods: p.weaponMods.map((l) => [...l]) };
+  // The old gun's grafts come off into the stash first (a gun in the stash is a bare item).
+  if (old && !stripMods(p, slot + 1)) return false;
+  const g = stashGrid(p);
+  g.remove(weapon, 1);
+  if (old && g.add(old, 1) > 0) { p.stash = before.stash; p.weaponMods = before.mods; return false; } // no room: nothing changes
   p.stash = g.snapshot();
   p.weaponSlots[slot] = weapon;
   return true;
 }
 
-/** Puts the weapon in `slot` back into the stash. False if the slot is empty or the stash is full. */
+/** Puts the weapon in `slot` (and its grafts) back into the stash. False, changing nothing, if the slot is empty or the stash is full. */
 export function unequipWeapon(p: Profile, slot: number): boolean {
   const old = p.weaponSlots[slot];
   if (!old) return false;
+  const before = { stash: p.stash, mods: p.weaponMods.map((l) => [...l]) };
+  if (!stripMods(p, slot + 1)) return false;
   const g = stashGrid(p);
-  if (g.add(old, 1) > 0) return false;
+  if (g.add(old, 1) > 0) { p.stash = before.stash; p.weaponMods = before.mods; return false; }
   p.stash = g.snapshot();
   p.weaponSlots[slot] = null;
   return true;

@@ -10,6 +10,8 @@ export interface GameEvents {
   collapseWarning: { timeLeft: number };
   shot: { weapon: string; ammo: number; position: Vec3Like; ego: boolean };
   reload: { weapon: string; time: number };
+  /** A reload reached one of its feel beats (weapon-feel.json reload[style].beats; perShell: per shell). */
+  reloadBeat: { weapon: string; style: string; beat: number; cue: string };
   reloaded: { weapon: string; ammo: number };
   /** The held weapon changed (mouse wheel or Z). */
   weaponSwap: { weapon: string; slot: number };

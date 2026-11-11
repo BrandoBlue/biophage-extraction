@@ -195,6 +195,12 @@ export interface WeaponSpec {
   /** Pellets fan out evenly across this many degrees instead of a random cone (0: random cone). */
   fanDegrees: number;
   selfDamage: boolean;
+  /** Multiplies the host's gunfire noise radius while this gun fires (mods: noise.gunfire). */
+  noise: { gunfire: number };
+  /** Mod behaviours Gameplay implements by id (mods.json effects.special). */
+  specials: { id: string; [param: string]: unknown }[];
+  /** mods.json ids grafted onto this gun. */
+  mods: string[];
 }
 
 export interface Ability {
@@ -354,6 +360,7 @@ export function weaponSpec(id: string): WeaponSpec {
     knockback: w.knockback ?? 0,
     egoCharge: w.egoCharge ?? null,
     overloadPerShot: w.charge?.overloadPerShot ?? 0, fanDegrees: w.charge?.fanDegrees ?? 0, selfDamage: w.selfDamage ?? false,
+    noise: { gunfire: 1 }, specials: [], mods: [],
   };
 }
 
@@ -491,6 +498,8 @@ export interface Progression {
   /** Total XP needed to reach level index+1. */
   levels: number[];
   evolutions: Record<ClassId, Evolution[]>;
+  /** Hive Armoury: class signature weapons grown for priceFraction x item value once the class level is reached. */
+  armoury?: { priceFraction: number; growTime: number };
 }
 
 export interface ViralLab {

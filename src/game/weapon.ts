@@ -65,7 +65,11 @@ export class LivingWeapon {
   private muzzle = new THREE.Vector3();
   lastKick: KickProfile | void = undefined;
 
+  /** Homing from a Seeker graft (mods special 'seek'). */
+  private readonly seek: { radius: number; turnRate: number } | undefined;
   constructor(readonly spec: WeaponSpec, readonly model: WeaponModel, private projectiles: Projectiles, feed: AmmoFeed | null = null) {
+    const sk = spec.specials.find((x) => x.id === 'seek');
+    this.seek = sk ? { radius: Number(sk.radius ?? 6), turnRate: Number(sk.turnRate ?? 1.5) } : undefined;
     const s = spec;
     this.state = new AutoWeaponState({
       fireRate: s.fireRate, magazine: s.magazine, reloadTime: s.reload.time, fireMode: s.fireMode, burstCount: s.burstCount, burstDelay: s.burstDelay,
@@ -122,7 +126,7 @@ export class LivingWeapon {
         this.projectiles.fire(look, 'player', this.muzzle, dir.multiplyScalar(p.speed), {
           damage: s.damage * power, splashRadius: p.splash?.radius ?? 0, splashDamage: (p.splash?.damage ?? 0) * power,
           gravity: p.gravity, life: s.range.maxDistance / p.speed, weapon: s, pierce: p.pierce,
-          stick: p.stick ? { fuse: p.fuse } : undefined,
+          stick: p.stick ? { fuse: p.fuse } : undefined, seek: this.seek,
         });
       }
       this.lastKick = this.model.fired();

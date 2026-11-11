@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { WEAPONS, weaponSpec, type WeaponClass } from '../data';
+import { WEAPONS, WEAPON_FEEL, weaponSpec, type WeaponClass } from '../data';
 import { AutoWeaponState, type AmmoFeed, type AutoTuning } from '../src/game/weapon-state';
 import { STARTER_WEAPON, equipWeapon, raidWeapons, unequipWeapon, weaponSlots } from '../src/game/arsenal';
 import { deploy, die, extract, loadProfile, memoryStorage, newProfile, saveProfile, stashGrid } from '../src/game/profile';
@@ -172,5 +172,30 @@ describe('weapon views and rig', () => {
     expect(Math.abs(sight.x)).toBeLessThan(0.05);
     expect(Math.abs(sight.y)).toBeLessThan(0.05);
     expect(sight.z).toBeLessThan(-0.1);
+  });
+
+  it('kicks harder and settles slower for heavy classes (weapon-feel.json)', () => {
+    const peak = (cls: WeaponClass) => {
+      const rig = new WeaponRig(new THREE.PerspectiveCamera());
+      const m = new GenericWeaponModel({ ...weaponSpec('synapseBurster'), id: `feel-${cls}`, class: cls });
+      rig.setFeel(WEAPON_FEEL.fire[cls]);
+      rig.equip(m, 0);
+      const frame = { ammoFrac: 1, aim: 0, ego: 0, charge: 0, reloading: false, look: null };
+      const motion = { yaw: 0, pitch: 0, speed: 0, sprinting: false, grounded: true };
+      for (let i = 0; i < 30; i++) rig.update(1 / 60, motion, frame);
+      const rest = m.root.getWorldPosition(new THREE.Vector3()).z;
+      rig.fired();
+      let back = 0, settledAt = -1;
+      for (let i = 0; i < 120; i++) {
+        rig.update(1 / 120, motion, frame);
+        const d = m.root.getWorldPosition(new THREE.Vector3()).z - rest;
+        back = Math.max(back, Math.abs(d));
+        if (settledAt < 0 && i > 4 && Math.abs(d) < back * 0.1) settledAt = i;
+      }
+      return { back, settledAt: settledAt < 0 ? 120 : settledAt };
+    };
+    const smg = peak('smg'), sniper = peak('sniper');
+    expect(sniper.back).toBeGreaterThan(smg.back * 2);
+    expect(sniper.settledAt).toBeGreaterThan(smg.settledAt);
   });
 });

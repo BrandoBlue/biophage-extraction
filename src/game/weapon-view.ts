@@ -58,6 +58,8 @@ export interface WeaponModel {
   /** A reload started. perShell: `duration` is one shell; `shellIn` follows for each shell fed. */
   reload(style: ReloadStyle, duration: number): void;
   shellIn?(): void;
+  /** A reload feel beat (weapon-feel.json): `pose` is Design's description of what the body should be doing. */
+  beat?(index: number, pose: string): void;
   /** The weapon is being drawn over `duration` seconds (the rig swings it up; models may add their own motion). */
   equip?(duration: number): void;
   /** The weapon is being put away over `duration` seconds (before the next one is drawn). */
