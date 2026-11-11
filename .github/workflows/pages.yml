@@ -1,0 +1,47 @@
+# The open-web build for online squads. The claude.ai play link runs in a sandbox that blocks the WebRTC
+# connections online play needs, so every push to main also publishes the single-file release to GitHub Pages
+# (free for this public repo): https://brandoblue.github.io/biophage-extraction/
+# One-time setup by a repo admin: Settings → Pages → Source: "GitHub Actions". Until then the deploy step fails
+# with a "Pages not enabled" error and nothing else is affected.
+name: Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build the single-file release
+        run: npm run release
+      - name: Stage the site
+        run: |
+          mkdir -p site
+          cp release/index.html site/index.html
+          touch site/.nojekyll
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+        continue-on-error: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

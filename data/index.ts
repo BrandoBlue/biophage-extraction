@@ -623,6 +623,8 @@ export interface OnlineRules {
   pvp: { headMultiplier: number; lootCavities: boolean; stealCarriedKillDna: number; extractVisibleOnScanner: boolean; killFeed: boolean; note: string };
   network: { tickRate: number; clientInterpolation: number; lagCompensation: number; serverAuthoritative: string[]; reconnectWindow: number };
   bots: { replaceRivalsWithHumans: boolean; note: string };
+  /** What the peer-to-peer build runs (Online & Backend): the leader's browser hosts the raid. */
+  peerToPeer: { maxHosts: number; hostSendRate: number; creatureSendRate: number; squadSpread: number };
 }
 /** Online play rules (Hive milestone). */
 export const ONLINE = stripDeep(onlineJson) as OnlineRules;
