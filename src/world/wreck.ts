@@ -29,10 +29,28 @@ interface WreckData {
   rooms: Room[];
   extracts: { id: string; label: string; x: number; z: number; opensAt: number | null }[];
   loot: { id: string; container: string; x: number; y: number; z: number }[];
-  reactor: { x: number; z: number; coreRadius: number; ringRadius: number; valves: number };
+  reactor: { x: number; z: number; coreRadius: number; ringRadius: number; valves: number; gantryHeight: number };
 }
 
 export const WRECK = ZONE_SITES.longSeedWreck as unknown as WreckData;
+
+/** The Warden of the Long Seed's arena: the reactor chamber (bosses.json `warden.arena`). PvE AI's boss reads it. */
+export interface WardenArena {
+  id: string;
+  /** Room bounds (world x, z), floor and ceiling heights. */
+  x0: number; x1: number; z0: number; z1: number; floorY: number; ceiling: number;
+  /** The cold reactor core: a solid column, the boss's pulse source. */
+  core: { x: number; z: number; radius: number };
+  valves: { id: string; x: number; y: number; z: number }[];
+  /** Show (or hide) the steam plume over valve i. */
+  vent(i: number, on?: boolean): void;
+  /** Floor-to-roof shield columns: hard cover from the reactor pulse. */
+  pillars: { id: string; x: number; z: number; radius: number }[];
+  /** Level 1: ring quarters, bridges and the landing at deck height; level 2: the gantry ring above. */
+  catwalks: { id: string; level: 1 | 2; x0: number; x1: number; z0: number; z1: number; y: number; readonly collapsed: boolean; collapse(): void }[];
+  bossSpawn: { x: number; y: number; z: number; surface: 'wall' | 'ceiling' };
+  exits: { id: string; x: number; z: number }[];
+}
 
 export interface WreckWorld {
   layout: Zone7Layout;
@@ -40,6 +58,8 @@ export interface WreckWorld {
   structures: BuiltStructures;
   /** Coolant valve positions on the reactor catwalk (Gameplay's power state: insert rods here). */
   valves: { id: string; x: number; y: number; z: number }[];
+  /** The Warden's reactor-chamber arena. */
+  warden: WardenArena;
   landmarkAt(x: number, z: number): string | null;
 }
 
@@ -224,6 +244,7 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
 
   // ---- Reactor chamber: the cold core, a catwalk ring at deck height with four coolant valves, ramps up.
   const re = WRECK.reactor;
+  const D2 = re.gantryHeight;
   const core = new THREE.Mesh(new THREE.CylinderGeometry(re.coreRadius, re.coreRadius * 1.2, H - 1, 28, 6, true), oldBone(ORGANIC.mist, 0.35));
   core.position.set(re.x, (H - 1) / 2, re.z);
   k.group.add(core);
@@ -231,19 +252,43 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
   const coreGlow = new THREE.Mesh(new THREE.CylinderGeometry(re.coreRadius * 0.7, re.coreRadius * 0.7, H - 2, 20, 1, true), liquidLight({ a: ZONE7_SHADE.rockDeep, b: ZONE7_SHADE.moss, c: ORGANIC.mist, flow: 0.15 }));
   coreGlow.position.copy(core.position);
   k.group.add(coreGlow);
-  const segs = 16;
+  // Level 1: the catwalk ring at deck height in four quarters, two bridges to the side walls and the gallery landing.
+  // Each piece is a named catwalk segment the Warden's overheat can drop (collapse()).
+  const catwalks: WardenArena['catwalks'] = [];
+  const segment = (id: string, level: 1 | 2, parts: { mesh: THREE.Mesh; collider: Collider }[]) => {
+    const box = new THREE.Box3();
+    for (const q of parts) box.expandByObject(q.mesh);
+    let down = false;
+    catwalks.push({
+      id, level, x0: box.min.x, x1: box.max.x, z0: box.min.z, z1: box.max.z, y: level === 1 ? D : D2,
+      get collapsed() { return down; },
+      collapse() { if (down) return; down = true; for (const q of parts) { q.mesh.visible = false; q.collider.y0 = q.collider.y1 = -50; } },
+    });
+  };
+  const segs = 16, quarters = ['ring-east', 'ring-north', 'ring-west', 'ring-south'];
+  const ringParts: { mesh: THREE.Mesh; collider: Collider }[][] = [[], [], [], []];
   for (let i = 0; i < segs; i++) {
     const a = (i / segs) * Math.PI * 2;
     const u = re.x + Math.cos(a) * re.ringRadius, v = re.z + Math.sin(a) * re.ringRadius;
-    k.box(u, v, 1.4, (Math.PI * re.ringRadius) / segs + 0.2, D - 0.4, D, deckMat, { yaw: -a, tag: 'reactor-ring' });
+    ringParts[Math.floor(((i + 2) % segs) / 4)].push(k.box(u, v, 1.4, (Math.PI * re.ringRadius) / segs + 0.2, D - 0.4, D, deckMat, { yaw: -a, tag: 'reactor-ring' }));
   }
+  quarters.forEach((id, i) => segment(id, 1, ringParts[i]));
   // Two bridges from the ring to the side walls; a ramp up the north wall from the gallery door meets a landing
   // that runs back to the north bridge, so the doorway itself stays clear.
-  k.box(re.x, re.z + (re.ringRadius + W) / 2, 1.3, (W - re.ringRadius) / 2, D - 0.4, D, deckMat, { tag: 'reactor-bridge' });
-  k.box(re.x, re.z - (re.ringRadius + W) / 2, 1.3, (W - re.ringRadius) / 2, D - 0.4, D, deckMat, { tag: 'reactor-bridge' });
+  segment('bridge-north', 1, [k.box(re.x, re.z + (re.ringRadius + W) / 2, 1.3, (W - re.ringRadius) / 2, D - 0.4, D, deckMat, { tag: 'reactor-bridge' })]);
+  segment('bridge-south', 1, [k.box(re.x, re.z - (re.ringRadius + W) / 2, 1.3, (W - re.ringRadius) / 2, D - 0.4, D, deckMat, { tag: 'reactor-bridge' })]);
   const rampTop = re.x + 9, rampZ = re.z + 13;
   k.box(rampTop + 6, rampZ, 6, 1.6, 0, D, deckMat, { yaw: Math.PI, rise: D, tag: 'reactor-ramp' });
-  k.box((re.x + 1.3 + rampTop) / 2, rampZ, (rampTop - re.x - 1.3) / 2 + 0.1, 1.6, D - 0.4, D, deckMat, { tag: 'reactor-landing' });
+  segment('landing', 1, [k.box((re.x + 1.3 + rampTop) / 2, rampZ, (rampTop - re.x - 1.3) / 2 + 0.1, 1.6, D - 0.4, D, deckMat, { tag: 'reactor-landing' })]);
+  // Level 2: a gantry ring high round the core, the Warden's climbing frame; no stair reaches it.
+  const upperR = re.ringRadius + 3.5;
+  const upperParts: { mesh: THREE.Mesh; collider: Collider }[][] = [[], [], [], []];
+  for (let i = 0; i < 20; i++) {
+    const a = ((i + 0.5) / 20) * Math.PI * 2;
+    upperParts[Math.floor(i / 5)].push(k.box(re.x + Math.cos(a) * upperR, re.z + Math.sin(a) * upperR, 0.9, (Math.PI * upperR) / 20 + 0.15, D2 - 0.3, D2, deckMat, { yaw: -a, tag: 'reactor-gantry' }));
+  }
+  ['gantry-northeast', 'gantry-northwest', 'gantry-southwest', 'gantry-southeast'].forEach((id, i) => segment(id, 2, upperParts[i]));
+
   const valves = Array.from({ length: re.valves }, (_, i) => {
     const a = Math.PI / 4 + (i / re.valves) * Math.PI * 2;
     const x = re.x + Math.cos(a) * (re.ringRadius - 0.6), z = re.z + Math.sin(a) * (re.ringRadius - 0.6);
@@ -252,6 +297,43 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
     k.group.add(v);
     return { id: `coolant-valve-${i}`, x, y: D, z };
   });
+  // Steam plumes over each valve, hidden until the boss fight vents them.
+  const steamMat = membrane(ORGANIC.mist, 0.18);
+  steamMat.depthWrite = false;
+  const plumes = valves.map((vl) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 0.3, 5, 14, 1, true), steamMat);
+    m.position.set(vl.x, D + 3.8, vl.z);
+    m.visible = false;
+    m.name = `steam-${vl.id}`;
+    k.group.add(m);
+    return m;
+  });
+
+  // Shield columns: four bone-plated columns on the chamber floor, floor to roof, cover from the core's pulse.
+  const shield = grownWall({ base: ZONE7_SHADE.stem, seam: ZONE7_SHADE.rockDeep, vein: ORGANIC.vein, plate: 1.1 });
+  const pillars: WardenArena['pillars'] = [30, 150, 210, 330].map((deg, i) => {
+    const a = (deg * Math.PI) / 180, r = re.ringRadius + 4.2;
+    const x = re.x + Math.cos(a) * r, z = re.z + Math.sin(a) * r;
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.4, H, 10, 4), shield);
+    col.position.set(x, H / 2, z);
+    k.group.add(col);
+    k.solids.add({ cx: x, cz: z, hx: 1.1, hz: 1.1, yaw: 0, y0: 0, y1: H, tag: `shield-pillar-${i}` });
+    return { id: `shield-pillar-${i}`, x, z, radius: 1.25 };
+  });
+
+  const reactorRoom = room('reactorChamber'), podBay = room('escapePodBay');
+  const warden: WardenArena = {
+    id: 'reactorChamber', x0: reactorRoom.x0, x1: reactorRoom.x1, z0: reactorRoom.z0, z1: reactorRoom.z1, floorY: 0, ceiling: H,
+    core: { x: re.x, z: re.z, radius: re.coreRadius },
+    valves: valves.map((v) => ({ ...v })),
+    vent(i, on = true) { if (plumes[i]) plumes[i].visible = on; },
+    pillars, catwalks,
+    bossSpawn: { x: re.x, y: H - 2.5, z: re.z + W - 1, surface: 'wall' },
+    exits: [
+      { id: 'galleryDoor', x: reactorRoom.x1, z: 0 },
+      { id: 'escapePodBay', x: (podBay.x0 + podBay.x1) / 2, z: (podBay.z0 + podBay.z1) / 2 },
+    ],
+  };
 
   // ---- Escape pod bay: pods in their cradles along the south wall of the reactor room.
   const bay = room('escapePodBay');
@@ -336,8 +418,9 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
   return {
     layout,
     sites: { group, setExtractOpen(id, open) { const r = rings.get(id); if (r) r.visible = open; }, setNodeHarvested() { /* no harvest nodes aboard */ } },
-    structures: { group: k.group, loot, arena: null, breakPillar() { /* the reactor has no pillars */ } },
+    structures: { group: k.group, loot, arena: null, warden, breakPillar() { /* the reactor's columns do not break */ } },
     valves,
+    warden,
     landmarkAt: wreckLandmarkAt,
   };
 }

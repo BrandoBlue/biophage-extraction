@@ -3,6 +3,7 @@ import { HIVE, ORGANIC, ZONE7_SHADE } from '../render/palette';
 import { bioNode, bioTime, chitin, liquidLight, membrane, zoneRock } from '../render/materials';
 import type { Collider, CollisionWorld } from './collision';
 import type { CaveLair } from './cave';
+import type { WardenArena } from './wreck';
 import { mulberry32 } from './rng';
 import { noise3 } from '../render/geometry';
 
@@ -45,6 +46,8 @@ export interface BuiltStructures {
   arena: ArenaInfo | null;
   /** The Pale Vigil's cave lair (src/world/cave.ts), on zones that have one. */
   lair?: CaveLair | null;
+  /** The Warden's reactor-chamber arena (src/world/wreck.ts), on the Wreck. */
+  warden?: WardenArena | null;
   /** Break an arena pillar (boss phase 2): hides it and removes its collider. */
   breakPillar(id: string): void;
 }
