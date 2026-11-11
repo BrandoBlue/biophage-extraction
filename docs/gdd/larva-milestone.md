@@ -21,6 +21,7 @@
 ## Persistence (`data/profile.json`)
 - Stored in `localStorage` under `PROFILE.storageKey` as JSON: `{ schemaVersion, dna, stash: [{item, count, x, y, rotated}], stashRows, gutPouchLevel, cavity: [...], gutPouch: [...], stats: {raids, extracts, deaths, kills} }`.
 - New profile: 100 DNA, 3 Clot Gel, 2 DNA Strand Bundles.
+- The stash belongs to the profile, not the host. Its base size (10×6 = 60) matches the Infiltrator's `stashSlots`; how the Wraith's smaller and the Behemoth's larger stash apply is decided in the Host spec.
 - Unknown schema version: keep a backup copy under `<key>.bak`, start a new profile, show a one-line notice. Never silently wipe.
 - DNA Strand Bundles are a currency item: on extraction they convert to banked DNA automatically (value per bundle from `loot.json`) and do not take stash space.
 - **Free kit:** if the stash holds fewer than `freeKit.clotGelFloor` Clot Gel at deploy, the host grows one for free, so a broke player can always deploy.
