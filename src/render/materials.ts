@@ -60,7 +60,11 @@ export function bioSurface<T extends THREE.MeshStandardMaterial>(mat: T, opts: S
       #ifdef USE_INSTANCING
         bioModel = modelMatrix * instanceMatrix;
       #endif
-      vBioSeed = fract(vec3(bioModel[3][0], bioModel[3][1], bioModel[3][2]) * 0.1731) * 17.0;
+      #ifdef BIO_SEED
+        vBioSeed = vec3(BIO_SEED, BIO_SEED * 1.7, BIO_SEED * 2.3); // moving bodies: pattern sticks to the skin
+      #else
+        vBioSeed = fract(vec3(bioModel[3][0], bioModel[3][1], bioModel[3][2]) * 0.1731) * 17.0;
+      #endif
       vBioWorld = (bioModel * vec4(transformed, 1.0)).xyz;
       vBioNormal = normalize(mat3(bioModel) * objectNormal);`,
     );
