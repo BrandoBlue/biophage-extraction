@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CaveSpec } from '../../data';
-import { ORGANIC, ZONE7, ZONE7_SHADE } from '../render/palette';
+import { ORGANIC, ZONE7_SHADE } from '../render/palette';
 import { bioNode, chitin, membrane, zoneRock } from '../render/materials';
 import { hazeVolume } from '../render/atmos';
 import { noise3 } from '../render/geometry';
@@ -93,7 +93,7 @@ export function fungalCaves(solids: CollisionWorld, c: CaveSpec, floorY: number,
   const k = new Kit(solids, c.x, c.z, yaw, floorY);
   k.group.name = 'fungal-caves';
   const R = c.radius, H = c.height;
-  const rock = zoneRock({ veinColour: ZONE7.violet, mossColour: ZONE7_SHADE.moss, scale: 1.6 });
+  const rock = zoneRock({ veinColour: ORGANIC.vein, mossColour: ZONE7_SHADE.moss, scale: 1.6 });
   rock.side = THREE.DoubleSide;
   const hidden = new THREE.MeshBasicMaterial({ visible: false });
 

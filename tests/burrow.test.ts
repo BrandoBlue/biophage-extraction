@@ -38,3 +38,17 @@ describe('burrowed spawns', () => {
     expect(Math.abs(c.position.y - groundHeight(c.position.x, c.position.z))).toBeLessThan(0.05);
   });
 });
+
+describe('the Dunewake', () => {
+  it('swims under the sand on its own drive while it waits, and surfaces when the host comes near', () => {
+    const c = new Abomination('dunewake', ABOMINATIONS.dunewake, 40, 40, 5);
+    c.setHome(40, 40, { hatchOnApproach: 8 });
+    c.burrowed = true;
+    const far = ctx([c], new THREE.Vector3(40, 0, 100), []);
+    for (let i = 0; i < 30; i++) c.update(1 / 60, far);
+    expect(c.creature.drive.burrow).toBe(1);
+    const near = ctx([c], new THREE.Vector3(40, 0, 45), []);
+    for (let i = 0; i < 90; i++) c.update(1 / 60, near);
+    expect(c.creature.drive.burrow).toBe(0);
+  });
+});

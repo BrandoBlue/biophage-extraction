@@ -82,3 +82,18 @@ Enrage at 7:00: the pool fills the bowl; only the ledge is safe.
 - **Enrage:** at `enrage.after` the ceiling keeps falling every 6 s.
 - **Raid wiring:** this lands once Creature's body is in, with the same pattern as `src/game/boss.ts` (hit spheres: lure, spines, limbs).
 
+
+## The Warden of the Long Seed (the Wreck's reactor chamber)
+`src/ai/warden.ts` (`WardenBrain`) is renderer-free. Attack numbers come from `bosses.json` `warden`, and movement, wake and tells from `ai.json` `warden`.
+- **Wake:** `wake.trigger` is `'approach'` for now, so it wakes when a host enters the chamber or comes within `wake.radius`. Switch it to `'power'` once Gameplay's ship-power objective exists (`input.powered`), or call `wake()`.
+- **tend:**
+  - The head crawls the walls and ceiling (`surface` and `up` feed the body's `drive.surface` and `drive.up`) and re-perches every `perchTime` s. Half the time it perches on the ceiling over the host, otherwise high on the nearest wall.
+  - Root spear: the head rears back, then the spear lands where the host was *heading* (`spearLead`), so moving dodges it.
+  - Embryo swarm: Oculimoths are born from the pods after a `birthTell`.
+  - Plates soak body fire (`plateMultiplier`). `vent(i)` opens seam i for `seamOpenTime` s.
+- **overheat:** it drops to the floor at `holdDistance` and its seams stay open.
+  - Steam burst around the head after `steamTell`.
+  - Catwalk collapse near the host (World's hook).
+  - A faster spear.
+- **meltdown:** the reactor charges for the full 3 s wind-up (`windup` and `rear` swell), then pulses through the chamber. Only cover blocks it.
+- **Enrage:** the reactor pulses every `enragePulseEvery` s.

@@ -10,7 +10,7 @@
     "smoke": "node tests/smoke.mjs",
     "lookdev": "node tests/lookdev.mjs",
     "lookdev:player": "node tests/playerview.mjs",
-    "check": "npm run release && npm test && npm run smoke && npm run smoke:release && npm run budget && npm run smoke:raid && npm run smoke:creatures && npm run smoke:raid:release && npm run smoke:raid:hive && npm run smoke:raid:hive:release && npm run smoke:ochre",
+    "check": "npm run release && npm test && npm run smoke && npm run smoke:release && npm run budget && npm run smoke:raid && npm run smoke:creatures && npm run smoke:raid:release && npm run smoke:raid:hive && npm run smoke:raid:hive:release && npm run smoke:online:release && npm run smoke:ochre",
     "release": "npm run build && node scripts/bundle-single.mjs",
     "smoke:release": "node tests/smoke.mjs --release",
     "budget": "node tests/budget.mjs",
@@ -20,6 +20,8 @@
     "smoke:creatures": "node tests/creatures.mjs",
     "smoke:raid:hive": "node tests/raid.mjs --hive",
     "smoke:raid:hive:release": "node tests/raid.mjs --hive --release",
+    "smoke:online": "node tests/online.mjs",
+    "smoke:online:release": "node tests/online.mjs --release",
     "smoke:ochre": "node tests/ochre.mjs"
   },
   "repository": {
@@ -43,6 +45,7 @@
   "dependencies": {
     "@fontsource/cormorant-garamond": "^5.3.0",
     "@fontsource/manrope": "^5.3.0",
+    "peerjs": "^1.5.5",
     "three": "^0.187.0"
   },
   "private": true,
