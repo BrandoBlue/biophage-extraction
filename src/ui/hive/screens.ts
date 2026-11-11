@@ -329,20 +329,23 @@ export interface ResultData {
   time: number;
   cause?: string;
   kept?: { item: string; count: number }[];
+  /** One line from Gameplay's settlement (DNA banked, stash overflow, gut pouch kept). */
+  note?: string;
 }
 
 export function results(r: ResultData, cb: { again(): void }): HTMLElement {
   const won = r.result === 'extracted';
-  const el = h('div', `scr scr-results ${won ? 'won' : 'lost'}`);
+  // `results` is the hook tests/raid.mjs reads (`.results h1`).
+  const el = h('div', `scr scr-results results ${won ? 'won' : 'lost'}`);
   el.innerHTML = `
     <div class="res-head"><h1>${won ? 'EXTRACTED' : 'HOST LOST'}</h1>
-      <p>${won ? 'The Seed Spire carried your haul out of Zone 7.' : `Biomass depleted${r.cause ? ` · ${esc(r.cause)}` : ''}. Everything in your cavities is gone.`}</p></div>
+      <p>${won ? 'The Seed Spire carried your haul out of Zone 7.' : `Biomass depleted${r.cause ? ` · ${esc(r.cause)}` : ''}. Everything in your cavities is gone.`}</p>${r.note ? `<p class="note">${esc(r.note)}</p>` : ''}</div>
     <section class="hv-panel res-items"><h2>${won ? 'MOVING TO STASH' : 'LOST WITH THE HOST'}</h2>
       <ul>${r.items.map((i, n) => `<li style="--d:${n * 0.08}s">${tile(i.item, i.count)}<span>${esc(LOOT.items[i.item]?.label ?? i.item)}</span><b>×${i.count}</b><em>${(LOOT.items[i.item]?.value ?? 0) * i.count} DNA</em></li>`).join('') || '<li class="none">Nothing carried</li>'}</ul>
       ${r.kept?.length ? `<h2 class="kept">GUT POUCH · KEPT</h2><ul>${r.kept.map((i) => `<li>${tile(i.item, i.count)}<span>${esc(LOOT.items[i.item]?.label ?? i.item)}</span><b>×${i.count}</b></li>`).join('')}</ul>` : ''}
     </section>
     <section class="hv-panel res-sum">
-      <div class="big"><span>${won ? 'DNA BANKED' : 'VALUE LOST'}</span><b>${won ? '+' : '−'}${r.value.toLocaleString('en-US')}</b></div>
+      <div class="big"><span>${won ? 'HAUL VALUE' : 'VALUE LOST'}</span><b>${won ? '+' : '−'}${r.value.toLocaleString('en-US')}</b></div>
       <dl><div><dt>KILL DNA</dt><dd>${won ? r.dna : `${r.dna} lost`}</dd></div><div><dt>KILLS</dt><dd>${r.kills}</dd></div><div><dt>RAID TIME</dt><dd>${fmt(r.time)}</dd></div></dl>
     </section>`;
   const go = cta('RETURN TO HIVE', won ? 'HAUL SECURED IN STASH' : 'DEATH LOST YOUR LOADOUT', 'deploy-again');

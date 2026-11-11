@@ -100,3 +100,4 @@ describe('settings', () => {
     expect(s.volume).toBe(DEFAULT_SETTINGS.volume);
   });
 });
+

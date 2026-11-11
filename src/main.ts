@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { LOOT, haulValue } from '../data';
+import { haulValue } from '../data';
 import { Raid } from './game/raid';
 import { RaidHud } from './ui/raid-hud';
 import { HiveMenu } from './ui/hive-menu';
@@ -28,8 +28,7 @@ function bootRaid(): void {
   const raidSeed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : navigator.webdriver ? 1 : 1 + Math.floor(Math.random() * 1e6);
   const world = buildZone7(scene, zone7Layout(raidSeed));
   const raid = new Raid(scene, camera, canvas, world.layout, world.sites);
-  const hud = new RaidHud(raid.bus, () => location.reload());
-  const labels = Object.fromEntries(Object.entries(LOOT.items).map(([k, v]) => [k, v.label]));
+  const hud = new RaidHud(raid.bus);
 
   // Persistent loop (Larva): boot into the Hive, deploy with the cavity loadout, settle the raid into the profile.
   const storage = browserStorage();
@@ -48,20 +47,20 @@ function bootRaid(): void {
   const menu = new HiveMenu(profile, save, deployNow, loaded.notice);
   raid.bus.on('raidEnd', (e) => {
     const r = raid.outcome!;
-    let note = '';
+    const totals = (entries: typeof r.pouch) => new ItemGrid(99, 99, entries).totals();
     if (e.result === 'extracted') {
       const st = extract(profile, r, e.kills);
-      note = `${st.dnaBanked} DNA banked.${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}`;
       save();
-      hud.showResult(e.result, r, labels, e.kills, e.time, note);
+      const note = `${st.dnaBanked} DNA banked.${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}`;
+      menu.showResults({ result: 'extracted', items: r.items, dna: r.dna, value: r.value, kills: e.kills, time: e.time, note });
     } else {
       die(profile, r, e.kills);
       save();
-      const lost = new ItemGrid(99, 99, r.cavity).totals();
-      if (r.pouch.length) note = `Gut pouch kept: ${new ItemGrid(99, 99, r.pouch).totals().map((i) => `${i.count}× ${labels[i.item]}`).join(', ')}.`;
-      hud.showResult(e.result, { ...r, items: lost, value: haulValue(lost, r.dna) }, labels, e.kills, e.time, note);
+      const lost = totals(r.cavity);
+      menu.showResults({ result: 'lost', items: lost, dna: r.dna, value: haulValue(lost, r.dna), kills: e.kills, time: e.time, cause: r.cause, kept: totals(r.pouch) });
     }
   });
+
 
   const pipeline = createPipeline(canvas, scene, camera, 'zone7');
   installLookdev(pipeline, camera, scene);
@@ -88,7 +87,9 @@ function bootRaid(): void {
     const dt = Math.min(clock.getDelta(), 0.05);
     raid.update(dt);
     hud.update(dt, raid.hud());
-    pipeline.render(dt);
+    // The Hive screens cover the whole view: skip the 3D frame behind them (the loop and frame counter keep running).
+    // The first frames still render so shaders compile at boot, not on the DEPLOY click.
+    if (!menu.visible || frames < 3) pipeline.render(dt);
     frames++;
     // Read by tests/smoke.mjs and tests/raid.mjs: proves the loop is alive and drives scripted raids.
     (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), profile, debug, layout: world.layout };

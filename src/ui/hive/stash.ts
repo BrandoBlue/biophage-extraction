@@ -57,14 +57,14 @@ export function stashScreen(p: ProfileView, cb: StashCallbacks): HTMLElement & {
       if (!ok) cb.notice('DOES NOT FIT THERE', 'danger');
       cb.changed();
     },
-    quick: (from) => {
+    quick: (from, shift) => {
       const pl = itemsIn(from.zone as GridZone, p)[from.index];
-      const order: GridZone[] = from.zone === 'stash' ? ['cavity', 'pouch'] : ['stash'];
+      const order: GridZone[] = shift && from.zone !== 'pouch' ? ['pouch'] : from.zone === 'stash' ? ['cavity', 'pouch'] : ['stash'];
       for (const z of order) {
         const t = firstFit(source(z, p), pl.item, pl.rotated);
         if (t && cb.actions.move(from.zone as GridZone, from.index, z, t.x, t.y, t.rotated)) { cb.changed(); return; }
       }
-      cb.notice(from.zone === 'stash' ? 'CAVITIES FULL' : 'STASH FULL', 'danger');
+      cb.notice(order[0] === 'pouch' ? 'GUT POUCH FULL' : from.zone === 'stash' ? 'CAVITIES FULL' : 'STASH FULL', 'danger');
     },
   });
   el.dispose = () => layer.dispose();
@@ -101,7 +101,7 @@ export function stashScreen(p: ProfileView, cb: StashCallbacks): HTMLElement & {
   const kinds = new Set(p.stash.map((s) => LOOT.items[s.item]?.kind));
   el.insertAdjacentHTML('beforeend', `<div class="legend-kinds">${(['consumable', 'currency', 'mutagen', 'virus', 'tech', 'organ'] as const).filter((k) => kinds.has(k) || k === 'organ' || k === 'virus').map((k) => `<span class="k-${k}"><i></i>${k}</span>`).join('')}</div>`);
   const go = cta('CHOOSE DROP ZONE', 'NEXT: RAID SELECT');
-  el.append(go, keyHints([['DRAG', 'MOVE'], ['R / RMB', 'ROTATE WHILE DRAGGING'], ['DBL-CLICK', 'QUICK MOVE'], ['ESC', 'BACK']]));
+  el.append(go, keyHints([['DRAG', 'MOVE'], ['R / RMB', 'ROTATE WHILE DRAGGING'], ['DBL-CLICK', 'QUICK MOVE'], ['SHIFT+DBL', 'TO GUT POUCH'], ['ESC', 'BACK']]));
   go.addEventListener('click', () => cb.next());
   return el;
 }

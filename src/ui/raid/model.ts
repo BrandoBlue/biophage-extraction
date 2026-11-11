@@ -22,7 +22,8 @@ export interface HudView {
     pings: { x: number; z: number; kind: string; revealed?: boolean }[];
   };
   activeVirus?: string | null;
-  injecting?: boolean;
+  /** Virus id being injected, null when not channelling. */
+  injecting?: string | null;
   injectProgress?: number;
   harvestProgress?: number;
   cavityUsed?: [number, number];

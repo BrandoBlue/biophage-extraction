@@ -27,7 +27,7 @@ const base: HudView = {
 };
 const states: Record<string, Partial<HudView>> = {
   fight: {},
-  inject: { injecting: true, injectProgress: 0.55, overload: 0.3 },
+  inject: { injecting: 'adrenalineVirus', injectProgress: 0.55, overload: 0.3 },
   mutated: { activeVirus: 'plagueStalkerStrain' },
   harvest: { harvestProgress: 0.62, interact: { text: 'HOLD E · HARVEST NEEDLEMAW GLAND', progress: 0.62 } },
   extract: { extract: { progress: 0.4, inside: true, distance: 2, label: 'Seed Spire', time: 10 }, activeVirus: 'adrenalineVirus' },

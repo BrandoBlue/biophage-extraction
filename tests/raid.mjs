@@ -1,7 +1,8 @@
 // Scripted raid: proves a Spore raid can be finished both ways, driving the game through window.__biophage.debug.
 //   npm run smoke:raid                 -> against dist/ via `vite preview` (run `npm run build` first)
 //   npm run smoke:raid -- --release    -> against release/index.html from disk
-// Boots into the Hive with a fresh profile, loads Clot Gel into the cavities and deploys. Fights a Needlemaw with the
+// Boots into the Hive with a fresh profile, opens the stash, double-clicks Clot Gel into the cavities and deploys
+// from the raid select tab. Fights a Needlemaw with the
 // Synapse Burster, tears open the Bio-Pod, extracts at the Seed Spire, checks the EXTRACTED screen, returns to the
 // Hive (page reload) and checks the haul is in the stash. Then deploys with a gut pouch item, dies, checks the HOST
 // LOST screen and that the cavities were lost while the gut pouch came home. Screenshots go to tests/out/.
@@ -58,6 +59,7 @@ try {
   const profile = () => page.evaluate(() => JSON.parse(JSON.stringify(window.__biophage.profile)));
   const total = (entries, item) => entries.filter((e) => e.item === item).reduce((n, e) => n + e.count, 0);
   const menuItem = (zone, item) => `#hive [data-zone="${zone}"] [data-item="${item}"]`;
+  const tab = (t) => page.click(`#hive .tab[data-tab="${t}"]`);
   const boot = async () => {
     await page.waitForFunction(() => window.__biophage?.frames > 3, null, { timeout: 90000 });
   };
@@ -70,8 +72,11 @@ try {
   // --- The Hive: a fresh profile with Design's starter kit.
   let p = await profile();
   if (!(await page.isVisible('#hive'))) await fail('Hive menu is not shown at boot');
+  if ((await page.getAttribute('#hive', 'data-tab')) !== 'menu') await fail('the Hive does not open on the main menu');
+  await freezeAndScreenshot(page, 'tests/out/raid-hive-menu.png', { resume: true });
+  await tab('stash');
   if (p.dna !== PROFILE.newProfile.dna || !PROFILE.newProfile.stash.every((k) => total(p.stash, k.item) === k.count)) await fail(`unexpected new profile ${JSON.stringify(p)}`);
-  await page.click(menuItem('stash', 'clotGel'));
+  await page.dblclick(menuItem('stash', 'clotGel'));
   p = await profile();
   if (total(p.cavity, 'clotGel') !== starter('clotGel') || total(p.stash, 'clotGel') !== 0) await fail(`Clot Gel did not move into the cavities: ${JSON.stringify(p.cavity)}`);
   await freezeAndScreenshot(page, 'tests/out/raid-hive.png', { resume: true });
@@ -83,6 +88,7 @@ try {
 
   // Run the simulation 3x faster per frame so the scripted raid fits in CI time (the dt clamp keeps steps small).
   await call('setTimeScale', 3);
+  await tab('raid');
   await page.click('#deploy');
   await frames(2);
   s = await state();
@@ -190,7 +196,8 @@ try {
   const strands = total(s.result.cavity, 'dnaStrand');
 
   // --- Return to the Hive (reload): the haul must be in the stash, kill DNA and strands banked.
-  await page.click('#deploy-again');
+  // The reload can take a while on software rendering; the next line waits for the fresh Hive.
+  await page.click('#deploy-again', { noWaitAfter: true });
   await page.waitForFunction(() => window.__biophage?.state?.phase === 'briefing', null, { timeout: 90000 });
   await boot();
   p = await profile();
@@ -201,8 +208,9 @@ try {
   log(`after reload: stash ${p.stash.map((e) => `${e.count}x ${e.item}`).join(', ')}; DNA ${p.dna}`);
 
   // --- Second raid: a starter DNA bundle in the cavities, Clot Gel in the gut pouch, then die.
-  await page.click(menuItem('stash', 'dnaStrand'));
-  await page.click(menuItem('stash', 'clotGel'), { modifiers: ['Shift'] });
+  await tab('stash');
+  await page.dblclick(menuItem('stash', 'dnaStrand'));
+  await page.dblclick(menuItem('stash', 'clotGel'), { modifiers: ['Shift'] });
   p = await profile();
   if (total(p.cavity, 'dnaStrand') !== starter('dnaStrand') || total(p.gutPouch, 'clotGel') < 1) await fail(`loadout not set: cavity ${JSON.stringify(p.cavity)} pouch ${JSON.stringify(p.gutPouch)}`);
   const pouchGel = total(p.gutPouch, 'clotGel');
@@ -218,7 +226,8 @@ try {
   if (lost !== 'HOST LOST') await fail(`result screen says ${lost}`);
   await freezeAndScreenshot(page, 'tests/out/raid-lost.png', { resume: true });
   log(`HOST LOST; lost value ${s.result.value}`);
-  await page.click('#deploy-again');
+  // The reload can take a while on software rendering; the next line waits for the fresh Hive.
+  await page.click('#deploy-again', { noWaitAfter: true });
   await page.waitForFunction(() => window.__biophage?.state?.phase === 'briefing', null, { timeout: 90000 });
   await boot();
   p = await profile();
