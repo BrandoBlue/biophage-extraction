@@ -272,7 +272,7 @@ export function rollContainer(id: string, rand: () => number): { item: string; c
 
 /** Total DNA value of a haul (items plus kill DNA). */
 export function haulValue(items: { item: string; count: number }[], killDna = 0): number {
-  return items.reduce((s, { item, count }) => s + LOOT.items[item].value * count, killDna);
+  return items.reduce((s, { item, count }) => s + (itemDef(item)?.value ?? 0) * count, killDna);
 }
 
 /**
