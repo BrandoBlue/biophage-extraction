@@ -105,8 +105,11 @@ export function coverMaterial(): THREE.MeshStandardMaterial {
       float y = clamp(vBioLocal.y, 0.0, 1.0);
       float tip = smoothstep(0.55, 0.95, y);
       float twinkle = 0.65 + 0.35 * sin(bioTime * (1.2 + fract(vBioSeed.x) * 1.5) + vBioSeed.y * 6.0);
-      diffuseColor.rgb = mix(uRoot, uBody * 1.8, smoothstep(0.0, 0.5, y)) * mix(vec3(1.0), tint, 0.45 + tip * 0.4);
-      totalEmissiveRadiance += tint * (tip * 2.4 * twinkle + y * 0.12);
+      // Ethereal, not neon: blades are lit moss with only a hint of the colony tint, and only about a third of
+      // the tips carry a glow, so the field twinkles instead of reading as a neon carpet.
+      float lit = step(0.66, fract(vBioSeed.x * 7.13 + vBioSeed.z * 3.7));
+      diffuseColor.rgb = mix(uRoot, uBody * 1.8, smoothstep(0.0, 0.5, y)) * mix(vec3(1.0), tint, 0.18 + tip * 0.22);
+      totalEmissiveRadiance += tint * (tip * 2.4 * twinkle * lit + y * 0.04);
     `,
   });
 }

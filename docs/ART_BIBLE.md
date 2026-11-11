@@ -36,6 +36,9 @@ Brandon likes how ethereal the world looks and likes the alien creatures. Too mu
 | Paths | Stealth green / Melee amber / Viral violet / DNA cyan | #6CFF4A / #FFB13B / #A55BFF / #34E3F0 |
 | Zone 7 | Void indigo | #140A33 |
 | Zone 7 | Magenta / Electric cyan / Violet / Lime | #FF3FA4 / #2EE6FF / #8B3DFF / #B6FF3B |
+| Organic (lit, not glowing) | Wet flesh / Deep flesh / Vein / Amber / Mist | #7A4756 / #3A1C2A / #6E2E4A / #C98A3E / #8C9BB4 |
+
+The organic tones are for bodies that are lit rather than glowing: the held weapon, hands, hides and hulls. Use the Zone 7 glow colours on top of them as accents (eyes, chamber, weak points), never as the body colour of something the player looks at all the time.
 
 ## Materials
 - Wet chitin and bone plating with subsurface scattering; ivory spikes on raw red muscle for heavies.
