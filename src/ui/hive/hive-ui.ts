@@ -78,11 +78,18 @@ export class HiveUI {
     screen.classList.add(`tab-${tab}`);
     f.body.append(screen);
     f.root.append(this.noticeEl);
+    // A change of screen settles in; a refresh of the same screen (after a buy, a move, a sale) does not.
+    this.root.dataset.enter = this.root.dataset.tab !== tab || this.root.classList.contains('hidden') ? '1' : '0';
     this.root.replaceChildren(f.root);
     this.root.classList.remove('hidden');
     this.cur = screen;
     this.root.dataset.tab = tab;
+    // DNA ticks up or down when it changed since the last screen.
+    if (this.lastDna !== null && p.dna !== this.lastDna) f.root.querySelector('.cur.dna b')?.classList.add(p.dna > this.lastDna ? 'up' : 'down');
+    this.lastDna = p.dna;
   }
+
+  private lastDna: number | null = null;
 
   /** Vendor shown on the VENDORS tab. */
   vendor = 'motherClot';

@@ -199,3 +199,66 @@ describe('first-person gun framing', () => {
     expect(gun.scale.y).toBeLessThan(GUN_SCALE * 1.05);
   });
 });
+
+describe('lighting, relief and world scale', () => {
+  it('casts soft sun shadows from the strongest directional light, following the camera, never from held items', async () => {
+    const { sunShadows, shadowEligible, keyLight, SHADOWS } = await import('../src/render/lighting');
+    const scene = new THREE.Scene();
+    const weak = new THREE.DirectionalLight(0xffffff, 0.5), key = new THREE.DirectionalLight(0xffffff, 1.5);
+    key.position.set(60, 80, -120);
+    scene.add(weak, key);
+    expect(keyLight(scene)).toBe(key);
+    const rock = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
+    const haze = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({ transparent: true }));
+    const cam = new THREE.PerspectiveCamera();
+    const held = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
+    cam.add(held);
+    scene.add(rock, haze, cam);
+    expect(shadowEligible(held)).toBe(false);
+    expect(shadowEligible(haze)).toBe(false);
+    const renderer = { shadowMap: { enabled: false, type: 0 } } as unknown as THREE.WebGLRenderer;
+    const s = sunShadows(renderer, true);
+    cam.position.set(30, 2, -40);
+    cam.updateMatrixWorld();
+    s.update(scene, cam);
+    expect(renderer.shadowMap.enabled).toBe(true);
+    expect(key.castShadow).toBe(true);
+    expect(rock.castShadow && rock.receiveShadow).toBe(true);
+    expect(haze.castShadow || held.castShadow).toBe(false);
+    expect(key.target.position.distanceTo(cam.position)).toBeLessThan((SHADOWS.extent * 2) / SHADOWS.mapSize * 2);
+    expect(key.position.distanceTo(key.target.position)).toBeCloseTo(SHADOWS.distance);
+  });
+
+  it('rings the zone with distant landforms inside the sky dome', async () => {
+    const { horizonLands, ridgeProfile, HORIZON } = await import('../src/render/horizon');
+    const g = horizonLands({ seed: 7 });
+    expect(g.children.length).toBe(HORIZON.radii.length);
+    for (const m of g.children as THREE.Mesh[]) {
+      m.geometry.computeBoundingSphere();
+      const pos = m.geometry.attributes.position;
+      let maxR = 0;
+      for (let i = 0; i < pos.count; i++) maxR = Math.max(maxR, Math.hypot(pos.getX(i), pos.getZ(i)));
+      expect(maxR).toBeLessThan(900);
+    }
+    for (let t = 0; t < 1; t += 0.01) { const h = ridgeProfile(7, t); expect(h).toBeGreaterThan(0); expect(h).toBeLessThan(1.6); }
+  });
+
+  it('gives terrain, flesh and chitin relief through the shared bump hook', async () => {
+    const { zoneRock, livingFlesh, chitin } = await import('../src/render/materials');
+    for (const m of [zoneRock(), livingFlesh('#5A2A55', '#FF3FA4', '#FF3FA4'), chitin()]) {
+      const s = compile(m);
+      expect(s.fragmentShader).toContain('#define BIO_BUMP');
+      expect(s.fragmentShader).toMatch(/BIO_BUMP\([^)]*\)\s*;/);
+    }
+  });
+
+  it('has a complete impact look for every living-weapon style', async () => {
+    const { SHOT_STYLES, shotStyle } = await import('../src/render/shotfx');
+    for (const s of ['spore', 'quill', 'spit', 'bile', 'beam']) {
+      const look = SHOT_STYLES[s as keyof typeof SHOT_STYLES];
+      expect(look.n).toBeGreaterThan(0);
+      expect(look.size[0]).toBeLessThanOrEqual(look.size[1]);
+    }
+    expect(shotStyle('nope')).toBe(SHOT_STYLES.spore);
+  });
+});

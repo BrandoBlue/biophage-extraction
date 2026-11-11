@@ -40,6 +40,12 @@ export abstract class Brain {
 
   protected readonly rand: () => number;
   protected home: Vec2;
+  /** Leash: how far it wanders from home while calm; past it, it drifts back (habitats.json `roam`). */
+  protected roam = AI.wander.radius;
+  /** Calm height for flyers that roost (habitats.json `height`); null: the archetype's own. */
+  protected roost: number | null = null;
+  /** Lying in wait: in a tank until the host comes within `range` (hatch), or posing as a crate (disguise). */
+  private lurk: { how: 'hatch' | 'disguise'; range: number } | null = null;
   protected phaseTime = 0;
   protected cooldown = 0;
   private staggerFor = 0;
@@ -63,9 +69,31 @@ export abstract class Brain {
 
   // ------------------------------------------------------------------ external hooks
 
+  /**
+   * Where this creature lives (Gameplay places it from data/habitats.json): it wanders within `roam` of home and
+   * drifts back after a chase. `hatchOnApproach` keeps it in its tank until the host is that close; `disguise` keeps
+   * it posing as an object until the host is in striking range; `height` is a flyer's roost height.
+   */
+  setHome(x: number, z: number, o: { roam?: number; hatchOnApproach?: number; disguise?: string; height?: number } = {}): void {
+    this.home = { x, z };
+    if (o.roam !== undefined) this.roam = o.roam;
+    if (o.height !== undefined) this.roost = o.height;
+    if (o.hatchOnApproach) this.lurk = { how: 'hatch', range: o.hatchOnApproach };
+    else if (o.disguise) this.lurk = { how: 'disguise', range: this.data.attackRange + 1.5 };
+  }
+
+  /** Still in its tank or disguise (the body should show the tank or the crate). */
+  get lurking(): boolean { return this.lurk !== null; }
+
+  private reveal(): void {
+    if (!this.lurk) return;
+    this.events.push({ type: 'reveal', how: this.lurk.how });
+    this.lurk = null;
+  }
+
   /** A packmate, screech, nest pulse or wound told this creature where the host is (null: it knows, it was shot). */
   alert(at: Vec2 | null = null): void {
-    if (this.mode === 'dead') return;
+    if (this.mode === 'dead' || this.lurk) return;
     this.awareness.alert(at);
     this.awareness.sinceSeen = 0;
     this.pendingFix = at === null;
@@ -85,7 +113,7 @@ export abstract class Brain {
   }
 
   /** The creature was wounded: archetypes can react (Glasswalker reveal). Also alerts. */
-  hurt(): void { this.alert(null); this.onHurt(); }
+  hurt(): void { this.reveal(); this.alert(null); this.onHurt(); }
 
   kill(): void {
     this.mode = 'dead';
@@ -101,6 +129,13 @@ export abstract class Brain {
   step(dt: number, w: BrainWorld): void {
     if (this.mode === 'dead') return;
     const b = this.body, host = w.host;
+    if (this.lurk) {
+      // Lying in wait: no senses, no movement, until the host walks into reach.
+      if (host.alive && !host.hidden && Math.hypot(host.x - b.x, host.z - b.z) <= this.lurk.range) {
+        this.reveal();
+        this.alert({ x: host.x, z: host.z });
+      } else { b.vx = 0; b.vz = 0; this.excite = 0; return; }
+    }
     this.phaseTime += dt;
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.awareness.update(dt, b.x, b.z, b.yaw, host, w.noises);
@@ -171,8 +206,11 @@ export abstract class Brain {
     this.windup = damp(this.windup, 0, 6, dt);
     this.body.altitude = damp(this.body.altitude, this.cruiseAltitude(), 1.5, dt);
     if (this.pauseFor > 0) { this.pauseFor -= dt; this.slow(dt, 4); return; }
+    // Strayed past the leash (after a chase): walk home.
+    const fromHome = Math.hypot(this.body.x - this.home.x, this.body.z - this.home.z);
+    if (fromHome > this.roam) { this.wanderTo = null; this.moveToward(this.home.x, this.home.z, this.data.speed * AI.wander.speedFactor, 3, dt); return; }
     if (!this.wanderTo) {
-      const a = this.rand() * Math.PI * 2, r = this.rand() * AI.wander.radius;
+      const a = this.rand() * Math.PI * 2, r = this.rand() * this.roam;
       this.wanderTo = { x: this.home.x + Math.cos(a) * r, z: this.home.z + Math.sin(a) * r };
     }
     const dx = this.wanderTo.x - this.body.x, dz = this.wanderTo.z - this.body.z;
@@ -192,7 +230,6 @@ export abstract class Brain {
     this.body.altitude = damp(this.body.altitude, this.cruiseAltitude(), 1.5, dt);
     if (!lk || (this.investigateFor <= 0 && !this.awareness.suspicious)) {
       this.mode = 'calm';
-      this.home = { x: this.body.x, z: this.body.z };
       this.phaseTime = 0;
       return;
     }
@@ -228,7 +265,6 @@ export abstract class Brain {
     this.releaseToken(w);
     this.onInterrupted();
     this.look = null;
-    this.home = { x: this.body.x, z: this.body.z };
   }
 
   // ------------------------------------------------------------------ helpers

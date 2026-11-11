@@ -19,7 +19,7 @@ export class FlyerBrain extends Brain {
   private pecked = false;
   private readonly band = (this.data.flightHeight as Range | undefined) ?? [2, 10];
 
-  protected cruiseAltitude(): number { return this.cruise; }
+  protected cruiseAltitude(): number { return this.roost ?? this.cruise; }
 
   step(dt: number, w: BrainWorld): void {
     this.screechCd = Math.max(0, this.screechCd - dt);

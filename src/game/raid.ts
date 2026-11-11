@@ -87,6 +87,8 @@ const PLAYER_RADIUS = 0.55;
 export class Raid {
   readonly bus = new EventBus();
   phase: Phase = 'briefing';
+  /** Descent speed while dropping into the zone at raid start (0 once landed). */
+  private dropping = 0;
   readonly player: Player;
   readonly biomass: Biomass;
   readonly overload: NeuralOverload;
@@ -240,6 +242,7 @@ export class Raid {
     this.player.onJump = () => { this.overload.add(HOST.neuralOverload.jumpFill); };
     this.player.onLand = (h) => {
       this.noise(this.player.position, HOST.noiseRadius.jumpLand, 'land');
+      if (this.dropping) { this.dropping = 0; return; } // the drop-in lands softly
       // Impact energy scales with gravity: falls inside the Gravity Bloom land softly.
       const over = h * this.player.gravityScale - HOST.fallDamage.safeHeight;
       if (over > 0) this.hurt(over * HOST.fallDamage.damagePerMetre, 'limb', 'fall', null);
@@ -293,7 +296,7 @@ export class Raid {
     for (let k = 0; k < size; k++) {
       const a = this.rand() * Math.PI * 2, d = this.rand() * (g.home.spread || (size > 1 ? 3 : 0));
       const c = this.addCreature(kind, g.home.x + Math.cos(a) * d, g.home.z + Math.sin(a) * d);
-      (c as { setHome?: (x: number, z: number, o: object) => void }).setHome?.(g.home.x, g.home.z, {
+      c.setHome(g.home.x, g.home.z, {
         roam: g.roam, hatchOnApproach: g.group.hatchOnApproach, disguise: g.group.disguise, height: g.group.height,
       });
       if (alertTo) c.alert(alertTo);
@@ -433,6 +436,14 @@ export class Raid {
   begin(): void {
     if (this.phase !== 'briefing') return;
     this.phase = 'raid';
+    // Drop-in (World layout): the host falls into the zone from high above the spawn, steering on the way down.
+    // Automated runs and `?nodrop` start on the ground so scripted tests stay quick and deterministic.
+    const drop = this.layout.dropIn;
+    if (drop && typeof navigator !== 'undefined' && !navigator.webdriver && !new URLSearchParams(location.search).has('nodrop')) {
+      this.player.position.y += drop.height;
+      this.player.grounded = false;
+      this.dropping = drop.fallSpeed;
+    }
     this.bus.emit('raidStart', { raidTime: RAID.raidTime });
   }
 
@@ -866,6 +877,7 @@ export class Raid {
     const wasOver = this.overload.overloaded;
     // Gravity Bloom anomaly: lighter gravity in its field (World layout).
     p.gravityScale = gravityAt(this.layout, p.position.x, p.position.z);
+    if (this.dropping) p.velocity.y = -this.dropping;
     p.update(dt);
     if (live && p.sprinting) this.overload.add(HOST.neuralOverload.sprintFillPerSecond * dt);
     this.overload.update(dt);
@@ -954,6 +966,11 @@ export class Raid {
         p.velocity.y = Math.max(p.velocity.y, strength * 0.45);
         p.grounded = false;
         p.addTrauma(Math.min(0.8, strength / 12));
+      },
+      onReveal: (c, how) => {
+        this.bus.emit('creatureReveal', { id: c.id, type: c.kind, how, position: { x: c.position.x, y: c.position.y, z: c.position.z } });
+        this.noise(c.position, 20, how);
+        this.fx.burst(c.centre.clone(), c.fluid, 0.8);
       },
       onScreech: (c, radius) => {
         this.bus.emit('alert', { id: c.id, type: c.kind, position: { x: c.position.x, y: c.position.y, z: c.position.z } });

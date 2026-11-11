@@ -28,6 +28,8 @@ export interface Zone7Layout {
   anomaly: AnomalySite;
   /** Rectangular walkable area for maps that are not the round island (creature spawns stay inside it). */
   area?: { x0: number; x1: number; z0: number; z1: number };
+  /** Raid start drops the host in from this height above the spawn (open-sky zones only). */
+  dropIn?: { height: number; fallSpeed: number };
 }
 
 /** Walkable radius the layout is resolved against (same clamp the Raid uses). */
@@ -83,6 +85,7 @@ export function zone7Layout(seed: number): Zone7Layout {
     nests: CATALOGUE.nests,
     nodes,
     anomaly: { ...an, kind: ZONE7_SITES.anomaly.id, radius: ZONE7_SITES.anomaly.size, gravityMultiplier: ANOMALY_GRAVITY },
+    dropIn: ZONE7_SITES.dropIn,
   };
 }
 

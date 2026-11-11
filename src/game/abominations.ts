@@ -45,6 +45,8 @@ export interface AbominationContext {
   onKnockback?(a: Abomination, strength: number): void;
   /** An Oculimoth screeched: everything within `radius` was alerted. */
   onScreech?(a: Abomination, radius: number): void;
+  /** It burst from its tank or dropped its disguise (PvE AI habitats): play the burst, make the noise. */
+  onReveal?(a: Abomination, how: 'hatch' | 'disguise'): void;
 }
 
 /** Coarse state for HUD, tests and debug (derived from the brain). */
@@ -136,6 +138,14 @@ export class Abomination {
     this.root.updateMatrixWorld(true);
     for (const h of this.hitSpheres) h.world.copy(h.local).applyMatrix4(h.bone.matrixWorld);
   }
+
+  /**
+   * Where it lives (Gameplay's placement from data/habitats.json): wander within `roam` of home and drift back,
+   * wait in a tank (`hatchOnApproach` metres), pose as a crate (`disguise`), or roost at `height` (PvE AI).
+   */
+  setHome(x: number, z: number, o: { roam?: number; hatchOnApproach?: number; disguise?: string; height?: number } = {}): void { this.brain.setHome(x, z, o); }
+  /** Still in its tank or disguise: Creature/World show the tank or the crate instead of the hunting body. */
+  get lurking(): boolean { return this.brain.lurking; }
 
   /** Called by nearby creatures (alertShare), screeches, nests and reinforcements: hunt the host. */
   alert(at: { x: number; z: number } | null = null): void { if (this.alive) this.brain.alert(at); }
@@ -276,6 +286,7 @@ export class Abomination {
             ctx.onKnockback?.(this, e.knockback);
           }
           break;
+        case 'reveal': ctx.onReveal?.(this, e.how); break;
         case 'charge': case 'notice': break; // read by audio through the bus later
       }
     }

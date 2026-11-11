@@ -42,6 +42,8 @@ export type AIEvent =
   | { type: 'spit'; target: Vec3 }
   | { type: 'screech'; radius: number }
   | { type: 'slam'; radius: number; damage: number; knockback: number }
-  | { type: 'charge' };
+  | { type: 'charge' }
+  /** Burst from its tank or dropped its disguise. */
+  | { type: 'reveal'; how: 'hatch' | 'disguise' };
 
 export type Mode = 'calm' | 'investigate' | 'hunt' | 'stagger' | 'dead';

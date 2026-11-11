@@ -119,8 +119,11 @@ export function vendorRow(vendors: { id: string; label: string }[], current: str
   return row;
 }
 
+/** What the last action changed, so the rebuilt screen can answer it: the card bought from, the contract taken, the DNA paid. */
+let flash: { buy?: string; accept?: string; paid?: number } = {};
+
 function contractCard(c: ContractView, vendor: VendorView, cb: VendorCallbacks, busy: boolean): HTMLElement {
-  const el = h('div', `vd-contract ${c.state}`);
+  const el = h('div', `vd-contract ${c.state}${flash.accept === c.id ? ' accepted' : ''}`);
   const reward = [c.reward.dna ? `${c.reward.dna} DNA` : '', c.reward.rep ? `+${c.reward.rep} REP` : '', ...c.reward.items.map((i) => `${i.count > 1 ? `${i.count}× ` : ''}${label(i.item)}`)].filter(Boolean).join(' · ');
   const tag = { active: 'ACTIVE', available: 'OFFERED', done: 'DONE', locked: 'LOCKED', coming: 'LATER' }[c.state];
   el.innerHTML = `<header><b>${esc(c.title)}</b><em>${tag}</em></header>
@@ -134,7 +137,7 @@ function contractCard(c: ContractView, vendor: VendorView, cb: VendorCallbacks, 
     b.disabled = c.state === 'available' && busy;
     b.addEventListener('click', () => {
       if (c.state === 'active') { if (cb.actions.abandonContract?.(vendor.id)) { cb.notice(`ABANDONED ${c.title.toUpperCase()}`, 'danger'); cb.changed(); } return; }
-      if (cb.actions.acceptContract?.(c.id)) { cb.notice(`CONTRACT TAKEN · ${c.title.toUpperCase()} · PROGRESS COUNTS ON EXTRACT`, 'good'); cb.changed(); }
+      if (cb.actions.acceptContract?.(c.id)) { flash = { accept: c.id }; cb.notice(`CONTRACT TAKEN · ${c.title.toUpperCase()} · PROGRESS COUNTS ON EXTRACT`, 'good'); cb.changed(); }
       else cb.notice('FINISH OR ABANDON THE ACTIVE CONTRACT FIRST', 'danger');
     });
     el.querySelector('footer')!.append(b);
@@ -162,14 +165,14 @@ export function vendorScreen(p: ProfileView, current: string, cb: VendorCallback
   const grid = h('div', 'mk-cards');
   for (const s of v.stock) {
     const d = def(s.item);
-    const card = h('div', `mk-card${s.state === 'ok' ? '' : ' off'}`, `${tile(s.item, 1)}
+    const card = h('div', `mk-card${s.state === 'ok' ? '' : ' off'}${flash.buy === s.item ? ' bought' : ''}`, `${tile(s.item, 1)}
       <div class="mk-name"><b>${esc(d?.label ?? s.item)}</b><small>${esc(d?.kind ?? '')} · REP ${ROMAN[s.rep]}</small></div>
       <div class="mk-price">${glyph('dna')}<b>${s.price.toLocaleString('en-US')}</b></div>`);
     const buy = h<HTMLButtonElement>('button', 'hv-btn mk-buy', s.state === 'ok' ? 'BUY' : s.state === 'rep' ? `REP ${ROMAN[s.rep]}` : WHY[s.state]);
     buy.dataset.buy = s.item;
     buy.disabled = s.state !== 'ok';
     buy.addEventListener('click', () => {
-      if (cb.actions.vendorBuy?.(v.id, s.item)) { cb.notice(`BOUGHT ${(d?.label ?? s.item).toUpperCase()} · IN YOUR STASH`, 'good'); cb.changed(); }
+      if (cb.actions.vendorBuy?.(v.id, s.item)) { flash = { buy: s.item }; cb.notice(`BOUGHT ${(d?.label ?? s.item).toUpperCase()} · IN YOUR STASH`, 'good'); cb.changed(); }
       else cb.notice(`${v.label.toUpperCase()} WILL NOT PART WITH IT`, 'danger');
     });
     card.append(buy);
@@ -199,7 +202,7 @@ export function vendorScreen(p: ProfileView, current: string, cb: VendorCallback
     one.dataset.sell = String(i); all2.dataset.sellAll = String(i);
     const sell = (n: number) => {
       const paid = cb.actions.vendorSell?.(v.id, 'stash', i, n) ?? 0;
-      if (paid > 0) { cb.notice(`+${paid} DNA`, 'good'); cb.changed(); } else cb.notice('NOTHING SOLD', 'danger');
+      if (paid > 0) { flash = { paid }; cb.notice(`+${paid} DNA`, 'good'); cb.changed(); } else cb.notice('NOTHING SOLD', 'danger');
     };
     one.addEventListener('click', () => sell(1));
     all2.addEventListener('click', () => sell(st.count));
@@ -208,7 +211,8 @@ export function vendorScreen(p: ProfileView, current: string, cb: VendorCallback
   });
   if (!p.stash.length) ul.innerHTML = '<li class="none">Your stash is empty</li>';
   right.append(ul);
-  right.insertAdjacentHTML('beforeend', `<div class="cap"><span>STASH SELLS FOR</span><b>${total.toLocaleString('en-US')} DNA</b></div>`);
+  right.insertAdjacentHTML('beforeend', `<div class="cap"><span>STASH SELLS FOR</span><b>${total.toLocaleString('en-US')} DNA</b>${flash.paid ? `<i class="paid">+${flash.paid} DNA</i>` : ''}</div>`);
+  flash = {};
 
   const go = cta('STASH & LOADOUT', 'NEXT: PACK YOUR CAVITIES');
   go.addEventListener('click', () => cb.next());

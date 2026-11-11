@@ -19,7 +19,7 @@
       "Hollow Chitin Tower (3 floors, spiral ramp, loot on each floor, sniper roost on top)",
       "Long Seed Debris Field (torn hull sections you can walk through, cargo crates, black box)",
       "Sunken Bowl (the Reliquary's arena)",
-      "Fungal Caves under the east cliff (dark, tight, Glasswalker ambushes)"
+      "Fungal Caves under the east cliff (dark, tight, Glasswalker ambushes; the Pale Vigil hangs in the main chamber)"
     ],
     "landmarks": [
       "longSeedDebris",
@@ -46,7 +46,11 @@
       "cargoCrate": 3
     },
     "extracts": "two Seed Spires (north from the start, east opens at 4:00)",
-    "why": "learn the loop, farm organs for Mother Clot and the Gestation Vat, take the Reliquary when ready"
+    "why": "learn the loop, farm organs for Mother Clot and the Gestation Vat, take the Reliquary when ready",
+    "bosses": [
+      "reliquary",
+      "paleVigil"
+    ]
   },
   "longSeedWreck": {
     "label": "Wreck of the Long Seed",
