@@ -95,3 +95,19 @@ describe('species generator', () => {
     expect(after.y).toBeLessThan(0.1);
   });
 });
+
+describe('creature under a moving parent', () => {
+  it('rides terrain height in world space when parented to a raised group', () => {
+    const parent = new THREE.Group();
+    parent.position.set(5, 12, -3);
+    const c = new Creature('needlemaw', 2, 0);
+    c.ground = () => 12;
+    parent.add(c.root);
+    parent.updateMatrixWorld(true);
+    c.plant();
+    for (let i = 0; i < 10; i++) c.update(1 / 30);
+    const body = c.rig.bones[0].getWorldPosition(new THREE.Vector3());
+    expect(body.y - 12).toBeGreaterThan(c.plan.bodyHeight * 0.6);
+    expect(body.y - 12).toBeLessThan(c.plan.bodyHeight * 1.4);
+  });
+});

@@ -5,7 +5,7 @@
  * Lifecycle: the Hive menu edits the profile; `deploy` hands the cavity loadout to the raid and saves the profile
  * with empty cavities, so quitting mid-raid loses the loadout like a death; `extract` or `die` settles the raid.
  */
-import { CLASSES, LOOT, PROFILE, stashRowCost, type ClassId } from '../../data';
+import { CLASSES, itemDef, LOOT, MARKET, marketPrice, PROFILE, stashRowCost, type ClassId } from '../../data';
 import { footprint, ItemGrid, stackLimit, type Placed } from './grid';
 import type { CarriedSnapshot, Loadout } from './inventory';
 
@@ -21,6 +21,8 @@ export interface Profile {
   gutPouch: Placed[];
   stats: RaidRecord;
   host: ClassId;
+  /** Flesh Market mood (MARKET.mood): organs please the Gullet Broker and lower its prices. */
+  marketMood: number;
 }
 
 /** Key/value store; `localStorage` in the browser, a Map in tests or when storage is blocked. */
@@ -65,7 +67,7 @@ export function newProfile(): Profile {
   for (const s of PROFILE.newProfile.stash) stash.add(s.item, s.count);
   return {
     schemaVersion: PROFILE.schemaVersion, dna: PROFILE.newProfile.dna, stash: stash.snapshot(), stashRows: PROFILE.stash.rowsBase,
-    gutPouchLevel: 0, cavity: [], gutPouch: [], stats: { raids: 0, extracts: 0, deaths: 0, kills: 0 }, host: 'neuroInfiltrator',
+    gutPouchLevel: 0, cavity: [], gutPouch: [], stats: { raids: 0, extracts: 0, deaths: 0, kills: 0 }, host: 'neuroInfiltrator', marketMood: MARKET.mood.start,
   };
 }
 
@@ -83,6 +85,7 @@ function normalise(raw: Partial<Profile>): Profile {
   p.stashRows = Math.min(PROFILE.stash.rowExpansion.maxRows, Math.max(PROFILE.stash.rowsBase, Math.floor(Number(p.stashRows) || 0)));
   p.gutPouchLevel = Math.min(PROFILE.gutPouch.upgrades.length, Math.max(0, Math.floor(Number(p.gutPouchLevel) || 0)));
   p.dna = Math.max(0, Math.floor(Number(p.dna) || 0));
+  p.marketMood = Math.max(MARKET.mood.min, Math.min(MARKET.mood.max, Number(p.marketMood) || 0));
   p.stash = stashGrid(p).snapshot();
   p.cavity = cavityGrid(p).snapshot();
   p.gutPouch = pouchGrid(p).snapshot();
@@ -240,4 +243,80 @@ export function die(p: Profile, c: Pick<CarriedSnapshot, 'pouch'>, kills: number
   if (PROFILE.death.keepsGutPouch) p.gutPouch = new ItemGrid(...pouchSize(p.gutPouchLevel), c.pouch).snapshot();
   p.stats.deaths++;
   p.stats.kills += kills;
+}
+
+// ------------------------------------------------------------------ Flesh Market (data/market.json)
+export interface StockEntry { item: string; price: number }
+
+/** Deterministic 32-bit RNG so every player sees the same stock in the same rotation window. */
+function seeded(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Index of the current stock rotation window (UTC based, `MARKET.rotateHours` long). */
+export const marketWindow = (date: Date): number => Math.floor(date.getTime() / (MARKET.rotateHours * 3600e3));
+
+/** Today's stock: `MARKET.stockSize` distinct catalogue items drawn by weight, priced by the profile's mood. */
+export function marketStock(p: Pick<Profile, 'marketMood'>, date = new Date()): StockEntry[] {
+  const rand = seeded(marketWindow(date) * 2654435761);
+  const pool = MARKET.catalogue.filter((c) => itemDef(c.item));
+  const out: StockEntry[] = [];
+  while (out.length < MARKET.stockSize && pool.length) {
+    let r = rand() * pool.reduce((n, c) => n + c.weight, 0);
+    let i = 0;
+    while (i < pool.length - 1 && (r -= pool[i].weight) > 0) i++;
+    const c = pool.splice(i, 1)[0];
+    out.push({ item: c.item, price: marketPrice(c.price, p.marketMood) });
+  }
+  return out;
+}
+
+/** DNA the Broker pays for one of `item` (value × buyRate; mood moves buy prices, not sell). */
+export const sellPrice = (_p: Profile, item: string): number => Math.floor((itemDef(item)?.value ?? 0) * MARKET.buyRate);
+
+/** Sells up to `count` from a stash, cavity or pouch stack. Returns the DNA paid. Mood shifts per item sold. */
+export function sell(p: Profile, zone: Zone, index: number, count = Infinity): number {
+  const g = grids(p);
+  const e = g[zone].entries[index];
+  if (!e) return 0;
+  const n = Math.min(e.count, Math.max(0, Math.floor(count)));
+  if (n <= 0) return 0;
+  const paid = sellPrice(p, e.item) * n;
+  const kind = itemDef(e.item)!.kind;
+  const m = MARKET.mood;
+  const step = m.likes.includes(kind) ? m.perLikedSale : m.dislikes.includes(kind) ? m.perDislikedSale : 0;
+  p.marketMood = Math.max(m.min, Math.min(m.max, p.marketMood + step * n));
+  e.count -= n;
+  if (e.count <= 0) g[zone].take(e);
+  commit(p, g);
+  p.dna += paid;
+  return paid;
+}
+
+export type BuyResult = 'ok' | 'not-stocked' | 'dna' | 'space';
+
+/** Why a purchase would fail right now, or 'ok'. */
+export function canBuy(p: Profile, item: string, date = new Date()): BuyResult {
+  const offer = marketStock(p, date).find((s) => s.item === item);
+  if (!offer) return 'not-stocked';
+  if (p.dna < offer.price) return 'dna';
+  if (stashGrid(p).room(item, 1) < 1) return 'space';
+  return 'ok';
+}
+
+/** Buys one of a stocked item into the stash. Returns false, changing nothing, when `canBuy` is not 'ok'. */
+export function buy(p: Profile, item: string, date = new Date()): boolean {
+  if (canBuy(p, item, date) !== 'ok') return false;
+  const g = grids(p);
+  g.stash.add(item, 1);
+  p.dna -= marketStock(p, date).find((s) => s.item === item)!.price;
+  commit(p, g);
+  return true;
 }

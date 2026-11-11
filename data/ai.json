@@ -1,0 +1,106 @@
+{
+  "_note": "PvE AI tuning (PvE AI & Encounters). Per-kind attack numbers stay in abominations.json; this file holds how creatures hunt. Distances in metres, times in seconds, turn rates in radians per second. Behaviour briefs: docs/gdd/pve-ai.md.",
+  "archetypes": {
+    "needlemaw": "swarm",
+    "bilecantor": "spitter",
+    "glasswalker": "stalker",
+    "oculimoth": "flyer",
+    "mournback": "tank"
+  },
+  "awareness": {
+    "_note": "Awareness fills 0..1. At suspicious the creature turns and investigates the stimulus; at 1 it hunts. Sight fill per second = sightRate * visibility * (1 - distance/range); peripheral (outer half of the field of view) fills at peripheralFactor. A noise adds noiseGain scaled by how far inside its radius the creature is. Awareness decays at decayRate while nothing is sensed.",
+    "suspicious": 0.35,
+    "sightRate": 2.2,
+    "closeSight": 4,
+    "peripheralFactor": 0.45,
+    "noiseGain": 0.55,
+    "noiseImpulse": 0.5,
+    "loudNoiseGain": 1.2,
+    "decayRate": 0.08,
+    "investigateTime": 6,
+    "senseHz": 10
+  },
+  "light": {
+    "_note": "Host visibility multiplies sight range and sight fill. Gunfire flashes the host for flashTime. Footprint glow (Plague-Stalker) multiplies on top via the virus cost.",
+    "base": 1,
+    "still": 0.8,
+    "crouched": 0.6,
+    "sprinting": 1.2,
+    "muzzleFlash": 2.2,
+    "flashTime": 0.6,
+    "minimum": 0.3
+  },
+  "tokens": {
+    "_note": "At most `melee` creatures attack the host at once; the rest circle at ringRadius and feint. Keeps fights readable.",
+    "melee": 2,
+    "ranged": 2,
+    "holdTime": 3
+  },
+  "wander": {
+    "radius": 9,
+    "speedFactor": 0.25,
+    "pause": [1.5, 4]
+  },
+  "separation": 1.2,
+  "swarm": {
+    "ringRadius": [5, 7.5],
+    "flankBias": 0.65,
+    "weaveFrequency": 4,
+    "weaveAmount": 0.55,
+    "feintChance": 0.25,
+    "lungeTime": 0.35,
+    "recoverTime": 0.45,
+    "turnRate": 8
+  },
+  "spitter": {
+    "strafeFlipChance": 0.15,
+    "strafeAmount": 0.6,
+    "hoverBob": 0.6,
+    "retreatBelow": 10,
+    "recoverTime": 0.6,
+    "turnRate": 2
+  },
+  "stalker": {
+    "stalkRange": 25,
+    "stalkSpeedFactor": 1.1,
+    "freezeWhenWatched": 26,
+    "flankAngle": 70,
+    "chargeTime": 2.2,
+    "strikeRecover": 0.5,
+    "fadeDistance": 28,
+    "fadeTime": 4,
+    "turnRate": 5
+  },
+  "flyer": {
+    "orbitRadius": [3, 9],
+    "orbitSpeed": 5,
+    "diveGap": 0.7,
+    "faceHeight": 1.5,
+    "flockRadius": 6,
+    "calmHeight": [4, 9],
+    "diveSpeed": 13,
+    "diveTime": 0.5,
+    "climbTime": 0.8,
+    "screechTell": 0.6,
+    "turnRate": 10
+  },
+  "tank": {
+    "turnRate": 0.9,
+    "chargeTurnRate": 0.1,
+    "hornReach": 1.2,
+    "chargeRange": [8, 26],
+    "chargeAimCone": 14,
+    "chargeDistance": 26,
+    "chargeKnockback": 10,
+    "slamTrigger": 4.2,
+    "slamWindup": 0.9,
+    "recoverTime": 1.6,
+    "approachFactor": 1
+  },
+  "nestSpawn": {
+    "_note": "Creatures pulsed out of a nest are flung outward and start hunting the host at once.",
+    "ejectSpeed": 6,
+    "ejectRadius": 4,
+    "startAwareness": 1
+  }
+}
