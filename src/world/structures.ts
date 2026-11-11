@@ -220,8 +220,8 @@ export function hollowSpire(solids: CollisionWorld, x: number, z: number, yaw: n
     shard.rotation.set(1.3 + rand() * 0.4, rand() * 6, 0);
     k.group.add(shard);
   }
-  const lootAt = (id: string, u: number, y: number, v: number): LootSpot => { const [lx, lz] = k.at(u, v); return { id, x: lx, y: base + y, z: lz }; };
-  return { group: k.group, loot: [lootAt('spire-ground', -3.5, 0.15, 2.5), lootAt('spire-mid', -1, 5, -5.8), lootAt('spire-top', 2.5, 10, 5.4), lootAt('spire-roost', -1, 15, -6)] };
+  const lootAt = (id: string, u: number, y: number, v: number, container?: string): LootSpot => { const [lx, lz] = k.at(u, v); return { id, x: lx, y: base + y, z: lz, ...(container ? { container } : {}) }; };
+  return { group: k.group, loot: [lootAt('spire-ground', -3.5, 0.15, 2.5), lootAt('spire-mid', -1, 5, -5.8), lootAt('spire-top', 2.5, 10, 5.4, 'bioPod'), lootAt('spire-roost', -1, 15, -6, 'bioPod')] };
 }
 
 /**
@@ -430,7 +430,7 @@ export function longSeedDebris(solids: CollisionWorld, x: number, z: number, yaw
     const box = k.box(u, v, s, s * 0.8, -0.1, s * 1.5, crateMat, { yaw: cy, tag: `debris-crate-${i}` });
     box.mesh.geometry.dispose();
     box.mesh.geometry = new THREE.BoxGeometry(s * 2, s * 1.6, s * 1.6);
-    if (i % 2 === 0) lootAt(`debris-crate-${i}`, u + Math.sin(cy + 1.57) * (s + 0.9), 0, v + Math.cos(cy + 1.57) * (s + 0.9));
+    if (i === 0 || i === 4) lootAt(`debris-crate-${i}`, u + Math.sin(cy + 1.57) * (s + 0.9), 0, v + Math.cos(cy + 1.57) * (s + 0.9));
   });
   // The black box: a pale capsule at the back of the largest section, its status light a single green point.
   const bb = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.6, 6, 12), plate);

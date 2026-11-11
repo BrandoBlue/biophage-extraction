@@ -60,10 +60,11 @@ function xz(p: { x: number; z: number }) { return { x: Math.round(p.x * 10) / 10
 /** Brood Heart craters: a bowl with a raised lip, half-burying the nest (docs/gdd/larva-milestone.md). */
 export const CRATERS = CATALOGUE.nests.map((n) => ({ name: n.id, ...xz(n), ...ZONE7_SITES.broodCrater }));
 
-/** Liquid-light pools: one mid-route landmark, one on the west rim spilling into the void as a fall. */
+/** Liquid-light pools: Mirror Shallows mid-route, Westfall Mere, and the Rimfall Pool fed by a cascade off the south-west rim. */
 export const POOLS = [
   { x: -24, z: 42, radius: 11, fall: false },
-  { x: -132, z: -58, radius: 13, fall: true },
+  { x: -132, z: -58, radius: 13, fall: false },
+  { x: -106, z: 52, radius: 9, fall: true },
 ] as const;
 
 const POOL_DEPTH = 1.2;
@@ -286,6 +287,21 @@ function fall(from: THREE.Vector3, outward: THREE.Vector3, drop: number, width: 
   return mesh;
 }
 
+/** Liquid light spilling down the rim mountains and running in over the ground to a pool. */
+function rimCascade(pd: { x: number; z: number; radius: number }, level: number): THREE.Mesh {
+  const r = Math.hypot(pd.x, pd.z), dx = pd.x / r, dz = pd.z / r;
+  const pts: THREE.Vector3[] = [];
+  const from = ISLAND_RADIUS * 0.98, to = r + pd.radius * 0.6;
+  for (let i = 0; i <= 28; i++) {
+    const d = from + (to - from) * (i / 28);
+    const x = dx * d, z = dz * d;
+    pts.push(new THREE.Vector3(x, Math.max(rawHeight(x, z) + 0.25, level + 0.05), z));
+  }
+  const mesh = new THREE.Mesh(ribbonGeometry(new THREE.CatmullRomCurve3(pts), 3.2, 120, 1.8), liquidLight({ flow: 0.6, fall: true }));
+  mesh.name = 'rim-cascade';
+  return mesh;
+}
+
 /** Inner terrain grid radius; the mountain ring takes over beyond it. */
 const MOUNTAIN_SEAM = ISLAND_RADIUS * 1.05;
 
@@ -464,6 +480,7 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
     const light = new THREE.PointLight(ZONE7.cyan, 80, 36, 2);
     light.position.set(pd.x, level + 2.5, pd.z);
     scene.add(light);
+    if (pd.fall) scene.add(rimCascade(pd, level));
   }
 
   // Flora, placed by area: giant stands in the named groves, fringes round the pools, lines along the valley banks.

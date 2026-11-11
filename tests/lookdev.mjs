@@ -31,6 +31,7 @@ const POSES = {
   ridge: { at: [-24, -12], eye: 1.7, yaw: -1.22, pitch: -0.04 },
   valley: { at: [-100, -10], eye: 1.7, yaw: -2.0, pitch: 0.03 },
   caveMouth: { at: [58, 79], eye: 2, yaw: -2.5, pitch: 0.1 },
+  rimFalls: { at: [-80, 62], eye: 2, yaw: 1.2, pitch: 0.12 },
   caveInside: { at: [74.8, 99.4], eye: 1.7, yaw: -2.37, pitch: 0.08 },
   // Zone 2 poses: run with ZONE=longSeedWreck.
   wreckProw: { at: [122, 6], eye: 2.2, yaw: 1.45, pitch: 0.08 },

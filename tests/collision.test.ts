@@ -68,6 +68,8 @@ describe('the Hollow Spire', () => {
       const roost = walk(w, p, [at(4.6, 2.6), at(4.6, -5.8), at(0, -5.6)]);
       expect(roost.y).toBeCloseTo(15, 1);
       expect(s.loot.map((l) => l.id)).toEqual(['spire-ground', 'spire-mid', 'spire-top', 'spire-roost']);
+      // A Bio-Pod on each upper floor: the climb is the risk.
+      expect(s.loot.filter((l) => l.container === 'bioPod').map((l) => l.id)).toEqual(['spire-top', 'spire-roost']);
       for (const l of s.loot) expect(w.floorAt(l.x, l.z, l.y), l.id).toBeCloseTo(l.y, 1);
     });
   }
@@ -134,7 +136,8 @@ describe('the Long Seed debris field', () => {
     const side = walk(w, { x: -14, y: 0, z: -4 }, [[-6, -4]]);
     expect(side.x).toBeLessThan(-9);
     expect(d.loot.some((l) => l.id === 'debris-blackbox')).toBe(true);
-    expect(d.loot.length).toBeGreaterThanOrEqual(4);
+    // Design's placement (data/habitats.json loot): three cargo crates spilled from the wreck.
+    expect(d.loot.map((l) => l.container)).toEqual(['cargoCrate', 'cargoCrate', 'cargoCrate']);
   });
 });
 

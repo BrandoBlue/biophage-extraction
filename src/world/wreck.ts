@@ -8,7 +8,7 @@ import { mulberry32 } from './rng';
 import type { Collider } from './collision';
 import { Kit, oldBone, type BuiltStructures, type LootSpot } from './structures';
 import type { SiteDressing } from './sites';
-import type { ExtractSite, HabitatTag, Zone7Layout } from './layout';
+import type { ExtractSite, Zone7Layout } from './layout';
 import { SOLIDS, setTerrain } from './zone7';
 
 /**
@@ -57,11 +57,6 @@ export function wreckLayout(seed: number): Zone7Layout {
     // No anomaly aboard: a zero-strength site far outside the map keeps gravityAt() at 1 everywhere.
     anomaly: { id: 'none', kind: 'none', x: 1e5, z: 1e5, radius: 1, gravityMultiplier: 1 },
     area: { x0: -L + 4, x1: L - 4, z0: -W + 3, z1: W - 3 },
-    // Every room is an interior habitat; the prow is open ground under the sky; catwalks give the holds a ridge.
-    habitats: [
-      ...WRECK.rooms.map((r) => ({ id: r.id, tag: (r.id === 'breachedProw' ? 'open' : 'interior') as HabitatTag, x: (r.x0 + Math.min(r.x1, L)) / 2, z: (r.z0 + r.z1) / 2, radius: Math.min(Math.min(r.x1, L) - r.x0, r.z1 - r.z0) / 2 })),
-      { id: 'holdCatwalk', tag: 'ridge' as HabitatTag, x: 35, z: W - 3, radius: 3, y: WRECK.hull.deck },
-    ],
   };
 }
 
