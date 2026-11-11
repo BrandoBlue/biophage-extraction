@@ -7,8 +7,7 @@
 import { CLASSES, PROFILE } from '../../data';
 import type { ClassId } from '../../data';
 import { ItemGrid } from '../game/grid';
-import { expandStash, nextStashRowCost, pouchUpgradeCost, stashGrid, upgradePouch, type Profile } from '../game/profile';
-import { placeAt } from './hive/place';
+import { expandStash, nextStashRowCost, placeAt, pouchUpgradeCost, stashGrid, upgradePouch, type Profile } from '../game/profile';
 import { HiveUI } from './hive/hive-ui';
 import type { HiveActions, ProfileView } from './hive/model';
 import type { ResultData } from './hive/screens';
