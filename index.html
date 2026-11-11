@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BIOPHAGE: EXTRACTION</title>
+    <link rel="stylesheet" href="/src/ui/hud.css" />
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="hud">
+      <div id="brand">BIOPHAGE: EXTRACTION <span id="build"></span></div>
+      <div id="crosshair"></div>
+      <div id="vitals">
+        <div class="bar"><label>BIOMASS</label><div class="track"><div id="biomass" class="fill green"></div></div></div>
+        <div class="bar"><label>NEURAL OVERLOAD</label><div class="track"><div id="neural" class="fill violet"></div></div></div>
+      </div>
+      <div id="prompt">CLICK TO ENTER THE EXCLUSION ZONE<small>WASD move · SHIFT sprint · SPACE jump · ESC release</small></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

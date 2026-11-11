@@ -1,0 +1,6 @@
+{
+  "_note": "Placeholder numbers. The Game Design department owns this file and resolves the conflicts between the reference screens.",
+  "venomWraith": { "label": "The Venom-Wraith", "weight": "light", "biomass": 120, "moveSpeed": 7.2, "sprintMultiplier": 1.6, "noise": 0.5 },
+  "neuroInfiltrator": { "label": "The Neuro-Infiltrator", "weight": "medium", "biomass": 200, "moveSpeed": 5.2, "sprintMultiplier": 1.5, "noise": 1.0 },
+  "goreBehemoth": { "label": "The Gore-Behemoth", "weight": "heavy", "biomass": 360, "moveSpeed": 3.2, "sprintMultiplier": 1.35, "noise": 2.0 }
+}
