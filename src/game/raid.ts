@@ -41,6 +41,7 @@ import { WeaponRig } from './weapon-rig';
 import { createWeaponModel } from './weapon-view';
 import { weaponSpec, WEAPONS as WEAPON_DATA, WEAPON_FEEL, type WeaponSpec } from '../../data';
 import { applyMods } from './mods';
+import { planHabitats, usesHabitats, type HabitatMap, type PlannedGroup } from './habitats';
 import { DEFAULT_ZONE, RaidLog } from './economy';
 
 export type Phase = 'briefing' | 'raid' | 'extracted' | 'lost';
@@ -130,6 +131,8 @@ export class Raid {
   /** Acid graft burns (mods special 'acid'): damage per second on a creature until it runs out. */
   /** Reload feel beats already played this reload (or this shell). */
   private reloadBeat = { idx: 0, last: 0 };
+  /** Habitat homes this raid (Design's habitats.json), for placement and reinforcements. */
+  private homes: PlannedGroup[] = [];
   private acidBurns: { c: Abomination; dps: number; left: number }[] = [];
   private trigger = false;
   private aimHeld = false;
@@ -175,7 +178,10 @@ export class Raid {
     readonly layout: Zone7Layout = zone7Layout(1),
     private sites?: SiteDressing,
     structures?: BuiltStructures,
+    /** The zone this map was built for (habitats are placed against it); deploy may confirm it. */
+    zone: string = layout.area ? 'longSeedWreck' : DEFAULT_ZONE,
   ) {
+    this.zone = zone;
     this.arena = structures?.arena ?? null;
     const cls = CLASSES[this.classId];
     this.playable = Math.min(RAID.playableRadius, ISLAND_RADIUS * 0.84);
@@ -264,7 +270,40 @@ export class Raid {
   get spire(): SeedSpire { return this.currentSpire.spire; }
 
   // ------------------------------------------------------------------ setup
+  private habitatMap(): HabitatMap {
+    return { zone: this.zone, playable: this.playable, extract: { x: this.extract.x, z: this.extract.z }, pods: this.pods.map((p) => ({ type: p.type, x: p.position.x, z: p.position.z })), rand: this.rand };
+  }
+
+  /** Design's habitats: each species starts at its home (landmark, room, band...), packed or alone, never at random. */
+  private spawnHabitats(): void {
+    const spawn = this.player.position;
+    const minFromSpawn = Math.max(15, RAID.spawn.noEnemyWithin * this.spawnScale);
+    this.homes = planHabitats(this.habitatMap()).filter((g) => ABOMINATIONS[g.kind as AbominationKind]);
+    for (const g of this.homes) {
+      // A home on top of the drop point would ambush the host on frame one: those groups wait for reinforcements.
+      if (Math.hypot(g.home.x - spawn.x, g.home.z - spawn.z) < minFromSpawn) continue;
+      this.spawnGroup(g, false);
+    }
+  }
+
+  /** Places one habitat group at its home and hands each body its home and habits (PvE AI's setHome). */
+  private spawnGroup(g: PlannedGroup, alertTo: { x: number; z: number } | false): number {
+    const kind = g.kind as AbominationKind, data = ABOMINATIONS[kind];
+    const size = g.group.packed ? data.packSize[0] + Math.floor(this.rand() * (data.packSize[1] - data.packSize[0] + 1)) : 1;
+    for (let k = 0; k < size; k++) {
+      const a = this.rand() * Math.PI * 2, d = this.rand() * (g.home.spread || (size > 1 ? 3 : 0));
+      const c = this.addCreature(kind, g.home.x + Math.cos(a) * d, g.home.z + Math.sin(a) * d);
+      (c as { setHome?: (x: number, z: number, o: object) => void }).setHome?.(g.home.x, g.home.z, {
+        roam: g.roam, hatchOnApproach: g.group.hatchOnApproach, disguise: g.group.disguise, height: g.group.height,
+      });
+      if (alertTo) c.alert(alertTo);
+    }
+    return size;
+  }
+
   private spawnInitial(): void {
+    this.homes = [];
+    if (usesHabitats(this.zone)) { this.spawnHabitats(); return; }
     const minFromSpawn = Math.max(15, RAID.spawn.noEnemyWithin * this.spawnScale);
     const spawn = this.player.position;
     const [ex, ez] = [this.extract.x, this.extract.z];
@@ -314,6 +353,25 @@ export class Raid {
   private reinforce(): void {
     const alive = this.creatures.filter((c) => c.alive).length;
     const min = Math.max(15, RAID.reinforcements.spawnMinDistanceFromPlayer * this.spawnScale);
+    if (this.homes.length) {
+      // Reinforcements walk in from the nearest home of their species that the host cannot see.
+      const p = this.player.position;
+      const fwd = { x: -Math.sin(this.player.yaw), z: -Math.cos(this.player.yaw) };
+      let total = alive;
+      for (const w of RAID.reinforcements.wave) {
+        for (let n = 0; n < w.count; n++) {
+          const homes = this.homes.filter((g) => g.kind === w.type).map((g) => {
+            const dx = g.home.x - p.x, dz = g.home.z - p.z, d = Math.hypot(dx, dz);
+            return { g, d, seen: d < 60 && (dx * fwd.x + dz * fwd.z) / (d || 1) > 0.5 };
+          }).filter((h) => h.d >= min && !h.seen).sort((a, b) => a.d - b.d);
+          if (!homes[0]) continue;
+          const kind = w.type as AbominationKind;
+          if (total + (w.packed ? ABOMINATIONS[kind].packSize[1] : 1) > RAID.reinforcements.maxAlive) return;
+          total += this.spawnGroup({ ...homes[0].g, group: { ...homes[0].g.group, packed: w.packed } }, { x: p.x, z: p.z });
+        }
+      }
+      return;
+    }
     for (const w of RAID.reinforcements.wave) {
       const kind = w.type as AbominationKind;
       for (let n = 0; n < w.count; n++) {

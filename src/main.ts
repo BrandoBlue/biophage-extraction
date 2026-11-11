@@ -41,7 +41,7 @@ function bootRaid(): void {
   // Picking another zone saves and reloads straight into the deploy (AUTO_DEPLOY).
   const zoneParam = new URLSearchParams(location.search).get('zone');
   const world = buildZone(scene, zoneParam ?? profile.economy.zone, raidSeed);
-  const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures);
+  const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures, world.zone);
   new Sfx(raid.bus); // code-generated gun, reload and hit sounds
   const hud = new RaidHud(raid.bus, raid);
   function deployNow(): void {
