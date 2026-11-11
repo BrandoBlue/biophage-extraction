@@ -1,5 +1,5 @@
 {
-  "_note": "Persistent profile and stash rules (Larva). Stored client-side under storageKey until the server takes over in Hive. See docs/gdd/larva-milestone.md.",
+  "_note": "Persistent profile and stash rules (Larva). Stored client-side under storageKey until the server takes over in Hive. See docs/gdd/larva-milestone.md. weaponSlots: carried guns beyond the innate starter; equipped guns are lost on death.",
   "storageKey": "biophage.profile.v1",
   "schemaVersion": 1,
   "newProfile": {
@@ -55,5 +55,6 @@
   },
   "freeKit": {
     "clotGelFloor": 1
-  }
+  },
+  "weaponSlots": 2
 }
