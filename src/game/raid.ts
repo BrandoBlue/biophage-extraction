@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ABILITIES, ABOMINATIONS, CLASSES, HOST, LOOT, RAID, VIRUSES, VIRUS_RULES, WEAPONS, extractTimeFor, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
+import { ABILITIES, ABOMINATIONS, CLASSES, HOST, LOOT, RAID, VIRUSES, VIRUS_RULES, WEAPONS, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
 import { groundHeight, ISLAND_RADIUS, mulberry32 } from '../world/zone7';
 import { Abomination, type AbominationContext, type AbominationKind, type HitSphere } from './abominations';
 import { AbilitySystem } from './abilities';
@@ -853,7 +853,7 @@ export class Raid {
       ego: w.egoFraction, egoReady: w.egoReady, aiming: w.aim > 0.5,
       timeLeft: this.timeLeft, collapse: this.timeLeft <= RAID.zoneCollapse.warningAt,
       slots: this.abilities.slots(),
-      carried: this.carried.items.map((s) => ({ item: s.item, label: LOOT.items[s.item].label, count: s.count, kind: LOOT.items[s.item].kind })),
+      carried: this.carried.items.map((s) => ({ item: s.item, label: itemDef(s.item)!.label, count: s.count, kind: itemDef(s.item)!.kind })),
       dna: this.carried.dna, value: this.carried.value, kills: this.kills,
       extract: { progress: this.extract.progress, inside: this.extract.inside, distance: Math.hypot(this.extract.x - p.x, this.extract.z - p.z), label: RAID.extract.label },
       interact: this.interactText,
