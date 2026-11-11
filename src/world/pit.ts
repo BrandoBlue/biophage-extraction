@@ -189,6 +189,20 @@ export function pitLandmarks(): { id: string; x: number; y: number; z: number; r
 }
 const L = (k: number) => PIT.layers[k];
 
+/**
+ * A point on the shaft wall at angle `a` (radians, x = cos, z = sin) and height `y`, with the wall's normal (facing
+ * into the shaft), for things that cling to the cliffs (Cablecrawlers). Null above the rim or below the floor.
+ * `layer` is the shelf whose cliff this is (the layer above the point).
+ */
+export function wallPointAt(a: number, y: number): { x: number; y: number; z: number; nx: number; ny: number; nz: number; layer: string } | null {
+  const n = PIT.layers.length;
+  if (y > PIT.layers[0].y || y < PIT.layers[n - 1].y) return null;
+  let k = 0;
+  while (k < n - 2 && y < PIT.layers[k + 1].y) k++;
+  const r = edgeRadius(k, a) - PIT.cliff / 2, c = Math.cos(a), si = Math.sin(a);
+  return { x: c * r, y, z: si * r, nx: -c, ny: 0, nz: -si, layer: PIT.layers[k].id };
+}
+
 export interface PitWorld {
   layout: Zone7Layout;
   sites: SiteDressing;

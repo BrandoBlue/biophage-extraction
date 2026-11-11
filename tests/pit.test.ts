@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { afterAll, describe, expect, it } from 'vitest';
 import { STEP_HEIGHT, type Vec3Like } from '../src/world/collision';
-import { buildPit, edgeRadius, layerIndex, layerY, PIT, pitHeight, pitLandmarkAt, pitLandmarks, polar } from '../src/world/pit';
+import { buildPit, edgeRadius, layerIndex, layerY, PIT, pitHeight, pitLandmarkAt, pitLandmarks, polar, wallPointAt } from '../src/world/pit';
 import { SOLIDS, climbBlocked, groundHeight, setTerrain } from '../src/world/zone7';
 import { HOST, LOOT } from '../data';
 import habitats from '../data/habitats.json';
@@ -186,5 +186,16 @@ describe('the Marrow Pit', () => {
     mid.cut();
     expect(mid.isCut).toBe(true);
     expect(SOLIDS.floorAt(mid.x, mid.z, mid.y + 0.3)).toBeLessThan(mid.y - 20);
+  });
+
+  it('finds points on the shaft wall, facing into the shaft, for wall-clingers', () => {
+    const w = wallPointAt(3, -100)!; // 172°: no ledge path under this stretch
+    expect(w.layer).toBe('cables');
+    expect(w.nx * w.x + w.nz * w.z).toBeLessThan(0);
+    // Just in front of the wall is open air well below the point; just behind it is rock above it.
+    expect(pitHeight(w.x + w.nx * 3, w.z + w.nz * 3)).toBeLessThan(w.y - 20);
+    expect(pitHeight(w.x - w.nx * 2, w.z - w.nz * 2)).toBeGreaterThan(w.y);
+    expect(wallPointAt(0, 5)).toBeNull();
+    expect(wallPointAt(0, -300)).toBeNull();
   });
 });
