@@ -268,15 +268,15 @@ export function liquidLight(opts: { a?: string; b?: string; c?: string; flow?: n
 
 /**
  * Living weapon flesh: wet, mottled, veined, with a faked subsurface rim. For viewmodels and
- * close-up hero props (seen at arm's length, so detail frequencies are high).
+ * close-up hero props. `scale` is detail frequency per local unit: 28 at arm's length, ~6-10 for creature bodies.
  */
-export function livingFlesh(base: string, vein: string, rim: string): THREE.MeshPhysicalMaterial {
+export function livingFlesh(base: string, vein: string, rim: string, scale = 28): THREE.MeshPhysicalMaterial {
   const mat = new THREE.MeshPhysicalMaterial({ color: base, roughness: 0.42, clearcoat: 1, clearcoatRoughness: 0.18, sheen: 0.25, sheenColor: c(rim), sheenRoughness: 0.5 });
   return bioSurface(mat, {
-    uniforms: { uVein: u(vein), uRim: u(rim) },
-    declarations: 'uniform vec3 uVein, uRim;\n',
+    uniforms: { uVein: u(vein), uRim: u(rim), uFleshScale: { value: scale } },
+    declarations: 'uniform vec3 uVein, uRim; uniform float uFleshScale;\n',
     fragment: /* glsl */ `
-      vec3 p = vBioLocal * 28.0 + vBioSeed;
+      vec3 p = vBioLocal * uFleshScale + vBioSeed;
       float mott = bioFbm(p * 0.6);
       diffuseColor.rgb *= 0.55 + mott * 0.8;
       float pores = 1.0 - smoothstep(0.05, 0.16, bioCells(p * 1.8));

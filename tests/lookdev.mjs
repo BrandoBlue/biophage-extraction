@@ -11,6 +11,11 @@ const POSES = {
   vista: { at: [10, -30], eye: 2.5, yaw: 0.25, pitch: 0.16 },
   gore: { at: [-41, 113], eye: 1.7, yaw: -0.35, pitch: -0.35, gore: [[-39.5, 108.5], [-37, 109.5, '#B6FF3B']] },
   weapon: { main: true },
+  creatures: { at: [-20, 80], eye: 1.5, yaw: -0.1, pitch: 0.16, creatures: [-19.5, 74.5, 0.25] },
+  needlemaw: { at: [-20.6, 76.6], eye: 1.0, yaw: 0.22, pitch: -0.1, nohud: true, creatures: [-19.5, 74.5, 0.35] },
+  cantor: { at: [-15.8, 74.6], eye: 2.0, yaw: 0.05, pitch: 0.42, nohud: true, creatures: [-19.5, 74.5, 0.1] },
+  mutate: { at: [-41, 108], eye: 1.8, yaw: -0.2, pitch: -0.05, mutate: [-39.6, 103] },
+  lab: { lab: 0.35, nohud: true },
   rim: { at: [-105, -25], eye: 4, yaw: 1.25, pitch: -0.2 },
 };
 const width = Number(process.env.LOOKDEV_W || 1280), height = Number(process.env.LOOKDEV_H || 720);
@@ -33,10 +38,15 @@ try {
   const only = process.argv[2];
   for (const [name, pose] of Object.entries(POSES)) {
     if (only && only !== name) continue;
-    if (pose.main) await page.evaluate(() => window.__biophageLookdev.clear());
+    await page.evaluate(() => window.__biophageLookdev.lab(false));
+    if (pose.lab !== undefined) await page.evaluate((y) => window.__biophageLookdev.lab(true, y), pose.lab);
+    else if (pose.main) await page.evaluate(() => window.__biophageLookdev.clear());
     else await page.evaluate((p) => window.__biophageLookdev.view(p), pose);
     for (const n of (process.env.HIDE || '').split(',').filter(Boolean)) await page.evaluate((x) => window.__biophageLookdev.show(x, false), n);
     for (const g of pose.gore ?? []) await page.evaluate(([x, z, c]) => window.__biophageLookdev.gore(x, z, c), g);
+    await page.evaluate((h) => { const e = document.getElementById('hud'); if (e) e.style.visibility = h ? 'hidden' : ''; }, !!pose.nohud);
+    if (pose.creatures) await page.evaluate(([x, z, f]) => window.__biophageLookdev.creatures(x, z, f), pose.creatures);
+    if (pose.mutate) await page.evaluate(([x, z]) => window.__biophageLookdev.mutateDemo(x, z), pose.mutate);
     if (process.env.RAW) await page.evaluate(() => window.__biophageLookdev.raw(true));
     const from = await page.evaluate(() => window.__biophage.frames);
     await page.waitForFunction((f) => window.__biophage.frames > f + 2, from, { timeout: 120000 });

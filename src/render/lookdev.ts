@@ -2,6 +2,12 @@ import * as THREE from 'three';
 import type { Pipeline } from './pipeline';
 import { groundHeight } from '../world/zone7';
 import { gore } from './gore';
+import { dissolvable } from './dissolve';
+import { createHiveLab, type HiveLab } from './hivelab';
+import { crystal, livingFlesh } from './materials';
+import { HIVE, ZONE7 } from './palette';
+import { Abomination } from '../game/abominations';
+import { ABOMINATIONS } from '../../data';
 
 /** A look-dev camera pose: position (or ground point `at` plus `eye` height), yaw and pitch in radians, vertical field of view in degrees. */
 export interface LookdevPose { pos?: [number, number, number]; at?: [number, number]; eye?: number; yaw: number; pitch: number; fov?: number }
@@ -12,6 +18,7 @@ export interface LookdevPose { pos?: [number, number, number]; at?: [number, num
  */
 export function installLookdev(pipeline: Pipeline, base: THREE.PerspectiveCamera, scene?: THREE.Scene): void {
   const cam = new THREE.PerspectiveCamera();
+  let lab: HiveLab | null = null;
   const api = {
     view(p: LookdevPose) {
       cam.copy(base);
@@ -32,6 +39,47 @@ export function installLookdev(pipeline: Pipeline, base: THREE.PerspectiveCamera
       const point = new THREE.Vector3(x, groundHeight(x, z), z);
       gore.splat(scene, { point, normal: new THREE.Vector3(0, 1, 0), size: 2.2, colour });
       gore.burst(scene, { point: point.clone().setY(point.y + 0.6), colour });
+    },
+    /** Freeze a mid-mutation frame at (x, z): a flesh mass burning away as a crystal growth knits in. */
+    mutateDemo(x: number, z: number, amount = 0.5) {
+      if (!scene) return;
+      const y = groundHeight(x, z);
+      const flesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1, 5), livingFlesh(HIVE.danger, ZONE7.magenta, ZONE7.magenta));
+      flesh.position.set(x, y + 1.1, z);
+      flesh.scale.set(1, 1.3, 1);
+      const growth = new THREE.Mesh(new THREE.OctahedronGeometry(1.2, 0), crystal(ZONE7.cyan));
+      growth.position.set(x + 0.2, y + 1.2, z);
+      growth.scale.set(0.8, 1.9, 0.8);
+      scene.add(flesh, growth);
+      flesh.updateMatrixWorld(); growth.updateMatrixWorld();
+      dissolvable(flesh, ZONE7.lime).amount.value = amount;
+      dissolvable(growth, ZONE7.lime).amount.value = 1 - amount + 0.15;
+    },
+    /** Stage one of each Abomination at (x, z), side by side, facing yaw `face` (look-dev only; not simulated). */
+    creatures(x: number, z: number, face = 0) {
+      if (!scene) return;
+      const n = new Abomination('needlemaw', ABOMINATIONS.needlemaw, x - 1.6, z, 11);
+      const c = new Abomination('bilecantor', ABOMINATIONS.bilecantor, x + 3.5, z - 4, 12);
+      for (const a of [n, c]) { a.root.rotation.y = face; scene.add(a.root); }
+      c.root.position.y = groundHeight(x + 3.5, z - 4) - 1.2;
+    },
+    /** Switch to the Hive lab stage with a specimen on the pedestal (on), or back to the raid (off). */
+    lab(on: boolean, yaw = 0.35) {
+      if (!on) { pipeline.overrideScene = null; pipeline.overrideCamera = null; pipeline.setPreset('zone7'); return; }
+      if (!lab) {
+        lab = createHiveLab();
+        const spec = new Abomination('needlemaw', ABOMINATIONS.needlemaw, 0, 0, 11);
+        spec.root.position.set(0, 0, 0);
+        spec.root.scale.setScalar(1.7);
+        lab.place(spec.root);
+        if (pipeline.quality === 'high') lab.bakeEnvironment(pipeline.renderer);
+      }
+      lab.camera.aspect = base.aspect;
+      lab.camera.updateProjectionMatrix();
+      lab.orbit(yaw);
+      pipeline.overrideScene = lab.scene;
+      pipeline.overrideCamera = lab.camera;
+      pipeline.setPreset('hive');
     },
     quality() { return pipeline.quality; },
     raw(on: boolean) { pipeline.bypassPost = on; },

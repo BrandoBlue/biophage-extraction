@@ -9,6 +9,7 @@ import { GRADE_PRESETS, type GradePreset } from './presets';
 import { BioAOPass } from './ao';
 import { installHeightFog } from './fog';
 import { gore } from './gore';
+import { mutation } from './dissolve';
 
 /**
  * Final grade: chromatic aberration (rises with Neural Overload), split toning, vignette toward the
@@ -68,6 +69,8 @@ export interface Pipeline {
   setPreset(name: keyof typeof GRADE_PRESETS): void;
   /** When set, render through this camera instead (look-dev captures). */
   overrideCamera: THREE.Camera | null;
+  /** When set, render this scene instead (Hive lab stage, menus). Post stack and grade stay on. */
+  overrideScene: THREE.Scene | null;
   /** Skip post-processing (look-dev comparison of the raw lit frame). */
   bypassPost: boolean;
   readonly preset: GradePreset;
@@ -126,6 +129,7 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
 
   /** Bake any procedural sky (userData.bake) into a cubemap once: background plus image-based lighting. */
   let baked = false;
+  const simplified = new WeakSet<THREE.Scene>([scene]);
   const bakeSky = () => {
     baked = true;
     const sky = scene.children.find((o) => o.userData.bake);
@@ -160,6 +164,7 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
   const pipeline: Pipeline = {
     renderer,
     overrideCamera: null,
+    overrideScene: null,
     bypassPost: false,
     get preset() { return preset; },
     quality,
@@ -171,9 +176,13 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
       grade.uniforms.uOverload.value = overload;
       if (!baked) { bakeSky(); if (quality === 'low') simplifyForSoftware(scene); }
       gore.update();
+      mutation.update();
+      const active = pipeline.overrideScene ?? scene;
+      if (quality === 'low' && !simplified.has(active)) { simplified.add(active); simplifyForSoftware(active); }
+      renderPass.scene = active;
       renderPass.camera = pipeline.overrideCamera ?? camera;
-      if (ao) ao.syncCamera(renderPass.camera);
-      if (pipeline.bypassPost) renderer.render(scene, renderPass.camera);
+      if (ao) { ao.scene = active; ao.syncCamera(renderPass.camera); }
+      if (pipeline.bypassPost) renderer.render(active, renderPass.camera);
       else composer.render(dt);
     },
     setSize(w, h) {
