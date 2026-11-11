@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PATH, ZONE7 } from '../render/palette';
+import { GRADE, PATH, ZONE7 } from '../render/palette';
 import { bioNode, bioTime, crystal, fungusStem, liquidLight, membrane } from '../render/materials';
 import { crystalClusterGeometry, stemGeometry } from '../render/geometry';
 import { ZONE7_SITES } from '../../data';
@@ -55,16 +55,14 @@ export function buildSites(layout: Zone7Layout, height: Height, seed = 7): SiteD
 
   // ---- Seed Spire pads. Live pads get a glowing ring and a sky beacon; dormant pads are broken husks.
   const rings = new Map<string, { ring: THREE.Mesh; beacon: THREE.Mesh }>();
+  const beaconMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
   layout.extracts.forEach((e, i) => {
     const y = height(e.x, e.z);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(padRadius * 0.55, 0.12, 6, 64).rotateX(-Math.PI / 2), e.opensAt > 0 ? lateRing : liveRing);
     ring.position.set(e.x, y + 0.08, e.z);
     ring.name = `spire-pad-${e.id}`;
-    const beacon = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.6, 0.6, 80, 16, 1, true),
-      new THREE.MeshBasicMaterial({ color: ZONE7.lime, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false }),
-    );
-    beacon.position.set(e.x, 40 + y, e.z);
+    const beacon = new THREE.Mesh(beaconGeometry(rand), beaconMat);
+    beacon.position.set(e.x, y, e.z);
     // The first beacon keeps its Spore name: the Raid already moves it onto its active extract.
     beacon.name = i === 0 ? 'extraction-beacon' : `extraction-beacon-${e.id}`;
     beacon.visible = e.opensAt <= 0;
@@ -227,4 +225,40 @@ export function clearings(layout: Zone7Layout): (Site & { radius: number })[] {
     ...layout.nodes.map((n) => ({ ...n, radius: ZONE7_SITES.geneBlooms.clearingRadius * 0.6 })),
     ...layout.nests.map((n) => ({ ...n, radius: ZONE7_SITES.broodCrater.radius * 0.45 })),
   ];
+}
+
+/**
+ * Extract beacon: a pale, broken shaft of light rising from the pad. Lime only where it leaves the ground,
+ * then washed-out and fading, split into uneven pieces so it reads as spore haze, not a neon tube.
+ */
+function beaconGeometry(rand: () => number, height = 80): THREE.BufferGeometry {
+  const lime = new THREE.Color(ZONE7.lime), pale = new THREE.Color(GRADE.zone7Highlight), c = new THREE.Color();
+  const pos: number[] = [], col: number[] = [];
+  const sides = 14;
+  const vert = (a: number, h: number, fade: number) => {
+    const t = h / height, r = 0.55 + t * 0.5;
+    pos.push(Math.cos(a) * r, h, Math.sin(a) * r);
+    c.copy(lime).lerp(pale, Math.min(1, t * 6));
+    col.push(c.r, c.g, c.b, fade * (0.32 * (1 - t) ** 1.6 + 0.02));
+  };
+  let y = 0;
+  while (y < height - 2) {
+    const len = y === 0 ? 7 + rand() * 4 : 3 + rand() * 9;
+    const y1 = Math.min(height, y + len), mid = y + (y1 - y) * (0.35 + rand() * 0.3);
+    // Three rings per piece: soft bottom (solid on the pad), bright middle, soft top, so each break looks hazy.
+    const rings = [[y, y === 0 ? 0.6 : 0], [mid, 1], [y1, 0]] as const;
+    for (let k = 0; k < sides; k++) {
+      const a0 = (k / sides) * Math.PI * 2, a1 = ((k + 1) / sides) * Math.PI * 2;
+      for (let j = 0; j < 2; j++) {
+        const [h0, f0] = rings[j], [h1, f1] = rings[j + 1];
+        vert(a0, h0, f0); vert(a1, h0, f0); vert(a1, h1, f1);
+        vert(a0, h0, f0); vert(a1, h1, f1); vert(a0, h1, f1);
+      }
+    }
+    y = y1 + 0.6 + rand() * 2.4 * (y / height + 0.3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
+  return g;
 }

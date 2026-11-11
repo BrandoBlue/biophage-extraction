@@ -83,3 +83,37 @@ describe('seed 1', () => {
     expect(bearings).toEqual(RAID.larva.extracts.map((e) => e.bearing));
   });
 });
+
+describe('zone 1 structures', () => {
+  it('keep the Hollow Spire and the Reliquary Bowl clear of every other site', () => {
+    const others = [CATALOGUE.spawn, ...CATALOGUE.pads, ...CATALOGUE.pods, ...CATALOGUE.nests, ...CATALOGUE.blooms, ...CATALOGUE.anomalies];
+    for (const s of others) {
+      expect(dist(s, CATALOGUE.spire), s.id).toBeGreaterThan(CATALOGUE.spire.radius + 12);
+      expect(dist(s, CATALOGUE.bowl), s.id).toBeGreaterThan(CATALOGUE.bowl.radius * 1.15 + 4);
+      expect(dist(s, CATALOGUE.debris), s.id).toBeGreaterThan(CATALOGUE.debris.radius + 6);
+    }
+    for (const p of POOLS) expect(dist(p, CATALOGUE.debris)).toBeGreaterThan(p.radius + CATALOGUE.debris.radius);
+    expect(Math.hypot(CATALOGUE.bowl.x, CATALOGUE.bowl.z) + CATALOGUE.bowl.radius).toBeLessThan(ISLAND_RADIUS * 0.84);
+  });
+  it('puts an extract pad within 80 m of the boss arena (Design: a winner can leave)', () => {
+    expect(Math.min(...CATALOGUE.pads.map((p) => dist(p, CATALOGUE.bowl)))).toBeLessThan(80);
+  });
+  it('sinks the bowl by its depth and keeps its entrances walkable', () => {
+    const floor = groundHeight(CATALOGUE.bowl.x, CATALOGUE.bowl.z);
+    const rim = groundHeight(CATALOGUE.bowl.x, CATALOGUE.bowl.z + CATALOGUE.bowl.radius * 1.2);
+    expect(rim - floor).toBeGreaterThan(CATALOGUE.bowl.depth * 0.6);
+    // Along an entrance (local u = world x at yaw 0) the slope stays under 45 degrees.
+    for (let r = 0; r < CATALOGUE.bowl.radius * 1.15; r += 1) {
+      const a = groundHeight(CATALOGUE.bowl.x - r, CATALOGUE.bowl.z), b = groundHeight(CATALOGUE.bowl.x - r - 1, CATALOGUE.bowl.z);
+      expect(Math.abs(b - a), `r=${r}`).toBeLessThan(1);
+    }
+  });
+});
+
+describe('zone landmarks', () => {
+  it('resolve every Glowmire landmark Design lists that World has built', async () => {
+    const { glowmireLandmarks } = await import('../src/world/zones');
+    const ids = glowmireLandmarks().map((l) => l.id);
+    for (const id of ['chitinTower', 'sunkenBowl', 'longSeedDebris', 'seedSpireNorth', 'seedSpireEast']) expect(ids).toContain(id);
+  });
+});

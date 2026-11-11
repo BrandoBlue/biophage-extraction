@@ -1,35 +1,138 @@
 {
-  "_note": "Zone 7 site catalogue (World & Level). Positions use the raid.json convention: radius = fraction of playableRadius, bearing in degrees (0 = north = -Z, 90 = east = +X). Every site here is pre-shaped in the terrain; each raid draws which ones are live from its seed (src/world/layout.ts). Counts and open times come from RAID.larva; this file only says where things can be.",
-  "extractPool": [
-    { "id": "spire-northeast", "radius": 0.85, "bearing": 20 },
-    { "id": "spire-east", "radius": 0.85, "bearing": 110 },
-    { "id": "spire-north", "radius": 0.84, "bearing": 340 },
-    { "id": "spire-eastnortheast", "radius": 0.86, "bearing": 66 }
-  ],
-  "extractMinSeparation": 70,
-  "padRadius": 10,
-  "podClearingRadius": 7,
-  "broodCrater": { "radius": 17, "depth": 3.2, "rimHeight": 1.4 },
-  "geneBlooms": {
-    "_note": "Harvest nodes: clusters of DNA-heavy bulbs, opened like a container (loot.json geneBloom). Riskier sites carry the same table; the risk is where they grow.",
-    "perRaid": 4,
-    "clearingRadius": 4,
-    "sites": [
-      { "id": "bloom-crater-lip", "radius": 0.6, "bearing": 312 },
-      { "id": "bloom-west-falls", "radius": 0.78, "bearing": 284 },
-      { "id": "bloom-centre-grove", "radius": 0.28, "bearing": 15 },
-      { "id": "bloom-anomaly-edge", "radius": 0.52, "bearing": 70 },
-      { "id": "bloom-south-ridge", "radius": 0.55, "bearing": 175 },
-      { "id": "bloom-east-shelf", "radius": 0.72, "bearing": 128 }
-    ]
+  "_note": "Zone site catalogue, keyed by zone id (Design's data/zones.json holds each zone's numbers). Zone 7 site catalogue (World & Level). Positions use the raid.json convention: radius = fraction of playableRadius, bearing in degrees (0 = north = -Z, 90 = east = +X). Every site here is pre-shaped in the terrain; each raid draws which ones are live from its seed (src/world/layout.ts). Counts and open times come from RAID.larva; this file only says where things can be.",
+  "glowmireIsle": {
+    "extractPool": [
+      {
+        "id": "spire-northeast",
+        "radius": 0.85,
+        "bearing": 20
+      },
+      {
+        "id": "spire-east",
+        "radius": 0.85,
+        "bearing": 110
+      },
+      {
+        "id": "spire-north",
+        "radius": 0.84,
+        "bearing": 340
+      },
+      {
+        "id": "spire-eastnortheast",
+        "radius": 0.86,
+        "bearing": 66
+      }
+    ],
+    "extractMinSeparation": 70,
+    "padRadius": 10,
+    "podClearingRadius": 7,
+    "broodCrater": {
+      "radius": 17,
+      "depth": 3.2,
+      "rimHeight": 1.4
+    },
+    "geneBlooms": {
+      "_note": "Harvest nodes: clusters of DNA-heavy bulbs, opened like a container (loot.json geneBloom). Riskier sites carry the same table; the risk is where they grow.",
+      "perRaid": 4,
+      "clearingRadius": 4,
+      "sites": [
+        {
+          "id": "bloom-crater-lip",
+          "radius": 0.6,
+          "bearing": 312
+        },
+        {
+          "id": "bloom-west-falls",
+          "radius": 0.78,
+          "bearing": 284
+        },
+        {
+          "id": "bloom-centre-grove",
+          "radius": 0.28,
+          "bearing": 15
+        },
+        {
+          "id": "bloom-anomaly-edge",
+          "radius": 0.62,
+          "bearing": 50
+        },
+        {
+          "id": "bloom-south-ridge",
+          "radius": 0.55,
+          "bearing": 175
+        },
+        {
+          "id": "bloom-east-shelf",
+          "radius": 0.72,
+          "bearing": 128
+        }
+      ]
+    },
+    "anomaly": {
+      "id": "gravityBloom",
+      "_note": "One anomaly per Larva raid. gravityMultiplier comes from RAID.host.anomalies (gravityBloom); size is the Larva-scale radius in metres.",
+      "size": 22,
+      "sites": [
+        {
+          "id": "lens-northeast-basin",
+          "radius": 0.42,
+          "bearing": 52
+        },
+        {
+          "id": "lens-east-hollow",
+          "radius": 0.3,
+          "bearing": 100
+        }
+      ]
+    },
+    "structures": {
+      "_note": "Enterable structures (src/world/structures.ts). hollowSpire: chitin hive tower, three floors, open top. reliquaryBowl: the zone boss arena (Design: THE RELIQUARY), a sunken bowl with two entrances, a 3 m ledge round the north half, four breakable pillars and a liquid-light pool. yaw in degrees turns the structure about its centre. longSeedDebris: torn hull sections of the crashed seedship, cargo crates and the black box.",
+      "hollowSpire": {
+        "radius": 0.72,
+        "bearing": 325,
+        "yaw": 20,
+        "footprint": 10,
+        "lootContainer": "bioPod"
+      },
+      "reliquaryBowl": {
+        "radius": 0.6,
+        "bearing": 90,
+        "yaw": 0,
+        "size": 30,
+        "depth": 9
+      },
+      "longSeedDebris": {
+        "radius": 0.52,
+        "bearing": 232,
+        "yaw": 35,
+        "footprint": 18
+      }
+    },
+    "landmarks": {
+      "_note": "Named places for contracts (Design's zones.json landmark ids). `site` names a catalogue site; radius in metres counts as being there. fungalCaves is not built yet.",
+      "chitinTower": {
+        "site": "hollowSpire",
+        "radius": 12
+      },
+      "sunkenBowl": {
+        "site": "reliquaryBowl",
+        "radius": 30
+      },
+      "longSeedDebris": {
+        "site": "longSeedDebris",
+        "radius": 20
+      },
+      "seedSpireNorth": {
+        "site": "spire-northeast",
+        "radius": 12
+      },
+      "seedSpireEast": {
+        "site": "spire-east",
+        "radius": 12
+      }
+    }
   },
-  "anomaly": {
-    "id": "gravityBloom",
-    "_note": "One anomaly per Larva raid. gravityMultiplier comes from RAID.host.anomalies (gravityBloom); size is the Larva-scale radius in metres.",
-    "size": 22,
-    "sites": [
-      { "id": "lens-northeast-basin", "radius": 0.42, "bearing": 52 },
-      { "id": "lens-southeast-rise", "radius": 0.45, "bearing": 150 }
-    ]
+  "longSeedWreck": {
+    "_note": "Zone 2 (the Wreck of the Long Seed as its own map). Geometry comes with its build PR."
   }
 }

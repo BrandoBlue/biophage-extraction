@@ -42,7 +42,13 @@ export const CATALOGUE = {
   nests: RAID.larva.nests.map((n, i) => ({ ...site(`${n.type}-${i}`, n), type: n.type })) as NestSite[],
   blooms: ZONE7_SITES.geneBlooms.sites.map((p) => site(p.id, p)),
   anomalies: ZONE7_SITES.anomaly.sites.map((p) => site(p.id, p)),
+  /** Enterable structures: the Hollow Spire tower and the Reliquary Bowl boss arena. */
+  spire: { ...site('hollow-spire', ZONE7_SITES.structures.hollowSpire), yaw: deg(ZONE7_SITES.structures.hollowSpire.yaw), radius: ZONE7_SITES.structures.hollowSpire.footprint },
+  debris: { ...site('long-seed-debris', ZONE7_SITES.structures.longSeedDebris), yaw: deg(ZONE7_SITES.structures.longSeedDebris.yaw), radius: ZONE7_SITES.structures.longSeedDebris.footprint },
+  bowl: { ...site('reliquary-bowl', ZONE7_SITES.structures.reliquaryBowl), yaw: deg(ZONE7_SITES.structures.reliquaryBowl.yaw), radius: ZONE7_SITES.structures.reliquaryBowl.size, depth: ZONE7_SITES.structures.reliquaryBowl.depth },
 };
+
+function deg(d: number): number { return (d * Math.PI) / 180; }
 
 const GRAVITY_BLOOM = RAID.host.anomalies.find((a) => a.id === ZONE7_SITES.anomaly.id);
 const ANOMALY_GRAVITY = Number(GRAVITY_BLOOM?.effect.gravityMultiplier ?? 1);

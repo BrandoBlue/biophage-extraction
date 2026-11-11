@@ -7,8 +7,7 @@ import { HiveStage } from './ui/hive-stage';
 import { ItemGrid } from './game/grid';
 import { browserStorage, deploy, die, extract, loadProfile, saveProfile } from './game/profile';
 import { settleContracts } from './game/economy';
-import { buildZone7 } from './world/zone7';
-import { zone7Layout } from './world/layout';
+import { buildZone } from './world/zones';
 import { createPipeline } from './render/pipeline';
 import { installLookdev } from './render/lookdev';
 import pkg from '../package.json';
@@ -28,8 +27,8 @@ function bootRaid(): void {
   // from a fresh seed. `?seed=N` pins it; automated runs use seed 1 (Design's RAID.larva layout) so tests are reproducible.
   const seedParam = Number(new URLSearchParams(location.search).get('seed'));
   const raidSeed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : navigator.webdriver ? 1 : 1 + Math.floor(Math.random() * 1e6);
-  const world = buildZone7(scene, zone7Layout(raidSeed));
-  const raid = new Raid(scene, camera, canvas, world.layout, world.sites);
+  const world = buildZone(scene, 'glowmireIsle', raidSeed);
+  const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures);
   const hud = new RaidHud(raid.bus, raid);
 
   // Persistent loop (Larva): boot into the Hive, deploy with the cavity loadout, settle the raid into the profile.
@@ -91,6 +90,8 @@ function bootRaid(): void {
   pipeline.renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.05);
     raid.update(dt);
+    // Landmarks (Design's zones.json) count toward contracts the first time the host walks into one.
+    if (!menu.visible) { const lm = world.landmarkAt(camera.position.x, camera.position.z); if (lm) raid.visit(lm); }
     hud.update(dt, raid.hud());
     // The main menu draws the 3D Hive lab with the host on its pedestal; other Hive screens cover the whole view, so
     // the 3D frame behind them is skipped (the loop and frame counter keep running). The first frames always render
