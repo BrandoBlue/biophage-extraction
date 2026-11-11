@@ -34,6 +34,8 @@ export class Player {
   crouched = false;
   /** Set by the raid each frame (abilities, overload). */
   speedMultiplier = 1;
+  /** Walkable radius from the origin (the raid sets it from the zone layout). */
+  edge = ISLAND_RADIUS * 0.84;
   /** Set by the raid each frame from the World layout (Gravity Bloom anomaly); 1 = normal gravity. */
   gravityScale = 1;
   /** Virus modifiers: sprint speed and how far footsteps carry. */
@@ -162,7 +164,7 @@ export class Player {
     SOLIDS.collide(p, BODY_RADIUS, this.crouched ? 1.2 : 1.8);
     const ceiling = SOLIDS.ceilingAt(p.x, p.z, prevY);
     if (p.y + 1.8 > ceiling && this.velocity.y > 0) { p.y = Math.max(prevY, ceiling - 1.8); this.velocity.y = 0; }
-    const edge = ISLAND_RADIUS * 0.84;
+    const edge = this.edge;
     const r = Math.hypot(p.x, p.z);
     if (r > edge) { p.x *= edge / r; p.z *= edge / r; }
     const floor = SOLIDS.floorAt(p.x, p.z, Math.max(prevY, p.y));

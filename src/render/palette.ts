@@ -51,6 +51,25 @@ export const ORGANIC = {
   mist: '#8C9BB4',
 } as const;
 
+/**
+ * The Ochre Reach (desert savannah zone): sun-baked clay, bleached bone and dust under a hazed amber sky.
+ * Grounded like the rest of Zone 7: earth tones lit by low suns, glow stays a rare accent.
+ */
+export const OCHRE = {
+  sand: '#B08A5E',
+  sandShade: '#6E5038',
+  clay: '#9C6B48',
+  clayDark: '#4E3427',
+  dust: '#C9A57A',
+  bleached: '#D8CBB0',
+  thorn: '#3B3326',
+  leaf: '#5E6440',
+  skyHaze: '#C79E74',
+  skyHigh: '#6F6A73',
+  sun: '#F4E2BE',
+  rust: '#7A4A30',
+} as const;
+
 /** Colour grading targets for the final post pass (split-tone shadows and highlights). */
 export const GRADE = {
   zone7Shadow: '#0B1315',
@@ -58,4 +77,4 @@ export const GRADE = {
   hiveShadow: '#03120E',
   hiveHighlight: '#E6FFD9',
 } as const;
-export const ALL_COLOURS: Record<string, string> = { ...HIVE, ...PATH, ...ZONE7, ...ZONE7_SHADE, ...ORGANIC, ...GRADE };
+export const ALL_COLOURS: Record<string, string> = { ...HIVE, ...PATH, ...ZONE7, ...ZONE7_SHADE, ...ORGANIC, ...OCHRE, ...GRADE };

@@ -53,6 +53,8 @@ export interface AbominationContext {
 type State = 'idle' | 'alert' | 'chase' | 'windup' | 'lunge' | 'recover' | 'stagger' | 'dead';
 
 let nextId = 1;
+/** Seconds a burrower takes to haul itself out of the sand. */
+const BURROW_EMERGE_TIME = 0.9;
 
 interface Pustule { mesh: THREE.Mesh; mat: THREE.MeshStandardMaterial; hp: number; popped: boolean }
 
@@ -81,6 +83,10 @@ export class Abomination {
   private limbDamage = new Map<string, number>();
   private rand: () => number;
   readonly home: THREE.Vector3;
+  /** Waits under the sand (layout.spawns `buried`): sunk out of sight while lurking, then claws its way up. */
+  burrowed = false;
+  /** 0 = fully under, 1 = out. */
+  private emerged = 1;
 
   constructor(readonly kind: AbominationKind, readonly t: AbominationData, x: number, z: number, seed: number) {
     this.biomass = t.biomass;
@@ -245,12 +251,24 @@ export class Abomination {
     this.handleEvents(ctx);
 
     const b = brain.body, pos = this.root.position;
-    pos.set(b.x, groundHeight(b.x, b.z), b.z);
+    pos.set(b.x, groundHeight(b.x, b.z) - this.burrowSink(dt), b.z);
     this.yaw = b.yaw;
     this.velocity.set(b.vx, 0, b.vz);
     this.root.rotation.y = this.yaw;
     this.setState(this.coarseState());
     this.animate(dt);
+  }
+
+  /** How far below the ground a burrower sits this frame: under while lurking, rising with a lurch once revealed. */
+  private burrowSink(dt: number): number {
+    if (!this.burrowed) return 0;
+    if (this.brain.lurking) this.emerged = 0;
+    else this.emerged = Math.min(1, this.emerged + dt / BURROW_EMERGE_TIME);
+    if (this.emerged >= 1) return 0;
+    const t = this.emerged, ease = 1 - (1 - t) * (1 - t) * (1 - t);
+    // Claws up in two heaves rather than a smooth lift.
+    const heave = Math.sin(t * Math.PI * 4) * 0.08 * (1 - t);
+    return (this.radius * 2.2 + 0.6) * (1 - ease) + heave;
   }
 
   private coarseState(): State {
