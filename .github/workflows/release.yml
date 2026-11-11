@@ -41,7 +41,10 @@ jobs:
       - if: steps.v.outputs.skip == 'false'
         run: npm ci
       - if: steps.v.outputs.skip == 'false'
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
+      - if: steps.v.outputs.skip == 'false'
+        name: Browser system libraries (best effort)
+        run: timeout 300 npx playwright install-deps chromium || echo "::warning::apt unavailable, using the runner image's libraries"
       - if: steps.v.outputs.skip == 'false'
         run: npm run check
       - name: Tag and publish GitHub release
