@@ -7,7 +7,7 @@ import { HiveStage } from './ui/hive-stage';
 import { ItemGrid } from './game/grid';
 import { browserStorage, deploy, die, extract, loadProfile, saveProfile } from './game/profile';
 import { settleContracts } from './game/economy';
-import { buildZone } from './world/zones';
+import { BUILT_ZONES, buildZone } from './world/zones';
 import { createPipeline } from './render/pipeline';
 import { installLookdev } from './render/lookdev';
 import pkg from '../package.json';
@@ -15,6 +15,8 @@ import pkg from '../package.json';
 import { creatureViewerRequested, startCreatureViewer } from './creatures/viewer';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
+/** sessionStorage key: deploy right after the reload that built the newly picked zone. */
+const AUTO_DEPLOY = 'biophage.autoDeploy';
 
 // `?creatures` opens the Creature & Mutation specimen viewer instead of a raid.
 if (creatureViewerRequested()) startCreatureViewer(canvas);
@@ -27,18 +29,29 @@ function bootRaid(): void {
   // from a fresh seed. `?seed=N` pins it; automated runs use seed 1 (Design's RAID.larva layout) so tests are reproducible.
   const seedParam = Number(new URLSearchParams(location.search).get('seed'));
   const raidSeed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : navigator.webdriver ? 1 : 1 + Math.floor(Math.random() * 1e6);
-  const world = buildZone(scene, 'glowmireIsle', raidSeed);
-  const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures);
-  const hud = new RaidHud(raid.bus, raid);
-
   // Persistent loop (Larva): boot into the Hive, deploy with the cavity loadout, settle the raid into the profile.
   const storage = browserStorage();
   const loaded = loadProfile(storage);
   const profile = loaded.profile;
   const save = () => { if (!saveProfile(storage, profile)) menu.say('Could not save: browser storage is full or blocked.'); };
+
+  // The world is built once at boot, so it is the zone picked on raid select (`?zone=` overrides for World's look-dev).
+  // Picking another zone saves and reloads straight into the deploy (AUTO_DEPLOY).
+  const zoneParam = new URLSearchParams(location.search).get('zone');
+  const world = buildZone(scene, zoneParam ?? profile.economy.zone, raidSeed);
+  const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures);
+  const hud = new RaidHud(raid.bus, raid);
   function deployNow(): void {
     if (raid.phase !== 'briefing') return;
-    const d = deploy(profile);
+    const want = profile.economy.zone;
+    if (!zoneParam && want !== world.zone && BUILT_ZONES.includes(want)) {
+      save();
+      try { sessionStorage.setItem(AUTO_DEPLOY, want); } catch { /* storage blocked: the player presses deploy again */ }
+      location.reload();
+      return;
+    }
+    // Contracts and the HUD see the map actually built.
+    const d = { ...deploy(profile), zone: world.zone };
     save();
     menu.hide();
     // Lock the mouse for play. Automated runs (tests, playtest bot) skip it: headless pointer lock halves software-rendered fps.
@@ -46,6 +59,9 @@ function bootRaid(): void {
     raid.deploy(d);
   }
   const menu = new HiveMenu(profile, save, deployNow, loaded.notice);
+  let auto: string | null = null;
+  try { auto = sessionStorage.getItem(AUTO_DEPLOY); sessionStorage.removeItem(AUTO_DEPLOY); } catch { /* storage blocked */ }
+  if (auto && auto === world.zone) setTimeout(deployNow, 0); // after boot has wired the pipeline
   raid.bus.on('raidEnd', (e) => {
     const r = raid.outcome!;
     const totals = (entries: typeof r.pouch) => new ItemGrid(99, 99, entries).totals();
