@@ -247,6 +247,346 @@
         1
       ],
       "stack": 1
+    },
+    "quillet": {
+      "label": "Quillet",
+      "kind": "weapon",
+      "value": 150,
+      "size": [
+        2,
+        1
+      ],
+      "stack": 1
+    },
+    "marrowHand": {
+      "label": "Marrow Hand",
+      "kind": "weapon",
+      "value": 350,
+      "size": [
+        2,
+        1
+      ],
+      "stack": 1
+    },
+    "hiveSpitter": {
+      "label": "Hive Spitter",
+      "kind": "weapon",
+      "value": 150,
+      "size": [
+        3,
+        1
+      ],
+      "stack": 1
+    },
+    "stingerChoir": {
+      "label": "Stinger Choir",
+      "kind": "weapon",
+      "value": 350,
+      "size": [
+        3,
+        1
+      ],
+      "stack": 1
+    },
+    "vertebraRifle": {
+      "label": "Vertebra Rifle",
+      "kind": "weapon",
+      "value": 700,
+      "size": [
+        4,
+        1
+      ],
+      "stack": 1
+    },
+    "cicadine": {
+      "label": "Cicadine",
+      "kind": "weapon",
+      "value": 350,
+      "size": [
+        4,
+        1
+      ],
+      "stack": 1
+    },
+    "gulletScatter": {
+      "label": "Gullet Scatter",
+      "kind": "weapon",
+      "value": 350,
+      "size": [
+        4,
+        1
+      ],
+      "stack": 1
+    },
+    "bloomcannon": {
+      "label": "Bloomcannon",
+      "kind": "weapon",
+      "value": 700,
+      "size": [
+        4,
+        1
+      ],
+      "stack": 1
+    },
+    "eyestalkMarksman": {
+      "label": "Eyestalk Marksman",
+      "kind": "weapon",
+      "value": 700,
+      "size": [
+        5,
+        1
+      ],
+      "stack": 1
+    },
+    "leviathanQuill": {
+      "label": "Leviathan Quill",
+      "kind": "weapon",
+      "value": 1400,
+      "size": [
+        5,
+        1
+      ],
+      "stack": 1
+    },
+    "broodMortar": {
+      "label": "Brood Mortar",
+      "kind": "weapon",
+      "value": 700,
+      "size": [
+        4,
+        2
+      ],
+      "stack": 1
+    },
+    "tumorLauncher": {
+      "label": "Tumor Launcher",
+      "kind": "weapon",
+      "value": 1400,
+      "size": [
+        4,
+        2
+      ],
+      "stack": 1
+    },
+    "lumenLance": {
+      "label": "Lumen Lance",
+      "kind": "weapon",
+      "value": 1400,
+      "size": [
+        5,
+        1
+      ],
+      "stack": 1
+    },
+    "reliquaryHymn": {
+      "label": "Reliquary Hymn",
+      "kind": "weapon",
+      "value": 2500,
+      "size": [
+        4,
+        2
+      ],
+      "stack": 1
+    },
+    "coreburner": {
+      "label": "Coreburner",
+      "kind": "weapon",
+      "value": 2500,
+      "size": [
+        4,
+        2
+      ],
+      "stack": 1
+    },
+    "sporeFeed": {
+      "label": "Spore Feed Sac",
+      "kind": "ammo",
+      "value": 3,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 60
+    },
+    "needleFeed": {
+      "label": "Needle Quiver",
+      "kind": "ammo",
+      "value": 4,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 40
+    },
+    "shardFeed": {
+      "label": "Shard Clutch",
+      "kind": "ammo",
+      "value": 5,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 30
+    },
+    "boltFeed": {
+      "label": "Bolt Seeds",
+      "kind": "ammo",
+      "value": 12,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 8
+    },
+    "lampreyMouth": {
+      "label": "Lamprey Mouth",
+      "kind": "mod",
+      "value": 60,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "hushGill": {
+      "label": "Hush Gill",
+      "kind": "mod",
+      "value": 140,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "barbCrown": {
+      "label": "Barb Crown",
+      "kind": "mod",
+      "value": 300,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "pupilBud": {
+      "label": "Pupil Bud",
+      "kind": "mod",
+      "value": 60,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "nightEye": {
+      "label": "Night Eye",
+      "kind": "mod",
+      "value": 300,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "stalkEye": {
+      "label": "Stalk Eye",
+      "kind": "mod",
+      "value": 650,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "tendonBrace": {
+      "label": "Tendon Brace",
+      "kind": "mod",
+      "value": 60,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "lightBone": {
+      "label": "Light Bone",
+      "kind": "mod",
+      "value": 140,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "clingRoot": {
+      "label": "Cling Root",
+      "kind": "mod",
+      "value": 140,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "quickGullet": {
+      "label": "Quick Gullet",
+      "kind": "mod",
+      "value": 60,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "swollenSac": {
+      "label": "Swollen Sac",
+      "kind": "mod",
+      "value": 140,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "acidStrain": {
+      "label": "Acid Strain",
+      "kind": "mod",
+      "value": 300,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "seekerStrain": {
+      "label": "Seeker Strain",
+      "kind": "mod",
+      "value": 650,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "leechStrain": {
+      "label": "Leech Strain",
+      "kind": "mod",
+      "value": 650,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
+    },
+    "splinterStrain": {
+      "label": "Splinter Strain",
+      "kind": "mod",
+      "value": 650,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
     }
   },
   "containers": {
@@ -325,6 +665,78 @@
             1,
             1
           ]
+        },
+        {
+          "item": "needleFeed",
+          "weight": 10,
+          "count": [
+            15,
+            30
+          ]
+        },
+        {
+          "item": "sporeFeed",
+          "weight": 8,
+          "count": [
+            20,
+            40
+          ]
+        },
+        {
+          "item": "shardFeed",
+          "weight": 6,
+          "count": [
+            10,
+            20
+          ]
+        },
+        {
+          "item": "quillet",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "hiveSpitter",
+          "weight": 2,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "lampreyMouth",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "pupilBud",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "tendonBrace",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "quickGullet",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
         }
       ]
     },
@@ -387,6 +799,54 @@
             1,
             1
           ]
+        },
+        {
+          "item": "sporeFeed",
+          "weight": 12,
+          "count": [
+            30,
+            60
+          ]
+        },
+        {
+          "item": "bloomcannon",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "broodMortar",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "boltFeed",
+          "weight": 6,
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "item": "acidStrain",
+          "weight": 4,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "leechStrain",
+          "weight": 2,
+          "count": [
+            1,
+            1
+          ]
         }
       ]
     },
@@ -402,6 +862,10 @@
         {
           "item": "ribchoirBone",
           "count": 2
+        },
+        {
+          "item": "reliquaryHymn",
+          "count": 1
         }
       ],
       "rolls": 4,
@@ -457,6 +921,14 @@
         {
           "item": "seedKey",
           "weight": 6,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "seekerStrain",
+          "weight": 8,
           "count": [
             1,
             1
@@ -519,6 +991,62 @@
             1,
             1
           ]
+        },
+        {
+          "item": "eyestalkMarksman",
+          "weight": 6,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "leviathanQuill",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "tumorLauncher",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "boltFeed",
+          "weight": 10,
+          "count": [
+            4,
+            8
+          ]
+        },
+        {
+          "item": "stalkEye",
+          "weight": 4,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "splinterStrain",
+          "weight": 3,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "nightEye",
+          "weight": 4,
+          "count": [
+            1,
+            1
+          ]
         }
       ]
     },
@@ -568,6 +1096,94 @@
             1,
             3
           ]
+        },
+        {
+          "item": "shardFeed",
+          "weight": 14,
+          "count": [
+            15,
+            30
+          ]
+        },
+        {
+          "item": "needleFeed",
+          "weight": 14,
+          "count": [
+            20,
+            40
+          ]
+        },
+        {
+          "item": "boltFeed",
+          "weight": 6,
+          "count": [
+            2,
+            4
+          ]
+        },
+        {
+          "item": "cicadine",
+          "weight": 4,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "gulletScatter",
+          "weight": 4,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "marrowHand",
+          "weight": 4,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "vertebraRifle",
+          "weight": 2,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "eyestalkMarksman",
+          "weight": 1,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "lightBone",
+          "weight": 4,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "swollenSac",
+          "weight": 4,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "barbCrown",
+          "weight": 2,
+          "count": [
+            1,
+            1
+          ]
         }
       ]
     },
@@ -609,6 +1225,22 @@
         },
         {
           "item": "glitchingHeart",
+          "weight": 2,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "lumenLance",
+          "weight": 2,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "seekerStrain",
           "weight": 2,
           "count": [
             1,

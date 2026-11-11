@@ -1,0 +1,197 @@
+{
+  "_note": "Weapon mods: living grafts that bud onto a gun's sockets (barrel, sight, under, chamber). effects.mult multiplies a weapon field by dotted path (noise.gunfire multiplies the host's gunfire noise radius while this gun fires); effects.set replaces a field; effects.special is a behaviour Gameplay implements by id. fits = weapon classes it can go on (omit = any gun with the slot). Installed mods stay on the gun and are lost with it. look = Creature's brief for the graft. See docs/gdd/09-weapons-and-habitats.md.",
+  "lampreyMouth": {
+    "label": "Lamprey Mouth",
+    "slot": "barrel",
+    "rarity": "common",
+    "look": "a ring of tiny inward teeth round the muzzle that grips and steadies each shot",
+    "effects": {
+      "mult": {
+        "spread.hip": 0.8,
+        "spread.ads": 0.85
+      }
+    }
+  },
+  "hushGill": {
+    "label": "Hush Gill",
+    "slot": "barrel",
+    "rarity": "uncommon",
+    "look": "feathery gill slits along the barrel that swallow the sound of the shot",
+    "effects": {
+      "mult": {
+        "noise.gunfire": 0.5,
+        "projectile.speed": 0.9
+      }
+    }
+  },
+  "barbCrown": {
+    "label": "Barb Crown",
+    "slot": "barrel",
+    "rarity": "rare",
+    "look": "a crown of hooked barbs that tears the projectile as it leaves",
+    "effects": {
+      "mult": {
+        "damage": 1.1,
+        "recoil.pitch": 1.15
+      }
+    }
+  },
+  "pupilBud": {
+    "label": "Pupil Bud",
+    "slot": "sight",
+    "rarity": "common",
+    "look": "a second small eye budding beside the sight that widens as you aim",
+    "effects": {
+      "mult": {
+        "ads.zoom": 1.25,
+        "ads.time": 1.1
+      }
+    }
+  },
+  "nightEye": {
+    "label": "Night Eye",
+    "slot": "sight",
+    "rarity": "rare",
+    "look": "a black, wet compound eye that makes weak points glow through mist",
+    "effects": {
+      "mult": {
+        "ads.zoom": 1.5
+      },
+      "special": {
+        "id": "weakPointGlow",
+        "range": 40
+      }
+    }
+  },
+  "stalkEye": {
+    "label": "Stalk Eye",
+    "slot": "sight",
+    "rarity": "epic",
+    "look": "a long eyestalk that turns any rifle into a scoped marksman gun",
+    "effects": {
+      "mult": {
+        "ads.time": 1.3
+      },
+      "set": {
+        "ads.zoom": 3,
+        "ads.scope": true
+      }
+    },
+    "fits": [
+      "carbine",
+      "rifle",
+      "marksman"
+    ]
+  },
+  "tendonBrace": {
+    "label": "Tendon Brace",
+    "slot": "under",
+    "rarity": "common",
+    "look": "a cord of tendon anchoring the gun to the forearm",
+    "effects": {
+      "mult": {
+        "recoil.pitch": 0.75,
+        "recoil.yawJitter": 0.8
+      }
+    }
+  },
+  "lightBone": {
+    "label": "Light Bone",
+    "slot": "under",
+    "rarity": "uncommon",
+    "look": "hollow bird bone replacing the gun's heavy gristle",
+    "effects": {
+      "mult": {
+        "handling.equipTime": 0.7,
+        "ads.time": 0.85,
+        "handling.moveSpeed": 1.03
+      }
+    }
+  },
+  "clingRoot": {
+    "label": "Cling Root",
+    "slot": "under",
+    "rarity": "uncommon",
+    "look": "root hairs that grip the arm so the gun stays steady while you move",
+    "effects": {
+      "mult": {
+        "spread.movingPenalty": 0.8
+      }
+    }
+  },
+  "quickGullet": {
+    "label": "Quick Gullet",
+    "slot": "chamber",
+    "rarity": "common",
+    "look": "a ribbed throat that swallows the next load faster",
+    "effects": {
+      "mult": {
+        "reload.time": 0.75,
+        "reload.perShellTime": 0.75
+      }
+    }
+  },
+  "swollenSac": {
+    "label": "Swollen Sac",
+    "slot": "chamber",
+    "rarity": "uncommon",
+    "look": "an oversized feed sac that bulges under the gun",
+    "effects": {
+      "mult": {
+        "magazine": 1.5,
+        "reload.time": 1.15
+      }
+    }
+  },
+  "acidStrain": {
+    "label": "Acid Strain",
+    "slot": "chamber",
+    "rarity": "rare",
+    "look": "green acid veins through the feed that coat every shot",
+    "effects": {
+      "special": {
+        "id": "acid",
+        "dps": 3,
+        "duration": 3
+      }
+    }
+  },
+  "seekerStrain": {
+    "label": "Seeker Strain",
+    "slot": "chamber",
+    "rarity": "epic",
+    "look": "a nerve knot that steers each shot a little towards warmth",
+    "effects": {
+      "special": {
+        "id": "seek",
+        "turnRate": 1.5,
+        "radius": 6
+      }
+    }
+  },
+  "leechStrain": {
+    "label": "Leech Strain",
+    "slot": "chamber",
+    "rarity": "epic",
+    "look": "a leech coiled through the chamber that drinks from every hit",
+    "effects": {
+      "special": {
+        "id": "leech",
+        "fraction": 0.04
+      }
+    }
+  },
+  "splinterStrain": {
+    "label": "Splinter Strain",
+    "slot": "chamber",
+    "rarity": "epic",
+    "look": "bone spurs packed in the feed that burst out of weak points",
+    "effects": {
+      "special": {
+        "id": "splinter",
+        "shards": 3,
+        "damage": 8
+      }
+    }
+  }
+}

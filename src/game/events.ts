@@ -49,6 +49,15 @@ export interface GameEvents {
   nestWave: { id: string; wave: number; of: number };
   nestDamaged: { id: string; biomass: number; fraction: number; weakPoint: boolean };
   nestDestroyed: { id: string; type: string; dna: number; container: string };
+  /** Zone boss (PvE AI, src/game/boss.ts). `songRadius`: how far the wake song carries. */
+  bossAwake: { boss: string; label: string; songRadius: number };
+  bossPhase: { boss: string; phase: string };
+  bossEnraged: { boss: string };
+  bossAttack: { boss: string; attack: string };
+  bossDamaged: { boss: string; biomass: number; fraction: number; weakPoint: boolean; part: string };
+  bossPartDestroyed: { boss: string; part: string };
+  bossCoverBroken: { boss: string; pillar: string };
+  bossDefeated: { boss: string; dna: number; container: string | null };
   extractStart: { label: string; time: number };
   extractProgress: { progress: number; timeLeft: number };
   extractCancel: Record<string, never>;

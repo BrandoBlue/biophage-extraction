@@ -35,4 +35,12 @@ Owner: PvE AI & Encounters. Code: `src/ai/`. Tuning: `data/ai.json` (attack numb
 | Stalk | Holds 5 m, turns slowly with its bone shell (×0.2 from a 120° front arc). Leg stamp lands where you stood when it began; rib sweep hits the front arc; brood drops every 25 s from 8 s after waking | Stamp 0.9 s, sweep 1.1 s, sac 0.8 s | Step off the marked spot, flank, pop the brood sac (stops drops) |
 | Bloom | Holds 10 m. Rears for 1.4 s and vents a spore cloud; the hearts stay exposed 4 s. Hymn ring to 30 m (jump it); breaks cover within 12 m | Rear-up, hymn 1.0 s, cover 1.2 s | Burst the hearts during the vent, jump the ring, sever legs (each −15% speed) |
 | Collapse | Drags itself fast: forelimb lunge (×2.5 for 0.6 s), tendril grab within 10 m pins for 2 s; the light pool floods to 70% of the bowl over 90 s. Body takes ×1.5 | Lunge 0.7 s, grab 0.8 s | Keep moving, stay out of 10 m when the tendrils coil |
-Enrage at 7:00: the pool fills the bowl; only the ledge is safe. The raid applies the events (`stamp`, `sweep`, `brood`, `vent`, `hymn`, `coverBreak`, `drag`, `grab`, `enrage`); Creature's body and World's bowl arena plug in next.
+Enrage at 7:00: the pool fills the bowl; only the ledge is safe.
+
+**In raids** `RaidBoss` (`src/game/boss.ts`) joins the brain, Creature's body (`src/creatures/reliquary.ts`) and World's bowl (`ArenaInfo`), and the raid spawns it whenever the zone has a `reliquaryBowl`.
+- Biomass 3600; hearts ×2.5 only while the cage is open; brood sac ×1.5 (bursting it stops drops); legs from bloom on (each 250, severing slows it). Shell hits from the front arc in stalk do ×0.2, collapse body hits ×1.5.
+- A shot takes an exposed weak point if it reaches it within 2 m of the body surface, so you can't hit hearts through the whole body.
+- Stamp hits inside its radius where you stood; sweep hits the front arc in range; the hymn ring hits once as its front passes unless your feet are above its height (jump, or stand on the ledge); grab pins you (no movement) for 2 s or until you deal 80 to it; the vent lays a spore cloud; cover break smashes pillars within reach; brood drops spawn Needlemaws from the sac.
+- The flood burns the bowl floor out to the pool radius; the ledge is safe.
+- Kill: 400 DNA, the Reliquary Cage container, `bossKilled` for contracts, and the Reliquary Heart to cut out (hold E for 6 s, noise 40 m).
+- Bus events: `bossAwake`, `bossPhase`, `bossEnraged`, `bossAttack`, `bossDamaged`, `bossPartDestroyed`, `bossCoverBroken`, `bossDefeated`. HUD boss bar shows `The Reliquary · PHASE`.
