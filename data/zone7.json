@@ -330,7 +330,7 @@
         "tag": "interior",
         "x": 80,
         "z": 108,
-        "radius": 14,
+        "radius": 17,
         "dress": []
       },
       {
@@ -434,12 +434,37 @@
     "caves": [
       {
         "id": "fungalCaves",
+        "label": "Fungal Caves",
         "x": 80,
         "z": 108,
         "yaw": -53,
-        "radiusU": 22,
-        "radiusV": 15,
-        "height": 11
+        "_note": "The Pale Vigil's lair (bosses.json paleVigil arena): a dark domed chamber under the east cliff. Angles are local: 180 = the main mouth, facing the island centre. Tunnels are the side passages (the Glasswalker escorts' ambush runs).",
+        "radius": 17,
+        "height": 16,
+        "mouth": {
+          "width": 8,
+          "height": 7
+        },
+        "tunnels": [
+          {
+            "id": "northTunnel",
+            "angle": 90,
+            "length": 13,
+            "width": 6,
+            "height": 6
+          },
+          {
+            "id": "southTunnel",
+            "angle": -90,
+            "length": 13,
+            "width": 6,
+            "height": 6
+          }
+        ],
+        "glowPatches": 5,
+        "cover": 6,
+        "collapsePoints": 8,
+        "roots": 6
       }
     ],
     "dropIn": {
