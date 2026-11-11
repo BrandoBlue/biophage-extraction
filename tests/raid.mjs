@@ -303,7 +303,12 @@ try {
   for (let i = 0; i < 40; i++) { await frames(2); s = await state(); if (s.grenades === 0) break; }
   if (s.grenades !== 0) await fail('grenade never exploded');
   await call('melee');
-  await call('give', 'heartHusk', 1);
+  // The cavities can be full of loot by now: throw loot away until the husk fits.
+  for (let i = 0; (await call('give', 'heartHusk', 1)) > 0; i++) {
+    const loot = (await state()).carried.items.filter((e) => e.item !== 'heartHusk').sort((a, b) => a.count - b.count)[0];
+    if (!loot || i > 40) await fail('no room for the Heart Husk');
+    await call('discard', loot.item);
+  }
   await call('damage', 10000);
   await frames(2);
   s = await state();

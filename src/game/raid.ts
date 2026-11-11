@@ -15,6 +15,8 @@ import type { Noise } from './perception';
 import { hostVisibility } from '../ai';
 import { BroodNest } from './nest';
 import { RaidBoss } from './boss';
+import { HabitatPlanner } from '../ai/habitats';
+import { interimHabitats } from './habitats';
 import type { ReliquaryHit } from '../creatures/reliquary';
 import { liquidLight } from '../render/materials';
 import { BroodHeart } from '../creatures/broodheart';
@@ -101,6 +103,8 @@ export class Raid {
   readonly boss: RaidBoss | null = null;
   private bossPool: THREE.Mesh | null = null;
   private bossHarvest = 0;
+  /** Where each kind lives this raid (PvE AI habitats over World's areas). */
+  private habitats!: HabitatPlanner;
   readonly fx: Fx;
   readonly projectiles: Projectiles;
   readonly hazards: Hazards;
@@ -253,6 +257,7 @@ export class Raid {
   private spawnInitial(): void {
     const minFromSpawn = Math.max(15, RAID.spawn.noEnemyWithin * this.spawnScale);
     const spawn = this.player.position;
+    this.habitats = new HabitatPlanner(interimHabitats(this.layout, this.playable), this.rand);
     const [ex, ez] = [this.extract.x, this.extract.z];
     // Spore spawns plus the Larva roster (Glasswalkers, an Oculimoth swarm, a Mournback).
     for (const g of [...RAID.spawnGroups, ...(RAID.larva?.spawnGroups ?? [])]) {
@@ -260,7 +265,10 @@ export class Raid {
       const data = ABOMINATIONS[kind];
       for (let n = 0; n < g.count; n++) {
         let cx = 0, cz = 0;
-        for (let tries = 0; tries < 30; tries++) {
+        // Habitat first: each kind lives where it belongs (container guards and extract campers keep their posts).
+        const home = g.guardsContainer || g.nearExtract ? null : this.habitats.place(kind, spawn, minFromSpawn);
+        if (home) { cx = home.x; cz = home.z; }
+        else for (let tries = 0; tries < 30; tries++) {
           if (g.guardsContainer && this.pods.length) {
             const p = this.pods[n % this.pods.length].position, a = this.rand() * Math.PI * 2;
             cx = p.x + Math.cos(a) * 5; cz = p.z + Math.sin(a) * 5;
@@ -305,10 +313,11 @@ export class Raid {
       for (let n = 0; n < w.count; n++) {
         const size = w.packed ? ABOMINATIONS[kind].packSize[0] + Math.floor(this.rand() * (ABOMINATIONS[kind].packSize[1] - ABOMINATIONS[kind].packSize[0] + 1)) : 1;
         if (alive + size > RAID.reinforcements.maxAlive) return;
-        // Behind the host, out of view, at least `min` away.
+        // From the nearest place this kind lives, else behind the host out of view; at least `min` away.
+        const home = this.habitats.nearest(kind, this.player.position, min);
         const back = this.player.yaw + (this.rand() - 0.5) * 1.6;
         const d = min + this.rand() * 10;
-        const cx = this.player.position.x + Math.sin(back) * d, cz = this.player.position.z + Math.cos(back) * d;
+        const cx = home ? home.x : this.player.position.x + Math.sin(back) * d, cz = home ? home.z : this.player.position.z + Math.cos(back) * d;
         for (let k = 0; k < size; k++) {
           const c = this.addCreature(kind, cx + (this.rand() - 0.5) * 4, cz + (this.rand() - 0.5) * 4);
           c.alert();
@@ -1389,6 +1398,8 @@ export class Raid {
       setTimeScale: (k: number) => { this.timeScale = k; },
       setTimeLeft: (t: number) => { this.elapsed = RAID.raidTime - t; },
       give: (item: string, n = 1) => this.carried.add(item, n),
+      /** Throws away one carried `item` (cavities first). */
+      discard: (item: string) => this.carried.consume(item),
       melee: () => { this.meleeQueued = true; },
       grenade: () => this.throwGrenade(),
       mine: () => this.placeMine(),
