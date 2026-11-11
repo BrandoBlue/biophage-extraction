@@ -361,6 +361,15 @@ try {
   await freezeAndScreenshot(page, 'tests/out/raid-market.png');
   log(`Flesh Market: ${cards} offers, sold one item for ${(await profile()).dna - before} DNA`);
 
+  // --- Raid select into another zone: deploying with a different built zone picked reloads into that map and deploys.
+  await page.evaluate(() => { const p = window.__biophage.profile; p.economy.unlocks.push('zone:longSeedWreck'); p.economy.zone = 'longSeedWreck'; });
+  await Promise.all([page.waitForNavigation({ timeout: 120000 }), page.evaluate(() => window.__biophage.debug.begin())]);
+  await boot();
+  for (let i = 0; i < 20; i++) { s = await state(); if (s.phase === 'raid') break; await frames(1); }
+  if (s.phase !== 'raid' || s.zone !== 'longSeedWreck') await fail(`zone switch did not deploy into the Wreck: phase ${s.phase}, zone ${s.zone}`);
+  await freezeAndScreenshot(page, 'tests/out/raid-wreck.png');
+  log('raid select: switched to the Wreck of the Long Seed, reloaded and deployed');
+
   if (errors.length) await fail(`console errors:\n${errors.join('\n')}`);
   await browser.close();
   server?.kill();
