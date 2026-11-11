@@ -293,8 +293,15 @@ export interface Zone7Sites {
   areas: { id: string; label: string; tag: string; x: number; z: number; radius: number; dress: string[] }[];
   ridges: { id: string; points: [number, number][]; height: number; halfWidth: number; passes: [number, number][] }[];
   valleys: { id: string; points: [number, number][]; depth: number; halfWidth: number }[];
-  caves: { id: string; x: number; z: number; yaw: number; radiusU: number; radiusV: number; height: number }[];
+  caves: CaveSpec[];
   dropIn: { height: number; fallSpeed: number };
+}
+/** A domed cave chamber with side tunnels (World & Level); angles are local degrees, 180 = the main mouth. */
+export interface CaveSpec {
+  id: string; label: string; x: number; z: number; yaw: number; radius: number; height: number;
+  mouth: { width: number; height: number };
+  tunnels: { id: string; angle: number; length: number; width: number; height: number }[];
+  glowPatches: number; cover: number; collapsePoints: number; roots: number;
 }
 /** Site catalogues keyed by zone id (World & Level). */
 export const ZONE_SITES = strip<{ glowmireIsle: Zone7Sites; longSeedWreck: Record<string, unknown> }>(zone7Json);
