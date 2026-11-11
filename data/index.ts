@@ -235,6 +235,12 @@ export interface Zone7Sites {
   };
   /** Landmark id (Design's zones.json) → the catalogue site it names and its radius in metres. */
   landmarks: Record<string, { site: string; radius: number }>;
+  /** Named areas (world metres): dressing and PvE AI habitats. */
+  areas: { id: string; label: string; tag: string; x: number; z: number; radius: number; dress: string[] }[];
+  ridges: { id: string; points: [number, number][]; height: number; halfWidth: number; passes: [number, number][] }[];
+  valleys: { id: string; points: [number, number][]; depth: number; halfWidth: number }[];
+  caves: { id: string; x: number; z: number; yaw: number; radiusU: number; radiusV: number; height: number }[];
+  dropIn: { height: number; fallSpeed: number };
 }
 /** Site catalogues keyed by zone id (World & Level). */
 export const ZONE_SITES = strip<{ glowmireIsle: Zone7Sites; longSeedWreck: Record<string, unknown> }>(zone7Json);

@@ -137,3 +137,22 @@ describe('the Long Seed debris field', () => {
     expect(d.loot.length).toBeGreaterThanOrEqual(4);
   });
 });
+
+describe('the Fungal Caves', () => {
+  it('walks in through the mouth, between the columns, to the cache in the back chamber', async () => {
+    const { fungalCaves } = await import('../src/world/structures');
+    const w = new CollisionWorld(flat);
+    const yaw = -0.9, ru = 22, rv = 15;
+    const cave = fungalCaves(w, 10, -5, yaw, ru, rv, 11, 0);
+    const at = (u: number, v: number): [number, number] => [10 + u * Math.cos(yaw) + v * Math.sin(yaw), -5 - u * Math.sin(yaw) + v * Math.cos(yaw)];
+    const [sx, sz] = at(-ru - 6, -1);
+    const p = walk(w, { x: sx, y: 0, z: sz }, [at(-2, -1), at(9, -1), at(9, 3), at(0.78 * ru, 3.3)]);
+    const cache = cave.loot[0];
+    expect(Math.hypot(p.x - cache.x, p.z - cache.z)).toBeLessThan(0.5);
+    // The walls hold: walking straight out through the side of the dome stops at it.
+    const out = walk(w, { x: cache.x, y: 0, z: cache.z }, [at(0, rv + 8)]);
+    const [ox, oz] = at(0, rv + 8);
+    expect(Math.hypot(out.x - ox, out.z - oz)).toBeGreaterThan(5);
+    expect(cave.glow.length).toBeGreaterThan(20);
+  });
+});

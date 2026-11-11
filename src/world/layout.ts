@@ -13,6 +13,9 @@ export interface ExtractSite extends Site { label: string; opensAt: number }
 export interface PodSite extends Site { type: string; guard?: string }
 export interface NestSite extends Site { type: string }
 export interface AnomalySite extends Site { kind: string; radius: number; gravityMultiplier: number }
+/** Where a kind of creature belongs (PvE AI maps species to tags). `y` is the floor when it is not the terrain. */
+export type HabitatTag = 'grove' | 'pool' | 'interior' | 'open' | 'crater' | 'ridge';
+export interface Habitat extends Site { tag: HabitatTag; radius: number; y?: number }
 
 export interface Zone7Layout {
   seed: number;
@@ -28,6 +31,15 @@ export interface Zone7Layout {
   anomaly: AnomalySite;
   /** Rectangular walkable area for maps that are not the round island (creature spawns stay inside it). */
   area?: { x0: number; x1: number; z0: number; z1: number };
+  /** Named areas creatures live in, by habitat tag (data/zone7.json `areas`; the boss arena is not one). */
+  habitats: Habitat[];
+  /** Raid start drops the host in from this height above the spawn (open-sky zones only). */
+  dropIn?: { height: number; fallSpeed: number };
+}
+
+/** Glowmire Isle's habitats: every named area except the boss arena. */
+export function islandHabitats(): Habitat[] {
+  return ZONE7_SITES.areas.filter((a) => a.tag !== 'arena').map((a) => ({ id: a.id, tag: a.tag as HabitatTag, x: a.x, z: a.z, radius: a.radius }));
 }
 
 /** Walkable radius the layout is resolved against (same clamp the Raid uses). */
@@ -83,6 +95,8 @@ export function zone7Layout(seed: number): Zone7Layout {
     nests: CATALOGUE.nests,
     nodes,
     anomaly: { ...an, kind: ZONE7_SITES.anomaly.id, radius: ZONE7_SITES.anomaly.size, gravityMultiplier: ANOMALY_GRAVITY },
+    habitats: islandHabitats(),
+    dropIn: ZONE7_SITES.dropIn,
   };
 }
 

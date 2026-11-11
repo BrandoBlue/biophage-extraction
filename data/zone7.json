@@ -109,7 +109,7 @@
       }
     },
     "landmarks": {
-      "_note": "Named places for contracts (Design's zones.json landmark ids). `site` names a catalogue site; radius in metres counts as being there. fungalCaves is not built yet.",
+      "_note": "Named places for contracts (Design's zones.json landmark ids). `site` names a catalogue site; radius in metres counts as being there.",
       "chitinTower": {
         "site": "hollowSpire",
         "radius": 12
@@ -129,7 +129,308 @@
       "seedSpireEast": {
         "site": "spire-east",
         "radius": 12
+      },
+      "fungalCaves": {
+        "site": "fungalCaves",
+        "radius": 16
       }
+    },
+    "_landscapeNote": "Landscape (World & Level): named areas, ridges, valleys and caves in world metres (x east, z south; north is -z). Areas drive the dressing and PvE AI habitats (tag: grove, pool, open, crater, ridge, interior; arena areas get no habitat). dropIn: raid start height and descent speed.",
+    "areas": [
+      {
+        "id": "spawnHollow",
+        "label": "Spawn Hollow",
+        "tag": "open",
+        "x": -41,
+        "z": 113,
+        "radius": 20,
+        "dress": [
+          "meadow"
+        ]
+      },
+      {
+        "id": "mirrorShallows",
+        "label": "Mirror Shallows",
+        "tag": "pool",
+        "x": -24,
+        "z": 42,
+        "radius": 18,
+        "dress": [
+          "poolFringe",
+          "fungi"
+        ]
+      },
+      {
+        "id": "westfallMere",
+        "label": "Westfall Mere",
+        "tag": "pool",
+        "x": -128,
+        "z": -50,
+        "radius": 24,
+        "dress": [
+          "poolFringe",
+          "fungi",
+          "crystals"
+        ]
+      },
+      {
+        "id": "southmoorGrove",
+        "label": "Southmoor Grove",
+        "tag": "grove",
+        "x": 2,
+        "z": 74,
+        "radius": 22,
+        "dress": [
+          "giantFungi",
+          "fungi"
+        ]
+      },
+      {
+        "id": "heartwoodStand",
+        "label": "Heartwood Stand",
+        "tag": "grove",
+        "x": 12,
+        "z": -48,
+        "radius": 22,
+        "dress": [
+          "giantFungi",
+          "fungi"
+        ]
+      },
+      {
+        "id": "eastshelfGrove",
+        "label": "Eastshelf Grove",
+        "tag": "grove",
+        "x": 76,
+        "z": 68,
+        "radius": 20,
+        "dress": [
+          "giantFungi",
+          "fungi"
+        ]
+      },
+      {
+        "id": "centralStand",
+        "label": "Central Stand",
+        "tag": "grove",
+        "x": 10,
+        "z": 20,
+        "radius": 14,
+        "dress": [
+          "giantFungi",
+          "fungi"
+        ]
+      },
+      {
+        "id": "lensBasin",
+        "label": "Lens Basin",
+        "tag": "open",
+        "x": 52,
+        "z": -40,
+        "radius": 24,
+        "dress": [
+          "crystals"
+        ]
+      },
+      {
+        "id": "glowmireRun",
+        "label": "Glowmire Run",
+        "tag": "open",
+        "x": -70,
+        "z": 2,
+        "radius": 16,
+        "dress": [
+          "crystals",
+          "fungi"
+        ]
+      },
+      {
+        "id": "broodCrater",
+        "label": "Brood Crater",
+        "tag": "crater",
+        "x": -58,
+        "z": -34,
+        "radius": 20,
+        "dress": [
+          "bones"
+        ]
+      },
+      {
+        "id": "seedDebris",
+        "label": "Long Seed Debris",
+        "tag": "interior",
+        "x": -61,
+        "z": 48,
+        "radius": 18,
+        "dress": [
+          "bones"
+        ]
+      },
+      {
+        "id": "hollowSpire",
+        "label": "Hollow Spire",
+        "tag": "interior",
+        "x": -62,
+        "z": -88,
+        "radius": 9,
+        "dress": [
+          "bones"
+        ]
+      },
+      {
+        "id": "thornbackCrest",
+        "label": "Thornback Ridge",
+        "tag": "ridge",
+        "x": -26,
+        "z": -2,
+        "radius": 10,
+        "dress": [
+          "crystals"
+        ]
+      },
+      {
+        "id": "thornbackNorth",
+        "label": "Thornback Ridge north",
+        "tag": "ridge",
+        "x": -14,
+        "z": -82,
+        "radius": 10,
+        "dress": [
+          "crystals"
+        ]
+      },
+      {
+        "id": "eastRise",
+        "label": "East Rise",
+        "tag": "ridge",
+        "x": 34,
+        "z": 92,
+        "radius": 10,
+        "dress": [
+          "crystals"
+        ]
+      },
+      {
+        "id": "fungalCaves",
+        "label": "Fungal Caves",
+        "tag": "interior",
+        "x": 80,
+        "z": 108,
+        "radius": 14,
+        "dress": []
+      },
+      {
+        "id": "reliquaryBowl",
+        "label": "Reliquary Bowl",
+        "tag": "arena",
+        "x": 90,
+        "z": 0,
+        "radius": 30,
+        "dress": []
+      }
+    ],
+    "ridges": [
+      {
+        "id": "thornback",
+        "points": [
+          [
+            -34,
+            18
+          ],
+          [
+            -24,
+            -12
+          ],
+          [
+            -22,
+            -40
+          ],
+          [
+            -14,
+            -82
+          ],
+          [
+            -4,
+            -104
+          ]
+        ],
+        "height": 9,
+        "halfWidth": 13,
+        "passes": [
+          [
+            -23,
+            -28
+          ]
+        ]
+      },
+      {
+        "id": "eastRise",
+        "points": [
+          [
+            22,
+            112
+          ],
+          [
+            34,
+            92
+          ],
+          [
+            40,
+            76
+          ]
+        ],
+        "height": 7,
+        "halfWidth": 11,
+        "passes": []
+      }
+    ],
+    "valleys": [
+      {
+        "id": "glowmireRun",
+        "points": [
+          [
+            -140,
+            -62
+          ],
+          [
+            -100,
+            -10
+          ],
+          [
+            -55,
+            12
+          ],
+          [
+            -10,
+            10
+          ],
+          [
+            44,
+            8
+          ],
+          [
+            64,
+            2
+          ]
+        ],
+        "depth": 4,
+        "halfWidth": 12
+      }
+    ],
+    "caves": [
+      {
+        "id": "fungalCaves",
+        "x": 80,
+        "z": 108,
+        "yaw": -53,
+        "radiusU": 22,
+        "radiusV": 15,
+        "height": 11
+      }
+    ],
+    "dropIn": {
+      "height": 55,
+      "fallSpeed": 9
     }
   },
   "longSeedWreck": {
