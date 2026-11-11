@@ -4,8 +4,17 @@ Derived from Brandon's five reference images in `docs/reference/`. Every departm
 
 ## Two registers
 - **The Hive** (menus, lab, stash, trader): dark, clinical, acid-green. Targets: `01-light-class-select`, `02-three-class-select`, `03-genetic-evolution-lab`.
-- **Zone 7** (in-raid): an ethereal, atmospheric cosmic wasteland. Target: `04-in-raid-combat`, read through the restraint rules below: take its composition, sky and creatures, not its neon saturation.
+- **Zone 7** (in-raid): a grounded, eerie alien wilderness at night. Target: `04-in-raid-combat` for composition and creatures only, read through the two rule sections below. Its neon saturation and psychedelic sky are no longer targets.
 - Creatures are rendered grounded and photoreal in both. `05-painterly-collage` is used for screen layout ideas only, not for its cartoon rendering.
+
+## Grounded and eerie (Brandon, 2026-11-11 evening): the standing rule
+Brandon: the art is still "very neon". He wants it more realistic and easier to look at, weirder and more textured so it feels unique, and scary. This section overrides anything softer below.
+1. **Natural first.** Bodies are weathered stone, olive moss, bruise-brown flesh, bone and chitin under a cold night key (`ZONE7_SHADE`, `ORGANIC`). Zone 7 glow colours (magenta, cyan, violet, lime) are never a body colour for anything larger than a hand.
+2. **Glow is rare.** A guide of under 5% of the screen self-lit: eyes, weak points, spores, pickups, a few veins. If a thing glows, ask what the light means to the player.
+3. **Strange surfaces make it ours.** Texture is where the alien lives: ribbed and pitted flesh growths erupting from rock, fossil bone in the ground, wet sheen against dry chitin, sutures, pores, scars. Use `BIO_BUMP` relief and roughness contrast, never a flat colour.
+4. **Scary comes from darkness and silhouette.** Low-key lighting, deep shadows, fog that hides distance, creatures read first as shapes against mist, then as detail when close. Leave some places dark.
+5. **Easy on the eyes.** The grade is low saturation (0.7) with film grain. Keep contrast in value (light and dark), not in hue.
+6. **Sky is an overcast night.** The nebula is a faint grey veil, planets are hazed and desaturated; no plasma bands, no bright rings.
 
 ## Ethereal, not neon (Brandon, 2026-11-11, after playing the build)
 Brandon likes how ethereal the world looks and likes the alien creatures. Too much neon reads as AI-made. Every department follows these rules:
@@ -36,7 +45,7 @@ Brandon likes how ethereal the world looks and likes the alien creatures. Too mu
 | Paths | Stealth green / Melee amber / Viral violet / DNA cyan | #6CFF4A / #FFB13B / #A55BFF / #34E3F0 |
 | Zone 7 | Void indigo | #140A33 |
 | Zone 7 | Magenta / Electric cyan / Violet / Lime | #FF3FA4 / #2EE6FF / #8B3DFF / #B6FF3B |
-| Organic (lit, not glowing) | Wet flesh / Deep flesh / Vein / Amber / Mist | #7A4756 / #3A1C2A / #6E2E4A / #C98A3E / #8C9BB4 |
+| Organic (lit, not glowing) | Wet flesh / Deep flesh / Vein / Amber / Mist | #6E4E4C / #3A1C2A / #5A3036 / #C98A3E / #8C9BB4 |
 
 The organic tones are for bodies that are lit rather than glowing: the held weapon, hands, hides and hulls. Use the Zone 7 glow colours on top of them as accents (eyes, chamber, weak points), never as the body colour of something the player looks at all the time.
 

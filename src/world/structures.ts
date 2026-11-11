@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { HIVE, ORGANIC, ZONE7, ZONE7_SHADE } from '../render/palette';
+import { HIVE, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { bioNode, bioTime, chitin, liquidLight, membrane, zoneRock } from '../render/materials';
-import { hazeVolume, lightShaft } from '../render/atmos';
 import type { Collider, CollisionWorld } from './collision';
+import type { CaveLair } from './cave';
 import { mulberry32 } from './rng';
 import { noise3 } from '../render/geometry';
 
@@ -43,6 +43,8 @@ export interface BuiltStructures {
   group: THREE.Group;
   loot: LootSpot[];
   arena: ArenaInfo | null;
+  /** The Pale Vigil's cave lair (src/world/cave.ts), on zones that have one. */
+  lair?: CaveLair | null;
   /** Break an arena pillar (boss phase 2): hides it and removes its collider. */
   breakPillar(id: string): void;
 }
@@ -486,100 +488,9 @@ export function rootSkirt(group: THREE.Group, radius: number, count: number, see
 }
 
 /** A cave built for the island: where its glowing growth goes (the zone adds them to its fungus set) and its loot. */
-export interface BuiltCave { group: THREE.Group; loot: LootSpot[]; glow: { x: number; z: number; big: boolean }[]; floorY: number }
 
 /**
  * The Fungal Caves under the east cliff: a low rock dome you walk into from the island, winding between rock
  * columns to a back chamber lit by glowing growth and a small pool, with a second, narrower way out. The dome is
  * shell only (no roof collision is needed: its walls stop you climbing it); the columns and walls are solid.
  */
-export function fungalCaves(solids: CollisionWorld, x: number, z: number, yaw: number, ru: number, rv: number, height: number, floorY: number, seed = 41): BuiltCave {
-  const rand = mulberry32(seed);
-  const k = new Kit(solids, x, z, yaw, floorY);
-  k.group.name = 'fungal-caves';
-  const rock = zoneRock({ veinColour: ZONE7.violet, mossColour: ZONE7.cyan, scale: 1.6 });
-  rock.side = THREE.DoubleSide;
-  const mouthA = Math.PI, mouthB = Math.atan2(-rv, ru * 0.4);
-  const inMouth = (a: number, half: number, at: number) => Math.abs(Math.atan2(Math.sin(a - at), Math.cos(a - at))) < half;
-
-  const SKY = [-0.12, 0.08];
-  // The dome: a noise-sculpted half-ellipsoid with two openings cut low in its side.
-  const sphere = new THREE.SphereGeometry(1, 64, 22, 0, Math.PI * 2, 0, Math.PI / 2).toNonIndexed();
-  const p = sphere.attributes.position;
-  const keep: number[] = [];
-  for (let t = 0; t < p.count; t += 3) {
-    let cx = 0, cy = 0, cz = 0;
-    for (let j = 0; j < 3; j++) { cx += p.getX(t + j); cy += p.getY(t + j); cz += p.getZ(t + j); }
-    const a = Math.atan2(cz, cx);
-    if ((inMouth(a, 0.32, mouthA) && cy / 3 < 0.62) || (inMouth(a, 0.22, mouthB) && cy / 3 < 0.5)) continue;
-    // A ragged skylight in the roof over the central chamber.
-    if (cy / 3 > 0.8 && Math.hypot(cx / 3 - SKY[0], cz / 3 - SKY[1]) < 0.2 + noise3(cx * 4, 0, cz * 4) * 0.08) continue;
-    for (let j = 0; j < 3; j++) {
-      const vx = p.getX(t + j), vy = p.getY(t + j), vz = p.getZ(t + j);
-      const bump = 1 + (noise3(vx * 3, vy * 3, vz * 3) - 0.5) * 0.35 + (noise3(vx * 9, vy * 9, vz * 9) - 0.5) * 0.1;
-      keep.push(vx * ru * bump, vy * height * bump - 0.6, vz * rv * bump);
-    }
-  }
-  const dome = new THREE.BufferGeometry();
-  dome.setAttribute('position', new THREE.Float32BufferAttribute(keep, 3));
-  dome.computeVertexNormals();
-  const shell = new THREE.Mesh(dome, rock);
-  shell.name = 'cave-dome';
-  k.group.add(shell);
-
-  // Walls: invisible boxes round the inside of the dome, open at the two mouths.
-  const n = 36;
-  for (let i = 0; i < n; i++) {
-    const a = ((i + 0.5) / n) * Math.PI * 2;
-    if (inMouth(a, 0.3, mouthA) || inMouth(a, 0.2, mouthB)) continue;
-    const u = Math.cos(a) * ru * 0.9, v = Math.sin(a) * rv * 0.9;
-    const seg = (Math.PI * 2 * Math.hypot(ru, rv) * 0.7) / n / 2 + 0.6;
-    k.box(u, v, 0.8, seg, -1, height, rock, { yaw: -Math.atan2(v / (rv * rv), u / (ru * ru)), tag: 'cave-wall' }).mesh.visible = false;
-  }
-
-  // Rock columns from floor to roof: the winding route inside.
-  const columns: [number, number, number][] = [[-0.45, 0.33, 4], [-0.27, -0.45, 3.5], [0.18, 0.2, 4.5], [0.62, 0.55, 3], [0.55, -0.2, 2.5]];
-  for (const [fu, fv, r] of columns) {
-    const u = fu * ru, v = fv * rv;
-    const top = height * Math.sqrt(Math.max(0.05, 1 - fu * fu - fv * fv));
-    const g = new THREE.IcosahedronGeometry(1, 3);
-    const gp = g.attributes.position;
-    for (let i = 0; i < gp.count; i++) {
-      const vx = gp.getX(i), vy = gp.getY(i), vz = gp.getZ(i);
-      const b = 1 + (noise3(vx * 2 + u, vy * 2, vz * 2 + v) - 0.5) * 0.5;
-      gp.setXYZ(i, vx * r * b, (vy * 0.5 + 0.5) * (top + 0.5) * (0.9 + 0.2 * b), vz * r * b);
-    }
-    g.computeVertexNormals();
-    const m = new THREE.Mesh(g, rock);
-    m.position.set(u, -0.4, v);
-    k.group.add(m);
-    k.solids.add({ cx: k.at(u, v)[0], cz: k.at(u, v)[1], hx: r * 0.72, hz: r * 0.72, yaw: yaw, y0: floorY - 1, y1: floorY + top, tag: 'cave-column' });
-  }
-
-  // The back chamber: a still pool of liquid light and the cave's growth.
-  const poolU = 0.75 * ru, poolV = -0.3 * rv;
-  const pool = new THREE.Mesh(new THREE.CircleGeometry(2.6, 32).rotateX(-Math.PI / 2), liquidLight({ a: ZONE7_SHADE.rockDeep, b: ZONE7_SHADE.moss, c: ZONE7.cyan, flow: 0.2, pool: true }));
-  pool.position.set(poolU, 0.05, poolV);
-  k.group.add(pool);
-  const light = new THREE.PointLight(ZONE7.cyan, 26, 22, 2);
-  light.position.set(poolU, 3, poolV);
-  k.group.add(light);
-  // Moonlight falling through the skylight onto the floor, and haze hanging in the chamber.
-  const skyU = SKY[0] * ru, skyV = SKY[1] * rv;
-  const shaft = lightShaft({ from: new THREE.Vector3(skyU, height + 1, skyV), to: new THREE.Vector3(skyU + 1.5, 0, skyV - 1), width: Math.min(ru, rv) * 0.32, colour: ORGANIC.mist, strength: 0.07 });
-  shaft.name = 'cave-shaft';
-  k.group.add(shaft);
-  const haze = hazeVolume({ centre: new THREE.Vector3(0, height * 0.35, 0), size: new THREE.Vector3(ru * 1.7, height * 0.7, rv * 1.7), colour: ZONE7_SHADE.moss, density: 0.04 });
-  haze.name = 'cave-haze';
-  k.group.add(haze);
-  const glow: BuiltCave['glow'] = [];
-  for (let i = 0; i < 46; i++) {
-    const a = rand() * Math.PI * 2, d = 0.25 + rand() * 0.6;
-    const u = Math.cos(a) * ru * d, v = Math.sin(a) * rv * d;
-    if (columns.some(([fu, fv, r]) => Math.hypot(u - fu * ru, v - fv * rv) < r + 0.4) || Math.hypot(u - poolU, v - poolV) < 3) continue;
-    const [wx, wz] = k.at(u, v);
-    glow.push({ x: wx, z: wz, big: i % 9 === 0 });
-  }
-  const [lx, lz] = k.at(0.78 * ru, 0.22 * rv);
-  return { group: k.group, loot: [{ id: 'cave-cache', x: lx, y: floorY, z: lz, container: 'bioPod' }], glow, floorY };
-}
