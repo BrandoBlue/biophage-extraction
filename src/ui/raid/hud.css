@@ -1,151 +1,220 @@
-/* Organic in-raid HUD (reference 04). Colours come from CSS variables set by src/ui/theme.ts (palette.ts).
+/* In-raid HUD, "membrane" language (src/ui/raid/hud.ts). No frames: quiet clusters at the edges of vision, each
+   sitting on a soft pool of shade so it reads over any sky. Numbers in the display serif, labels in small spaced
+   caps, hairlines instead of boxes, colour only where it means something (bone at rest, amber for what is in use,
+   acid for alive and ready, danger for harm). Colours come from CSS variables set by src/ui/theme.ts (palette.ts).
    --u is one hundredth of a 16:9 safe area so the HUD scales from 1280x720 to 4K. */
-#hud.organic { --u:min(1vw, 1.7778vh); font-family:"Rajdhani", "Chakra Petch", system-ui, sans-serif; font-weight:600; color:var(--bone);
-  text-transform:uppercase; letter-spacing:.06em; }
-#hud.organic .org-frame { position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none; }
-#hud.organic .glyph { width:1.1em; height:1.1em; vertical-align:-.15em; }
-#hud.organic.briefing > :not(#prompt):not(#brand) { opacity:.35; }
-#hud.organic b, #hud.organic .wname, #hud.organic .h-banner, #hud.organic label { font-family:"Chakra Petch", sans-serif; }
+#hud.organic { --u:min(1vw, 1.7778vh); --lab:color-mix(in srgb, var(--bone) 62%, transparent); --hair:color-mix(in srgb, var(--bone) 22%, transparent);
+  --shade:color-mix(in srgb, var(--background) 62%, transparent);
+  font-family:var(--ui); font-weight:600; color:var(--bone); letter-spacing:.02em; text-transform:none; }
+#hud.organic .glyph { width:1.1em; height:1.1em; vertical-align:-.15em; stroke-width:1.5; }
+#hud.organic.briefing > :not(#prompt):not(#brand) { opacity:.3; filter:blur(1px); transition:opacity .4s, filter .4s; }
+#hud.organic label, #hud.organic h4, #hud.organic .h-haul span, #hud.organic small { font-family:var(--ui); font-weight:600; font-size:calc(var(--u) * .66); letter-spacing:.22em; color:var(--lab); text-transform:uppercase; }
+#hud.organic b { font-family:var(--display); font-weight:600; font-variant-numeric:lining-nums tabular-nums; }
+/* A soft pool of shade behind each cluster, never a box. */
+.organic .h-clock::before, .organic .h-quest::before, .organic .h-vitals::before, .organic .h-weapon::before, .organic .h-kit::before {
+  content:''; position:absolute; inset:calc(var(--u) * -2.2) calc(var(--u) * -3); z-index:-1; pointer-events:none;
+  background:radial-gradient(closest-side, var(--shade), transparent); }
 
-/* Scanner, top left. */
-.organic .h-scanner { position:absolute; left:calc(var(--u) * 1.2); top:calc(var(--u) * 1); width:calc(var(--u) * 14.5); height:calc(var(--u) * 14.5); }
-.organic .h-scanner canvas { position:absolute; left:7.7%; top:7.7%; width:84.6%; height:84.6%; border-radius:50%; }
-.organic .h-scanner label { position:absolute; left:0; right:0; bottom:calc(var(--u) * -1.6); text-align:center; font-size:calc(var(--u) * .85); color:var(--bone); text-shadow:0 0 6px var(--void), 0 0 2px var(--void); }
-.organic .h-scanner .org-frame { filter:drop-shadow(0 0 calc(var(--u) * .8) color-mix(in srgb, var(--magenta) 20%, transparent)); }
-.hud-eye-iris { animation:hud-look 6s infinite ease-in-out; transform-box:fill-box; transform-origin:center; }
-@keyframes hud-look { 0%,100% { transform:translate(0,0); } 40% { transform:translate(1.5px,-1px); } 70% { transform:translate(-1.5px,1px); } }
+/* Top left: the collapse clock and the way out. */
+.organic .h-clock { position:absolute; left:calc(var(--u) * 2.4); top:calc(var(--u) * 1.6); display:flex; flex-direction:column; isolation:isolate; }
+.organic .h-clock b { font-size:calc(var(--u) * 3.4); line-height:.9; letter-spacing:.02em; transition:color .4s; }
+.organic .h-clock small { margin-top:calc(var(--u) * .35); }
+.organic .h-clock .h-objective { text-transform:none; margin-top:calc(var(--u) * .7); padding-left:calc(var(--u) * .9); border-left:1px solid var(--acid); font-family:var(--display); font-style:italic; font-weight:500;
+  font-size:calc(var(--u) * 1.25); color:var(--bone); }
+.organic .h-clock.collapse b { color:var(--danger); animation:hud-breathe 1s ease-in-out infinite; }
+.organic .h-clock.collapse .h-objective { border-left-color:var(--danger); }
+@keyframes hud-breathe { 50% { opacity:.55; } }
+@keyframes hud-hot { to { filter:brightness(1.5); } }
 
-/* Timer and objective, top centre. */
-.organic .h-top { position:absolute; left:50%; top:calc(var(--u) * 1); transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; }
-.organic .h-timer { position:relative; width:calc(var(--u) * 11); height:calc(var(--u) * 2.9); display:grid; place-items:center; }
-.organic .h-timer b { position:relative; font-size:calc(var(--u) * 1.75); color:var(--bone); text-shadow:0 0 calc(var(--u) * .6) color-mix(in srgb, var(--violet) 35%, transparent); letter-spacing:.1em; }
-.organic .h-timer.collapse b { color:var(--danger); text-shadow:0 0 calc(var(--u) * .8) color-mix(in srgb, var(--danger) 35%, transparent); animation:hud-hot .5s infinite alternate; }
-.organic .h-objective { margin-top:calc(var(--u) * .45); font-size:calc(var(--u) * .9); color:color-mix(in srgb, var(--bone) 85%, transparent); text-shadow:0 0 6px var(--void), 0 0 2px var(--void); }
-@keyframes hud-hot { to { filter:brightness(1.6); } }
+/* Top centre: the bearing tape, and the boss under it. */
+.organic .h-top { position:absolute; left:50%; top:calc(var(--u) * .9); transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; }
+.organic .h-tape canvas { width:calc(var(--u) * 38); height:calc(var(--u) * 3.2); display:block; filter:drop-shadow(0 1px 2px var(--background)); }
 
-/* Objectives, top right (reference 04's quest panel). */
-.organic .h-quest { position:absolute; right:calc(var(--u) * 1.6); top:calc(var(--u) * 1.4); width:calc(var(--u) * 18); padding:calc(var(--u) * .5) calc(var(--u) * .8);
-  background:linear-gradient(270deg, color-mix(in srgb, var(--void) 80%, transparent), transparent); border-right:1px solid color-mix(in srgb, var(--bone) 35%, transparent); }
-.organic .h-quest h4 { margin:0 0 .25em; font-size:calc(var(--u) * .85); color:var(--path-melee); display:flex; gap:.4em; align-items:center; justify-content:flex-end; }
-.organic .h-quest ul { list-style:none; margin:0; padding:0; display:grid; gap:.2em; font-size:calc(var(--u) * .95); }
-.organic .h-quest li { display:grid; grid-template-columns:auto 1fr auto; gap:.45em; align-items:center; text-align:right; }
-.organic .h-quest li .glyph { color:color-mix(in srgb, var(--bone) 60%, transparent); }
-.organic .h-quest li b { color:var(--bone); }
-.organic .h-quest li.done { opacity:.5; text-decoration:line-through; }
-.organic .h-haul { display:flex; gap:.5em; justify-content:flex-end; align-items:baseline; margin-top:.35em; font-size:calc(var(--u) * .8); }
-.organic .h-haul b { color:var(--path-dna); font-size:1.3em; margin-right:.5em; }
-.organic .h-carried { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:3px; margin-top:.35em; }
-.organic .h-carried .chip { position:relative; width:calc(var(--u) * 2.2); height:calc(var(--u) * 2.2); border:1px solid color-mix(in srgb, var(--kc) 70%, transparent); background:color-mix(in srgb, var(--void) 75%, transparent); }
+/* Top right: objectives, haul and what the cavities hold. */
+.organic .h-quest { position:absolute; right:calc(var(--u) * 2.4); top:calc(var(--u) * 1.6); width:calc(var(--u) * 21); text-align:right; isolation:isolate; }
+.organic .h-quest h4 { margin:0 0 calc(var(--u) * .5); display:flex; align-items:center; gap:.8em; }
+.organic .h-quest h4::before { content:''; flex:1; height:1px; background:linear-gradient(90deg, transparent, var(--hair)); }
+.organic .h-quest ul { list-style:none; margin:0; padding:0; display:grid; gap:calc(var(--u) * .35); }
+.organic .h-quest li { display:grid; grid-template-columns:1fr auto auto; gap:.6em; align-items:baseline; font-family:var(--display); font-weight:500; font-size:calc(var(--u) * 1.2); line-height:1.1;
+  transition:opacity .4s; animation:hud-rise .5s ease-out both; }
+.organic .h-quest li .glyph { order:3; color:var(--lab); width:.9em; height:.9em; }
+.organic .h-quest li b { order:2; font-family:var(--ui); font-size:.62em; letter-spacing:.14em; color:var(--amber); font-weight:600; }
+.organic .h-quest li.done { opacity:.4; } .organic .h-quest li.done span { text-decoration:line-through; text-decoration-color:var(--acid); }
+@keyframes hud-rise { from { opacity:0; transform:translateY(-4px); } }
+.organic .h-haul { display:flex; gap:.6em; justify-content:flex-end; align-items:baseline; margin-top:calc(var(--u) * .8); padding-top:calc(var(--u) * .5); border-top:1px solid var(--hair); }
+.organic .h-haul b { font-size:calc(var(--u) * 1.5); color:var(--bone); margin-right:.5em; } .organic .h-haul b:last-child { margin-right:0; color:var(--path-dna); }
+.organic .h-carried { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:calc(var(--u) * .35); margin-top:calc(var(--u) * .6); }
+.organic .h-carried .chip { position:relative; width:calc(var(--u) * 2.2); height:calc(var(--u) * 2.2); border-radius:50%; overflow:visible;
+  background:radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--kc) 22%, transparent), color-mix(in srgb, var(--background) 70%, transparent) 70%);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--kc) 45%, transparent); }
 .organic .h-carried .chip svg { width:100%; height:100%; }
-.organic .h-carried .chip b { position:absolute; right:1px; bottom:-1px; font-size:calc(var(--u) * .7); text-shadow:0 0 3px var(--void); }
-.organic .h-carried .cap { font-size:calc(var(--u) * .75); align-self:center; margin-left:.4em; }
-.organic .h-carried kbd { font:inherit; color:var(--bone); }
+.organic .h-carried .chip b { position:absolute; right:-.3em; bottom:-.35em; font-size:calc(var(--u) * .9); text-shadow:0 0 3px var(--background), 0 0 3px var(--background); }
+.organic .h-carried .chip.new { animation:hud-bloom .9s cubic-bezier(.2,1.4,.4,1); }
+@keyframes hud-bloom { 0% { transform:scale(.2); opacity:0; box-shadow:0 0 0 0 color-mix(in srgb, var(--kc) 60%, transparent); } 60% { transform:scale(1.25); opacity:1; }
+  100% { transform:scale(1); box-shadow:0 0 0 calc(var(--u) * 1.2) transparent, inset 0 0 0 1px color-mix(in srgb, var(--kc) 45%, transparent); } }
+.organic .h-carried .cap { font-family:var(--ui); font-size:calc(var(--u) * .7); letter-spacing:.14em; color:var(--lab); margin-left:.5em; }
+.organic .h-carried kbd { font:inherit; color:var(--bone); padding:0 .35em; border:1px solid var(--hair); border-radius:3px; }
 
-/* Vitals, bottom left: eyeball in a flesh socket, Biomass and Neural Overload bars in bone housings. */
-.organic .h-vitals { position:absolute; left:calc(var(--u) * 1.2); bottom:calc(var(--u) * 1.4); width:calc(var(--u) * 29); height:calc(var(--u) * 8.4); display:block; }
-.organic .h-socket { position:absolute; left:0; top:0; width:calc(var(--u) * 8.2); height:calc(var(--u) * 8.2); }
-.organic .h-socket .org-frame { filter:drop-shadow(0 0 calc(var(--u) * .7) color-mix(in srgb, var(--magenta) 25%, transparent)); }
-.organic .h-socket .eye { --iris:var(--acid); position:absolute; left:20%; top:20%; width:60%; height:60%; border-radius:50%; display:grid; place-items:center;
-  background:radial-gradient(circle at 42% 34%, color-mix(in srgb, var(--bone) 62%, var(--void)), color-mix(in srgb, var(--bone) 30%, var(--shade-flesh)) 55%, color-mix(in srgb, var(--shade-rockDeep) 85%, var(--void)) 100%);
-  box-shadow:inset 0 0 calc(var(--u) * 1.4) var(--void), inset 0 calc(var(--u) * -.4) calc(var(--u) * .8) color-mix(in srgb, var(--void) 80%, transparent); transition:box-shadow .3s; }
-.organic .h-socket .eye .iris { width:54%; height:54%; border-radius:50%; display:grid; place-items:center; animation:look 5s infinite ease-in-out;
-  background:radial-gradient(circle, color-mix(in srgb, var(--iris) 45%, var(--bone)), color-mix(in srgb, var(--iris) 60%, var(--void)) 45%, color-mix(in srgb, var(--iris) 20%, var(--void)) 100%);
-  box-shadow:0 0 calc(var(--u) * .5) color-mix(in srgb, var(--iris) 30%, transparent); transition:background .8s, box-shadow .8s; }
-.organic .h-socket .eye .pupil { width:calc(var(--dilate, .4) * 100%); height:calc(var(--dilate, .4) * 100%); border-radius:50%; background:var(--void); transition:all .2s; }
-.organic .h-socket .eye.hurt { box-shadow:inset 0 0 calc(var(--u) * 1.2) color-mix(in srgb, var(--danger) 35%, transparent), 0 0 calc(var(--u) * 1) color-mix(in srgb, var(--danger) 35%, transparent); }
-.organic .h-socket .eye.alarm .iris, .organic .h-socket .eye.over .iris { animation:twitch .08s infinite; }
-.organic .h-socket .lvl { position:absolute; left:0; right:0; bottom:calc(var(--u) * .05); text-align:center; font-size:calc(var(--u) * .65); color:var(--bone); letter-spacing:.1em; }
-.organic .h-bars { position:absolute; left:calc(var(--u) * 8.6); right:0; top:calc(var(--u) * 1.2); display:grid; gap:calc(var(--u) * .6); }
-.organic .h-bar { position:relative; height:calc(var(--u) * 2.7); }
-.organic .h-bar label { white-space:nowrap; position:absolute; left:calc(var(--u) * 3); right:calc(var(--u) * 2); top:calc(var(--u) * -1.1); display:flex; justify-content:space-between; align-items:baseline; font-size:calc(var(--u) * .85); text-shadow:0 0 4px var(--void), 0 0 2px var(--void); }
-.organic .h-bar label small { font-size:.75em; opacity:.7; margin-left:.3em; margin-right:auto; padding-right:.8em; }
-.organic .h-bar.biomass label { color:color-mix(in srgb, var(--bone) 80%, transparent); } .organic .h-bar.neural label { color:color-mix(in srgb, var(--bone) 80%, transparent); }
-.organic .h-bar .value { color:var(--bone); }
-.organic .h-bar .trk { position:absolute; left:12.6%; right:7%; top:28%; bottom:28%; background:color-mix(in srgb, var(--void) 85%, transparent); overflow:hidden;
-  clip-path:polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
-.organic .h-bar .fill { position:absolute; left:0; top:0; bottom:0; width:100%; z-index:1; transition:width .15s; }
-.organic .h-bar .ghost { position:absolute; left:0; top:0; bottom:0; width:100%; background:color-mix(in srgb, var(--bone) 60%, transparent); }
-.organic .h-bar.biomass .fill { background:linear-gradient(180deg, color-mix(in srgb, var(--acid) 60%, var(--bone)), var(--acid) 40%, color-mix(in srgb, var(--acid) 45%, var(--void))); box-shadow:0 0 12px color-mix(in srgb, var(--acid) 35%, transparent); }
-.organic .h-bar.biomass.low .fill { background:linear-gradient(180deg, color-mix(in srgb, var(--danger) 60%, var(--bone)), var(--danger) 40%, color-mix(in srgb, var(--danger) 45%, var(--void))); animation:hud-hot .4s infinite alternate; }
-.organic .h-bar.neural .fill { background:linear-gradient(180deg, color-mix(in srgb, var(--path-viral) 50%, var(--bone)), var(--path-viral) 40%, color-mix(in srgb, var(--violet) 55%, var(--void))); box-shadow:0 0 12px color-mix(in srgb, var(--path-viral) 35%, transparent); }
-.organic .h-bar.neural.hot .fill { animation:hud-hot .35s infinite alternate; }
-.organic .h-bar.neural.over .fill { background:var(--magenta); box-shadow:0 0 18px color-mix(in srgb, var(--magenta) 35%, transparent); }
-.organic .h-bar .fill::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(100deg, transparent 0 10px, color-mix(in srgb, var(--void) 22%, transparent) 10px 12px); }
-.organic .h-virus { position:absolute; left:calc(var(--u) * 8.4); top:calc(var(--u) * -2.6); display:flex; gap:.5em; align-items:center; padding:.15em .7em .15em .2em; font-size:calc(var(--u) * .8);
-  background:linear-gradient(90deg, color-mix(in srgb, var(--vc) 30%, var(--void)), transparent); border-left:2px solid var(--vc); animation:virus-in .6s ease-out; }
-.organic .h-virus i { width:calc(var(--u) * 1.4); height:calc(var(--u) * 2.4); } .organic .h-virus i svg { width:100%; height:100%; }
-.organic .h-virus small { display:block; font-size:.75em; opacity:.7; } .organic .h-virus b { color:var(--vc); text-shadow:0 0 6px var(--vc); }
+/* Bottom left: the host. The ocellus dilates with overload and takes the tint of an active strain. */
+#hud.organic #vitals { position:absolute; left:calc(var(--u) * 2.4); bottom:calc(var(--u) * 3); width:calc(var(--u) * 24); display:grid; grid-template-columns:1fr; grid-template-rows:none; column-gap:0;
+  gap:calc(var(--u) * .9); align-items:stretch; isolation:isolate; }
+#hud.organic #vitals.jolt { animation:hud-jolt .32s cubic-bezier(.3,.7,.4,1); }
+@keyframes hud-jolt { 20% { transform:translate(calc(var(--u) * -.35), calc(var(--u) * .2)); } 45% { transform:translate(calc(var(--u) * .25), calc(var(--u) * -.1)); } 70% { transform:translate(calc(var(--u) * -.1), 0); } }
+.organic .h-id { display:flex; align-items:center; gap:calc(var(--u) * .7); }
+.organic .h-id .lvl { font-size:calc(var(--u) * .7); letter-spacing:.26em; color:var(--lab); }
+.organic .eye { --iris:var(--acid); --dilate:.4; position:relative; width:calc(var(--u) * 1.9); height:calc(var(--u) * 1.9); border-radius:50%; display:grid; place-items:center;
+  box-shadow:inset 0 0 0 1px var(--hair), 0 0 calc(var(--u) * .8) color-mix(in srgb, var(--iris) 18%, transparent); transition:box-shadow .3s; }
+.organic .eye .iris { width:62%; height:62%; border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle, color-mix(in srgb, var(--iris) 70%, var(--bone)), color-mix(in srgb, var(--iris) 40%, var(--background)));
+  transition:background .8s; animation:look 7s infinite ease-in-out; }
+.organic .eye .pupil { width:calc(var(--dilate) * 100%); height:calc(var(--dilate) * 100%); border-radius:50%; background:var(--background); transition:all .25s; }
+.organic .eye.hurt { box-shadow:inset 0 0 0 1px var(--danger), 0 0 calc(var(--u) * 1) color-mix(in srgb, var(--danger) 35%, transparent); }
+.organic .eye.alarm .iris, .organic .eye.over .iris { animation:twitch .08s infinite; }
+.organic .h-bar .hd { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:calc(var(--u) * .35); }
+.organic .h-bar .value { font-family:var(--display); font-weight:600; font-variant-numeric:lining-nums tabular-nums; color:var(--bone); display:inline-block; }
+.organic .h-bar.biomass .value { font-size:calc(var(--u) * 2.4); line-height:.8; }
+.organic .h-bar.biomass .value small { font-family:var(--display); font-size:.45em; letter-spacing:0; margin-left:.1em; }
+.organic .h-bar.neural .value { font-size:calc(var(--u) * 1.15); color:var(--lab); }
+.organic .h-bar .value.down { animation:hud-tick-down .45s ease-out; } .organic .h-bar .value.up { animation:hud-tick-up .6s ease-out; }
+@keyframes hud-tick-down { 0% { color:var(--danger); transform:translateY(calc(var(--u) * .25)) scale(1.12); } }
+@keyframes hud-tick-up { 0% { color:var(--acid); transform:translateY(calc(var(--u) * -.2)); } }
+.organic .h-bar .trk { position:relative; height:calc(var(--u) * .42); border-radius:99px; background:color-mix(in srgb, var(--bone) 12%, transparent); overflow:hidden; }
+.organic .h-bar .fill, .organic .h-bar .ghost { position:absolute; left:0; top:0; bottom:0; width:100%; border-radius:99px; }
+.organic .h-bar .fill { transition:width .18s ease-out; }
+.organic .h-bar .ghost { background:color-mix(in srgb, var(--danger) 55%, var(--bone)); opacity:.75; }
+.organic .h-bar.biomass .fill { background:linear-gradient(90deg, color-mix(in srgb, var(--acid) 35%, var(--bone)), color-mix(in srgb, var(--acid) 70%, var(--bone))); }
+.organic .h-bar.biomass.low .fill { background:var(--danger); animation:hud-breathe .9s ease-in-out infinite; }
+.organic .h-bar.biomass.low .value { color:var(--danger); }
+.organic .h-bar.neural .trk { height:calc(var(--u) * .28); }
+.organic .h-bar.neural .fill { background:linear-gradient(90deg, color-mix(in srgb, var(--path-viral) 35%, var(--mist)), var(--path-viral)); }
+.organic .h-bar.neural.hot .fill { animation:hud-hot .35s infinite alternate; } .organic .h-bar.neural.hot .value { color:var(--path-viral); }
+.organic .h-bar.neural.over .fill { background:var(--magenta); } .organic .h-bar.neural.over .value { color:var(--magenta); }
+.organic .h-virus { display:flex; gap:.5em; align-items:center; margin-left:auto; padding:.2em .8em .2em .3em; border-radius:99px;
+  background:color-mix(in srgb, var(--vc) 14%, transparent); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--vc) 50%, transparent); animation:virus-in .6s ease-out; }
+.organic .h-virus i { width:calc(var(--u) * 1.3); height:calc(var(--u) * 1.6); } .organic .h-virus i svg { width:100%; height:100%; }
+.organic .h-virus small { display:none; } .organic .h-virus b { font-family:var(--display); font-style:italic; font-weight:500; font-size:calc(var(--u) * 1); color:var(--bone); letter-spacing:.02em; text-transform:capitalize; }
 @keyframes virus-in { from { transform:translateX(-12px); opacity:0; } }
 
-/* Ability bar, bottom centre. */
-.organic .h-slots { position:absolute; left:50%; bottom:calc(var(--u) * .8); transform:translateX(-50%); width:calc(var(--u) * 25); height:calc(var(--u) * 6.6); }
-.organic .h-banner { position:absolute; left:50%; top:calc(var(--u) * .2); transform:translateX(-50%); font-size:calc(var(--u) * .8); color:var(--bone); white-space:nowrap; transition:color .2s, text-shadow .2s; }
-.organic .h-banner.lit { color:var(--path-melee); text-shadow:0 0 8px color-mix(in srgb, var(--path-melee) 35%, transparent); }
-.organic .h-slots .row { position:absolute; left:6%; right:6%; top:32%; bottom:9%; display:flex; gap:4%; justify-content:center; }
-.organic .hslot { position:relative; aspect-ratio:1; height:100%; border:1px solid var(--cyan); background:radial-gradient(circle, color-mix(in srgb, var(--cyan) 25%, var(--void)), var(--void)); display:grid; place-items:center; overflow:hidden;
-  box-shadow:0 0 10px color-mix(in srgb, var(--cyan) 20%, transparent), inset 0 0 10px color-mix(in srgb, var(--cyan) 14%, transparent); }
-.organic .hslot .ico { width:55%; height:55%; color:var(--cyan); filter:drop-shadow(0 0 4px color-mix(in srgb, var(--cyan) 35%, transparent)); } .organic .hslot .ico svg { width:100%; height:100%; }
-.organic .hslot .name { position:absolute; left:0; right:0; top:2px; font-size:calc(var(--u) * .5); text-align:center; opacity:.8; }
-.organic .hslot .count { position:absolute; top:2px; right:4px; font-size:calc(var(--u) * .75); color:var(--lime); }
-.organic .hslot kbd { position:absolute; bottom:-1px; font:inherit; font-size:calc(var(--u) * .65); color:var(--bone); }
-.organic .hslot .cd { position:absolute; left:0; right:0; bottom:0; background:color-mix(in srgb, var(--void) 70%, transparent); }
-.organic .hslot.locked { opacity:.35; border-color:color-mix(in srgb, var(--bone) 40%, transparent); box-shadow:none; } .organic .hslot.locked .ico { color:var(--bone); filter:none; }
-.organic .hslot.dim { filter:saturate(.3) brightness(.7); }
-.organic .hslot.active { border:2px solid var(--path-melee); box-shadow:0 0 16px color-mix(in srgb, var(--path-melee) 35%, transparent); } .organic .hslot.active .ico { color:var(--path-melee); }
+/* Bottom centre: the kit. Abilities and carried gear as round cells; cooldown drains as a shadow sweep. */
+.organic .h-kit { position:absolute; left:50%; bottom:calc(var(--u) * 2.6); transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; isolation:isolate; }
+.organic .h-banner { min-height:1.4em; font-family:var(--display); font-style:italic; font-weight:500; font-size:calc(var(--u) * 1.2); color:var(--lab); opacity:0; transform:translateY(4px); transition:opacity .25s, transform .25s, color .25s; }
+.organic .h-banner.lit { opacity:1; transform:none; color:var(--amber); }
+.organic .h-kit .row { display:flex; align-items:flex-end; gap:calc(var(--u) * 1.4); margin-top:calc(var(--u) * .3); }
+.organic .h-kit .cells, .organic .h-gear { display:flex; gap:calc(var(--u) * .8); }
+.organic .h-gear:not(:empty) { padding-left:calc(var(--u) * 1.4); border-left:1px solid var(--hair); }
+.organic .hslot { --cd:0; position:relative; width:calc(var(--u) * 3.4); height:calc(var(--u) * 3.4); border-radius:50%; display:grid; place-items:center;
+  background:radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--bone) 10%, transparent), color-mix(in srgb, var(--background) 72%, transparent) 72%);
+  box-shadow:inset 0 0 0 1px var(--hair); transition:box-shadow .2s, transform .2s, opacity .2s; }
+.organic .hslot.locked { display:none; }
+.organic .hslot .ico { width:52%; height:52%; color:var(--bone); } .organic .hslot .ico svg { width:100%; height:100%; }
+.organic .hslot .cd { position:absolute; inset:0; border-radius:50%; background:conic-gradient(color-mix(in srgb, var(--background) 78%, transparent) calc(var(--cd) * 360deg), transparent 0); z-index:1; pointer-events:none; }
+.organic .hslot .count { position:absolute; right:calc(var(--u) * -.35); top:calc(var(--u) * -.3); z-index:2; min-width:1.5em; padding:0 .3em; box-sizing:border-box; border-radius:99px; text-align:center;
+  font-family:var(--display); font-weight:600; font-size:calc(var(--u) * .95); line-height:1.4; background:var(--background); box-shadow:inset 0 0 0 1px var(--hair); }
+.organic .hslot .count:empty { display:none; }
+.organic .hslot kbd { position:absolute; bottom:calc(var(--u) * -1.5); font:600 calc(var(--u) * .7) var(--ui); letter-spacing:.1em; color:var(--lab); }
+.organic .hslot .name { display:none; }
+.organic .hslot.dim { opacity:.45; }
+.organic .hslot.active { box-shadow:inset 0 0 0 1.5px var(--amber), 0 0 calc(var(--u) * 1.2) color-mix(in srgb, var(--amber) 30%, transparent); }
+.organic .hslot.active .ico { color:var(--amber); } .organic .hslot.active kbd { color:var(--amber); }
+.organic .hslot.fired { animation:hud-fire .45s cubic-bezier(.2,1.6,.4,1); }
+@keyframes hud-fire { 0% { transform:scale(.82); box-shadow:inset 0 0 0 2px var(--amber), 0 0 0 0 color-mix(in srgb, var(--amber) 60%, transparent); }
+  100% { transform:scale(1); box-shadow:inset 0 0 0 1px var(--hair), 0 0 0 calc(var(--u) * 1.4) transparent; } }
+.organic .hslot.gchip { width:calc(var(--u) * 2.8); height:calc(var(--u) * 2.8); }
 
-/* Weapon, bottom right. */
-.organic .h-weapon { position:absolute; right:calc(var(--u) * 1); bottom:calc(var(--u) * 1); width:calc(var(--u) * 23); height:calc(var(--u) * 8.2); }
-.organic .h-weapon .wname { position:absolute; left:8%; top:16%; font-size:calc(var(--u) * .95); color:var(--bone); }
-.organic .h-weapon .wicon { position:absolute; left:8%; top:30%; width:38%; height:28%; } .organic .h-weapon .wicon svg { width:100%; height:100%; }
-.organic .h-weapon .ammo { position:absolute; left:8%; bottom:12%; font-size:calc(var(--u) * 1.3); color:var(--bone); }
-.organic .h-weapon .ammo b { font-size:calc(var(--u) * 2.4); text-shadow:0 0 10px color-mix(in srgb, var(--magenta) 35%, transparent); }
-.organic .h-weapon .ammo small { font-size:.7em; color:var(--bone); opacity:.8; }
-.organic .h-weapon .ammo.low b { color:var(--danger); text-shadow:0 0 10px color-mix(in srgb, var(--danger) 35%, transparent); }
-.organic .h-weapon .ego { position:absolute; right:2.6%; top:13%; width:24.5%; aspect-ratio:1; display:grid; place-items:center; }
+/* Bottom right: the weapon. Ammo in the serif, the magazine as a thin line, ego charge as a slow ring. */
+.organic .h-weapon { position:absolute; right:calc(var(--u) * 2.4); bottom:calc(var(--u) * 3); width:calc(var(--u) * 19); display:flex; flex-direction:column; align-items:flex-end; isolation:isolate; }
+.organic .h-weapon .wname { font-family:var(--display); font-style:italic; font-weight:500; font-size:calc(var(--u) * 1.25); color:var(--bone); }
+.organic .h-weapon .wrow { display:flex; align-items:center; gap:calc(var(--u) * 1.2); margin-top:calc(var(--u) * .2); }
+.organic .h-weapon .ammo { display:flex; align-items:baseline; gap:.4em; }
+.organic .h-weapon .ammo b { font-size:calc(var(--u) * 4); line-height:.85; display:inline-block; transform-origin:100% 80%; }
+.organic .h-weapon .ammo b.shot { animation:hud-shot .14s ease-out; }
+@keyframes hud-shot { 0% { transform:scale(1.07); opacity:.75; } }
+.organic .h-weapon .ammo.low b { color:var(--danger); }
+.organic .h-weapon .ammo.regrow b { font-style:italic; font-weight:500; font-size:calc(var(--u) * 2); color:var(--lab); animation:hud-breathe .8s ease-in-out infinite; }
+.organic .h-weapon .mag { width:100%; height:2px; margin-top:calc(var(--u) * .6); background:color-mix(in srgb, var(--bone) 12%, transparent); border-radius:99px; display:flex; justify-content:flex-end; }
+.organic .h-weapon .mag i { height:100%; background:var(--bone); border-radius:99px; transition:width .12s; }
+.organic .h-weapon .ammo.low ~ .mag i, .organic .h-weapon .wrow:has(.ammo.low) + .mag i { background:var(--danger); }
+.organic .h-weapon .ego { position:relative; width:calc(var(--u) * 3.6); height:calc(var(--u) * 3.6); display:grid; place-items:center; align-content:center; }
 .organic .h-weapon .ego svg { position:absolute; inset:0; transform:rotate(-90deg); }
-.organic .h-weapon .ego circle { fill:none; stroke-width:8; } .organic .h-weapon .ego .trk { stroke:color-mix(in srgb, var(--bone) 15%, transparent); }
-.organic .h-weapon .ego .val { stroke:var(--cyan); filter:drop-shadow(0 0 4px color-mix(in srgb, var(--cyan) 35%, transparent)); transition:stroke-dashoffset .15s; }
-.organic .h-weapon .ego span { font-size:calc(var(--u) * .7); text-align:center; color:var(--bone); line-height:1.1; }
-.organic .h-weapon .ego.ready span { color:var(--lime); text-shadow:0 0 8px color-mix(in srgb, var(--lime) 35%, transparent); animation:hud-hot .3s infinite alternate; }
-.organic .h-weapon .ego.ready .val { stroke:var(--lime); }
+.organic .h-weapon .ego circle { fill:none; stroke-width:3.5; stroke-linecap:round; } .organic .h-weapon .ego .trk { stroke:color-mix(in srgb, var(--bone) 14%, transparent); }
+.organic .h-weapon .ego .val { stroke:var(--mist); transition:stroke-dashoffset .2s, stroke .3s; }
+.organic .h-weapon .ego span { font-family:var(--display); font-weight:600; font-size:calc(var(--u) * 1.3); line-height:1; }
+.organic .h-weapon .ego small { font-size:calc(var(--u) * .5); letter-spacing:.2em; }
+.organic .h-weapon .ego.ready .val { stroke:var(--acid); } .organic .h-weapon .ego.ready span { color:var(--acid); }
+.organic .h-weapon .ego.ready { animation:hud-ready 1.6s ease-in-out infinite; }
+.organic .h-weapon .ego.bloom { animation:hud-bloom-ring .7s cubic-bezier(.2,1.5,.4,1), hud-ready 1.6s ease-in-out .7s infinite; }
+@keyframes hud-ready { 50% { filter:drop-shadow(0 0 calc(var(--u) * .6) color-mix(in srgb, var(--acid) 45%, transparent)); } }
+@keyframes hud-bloom-ring { 0% { transform:scale(.7); } 60% { transform:scale(1.15); } }
 
-/* Centre: rings for harvest, inject and extract. */
+/* Centre: rings for harvest, inject and extract. Thin, with the number in the serif. */
 .organic .h-centre { position:absolute; inset:0; pointer-events:none; }
-.organic .hud-ring { position:absolute; left:50%; top:50%; width:calc(var(--u) * 9); height:calc(var(--u) * 9); transform:translate(-50%, -50%); display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.organic .hud-ring { position:absolute; left:50%; top:50%; width:calc(var(--u) * 9); height:calc(var(--u) * 9); transform:translate(-50%, -50%); display:flex; flex-direction:column; align-items:center; justify-content:center; animation:hud-ring-in .3s ease-out; }
+@keyframes hud-ring-in { from { opacity:0; transform:translate(-50%, -50%) scale(.85); } }
 .organic .hud-ring svg { position:absolute; inset:0; transform:rotate(-90deg); }
-.organic .hud-ring circle { fill:none; stroke-width:3.5; } .organic .hud-ring .trk { stroke:color-mix(in srgb, var(--bone) 18%, transparent); stroke-dasharray:2 3; }
-.organic .hud-ring span { font-size:calc(var(--u) * .7); margin-top:calc(var(--u) * 5.2); } .organic .hud-ring b { font-size:calc(var(--u) * 1.2); }
-.organic .hud-ring.harvest .val { stroke:var(--path-dna); filter:drop-shadow(0 0 6px color-mix(in srgb, var(--path-dna) 35%, transparent)); } .organic .hud-ring.harvest { color:var(--path-dna); }
-.organic .hud-ring.inject .val { stroke:var(--path-viral); filter:drop-shadow(0 0 8px color-mix(in srgb, var(--path-viral) 35%, transparent)); } .organic .hud-ring.inject { color:var(--path-viral); width:calc(var(--u) * 11); height:calc(var(--u) * 11); }
-.organic .hud-ring.extract .val { stroke:var(--lime); filter:drop-shadow(0 0 6px color-mix(in srgb, var(--lime) 35%, transparent)); } .organic .hud-ring.extract { color:var(--lime); width:calc(var(--u) * 12); height:calc(var(--u) * 12); }
-.organic .h-interact { position:absolute; left:50%; top:60%; transform:translateX(-50%); text-align:center; font-size:calc(var(--u) * .95); color:var(--cyan); text-shadow:0 0 6px var(--void); }
-.organic .h-interact .bar { width:calc(var(--u) * 12); height:4px; margin:6px auto 0; background:color-mix(in srgb, var(--cyan) 20%, transparent); }
-.organic .h-interact .bar div { height:100%; background:var(--cyan); box-shadow:0 0 8px color-mix(in srgb, var(--cyan) 35%, transparent); }
+.organic .hud-ring circle { fill:none; stroke-width:1.6; stroke-linecap:round; } .organic .hud-ring .trk { stroke:color-mix(in srgb, var(--bone) 16%, transparent); }
+.organic .hud-ring .val { transition:stroke-dashoffset .12s linear; }
+.organic .hud-ring span { position:absolute; top:calc(100% + var(--u) * .4); font-size:calc(var(--u) * .66); letter-spacing:.24em; }
+.organic .hud-ring b { font-size:calc(var(--u) * 1.6); color:var(--bone); }
+.organic .hud-ring.harvest .val { stroke:var(--path-dna); } .organic .hud-ring.harvest span { color:var(--path-dna); }
+.organic .hud-ring.inject { width:calc(var(--u) * 11); height:calc(var(--u) * 11); } .organic .hud-ring.inject .val { stroke:var(--path-viral); } .organic .hud-ring.inject span { color:var(--path-viral); }
+.organic .hud-ring.extract { width:calc(var(--u) * 12); height:calc(var(--u) * 12); } .organic .hud-ring.extract .val { stroke:var(--acid); } .organic .hud-ring.extract span { color:var(--acid); }
+.organic .h-interact { position:absolute; left:50%; top:60%; transform:translateX(-50%); text-align:center; font-size:calc(var(--u) * .78); letter-spacing:.2em; color:var(--bone); text-shadow:0 1px 3px var(--background); animation:hud-rise .25s ease-out; }
+.organic .h-interact .bar { width:calc(var(--u) * 12); height:2px; margin:calc(var(--u) * .5) auto 0; border-radius:99px; background:color-mix(in srgb, var(--bone) 18%, transparent); }
+.organic .h-interact .bar div { height:100%; border-radius:99px; background:var(--path-dna); }
+
+/* Hit marker: four short strokes that open out; a weak point warms them amber, a kill holds them longer and wider. */
+#hud.organic .hitmarker { width:calc(var(--u) * 1.6); height:calc(var(--u) * 1.6); margin:calc(var(--u) * -.8); transition:opacity .12s; }
+#hud.organic .hitmarker::before, #hud.organic .hitmarker::after { width:1.5px; box-shadow:none; background:linear-gradient(var(--bone) 0 32%, transparent 32% 68%, var(--bone) 68%); }
+#hud.organic .hitmarker.on { animation:hud-hit .18s ease-out; }
+@keyframes hud-hit { from { transform:scale(.6); } }
+#hud.organic .hitmarker.weak::before, #hud.organic .hitmarker.weak::after { background:linear-gradient(var(--amber) 0 32%, transparent 32% 68%, var(--amber) 68%); box-shadow:none; }
+#hud.organic .hitmarker.kill { transform:scale(1.5); }
+#hud.organic .hitmarker.kill::before, #hud.organic .hitmarker.kill::after { background:linear-gradient(var(--danger) 0 32%, transparent 32% 68%, var(--danger) 68%); box-shadow:none; }
+/* Damage edges: a soft bruise rather than a red bar. */
+#hud.organic .vein.n { height:18%; background:radial-gradient(ellipse 60% 100% at 50% 0, color-mix(in srgb, var(--danger) 55%, transparent), transparent); }
+#hud.organic .vein.s { height:18%; background:radial-gradient(ellipse 60% 100% at 50% 100%, color-mix(in srgb, var(--danger) 55%, transparent), transparent); }
+#hud.organic .vein.e { width:14%; background:radial-gradient(ellipse 100% 60% at 100% 50%, color-mix(in srgb, var(--danger) 55%, transparent), transparent); }
+#hud.organic .vein.w { width:14%; background:radial-gradient(ellipse 100% 60% at 0 50%, color-mix(in srgb, var(--danger) 55%, transparent), transparent); }
 
 /* Mutation flash when a virus takes hold. */
 .organic .h-mutate { position:absolute; inset:0; pointer-events:none; opacity:0; --vc:var(--path-viral);
-  background:radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--vc) 45%, transparent), transparent 55%), radial-gradient(ellipse at 50% 50%, transparent 55%, color-mix(in srgb, var(--vc) 40%, transparent)); }
+  background:radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--vc) 40%, transparent), transparent 55%), radial-gradient(ellipse at 50% 50%, transparent 55%, color-mix(in srgb, var(--vc) 35%, transparent)); }
 .organic .h-mutate.on { animation:mutate 2.5s ease-out; }
 @keyframes mutate { 0% { opacity:0; } 12% { opacity:1; } 40% { opacity:.55; } 55% { opacity:.9; } 100% { opacity:0; } }
-.organic .toast { top:24%; font-family:"Chakra Petch", sans-serif; text-shadow:0 0 10px currentColor, 0 1px 2px var(--void); }
 
-/* TAB: internal cavities. The view tilts down into the torso; Zone 7 tint (magenta flesh, violet glow). */
-.cav-overlay { --u:min(1vw, 1.7778vh); position:fixed; inset:0; z-index:6; pointer-events:auto; perspective:1400px; font-family:"Rajdhani", sans-serif; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--bone);
+/* Toasts: a line of serif under the tape that settles in from a blur, coloured by what it means. */
+#hud.organic .toast { top:19%; font-family:var(--display); font-weight:500; font-style:italic; font-size:calc(var(--u) * 1.6); letter-spacing:.02em; text-transform:none;
+  color:var(--bone); text-shadow:0 1px 2px var(--background), 0 0 calc(var(--u) * 1.2) var(--background); transition:opacity .35s, filter .35s, transform .35s;
+  filter:blur(4px); transform:translateX(-50%) translateY(-6px); padding:calc(var(--u) * .9) calc(var(--u) * 3) calc(var(--u) * .7);
+  background:radial-gradient(closest-side, color-mix(in srgb, var(--background) 70%, transparent), transparent); }
+#hud.organic .toast::before { content:''; position:absolute; left:50%; top:0; width:calc(var(--u) * 3); height:1.5px; margin-left:calc(var(--u) * -1.5); background:var(--tone, var(--acid)); border-radius:99px; }
+#hud.organic .toast.on { filter:none; transform:translateX(-50%); }
+#hud.organic .toast.violet { --tone:var(--path-viral); color:color-mix(in srgb, var(--path-viral) 35%, var(--bone)); }
+#hud.organic .toast.cyan { --tone:var(--path-dna); color:color-mix(in srgb, var(--path-dna) 30%, var(--bone)); }
+#hud.organic .toast.lime { --tone:var(--acid); color:color-mix(in srgb, var(--acid) 35%, var(--bone)); }
+#hud.organic .toast.danger { --tone:var(--danger); color:color-mix(in srgb, var(--danger) 55%, var(--bone)); }
+#hud.organic .toast.alarm { top:17%; font-size:calc(var(--u) * 2.2); padding:calc(var(--u) * 1.1) calc(var(--u) * 4) calc(var(--u) * .9); border:none; box-shadow:none;
+  background:color-mix(in srgb, var(--background) 62%, transparent); border-radius:99px; backdrop-filter:blur(6px);
+  text-shadow:0 0 calc(var(--u) * 1.5) var(--background), 0 1px 2px var(--background); animation:hud-alarm 1s ease-in-out 3; }
+#hud.organic .toast.alarm::before { width:100%; left:0; margin-left:0; background:linear-gradient(90deg, transparent, var(--danger), transparent); }
+@keyframes hud-alarm { 50% { opacity:.6; } }
+
+/* TAB: internal cavities. The view tilts down into the torso; warm wet-flesh tint, amber for what can be moved. */
+.cav-overlay { --u:min(1vw, 1.7778vh); position:fixed; inset:0; z-index:6; pointer-events:auto; perspective:1400px; font-family:var(--ui); font-weight:600; text-transform:uppercase; letter-spacing:.12em; color:var(--bone);
   background:radial-gradient(ellipse 60% 70% at 50% 60%, color-mix(in srgb, var(--shade-flesh) 55%, transparent), color-mix(in srgb, var(--void) 92%, transparent) 75%); animation:cav-in .35s ease-out; }
 .cav-overlay.hidden { display:none; }
 @keyframes cav-in { from { opacity:0; } }
-.cav-overlay label { display:block; font-family:"Chakra Petch", sans-serif; font-size:calc(var(--u) * .9); color:var(--magenta); text-shadow:0 0 6px var(--void); margin-bottom:.3em; white-space:nowrap; }
+.cav-overlay label { display:block; font-family:var(--ui); letter-spacing:.2em; font-size:calc(var(--u) * .9); color:var(--amber); text-shadow:0 0 6px var(--void); margin-bottom:.3em; white-space:nowrap; }
 .cav-overlay label span { color:var(--bone); opacity:.7; margin-left:.4em; }
 .cav-tilt { position:absolute; left:50%; top:calc(var(--u) * 2); width:calc(var(--u) * 34); height:calc(var(--u) * 46); transform:translateX(-50%) rotateX(14deg); transform-origin:50% 0; animation:cav-tilt .45s cubic-bezier(.2,.9,.3,1); }
 @keyframes cav-tilt { from { transform:translateX(-50%) rotateX(55deg) translateY(-20%); opacity:0; } }
-.cav-torso { position:absolute; inset:0; filter:hue-rotate(0deg) drop-shadow(0 0 calc(var(--u) * 2) color-mix(in srgb, var(--magenta) 18%, transparent)); }
+.cav-torso { position:absolute; inset:0; filter:hue-rotate(0deg) drop-shadow(0 0 calc(var(--u) * 2) color-mix(in srgb, var(--amber) 18%, transparent)); }
 .cav-torso svg { width:100%; height:100%; }
 .cav-main { position:absolute; left:50%; top:calc(var(--u) * 8); transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; }
-.cav-main .grid { --cell:calc(var(--u) * 4.2); box-shadow:0 0 0 1px color-mix(in srgb, var(--magenta) 35%, transparent), 0 0 calc(var(--u) * 3) color-mix(in srgb, var(--magenta) 18%, transparent); }
+.cav-main .grid { --cell:calc(var(--u) * 4.2); box-shadow:0 0 0 1px color-mix(in srgb, var(--amber) 35%, transparent), 0 0 calc(var(--u) * 3) color-mix(in srgb, var(--amber) 18%, transparent); }
 .cav-pouch { position:absolute; left:50%; bottom:calc(var(--u) * 2.5); transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; }
 .cav-pouch label { color:var(--path-dna); }
 .cav-pouch .grid { --cell:calc(var(--u) * 3.8); box-shadow:0 0 0 1px color-mix(in srgb, var(--path-dna) 35%, transparent), 0 0 calc(var(--u) * 1.6) color-mix(in srgb, var(--path-dna) 16%, transparent); }
-.cav-overlay .grid .cells i { border-color:color-mix(in srgb, var(--magenta) 20%, transparent); background:color-mix(in srgb, var(--void) 70%, transparent); }
+.cav-overlay .grid .cells i { border-color:color-mix(in srgb, var(--amber) 20%, transparent); background:color-mix(in srgb, var(--void) 70%, transparent); }
 .cav-arm { position:absolute; right:calc(var(--u) * -12); top:calc(var(--u) * 16); width:calc(var(--u) * 10); height:calc(var(--u) * 10); border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;
   font-size:calc(var(--u) * .7); color:var(--path-viral); border:1px dashed color-mix(in srgb, var(--path-viral) 70%, transparent); background:radial-gradient(circle, color-mix(in srgb, var(--path-viral) 18%, transparent), transparent 70%); }
 .cav-arm .glyph { width:calc(var(--u) * 3); height:calc(var(--u) * 3); margin-bottom:.4em; }
@@ -156,46 +225,43 @@
 .cav-pod .grid { --cell:calc(var(--u) * 3.8); }
 .cav-pod.empty { opacity:.45; border-style:dashed; }
 .cav-help { position:absolute; left:50%; bottom:calc(var(--u) * 1); transform:translateX(-50%); display:flex; gap:calc(var(--u) * 2); font-size:calc(var(--u) * .85); white-space:nowrap; }
-.cav-help kbd { font:inherit; color:var(--magenta); }
-.cav-overlay .item-tip { border-color:var(--magenta); }
+.cav-help kbd { font:inherit; color:var(--amber); }
+.cav-overlay .item-tip { border-color:var(--amber); }
 
-/* Boss bar (Brood Heart, later the Reliquary): bone sinew, deep flesh fill, a pale ghost for damage taken, wave notches. Never neon. */
-.organic .h-boss { margin-top:calc(var(--u) * .7); width:calc(var(--u) * 34); }
+/* Boss bar (Brood Heart, later the Reliquary): a thin flesh line under the tape with a pale ghost for damage taken
+   and a notch per brood wave; the name in the serif. Never neon. */
+.organic .h-boss { margin-top:calc(var(--u) * .4); width:calc(var(--u) * 34); animation:hud-rise .5s ease-out; }
 .organic .h-boss.hidden { display:none; }
-.organic .h-boss .bh { display:flex; justify-content:space-between; align-items:baseline; padding:0 calc(var(--u) * 1.4); margin-bottom:calc(var(--u) * .15);
-  font-family:"Chakra Petch", sans-serif; text-shadow:0 0 6px var(--void), 0 0 2px var(--void); }
-.organic .h-boss .bh b { font-size:calc(var(--u) * 1); letter-spacing:.22em; color:var(--bone); font-weight:600; }
-.organic .h-boss .bh span { font-size:calc(var(--u) * .78); letter-spacing:.14em; color:color-mix(in srgb, var(--bone) 65%, transparent); }
-.organic .h-boss .bt { position:relative; height:calc(var(--u) * 2); }
-.organic .h-boss .trk { position:absolute; left:4%; right:4%; top:30%; bottom:30%; overflow:hidden; background:color-mix(in srgb, var(--void) 88%, transparent); }
-.organic .h-boss .fill, .organic .h-boss .ghost { position:absolute; left:0; top:0; bottom:0; width:100%; }
-.organic .h-boss .ghost { background:color-mix(in srgb, var(--bone) 28%, transparent); }
-.organic .h-boss .fill { transition:width .15s;
-  background:linear-gradient(180deg, color-mix(in srgb, var(--danger) 45%, var(--bone)), color-mix(in srgb, var(--danger) 75%, var(--shade-flesh)) 45%, color-mix(in srgb, var(--danger) 35%, var(--void))); }
-.organic .h-boss .fill::after { content:''; position:absolute; inset:0; background:repeating-linear-gradient(95deg, transparent 0 14px, color-mix(in srgb, var(--void) 25%, transparent) 14px 16px); }
-.organic .h-boss.low .fill { animation:hud-hot .6s infinite alternate; }
-.organic .h-boss .notches i { position:absolute; top:-1px; bottom:-1px; width:2px; margin-left:-1px; z-index:2; background:color-mix(in srgb, var(--bone) 70%, transparent); }
-.organic .h-boss .notches i.past { background:color-mix(in srgb, var(--bone) 25%, transparent); }
+.organic .h-boss .bh { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:calc(var(--u) * .35); text-shadow:0 1px 2px var(--background); }
+.organic .h-boss .bh b { font-size:calc(var(--u) * 1.5); font-weight:600; color:var(--bone); letter-spacing:.04em; text-transform:none; }
+.organic .h-boss .bh span { font-size:calc(var(--u) * .68); letter-spacing:.22em; color:var(--lab); }
+.organic .h-boss .bt { position:relative; }
+.organic .h-boss .trk { position:relative; height:calc(var(--u) * .45); border-radius:99px; overflow:hidden; background:color-mix(in srgb, var(--bone) 12%, transparent); }
+.organic .h-boss .fill, .organic .h-boss .ghost { position:absolute; left:0; top:0; bottom:0; width:100%; border-radius:99px; }
+.organic .h-boss .ghost { background:color-mix(in srgb, var(--bone) 45%, transparent); }
+.organic .h-boss .fill { transition:width .15s; background:linear-gradient(90deg, color-mix(in srgb, var(--danger) 70%, var(--wetFleshDeep)), color-mix(in srgb, var(--danger) 70%, var(--bone))); }
+.organic .h-boss.low .fill { animation:hud-breathe .7s ease-in-out infinite; }
+.organic .h-boss .notches i { position:absolute; top:0; bottom:0; width:2px; margin-left:-1px; z-index:2; background:var(--background); }
+.organic .h-boss .notches i.past { opacity:.4; }
 
-/* Flesh Market gear carried into the raid (counts from the cavities), stacked over the weapon panel. */
-.organic .h-gear { position:absolute; right:calc(var(--u) * 1.6); bottom:calc(var(--u) * 9.6); display:flex; gap:calc(var(--u) * .45); }
-.organic .h-gear .gchip { display:flex; align-items:center; gap:.35em; padding:calc(var(--u) * .2) calc(var(--u) * .5); font-size:calc(var(--u) * .78); letter-spacing:.1em;
-  color:color-mix(in srgb, var(--bone) 85%, transparent); background:color-mix(in srgb, var(--void) 70%, transparent); border:1px solid color-mix(in srgb, var(--bone) 28%, transparent); }
-.organic .h-gear kbd { font:inherit; color:var(--bone); border:1px solid color-mix(in srgb, var(--bone) 45%, transparent); padding:0 .3em; }
-.organic .h-gear i { display:inline-flex; width:calc(var(--u) * 1.3); height:calc(var(--u) * 1.3); } .organic .h-gear i svg { width:100%; height:100%; }
-.organic .h-gear b { color:var(--bone); font-weight:600; }
 /* Heart Husk revive: the screen sinks into flesh-dark while the husk splits. */
-.organic .h-revive { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:calc(var(--u) * .5); z-index:5;
-  background:radial-gradient(ellipse at center, color-mix(in srgb, var(--shade-flesh) 30%, transparent), color-mix(in srgb, var(--void) 92%, transparent) 70%);
-  font-family:"Chakra Petch", sans-serif; text-shadow:0 0 8px var(--void); }
+.organic .h-revive { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:calc(var(--u) * .6); z-index:5;
+  background:radial-gradient(ellipse at center, color-mix(in srgb, var(--wetFleshDeep) 45%, transparent), color-mix(in srgb, var(--background) 94%, transparent) 70%); animation:hud-sink .8s ease-out; }
+@keyframes hud-sink { from { opacity:0; backdrop-filter:blur(0); } }
 .organic .h-revive.hidden { display:none; }
-.organic .h-revive b { font-size:calc(var(--u) * 2.2); letter-spacing:.3em; color:var(--bone); font-weight:600; }
-.organic .h-revive span { font-size:calc(var(--u) * 1); letter-spacing:.18em; color:color-mix(in srgb, var(--bone) 70%, transparent); }
+.organic .h-revive b { font-size:calc(var(--u) * 3.4); font-style:italic; font-weight:500; color:var(--bone); }
+.organic .h-revive span { font-size:calc(var(--u) * .8); letter-spacing:.26em; color:var(--lab); }
 .organic .h-revive i { font-style:normal; color:var(--bone); }
 
 /* Click-to-take-control prompt: sized in --u like the rest of the HUD and anchored above the bottom band (vitals,
    slots, weapon), so the full control list never runs into the Biomass value at any window size. */
-#hud.organic #prompt { top:auto; bottom:calc(var(--u) * 12.5); max-width:calc(var(--u) * 58); padding:calc(var(--u) * .9) calc(var(--u) * 2);
-  font-size:calc(var(--u) * 1.25); line-height:1.15; box-sizing:border-box; }
-#hud.organic #prompt small { font-size:calc(var(--u) * .78); margin-top:calc(var(--u) * .45); line-height:1.3; }
+#hud.organic #prompt { top:auto; bottom:calc(var(--u) * 12.5); max-width:calc(var(--u) * 58); padding:calc(var(--u) * 1.1) calc(var(--u) * 2.4);
+  font-family:var(--display); font-style:italic; font-weight:500; font-size:calc(var(--u) * 1.7); line-height:1.15; box-sizing:border-box; color:var(--bone);
+  background:radial-gradient(closest-side, color-mix(in srgb, var(--background) 82%, transparent), color-mix(in srgb, var(--background) 55%, transparent));
+  border:none; border-radius:calc(var(--u) * 2); box-shadow:inset 0 0 0 1px var(--hair); animation:hud-breathe-soft 3s ease-in-out infinite; }
+@keyframes hud-breathe-soft { 50% { box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--acid) 45%, transparent); } }
+#hud.organic #prompt small { font-family:var(--ui); font-style:normal; font-weight:500; font-size:calc(var(--u) * .82); letter-spacing:.04em; text-transform:none; color:color-mix(in srgb, var(--bone) 75%, transparent); margin-top:calc(var(--u) * .55); line-height:1.4; }
 #hud.organic #prompt small + small { margin-top:calc(var(--u) * .15); }
+
+/* Build label: a whisper under the vitals, clear of the Neural Overload line. */
+#hud.organic #brand { font-family:var(--ui); font-size:calc(var(--u) * .6); letter-spacing:.2em; left:calc(var(--u) * 2.4); bottom:calc(var(--u) * .6); opacity:.35; }

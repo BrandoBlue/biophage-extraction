@@ -159,3 +159,21 @@ describe('Contract objectives', () => {
     }
   });
 });
+
+describe('membrane HUD and Hive kit', () => {
+  it('bearing tape puts what is ahead at 0, right positive, behind at 180', async () => {
+    const { relBearing } = await import('../src/ui/raid/hud');
+    // yaw 0 looks down -Z; right is +X.
+    expect(relBearing(0, 0, 0, -10, 0)).toBeCloseTo(0);
+    expect(relBearing(0, 0, 10, 0, 0)).toBeCloseTo(90);
+    expect(relBearing(0, 0, -10, 0, 0)).toBeCloseTo(-90);
+    expect(Math.abs(relBearing(0, 0, 0, 10, 0))).toBeCloseTo(180);
+    // Turning right by 90 degrees (yaw -PI/2 in this convention) brings +X dead ahead.
+    expect(relBearing(0, 0, 10, 0, -Math.PI / 2)).toBeCloseTo(0);
+  });
+  it('capsule labels read as sentences', async () => {
+    const { sentence } = await import('../src/ui/hive/kit');
+    expect(sentence('ENTER EXCLUSION ZONE')).toBe('Enter exclusion zone');
+    expect(sentence('RETURN TO HIVE')).toBe('Return to Hive');
+  });
+});
