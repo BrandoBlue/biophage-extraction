@@ -174,6 +174,79 @@
         2
       ],
       "stack": 1
+    },
+    "seedKey": {
+      "label": "Long Seed Access Key",
+      "kind": "tech",
+      "value": 120,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1,
+      "use": "opens one sealed room in the Wreck of the Long Seed; consumed"
+    },
+    "blackBox": {
+      "label": "Seedship Black Box",
+      "kind": "tech",
+      "value": 200,
+      "size": [
+        2,
+        1
+      ],
+      "stack": 1
+    },
+    "coolantRod": {
+      "label": "Coolant Rod",
+      "kind": "tech",
+      "value": 70,
+      "size": [
+        1,
+        2
+      ],
+      "stack": 1
+    },
+    "reliquaryHeart": {
+      "label": "Reliquary Heart",
+      "kind": "organ",
+      "value": 600,
+      "size": [
+        2,
+        2
+      ],
+      "stack": 1,
+      "catalyst": true
+    },
+    "ribchoirBone": {
+      "label": "Ribchoir Bone",
+      "kind": "organ",
+      "value": 110,
+      "size": [
+        1,
+        2
+      ],
+      "stack": 2
+    },
+    "wardenCore": {
+      "label": "Warden Seed-Core",
+      "kind": "organ",
+      "value": 900,
+      "size": [
+        2,
+        2
+      ],
+      "stack": 1,
+      "catalyst": true
+    },
+    "embryoPod": {
+      "label": "Dormant Embryo Pod",
+      "kind": "organ",
+      "value": 250,
+      "size": [
+        1,
+        1
+      ],
+      "stack": 1
     }
   },
   "containers": {
@@ -313,6 +386,187 @@
           "count": [
             1,
             1
+          ]
+        }
+      ]
+    },
+    "reliquaryCage": {
+      "label": "Reliquary Cage",
+      "openTime": 3,
+      "noiseOnOpen": 40,
+      "guaranteed": [
+        {
+          "item": "reliquaryHeart",
+          "count": 1
+        },
+        {
+          "item": "ribchoirBone",
+          "count": 2
+        }
+      ],
+      "rolls": 4,
+      "table": [
+        {
+          "item": "dnaStrand",
+          "weight": 25,
+          "count": [
+            4,
+            8
+          ]
+        },
+        {
+          "item": "mutagenVial",
+          "weight": 25,
+          "count": [
+            1,
+            3
+          ]
+        },
+        {
+          "item": "plagueStalkerStrain",
+          "weight": 12,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "adrenalineVirus",
+          "weight": 12,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "splicedParasites",
+          "weight": 10,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "glitchingHeart",
+          "weight": 10,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "seedKey",
+          "weight": 6,
+          "count": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "sealedLocker": {
+      "label": "Sealed Seedship Locker",
+      "openTime": 2,
+      "noiseOnOpen": 12,
+      "requires": "seedKey",
+      "guaranteed": [],
+      "rolls": 3,
+      "table": [
+        {
+          "item": "synapseLens",
+          "weight": 30,
+          "count": [
+            1,
+            2
+          ]
+        },
+        {
+          "item": "coolantRod",
+          "weight": 20,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "blackBox",
+          "weight": 10,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "mutagenVial",
+          "weight": 20,
+          "count": [
+            1,
+            2
+          ]
+        },
+        {
+          "item": "embryoPod",
+          "weight": 10,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "glitchingHeart",
+          "weight": 10,
+          "count": [
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    "cargoCrate": {
+      "label": "Seedship Cargo Crate",
+      "openTime": 1.2,
+      "noiseOnOpen": 10,
+      "guaranteed": [],
+      "rolls": 2,
+      "table": [
+        {
+          "item": "synapseLens",
+          "weight": 30,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "coolantRod",
+          "weight": 20,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "seedKey",
+          "weight": 10,
+          "count": [
+            1,
+            1
+          ]
+        },
+        {
+          "item": "clotGel",
+          "weight": 25,
+          "count": [
+            1,
+            2
+          ]
+        },
+        {
+          "item": "dnaStrand",
+          "weight": 15,
+          "count": [
+            1,
+            3
           ]
         }
       ]

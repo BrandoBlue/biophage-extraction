@@ -19,6 +19,11 @@ import viralLabJson from './viral-lab.json';
 import marketJson from './market.json';
 import rivalsJson from './rivals.json';
 import zone7Json from './zone7.json';
+import vendorsJson from './vendors.json';
+import contractsJson from './contracts.json';
+import hiveJson from './hive.json';
+import bossesJson from './bosses.json';
+import zonesJson from './zones.json';
 import aiJson from './ai.json';
 
 export type Range = [number, number];
@@ -54,6 +59,8 @@ export interface HostRules {
   healing: { naturalRegen: number };
   interactTime: { default: number };
   /** Base audible radius in metres; footsteps are multiplied by class noise. */
+  melee?: { lungeImpulseMultiplier: number; staggerDuration: number };
+  throwables?: { throwSpeed: number; loft: number; selfDamageMultiplier: number; staggerPerOverload: number };
   noiseRadius: { footstepWalk: number; footstepSprint: number; jumpLand: number; gunfire: number; egoCharge: number; reload: number };
 }
 
@@ -312,8 +319,11 @@ export type PathColour = 'stealth' | 'melee' | 'viral' | 'dna';
 export interface SynapseNode { id: string; label: string; dna: number; mutagens: number; level: number; effect: Record<string, unknown>; visual: string }
 export interface SynapsePath { label: string; colour: PathColour; nodes: SynapseNode[] }
 
+export interface ItemCost { dna: number; items: { item: string; count: number }[] }
 export interface Evolution {
   id: string; label: string; level: number; milestone: 'host' | 'apex';
+  /** DNA plus catalyst items (boss and nest organs). */
+  cost: ItemCost;
   statDelta?: Record<string, number>; grants?: Record<string, unknown>;
   /** Art brief for Creature & Mutation. */
   body: string;
@@ -380,4 +390,80 @@ export function nodeMutagenCost(cls: ClassId, node: SynapseNode): number {
 export function marketPrice(basePrice: number, mood: number): number {
   const m = Math.max(MARKET.mood.min, Math.min(MARKET.mood.max, mood));
   return Math.round(basePrice * (1 + m * MARKET.mood.priceMultiplierPerStep));
+}
+
+// ---------- Economy, zones, bosses (docs/gdd/07-economy-and-progression.md, 08-zones-and-bosses.md) ----------
+
+export type VendorId = 'motherClot' | 'archivist' | 'gulletBroker';
+export interface Vendor {
+  label: string; milestone: string; role: string; brief?: string; see?: string;
+  buyRate: number; prefers: Partial<Record<ItemKind, number>>;
+  stock?: { item: string; price: number; rep: number }[];
+  services?: Record<string, { price: number; rep?: number; description: string }>;
+  unlocks: Record<string, string>;
+  /** Machine-readable versions of unlocks Gameplay enforces. Missing = text only. */
+  perks?: {
+    pouchUpgradeDiscount?: { rep: number; fraction: number };
+    deployGift?: { rep: number; item: string; count: number; to: 'pouch' | 'stash' };
+  };
+}
+export type ObjectiveType = 'harvest' | 'kill' | 'extractWith' | 'visit' | 'open' | 'killBoss' | 'killRival' | 'surviveRaid' | 'place';
+export interface Objective { type: ObjectiveType; creature?: string; item?: string; count?: number; landmark?: string; boss?: string; container?: string; zone?: string }
+export interface Contract {
+  id: string; vendor: VendorId; milestone: string; title: string; brief: string;
+  objectives: Objective[];
+  reward: { dna: number; rep: number; items?: { item: string; count: number }[]; unlock?: string };
+  requires?: string[];
+}
+export interface HiveOrganLevel { cost: ItemCost; recipes?: string[]; dnaPerHour?: number; cap?: number; effect?: Record<string, unknown> }
+export interface HiveOrgan { label: string; milestone: string; brief: string; levels: HiveOrganLevel[] }
+export interface Recipe { inputs: { item: string; count: number }[]; output: { item?: string; pool?: string[]; count: number }; time: number }
+
+export interface BossPhase { id: string; from: number; to: number; attacks: Record<string, unknown>; note: string; [tunable: string]: unknown }
+export interface Boss {
+  label: string; zone: string; milestone: string; brief: string;
+  size: Record<string, number>; biomass: number;
+  arena: Record<string, unknown>;
+  dormantUntil: string; songRadius: number;
+  weakPoints: Record<string, Record<string, unknown>>;
+  phases: BossPhase[];
+  enrage: { after: number; effect: string };
+  rewards: { dna: number; xp: number; container?: string; items?: { item: string; count: number | Range }[]; harvest: { item: string; time: number; noise: number } };
+  respawn: string;
+}
+export interface Zone {
+  label: string; milestone: string; order: number; pitch: string; look: string;
+  size?: Record<string, unknown>; raidTime?: number; threat: Range; access: string;
+  structures?: string[]; landmarks?: string[]; creatures?: string[]; nests?: string[]; boss?: string | null;
+  lootFocus?: string; containers?: Record<string, number>; mechanics?: Record<string, unknown>; extracts?: string; why: string; see?: string;
+}
+
+const vendorData = strip<Record<string, unknown>>(vendorsJson);
+export const VENDOR_REP_THRESHOLDS = vendorData.repThresholds as number[];
+export const VENDORS = Object.fromEntries(Object.entries(vendorData).filter(([k]) => k !== 'repThresholds')) as Record<VendorId, Vendor>;
+export const CONTRACTS = (strip<{ list: Contract[] }>(contractsJson)).list;
+const hiveData = strip<{ organs: Record<string, HiveOrgan>; recipes: Record<string, Recipe> }>(hiveJson);
+export const HIVE_ORGANS = hiveData.organs;
+export const RECIPES = hiveData.recipes;
+export const BOSSES = strip<Record<string, Boss>>(bossesJson);
+export const ZONES = strip<Record<string, Zone>>(zonesJson);
+
+/** Vendor reputation level (1-4) for accumulated rep points. */
+export function vendorRepLevel(points: number): number {
+  let lvl = 0;
+  while (lvl < VENDOR_REP_THRESHOLDS.length && points >= VENDOR_REP_THRESHOLDS[lvl]) lvl++;
+  return Math.max(1, lvl);
+}
+
+/** What a vendor pays for one of an item. */
+export function vendorBuyPrice(vendor: VendorId, item: string): number {
+  const v = VENDORS[vendor], def = itemDef(item);
+  if (!def) return 0;
+  return Math.floor(def.value * v.buyRate * (v.prefers[def.kind] ?? 1));
+}
+
+/** Boss phase active at a Biomass fraction (1 = full). */
+export function bossPhase(boss: string, fraction: number): BossPhase {
+  const ps = BOSSES[boss].phases;
+  return ps.find((p) => fraction <= p.from && fraction > p.to) ?? ps[ps.length - 1];
 }
