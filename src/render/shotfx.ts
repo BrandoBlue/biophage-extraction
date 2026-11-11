@@ -57,11 +57,11 @@ export interface BoltOptions { core?: number; tail?: number; width?: number; hal
 export function boltLook(colour: string, o: BoltOptions = {}): () => THREE.Mesh {
   const core = o.core ?? 0.05, tail = o.tail ?? 8, width = o.width ?? 0.055, halo = o.halo ?? 0.55;
   const c = new THREE.Color(colour);
-  const coreMat = new THREE.MeshBasicMaterial({ color: c.clone().lerp(new THREE.Color(1, 1, 1), 0.5).multiplyScalar(4), toneMapped: false, fog: false });
+  const coreMat = new THREE.MeshBasicMaterial({ color: c.clone().lerp(new THREE.Color(1, 1, 1), 0.5).multiplyScalar(2.4), toneMapped: false, fog: false });
   const coreGeo = new THREE.SphereGeometry(core, 10, 8).scale(1, 2.4, 1);
   const tailGeo = new THREE.CylinderGeometry(width, width * 0.12, 1, 10, 6, true).translate(0, -0.5, 0);
-  const tailMat = tracerMaterial(c.clone().multiplyScalar(1.4));
-  const haloMat = new THREE.SpriteMaterial({ map: glowTexture(), color: c.clone().multiplyScalar(2.5), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false });
+  const tailMat = tracerMaterial(c.clone().multiplyScalar(0.9));
+  const haloMat = new THREE.SpriteMaterial({ map: glowTexture(), color: c.clone().multiplyScalar(1.5), blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false });
   return () => {
     const head = new THREE.Mesh(coreGeo, coreMat);
     head.name = 'bolt';
@@ -102,7 +102,7 @@ export const shotFx = {
     if (f.sprite.parent !== scene) scene.add(f.sprite);
     f.born = bioTime.value; f.life = life; f.size = size;
     f.sprite.position.copy(at);
-    (f.sprite.material as THREE.SpriteMaterial).color.copy(colour).lerp(new THREE.Color(1, 1, 1), 0.25).multiplyScalar(3);
+    (f.sprite.material as THREE.SpriteMaterial).color.copy(colour).lerp(new THREE.Color(1, 1, 1), 0.25).multiplyScalar(1.8);
     f.sprite.visible = true;
   },
 

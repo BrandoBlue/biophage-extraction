@@ -75,5 +75,15 @@ A pulsing heart-sized organ the size of a car, half-buried in a fungal crater, w
 | Build, QA & Release | Scripted Larva raid test (exit criteria), persistence across reload test, publish. |
 | Game Design | Tune from playtest bot runs and Brandon's feedback; Host spec before Host starts. |
 
+## Added after the v0.1 playtest: reasons to extract, a second zone, a boss
+Brandon asked for depth: a reason to play and extract, vendors, more zones, structures and a boss. Larva now also ships (full specs in [07](07-economy-and-progression.md) and [08](08-zones-and-bosses.md)):
+- [ ] **Vendors** Mother Clot and the Archivist in the Hive menu: buy, sell, reputation, stock by rep (`VENDORS`, `vendorBuyPrice`, `vendorRepLevel`).
+- [ ] **Contracts**: the first two chains (`CONTRACTS`), progress counted on extract, rewards and unlocks applied.
+- [ ] **Hive Body**: Gestation Vat, Spore Garden (offline DNA, capped), Memory Coral (`HIVE_ORGANS`, `RECIPES`).
+- [ ] **Glowmire Isle structures**: chitin tower, Long Seed debris field, fungal caves, the sunken bowl.
+- [ ] **The Reliquary** boss in the sunken bowl (`BOSSES.reliquary`, `bossPhase`).
+- [ ] **Wreck of the Long Seed** as a second zone, unlocked by *Signal in the Wreck*: interior rooms, Seed-Key lockers, cargo crates; reactor cold (the Warden is Host).
+- [ ] Raid select lists the zones with access state.
+
 ## Out of scope for Larva
 Wraith and Behemoth playable, Genetic Synapse tree, Viral Lab integration, Flesh Market, rival host bots, multiplayer.
