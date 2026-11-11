@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
-const URL = `http://localhost:4174/?quality=${process.env.QUALITY || 'high'}`;
+const URL = `http://localhost:4174/?quality=${process.env.QUALITY || 'high'}${process.env.ZONE ? `&zone=${process.env.ZONE}` : ''}`;
 const POSES = {
   spawn: { at: [-41, 113], eye: 1.7, yaw: -0.35, pitch: 0.08 },
   pool: { at: [-5, 66], eye: 3, yaw: 0.45, pitch: -0.12 },
@@ -26,6 +26,13 @@ const POSES = {
   anomaly: { at: [36, -17], eye: 2.5, yaw: -0.6, pitch: 0.3 },
   bloom: { at: [4, -31], eye: 1.7, yaw: -0.6, pitch: -0.22 },
   spire: { at: [96, 31], eye: 3, yaw: -2.07, pitch: 0.08 },
+  // Zone 2 poses: run with ZONE=longSeedWreck.
+  wreckProw: { at: [122, 6], eye: 2.2, yaw: 1.45, pitch: 0.08 },
+  wreckHold: { at: [68, -12], eye: 1.7, yaw: 1.3, pitch: 0.12 },
+  wreckCatwalk: { at: [62, 17], eye: 7.7, yaw: 1.75, pitch: -0.2 },
+  wreckWarrens: { at: [-1, 0], eye: 1.7, yaw: 1.5708, pitch: 0.02 },
+  wreckGallery: { at: [-36.5, 0], eye: 1.7, yaw: 1.5708, pitch: 0.05 },
+  wreckReactor: { at: [-66, 12], eye: 7.7, yaw: 1.03, pitch: -0.05 },
   beacon: { at: [30, -95], eye: 1.8, yaw: -0.51, pitch: 0.3 },
   tower: { at: [-44, -66], eye: 2, yaw: 0.68, pitch: 0.28 },
   towerInside: { at: [-60, -86], eye: 1.7, yaw: 2.6, pitch: 0.35 },

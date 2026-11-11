@@ -27,7 +27,8 @@ function bootRaid(): void {
   // from a fresh seed. `?seed=N` pins it; automated runs use seed 1 (Design's RAID.larva layout) so tests are reproducible.
   const seedParam = Number(new URLSearchParams(location.search).get('seed'));
   const raidSeed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : navigator.webdriver ? 1 : 1 + Math.floor(Math.random() * 1e6);
-  const world = buildZone(scene, 'glowmireIsle', raidSeed);
+  // `?zone=longSeedWreck` loads another built map (look-dev and testing); raid-select switching is Gameplay's.
+  const world = buildZone(scene, new URLSearchParams(location.search).get('zone') ?? 'glowmireIsle', raidSeed);
   const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures);
   const hud = new RaidHud(raid.bus, raid);
 

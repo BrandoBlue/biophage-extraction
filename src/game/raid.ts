@@ -253,7 +253,9 @@ export class Raid {
             cx = ex + Math.cos(a) * d; cz = ez + Math.sin(a) * d;
           } else {
             const [lo, hi] = g.radius;
-            const [x, z] = layoutPosition({ radius: lo + this.rand() * (hi - lo), bearing: this.rand() * 360 }, this.playable);
+            const ar = this.layout.area;
+            const [x, z] = ar ? [ar.x0 + this.rand() * (ar.x1 - ar.x0), ar.z0 + this.rand() * (ar.z1 - ar.z0)]
+              : layoutPosition({ radius: lo + this.rand() * (hi - lo), bearing: this.rand() * 360 }, this.playable);
             cx = x; cz = z;
           }
           if (Math.hypot(cx - spawn.x, cz - spawn.z) >= minFromSpawn) break;
@@ -268,8 +270,9 @@ export class Raid {
   }
 
   private addCreature(kind: AbominationKind, x: number, z: number): Abomination {
-    const r = Math.hypot(x, z), edge = this.playable * 0.95;
-    if (r > edge) { x *= edge / r; z *= edge / r; }
+    const r = Math.hypot(x, z), edge = this.playable * 0.95, ar = this.layout.area;
+    if (ar) { x = Math.min(ar.x1, Math.max(ar.x0, x)); z = Math.min(ar.z1, Math.max(ar.z0, z)); }
+    else if (r > edge) { x *= edge / r; z *= edge / r; }
     const c = new Abomination(kind, ABOMINATIONS[kind], x, z, Math.floor(this.rand() * 1e9));
     this.creatures.push(c);
     this.scene.add(c.root);
