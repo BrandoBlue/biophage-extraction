@@ -137,18 +137,28 @@ export class BroodNest {
     return out;
   }
 
-  /** Nearest sphere a segment crosses: a live ventricle or the body. */
+  /**
+   * What a segment hits: a live ventricle or the body. Ventricles sit partly inside the body sphere, so a ventricle
+   * wins when the shot reaches it within its depth under the body surface it entered through (never one on the far
+   * side of the heart).
+   */
   hit(a: THREE.Vector3, b: THREE.Vector3): NestHit | null {
     if (!this.alive) return null;
+    const core = this.core(), len = a.distanceTo(b) || 1;
+    const tb = segmentSphere(a, b, core, this.body.body.radius);
     let best: NestHit | null = null;
     this.body.weakPoints.forEach((w, i) => {
       if (!this.isLiveVentricle(i)) return;
       const t = segmentSphere(a, b, w.world, w.radius);
-      if (t !== null && (!best || t < best.t)) best = { t, vent: i };
+      if (t === null || (best && t >= best.t)) return;
+      if (tb !== null && t > tb) {
+        const depth = Math.max(0, this.body.body.radius - (w.world.distanceTo(core) - w.radius));
+        if ((t - tb) * len > depth * 1.5 + 0.1) return;
+      }
+      best = { t, vent: i };
     });
-    const t = segmentSphere(a, b, this.core(), this.body.body.radius);
-    if (t !== null && (!best || t < (best as NestHit).t)) best = { t, vent: null };
-    return best;
+    if (best) return best;
+    return tb === null ? null : { t: tb, vent: null };
   }
 
   /** Applies damage (×multiplier on a live ventricle). Wakes a dormant nest. Returns true on the killing hit. */
