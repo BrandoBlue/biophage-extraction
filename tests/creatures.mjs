@@ -30,6 +30,7 @@ const SHOTS = {
   hosts: { call: ['host', 'neuroInfiltrator'], view: [0.35, 0.08, 1], expect: (st) => st.host === 'neuroInfiltrator' },
   boss: { call: ['boss'], view: [0.15, 0.05, 0.8], then: ['phase', 'bloom'], wait: 6, expect: (st) => st.extra === 'boss' && st.boss?.phase === 'bloom' && st.boss.legs === 6 && st.boss.weak === 4 },
   warden: { call: ['warden'], view: [0.9, 0.45, 1.1], then: ['wardenPhase', 'overheat'], wait: 10, expect: (st) => st.extra === 'warden' && st.warden?.phase === 'overheat' && st.warden.pods === 5 },
+  vigil: { call: ['vigil'], view: [0.6, -0.2, 1], then: ['vigilPhase', 'stalk'], wait: 12, expect: (st) => st.extra === 'vigil' && st.vigil?.phase === 'stalk' && st.vigil.limbs === 4 && st.vigil.lure },
   weapons: { call: ['weapons'], view: [0.25, 0.15, 1], then: ['graftGuns'], wait: 40, expect: (st) => st.extra === 'weapons' && st.weapons === 15 },
   arm: { call: ['arm'], view: [0.3, 0.3, 1], then: ['arm', 'plagueStalkerStrain'], wait: 8, expect: (st) => st.arm === 'plagueStalkerStrain' },
 };
