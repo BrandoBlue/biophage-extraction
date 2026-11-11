@@ -8,7 +8,7 @@
  */
 import * as THREE from 'three';
 import { HIVE, ORGANIC } from '../render/palette';
-import type { WeaponFrame, WeaponModel } from './weapon-view';
+import { DEFAULT_KICK, type KickProfile, type WeaponFrame, type WeaponModel } from './weapon-view';
 
 /** Rig motion. Rendering may retune any of these. */
 export const RIG = {
@@ -36,6 +36,12 @@ export class WeaponRig {
   private model: WeaponModel | null = null;
   private kick = 0;
   private kickVel = 0;
+  /** The held weapon's last kick profile (scales the spring's pitch, push-back and roll). */
+  private kickShape: KickProfile = DEFAULT_KICK;
+  /** A swap in progress: the old weapon goes down first, then `next` comes up. */
+  private next: { model: WeaponModel; equipTime: number } | null = null;
+  private holsterT = 0;
+  private holsterDur = 1;
   private dip = 0;
   private sway = new THREE.Vector2();
   private lastYaw = 0;
@@ -67,7 +73,7 @@ export class WeaponRig {
 
   get held(): WeaponModel | null { return this.model; }
   /** True while the equip swing is still bringing the weapon up (it cannot fire yet). */
-  get equipping(): boolean { return this.equipT > 0; }
+  get equipping(): boolean { return this.equipT > 0 || this.next !== null; }
 
   /** Adds a model to the rig without showing it (pre-warmed for a few frames so the first swap does not hitch). */
   add(model: WeaponModel): void {
@@ -78,7 +84,21 @@ export class WeaponRig {
   }
 
   /** Holds `model`, swinging it up over `equipTime` seconds (0: instantly). */
+  /**
+   * Holds `model`. With a weapon already held, it is put away first (a third of `equipTime`) and the new one
+   * swings up for the rest; equipTime 0 swaps instantly.
+   */
+  swap(model: WeaponModel, equipTime: number): void {
+    if (!this.model || equipTime <= 0) { this.equip(model, equipTime); return; }
+    this.add(model);
+    model.root.visible = false;
+    this.holsterT = this.holsterDur = equipTime / 3;
+    this.model.holster?.(this.holsterDur);
+    this.next = { model, equipTime: (equipTime * 2) / 3 };
+  }
+
   equip(model: WeaponModel, equipTime: number): void {
+    this.next = null; this.holsterT = 0;
     this.add(model);
     this.model = model;
     this.equipT = this.equipDur = Math.max(0, equipTime);
@@ -95,7 +115,8 @@ export class WeaponRig {
     for (const m of this.holder.children) if (m !== model.root && !this.isWarm(m)) m.visible = this.holderIsLight(m);
   }
 
-  fired(): void {
+  fired(kick?: KickProfile | void): void {
+    if (kick) this.kickShape = kick;
     this.kickVel += RIG.kickImpulse * (1 - Math.min(1, this.kick / RIG.kickMax));
     this.flashLife = RIG.flash.life;
   }
@@ -130,12 +151,13 @@ export class WeaponRig {
 
     const bob = (cam.grounded ? Math.min(1, cam.speed / 6) : 0) * (1 - f.aim * 0.85);
     const bt = t * (cam.sprinting ? 13 : 9);
-    let rx = this.sway.y * 0.6 + this.kick * 0.12 * (1 - f.aim * 0.5) + Math.sin(t * 1.3) * 0.006 * steady;
+    const ks = this.kickShape;
+    let rx = this.sway.y * 0.6 + this.kick * ks.pitch * (1 - f.aim * 0.5) + Math.sin(t * 1.3) * 0.006 * steady;
     let ry = this.sway.x * 0.8;
-    let rz = 0;
+    let rz = this.kick * ks.roll;
     let px = RIG.hip.x + this.sway.x * 0.05 + Math.cos(bt * 0.5) * 0.012 * bob;
     let py = RIG.hip.y - this.sway.y * 0.05 + Math.abs(Math.sin(bt * 0.5)) * 0.014 * bob + Math.sin(t * 1.3) * 0.004 * steady;
-    let pz = RIG.hip.z + this.kick * 0.06;
+    let pz = RIG.hip.z + this.kick * ks.back;
     py -= this.dip * RIG.reloadDip; rz += this.dip * RIG.reloadRoll; rx += this.dip * 0.12;
     if (cam.sprinting) { rx += RIG.sprint.rx; ry += RIG.sprint.ry; px += RIG.sprint.px; py += RIG.sprint.py; }
 
@@ -149,6 +171,13 @@ export class WeaponRig {
       this.holder.rotation.set(0.12 * a, -0.16 * a, 0.1 * a); // undo the hip cant the bodies are modelled with
     } else this.holder.rotation.set(0, 0, 0);
 
+    // Swap: the old weapon drops away, then the new one is drawn.
+    if (this.next) {
+      this.holsterT = Math.max(0, this.holsterT - dt);
+      const k = THREE.MathUtils.smoothstep(1 - this.holsterT / this.holsterDur, 0, 1);
+      py -= k * RIG.equipDrop; rx -= k * 0.6; rz += k * 0.5;
+      if (this.holsterT === 0) { const n = this.next; this.equip(n.model, n.equipTime); }
+    }
     // Equip: rises from below the screen with a roll.
     if (this.equipT > 0) {
       this.equipT = Math.max(0, this.equipT - dt);

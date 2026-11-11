@@ -4,7 +4,7 @@ import type { ProjectileLook, WeaponSpec } from '../../data';
 import { mulberry32 } from '../world/zone7';
 import { AutoWeaponState, type AmmoFeed } from './weapon-state';
 import type { Projectiles, ProjectileKind } from './projectiles';
-import type { WeaponModel } from './weapon-view';
+import type { KickProfile, WeaponModel } from './weapon-view';
 import { boltLook } from '../render/shotfx';
 import { registerWeaponView } from './weapon-view';
 import { SynapseBursterView } from './viewmodel';
@@ -14,6 +14,7 @@ export { STARTER_WEAPON };
 registerWeaponView(STARTER_WEAPON, () => new SynapseBursterView());
 
 const DEG = Math.PI / 180;
+const UP = new THREE.Vector3(0, 1, 0);
 
 /** Glowing projectile looks, shared by the Projectiles pool. One per weapons.json `projectile.look`. */
 export function projectileLooks(): Record<ProjectileKind, () => THREE.Mesh> {
@@ -46,6 +47,8 @@ export interface WeaponStep {
   shellsIn: number;
   /** Charge weapons: 0..1 held charge. */
   charge: number;
+  /** The model's kick for these shots, if it gives one. */
+  kick: KickProfile | void;
 }
 
 /**
@@ -60,6 +63,7 @@ export class LivingWeapon {
   aim = 0;
   private rand: () => number;
   private muzzle = new THREE.Vector3();
+  lastKick: KickProfile | void = undefined;
 
   constructor(readonly spec: WeaponSpec, readonly model: WeaponModel, private projectiles: Projectiles, feed: AmmoFeed | null = null) {
     const s = spec;
@@ -112,6 +116,8 @@ export class LivingWeapon {
     for (let i = 0; i < r.shots; i++) {
       for (let k = 0; k < s.pellets; k++) {
         const dir = this.dirTo(ctx.aimPoint, this.spreadRadians(ctx.moving));
+        // Fanned weapons (Reliquary Hymn) spread their pellets evenly across the fan, left to right.
+        if (s.fanDegrees > 0 && s.pellets > 1) dir.applyAxisAngle(UP, (0.5 - k / (s.pellets - 1)) * s.fanDegrees * DEG);
         const p = s.projectile;
         this.projectiles.fire(look, 'player', this.muzzle, dir.multiplyScalar(p.speed), {
           damage: s.damage * power, splashRadius: p.splash?.radius ?? 0, splashDamage: (p.splash?.damage ?? 0) * power,
@@ -119,12 +125,12 @@ export class LivingWeapon {
           stick: p.stick ? { fuse: p.fuse } : undefined,
         });
       }
-      this.model.fired();
+      this.lastKick = this.model.fired();
     }
     for (let i = 0; i < r.shellsIn; i++) this.model.shellIn?.();
     const startedReload = !wasReloading && this.state.isReloading;
     if (startedReload) this.model.reload(this.state.reloadStyle, this.reloadDuration());
-    return { shots: r.shots, reloaded: r.reloaded, startedReload, shellsIn: r.shellsIn, charge: r.charge };
+    return { shots: r.shots, reloaded: r.reloaded, startedReload, shellsIn: r.shellsIn, charge: r.charge, kick: r.shots ? this.lastKick : undefined };
   }
 
   /** Whole reload length the view animates (perShell: one shell). */
@@ -150,7 +156,7 @@ export class LivingWeapon {
         seek: { radius: e.seekRadius, turnRate: e.seekTurnRate },
       });
     }
-    this.model.fired();
+    this.lastKick = this.model.fired();
     return true;
   }
 }

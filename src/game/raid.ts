@@ -33,6 +33,7 @@ import { HarvestFx } from '../creatures/organs';
 import { HIVE, ZONE7 } from '../render/palette';
 import { NeuralOverload, Biomass } from './vitals';
 import { LivingWeapon, STARTER_WEAPON, projectileLooks } from './weapon';
+import { isWeapon, weaponSlots } from './arsenal';
 import { WeaponRig } from './weapon-rig';
 import { createWeaponModel } from './weapon-view';
 import { weaponSpec, WEAPONS as WEAPON_DATA } from '../../data';
@@ -821,7 +822,8 @@ export class Raid {
       p.kick(rc.pitch * (Math.PI / 180) * fire.shots * (1 - w.aim * 0.5));
       p.yaw += (this.rand() - 0.5) * rc.yawJitter * (Math.PI / 180) * fire.shots;
       p.addTrauma(0.03 * Math.min(3, w.spec.pellets > 1 ? 2 : 1));
-      for (let i = 0; i < fire.shots; i++) this.rig.fired();
+      for (let i = 0; i < fire.shots; i++) this.rig.fired(fire.kick);
+      if (w.spec.overloadPerShot) this.overload.add(w.spec.overloadPerShot * fire.shots); // charge weapons heat the host
       this.noise(p.position, HOST.noiseRadius.gunfire, 'gunfire');
       this.bus.emit('shot', { weapon: w.id, ammo: w.state.ammo, position: { x: p.position.x, y: p.position.y, z: p.position.z }, ego: false });
     }
@@ -836,7 +838,7 @@ export class Raid {
           this.noise(p.position, HOST.noiseRadius.egoCharge, 'egoCharge');
           p.addTrauma(0.3);
           p.kick(0.05);
-          this.rig.fired();
+          this.rig.fired(w.lastKick);
           this.bus.emit('shot', { weapon: w.id, ammo: w.state.ammo, position: { x: p.position.x, y: p.position.y, z: p.position.z }, ego: true });
         }
       }
@@ -1024,6 +1026,7 @@ export class Raid {
     }
     this.fx.burst(pod.position.clone().add(new THREE.Vector3(0, 0.7, 0)), GORE.cyanFluid, 0.6);
     if (items.length) this.bus.emit('pickup', { items, dna: 0, source: pod.type });
+    this.pickUpWeapons();
     // Never auto-drop what is carried: what does not fit stays in the pod (swap UI comes with the cavity overlay).
     if (left.length) { pod.reseal(left); this.bus.emit('cavityFull', { items: left }); }
   }
@@ -1162,13 +1165,9 @@ export class Raid {
     if (!known.length) known.push(STARTER_WEAPON);
     for (const w of this.weapons) w.model.root.removeFromParent();
     this.weapons.length = 0;
-    const feed = (id: string, item: string): AmmoFeed => ({
-      available: () => this.carried.count(item),
-      take: (n) => { let got = 0; while (got < n && this.carried.consume(item)) got++; if (got) this.bus.emit('ammoFed', { weapon: id, item, count: got }); return got; },
-    });
     for (const id of known) {
       const spec = weaponSpec(id);
-      const w = new LivingWeapon(spec, createWeaponModel(spec), this.projectiles, spec.ammo ? feed(id, spec.ammo) : null);
+      const w = new LivingWeapon(spec, createWeaponModel(spec), this.projectiles, spec.ammo ? this.ammoFeed(id, spec.ammo) : null);
       this.weapons.push(w);
       this.rig.add(w.model);
     }
@@ -1183,7 +1182,7 @@ export class Raid {
     if (prev) { prev.state.cancelReload(); prev.aim = 0; }
     this.held = i;
     const w = this.weapons[i];
-    this.rig.equip(w.model, instant ? 0 : w.spec.handling.equipTime);
+    if (instant) this.rig.equip(w.model, 0); else this.rig.swap(w.model, w.spec.handling.equipTime);
     // Creature & Mutation: the host's forearm (and its virus mutation) moves onto the drawn weapon's grip.
     if (w.model.grip) {
       w.model.grip.add(this.hostArm.root);
@@ -1195,6 +1194,33 @@ export class Raid {
     return true;
   }
 
+  /**
+   * Weapons found in a raid: while a weapon slot is free, a weapon item in the cavities is taken into the hands
+   * (mouse wheel or Z to draw it). With every slot full it rides home in the cavities as loot.
+   */
+  pickUpWeapons(): string[] {
+    const taken: string[] = [];
+    for (const s of this.carried.items) {
+      if (!isWeapon(s.item) || this.weapons.some((w) => w.id === s.item)) continue;
+      if (this.weapons.length >= 1 + weaponSlots()) break;
+      if (!this.carried.consume(s.item)) continue;
+      const spec = weaponSpec(s.item);
+      const w = new LivingWeapon(spec, createWeaponModel(spec), this.projectiles, spec.ammo ? this.ammoFeed(spec.id, spec.ammo) : null);
+      this.weapons.push(w);
+      this.rig.add(w.model);
+      taken.push(s.item);
+      this.bus.emit('weaponPickup', { weapon: s.item, label: spec.label, slot: this.weapons.length - 1 });
+    }
+    return taken;
+  }
+
+  private ammoFeed(id: string, item: string): AmmoFeed {
+    return {
+      available: () => this.carried.count(item),
+      take: (n) => { let got = 0; while (got < n && this.carried.consume(item)) got++; if (got) this.bus.emit('ammoFed', { weapon: id, item, count: got }); return got; },
+    };
+  }
+
   private cycleWeapon(step: number): void {
     if (this.weapons.length < 2) return;
     this.equip((this.held + step + this.weapons.length) % this.weapons.length);
@@ -1202,6 +1228,11 @@ export class Raid {
 
   private splash(pr: Projectile, at: THREE.Vector3, except: Abomination | null): void {
     if (pr.splashRadius <= 0) return;
+    // Weapons with selfDamage (launchers) hurt the host inside their own blast.
+    if (pr.weapon?.selfDamage && this.phase === 'raid') {
+      const chest = this.player.position.clone(); chest.y += CHEST;
+      if (chest.distanceTo(at) <= pr.splashRadius) this.hurt(pr.splashDamage * (HOST.throwables?.selfDamageMultiplier ?? 0.5), 'torso', pr.weapon.id, at);
+    }
     for (const c of this.creatures) {
       if (!c.alive || c === except) continue;
       const d = c.centre.distanceTo(at) - c.radius;
@@ -1333,6 +1364,7 @@ export class Raid {
       ego: () => { this.weapon.ego = this.weapon.spec.egoCharge?.chargeToFire ?? 0; this.egoQueued = true; },
       /** Loads these weapons.json ids as the raid's weapon slots. */
       arm: (ids: string[]) => this.arm(ids),
+      pickUpWeapons: () => this.pickUpWeapons(),
       equip: (i: number) => this.equip(i),
       aim: (on: boolean) => { this.aimHeld = on; },
       ability: (slot: number) => this.useAbility(slot),

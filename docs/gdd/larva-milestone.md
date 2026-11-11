@@ -85,5 +85,13 @@ Brandon asked for depth: a reason to play and extract, vendors, more zones, stru
 - [ ] **Wreck of the Long Seed** as a second zone, unlocked by *Signal in the Wreck*: interior rooms, Seed-Key lockers, cargo crates; reactor cold (the Warden is Host).
 - [ ] Raid select lists the zones with access state.
 
+## Added after the second playtest: lots of guns, creatures that live somewhere
+Full spec in [09](09-weapons-and-habitats.md).
+- [ ] **Weapon engine** reads `WEAPONS`: fire modes, reload styles with their animations, zoom or no zoom, ammo feeds.
+- [ ] **15 Larva guns** modelled as living weapons, with rarity readable on the model (the Coreburner is Host).
+- [ ] Guns and feeds drop from containers and sell at Mother Clot and the Archivist; the Reliquary Hymn drops from the Reliquary.
+- [ ] **Habitats**: Glowmire and Long Seed creatures spawn only at their homes (`HABITATS`, `habitatGroups`); reinforcements walk in from a home.
+- [ ] Containers placed as in `HABITATS.loot`.
+
 ## Out of scope for Larva
 Wraith and Behemoth playable, Genetic Synapse tree, Viral Lab integration, Flesh Market, rival host bots, multiplayer.

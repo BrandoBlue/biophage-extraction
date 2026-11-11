@@ -137,7 +137,7 @@ describe('weapon loadout', () => {
 
 describe('weapon views and rig', () => {
   it('builds a procedural stand-in for every class, with muzzle, sight and grip', () => {
-    for (const cls of ['rifle', 'smg', 'shotgun', 'sniper', 'launcher', 'sidearm', 'special'] as WeaponClass[]) {
+    for (const cls of ['carbine', 'sidearm', 'smg', 'rifle', 'shotgun', 'marksman', 'sniper', 'launcher', 'beam', 'relic'] as WeaponClass[]) {
       const spec = { ...weaponSpec('synapseBurster'), id: `test-${cls}`, class: cls };
       const m = createWeaponModel(spec);
       expect(m).toBeInstanceOf(GenericWeaponModel);

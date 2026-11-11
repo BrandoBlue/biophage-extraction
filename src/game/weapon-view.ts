@@ -15,6 +15,13 @@ import { glowTexture } from '../render/shotfx';
 import { mulberry32 } from '../world/zone7';
 import { GUN_SCALE, organic } from './viewmodel';
 
+/** Where mod grafts attach on a body (Design's weapon mod slots). */
+export type ModSocket = 'barrel' | 'sight' | 'under' | 'chamber';
+
+/** How one shot throws the weapon: up (rad), back toward the eye (m), roll (rad). Scaled by the rig. */
+export interface KickProfile { pitch: number; back: number; roll: number }
+export const DEFAULT_KICK: KickProfile = { pitch: 0.12, back: 0.06, roll: 0 };
+
 /** What a model is told each frame. */
 export interface WeaponFrame {
   /** Magazine fill 0..1. */
@@ -44,12 +51,17 @@ export interface WeaponModel {
   readonly scoped?: boolean;
   /** Muzzle flash tint for the rig's shared flash light. */
   readonly flashColour: string;
-  fired(): void;
+  /** Visible attachment points for mod grafts. */
+  readonly sockets?: Partial<Record<ModSocket, THREE.Object3D>>;
+  /** A round left. May return this weapon's kick; the rig uses DEFAULT_KICK otherwise. */
+  fired(): KickProfile | void;
   /** A reload started. perShell: `duration` is one shell; `shellIn` follows for each shell fed. */
   reload(style: ReloadStyle, duration: number): void;
   shellIn?(): void;
   /** The weapon is being drawn over `duration` seconds (the rig swings it up; models may add their own motion). */
   equip?(duration: number): void;
+  /** The weapon is being put away over `duration` seconds (before the next one is drawn). */
+  holster?(duration: number): void;
   update(dt: number, f: WeaponFrame): void;
 }
 
@@ -71,13 +83,16 @@ const LOOK_COLOUR: Record<string, string> = { spore: HIVE.acid, needle: ORGANIC.
 
 /** Body proportions per class: length, girth, barrel count, sac (magazine) size. Metres at GUN_SCALE 1. */
 const SHAPE: Record<WeaponClass, { length: number; girth: number; barrels: number; sac: number; eye: boolean }> = {
+  carbine: { length: 0.58, girth: 0.085, barrels: 1, sac: 0.065, eye: false },
   sidearm: { length: 0.34, girth: 0.07, barrels: 1, sac: 0.045, eye: false },
   smg: { length: 0.48, girth: 0.08, barrels: 1, sac: 0.06, eye: false },
   rifle: { length: 0.66, girth: 0.085, barrels: 1, sac: 0.065, eye: false },
   shotgun: { length: 0.6, girth: 0.1, barrels: 2, sac: 0.07, eye: false },
+  marksman: { length: 0.76, girth: 0.075, barrels: 1, sac: 0.055, eye: true },
   sniper: { length: 0.86, girth: 0.07, barrels: 1, sac: 0.05, eye: true },
   launcher: { length: 0.62, girth: 0.14, barrels: 1, sac: 0.09, eye: false },
-  special: { length: 0.7, girth: 0.09, barrels: 1, sac: 0.07, eye: true },
+  beam: { length: 0.8, girth: 0.07, barrels: 1, sac: 0.06, eye: true },
+  relic: { length: 0.66, girth: 0.11, barrels: 3, sac: 0.08, eye: true },
 };
 
 let shared: { flesh: THREE.Material; deep: THREE.Material; bone: THREE.Material; hand: THREE.Material; lip: THREE.Material } | null = null;
