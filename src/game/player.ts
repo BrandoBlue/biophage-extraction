@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { groundHeight, ISLAND_RADIUS, SOLIDS } from '../world/zone7';
+import { climbBlocked, groundHeight, ISLAND_RADIUS, SOLIDS } from '../world/zone7';
 import { footstepRadius } from './perception';
 import type { HostClass, HostRules } from '../../data';
 
@@ -158,8 +158,14 @@ export class Player {
     this.velocity.y -= GRAVITY * this.gravityScale * dt;
 
     const p = this.position;
-    const prevY = p.y;
+    const prevY = p.y, prevX = p.x, prevZ = p.z;
     p.addScaledVector(this.velocity, dt);
+    // Terrain cliffs (maps that set a max slope, e.g. the Marrow Pit's walls): slide along them, never up them.
+    if (climbBlocked(prevY, prevX, prevZ, p.x, p.z)) {
+      if (!climbBlocked(prevY, prevX, prevZ, p.x, prevZ)) { p.z = prevZ; this.velocity.z = 0; }
+      else if (!climbBlocked(prevY, prevX, prevZ, prevX, p.z)) { p.x = prevX; this.velocity.x = 0; }
+      else { p.x = prevX; p.z = prevZ; this.velocity.x = this.velocity.z = 0; }
+    }
     // World structures: walls push the body out, decks and ramps are floors, ceilings stop a jump.
     SOLIDS.collide(p, BODY_RADIUS, this.crouched ? 1.2 : 1.8);
     const ceiling = SOLIDS.ceilingAt(p.x, p.z, prevY);

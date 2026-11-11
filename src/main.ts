@@ -111,12 +111,14 @@ function bootRaid(): void {
   // `begin` deploys through the Hive so scripted raids (tests/raid.mjs, scripts/playtest.mjs) follow the real loop.
   const debug = { ...raid.debug(), begin: deployNow };
   const clock = new THREE.Clock();
+  // Online raids keep simulating while this tab is in the background (src/net keepAlive), so others don't freeze.
+  online.keepAlive((dt) => { raid.update(dt); online.tick(dt); });
   pipeline.renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.05);
     raid.update(dt);
     online.tick(dt);
     // Landmarks (Design's zones.json) count toward contracts the first time the host walks into one.
-    if (!menu.visible) { const lm = world.landmarkAt(camera.position.x, camera.position.z); if (lm) raid.visit(lm); }
+    if (!menu.visible) { const lm = world.landmarkAt(camera.position.x, camera.position.z, raid.player.position.y); if (lm) raid.visit(lm); }
     hud.update(dt, raid.hud());
     // The main menu draws the 3D Hive lab with the host on its pedestal; other Hive screens cover the whole view, so
     // the 3D frame behind them is skipped (the loop and frame counter keep running). The first frames always render

@@ -79,6 +79,29 @@ export class Online {
     if (cls !== this.lastCls) { this.lastCls = cls; if (s.state === 'lobby') s.setClass(cls); }
   }
 
+  /**
+   * Browsers stop drawing frames in a background tab, which would freeze the shared raid for everyone (the
+   * leader runs the creatures; every host sends its body). While this tab is hidden during an online raid, a
+   * Worker timer (not throttled like page timers) steps the simulation without rendering. `step` is the frame
+   * minus the draw: raid.update and this.tick.
+   */
+  keepAlive(step: (dt: number) => void): void {
+    if (typeof Worker === 'undefined' || typeof Blob === 'undefined') return;
+    let worker: Worker;
+    try {
+      const src = URL.createObjectURL(new Blob(['setInterval(() => postMessage(0), 50);'], { type: 'text/javascript' }));
+      worker = new Worker(src);
+    } catch { return; /* workers blocked: the raid pauses with the tab, as before */ }
+    let last = performance.now();
+    worker.onmessage = () => {
+      const now = performance.now();
+      const dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+      const s = this.session.state;
+      if (document.hidden && s === 'raid' && this.session.net) step(dt);
+    };
+  }
+
   /** window.__biophage.net: drives online play from tests/online.mjs. */
   get test() {
     const s = this.session;
