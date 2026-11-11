@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { LOOT, haulValue } from '../data';
+import { haulValue } from '../data';
 import { Raid } from './game/raid';
 import { RaidHud } from './ui/raid-hud';
 import { HiveMenu } from './ui/hive-menu';
@@ -15,8 +15,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1500);
 buildZone7(scene);
 const raid = new Raid(scene, camera, canvas);
-const hud = new RaidHud(raid.bus, () => location.reload());
-const labels = Object.fromEntries(Object.entries(LOOT.items).map(([k, v]) => [k, v.label]));
+const hud = new RaidHud(raid.bus);
 
 // Persistent loop (Larva): boot into the Hive, deploy with the cavity loadout, settle the raid into the profile.
 const storage = browserStorage();
@@ -35,18 +34,17 @@ function deployNow(): void {
 const menu = new HiveMenu(profile, save, deployNow, loaded.notice);
 raid.bus.on('raidEnd', (e) => {
   const r = raid.outcome!;
-  let note = '';
+  const totals = (entries: typeof r.pouch) => new ItemGrid(99, 99, entries).totals();
   if (e.result === 'extracted') {
     const st = extract(profile, r, e.kills);
-    note = `${st.dnaBanked} DNA banked.${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}`;
     save();
-    hud.showResult(e.result, r, labels, e.kills, e.time, note);
+    const note = `${st.dnaBanked} DNA banked.${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}`;
+    menu.showResults({ result: 'extracted', items: r.items, dna: r.dna, value: r.value, kills: e.kills, time: e.time, note });
   } else {
     die(profile, r, e.kills);
     save();
-    const lost = new ItemGrid(99, 99, r.cavity).totals();
-    if (r.pouch.length) note = `Gut pouch kept: ${new ItemGrid(99, 99, r.pouch).totals().map((i) => `${i.count}× ${labels[i.item]}`).join(', ')}.`;
-    hud.showResult(e.result, { ...r, items: lost, value: haulValue(lost, r.dna) }, labels, e.kills, e.time, note);
+    const lost = totals(r.cavity);
+    menu.showResults({ result: 'lost', items: lost, dna: r.dna, value: haulValue(lost, r.dna), kills: e.kills, time: e.time, cause: r.cause, kept: totals(r.pouch) });
   }
 });
 
