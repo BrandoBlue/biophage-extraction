@@ -39,6 +39,12 @@ function glow(color: THREE.Color, intensity = 2.2): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color: C.void, emissive: color, emissiveIntensity: intensity, roughness: 0.2 });
 }
 
+/**
+ * On-screen size of the gun. The breathing animation used to reset the scale to 1 every frame, so the gun filled a
+ * quarter of the screen; it now breathes around this size, leaving room for the host's gripping hand below it.
+ */
+export const GUN_SCALE = 0.72;
+
 interface Eye { group: THREE.Group; base: THREE.Euler }
 interface Tentacle { root: THREE.Group; segs: THREE.Group[]; phase: number }
 
@@ -240,9 +246,9 @@ export class SynapseBursterView {
 
     // Angled so the barrel points at the crosshair and the eye crown and flank face the host.
     g.rotation.set(-0.12, 0.16, -0.1);
-    g.scale.setScalar(0.5);
+    g.scale.setScalar(GUN_SCALE);
     this.root.add(g);
-    this.root.position.set(0.25, -0.235, -0.42);
+    this.root.position.set(0.27, -0.225, -0.47);
 
     // A cool mist key and a warm bone rim that travel with the gun, so its form reads in dark corners of the raid
     // as lit flesh rather than a pink glow.
@@ -298,8 +304,8 @@ export class SynapseBursterView {
     let rx = this.sway.y * 0.6 + this.kick * 0.12 + Math.sin(t * 1.3) * 0.006;
     let ry = this.sway.x * 0.8;
     let rz = 0;
-    let px = 0.25 + this.sway.x * 0.05 + Math.cos(bt * 0.5) * 0.012 * bob;
-    let py = -0.215 - this.sway.y * 0.05 + Math.abs(Math.sin(bt * 0.5)) * 0.014 * bob + Math.sin(t * 1.3) * 0.004;
+    let px = 0.27 + this.sway.x * 0.05 + Math.cos(bt * 0.5) * 0.012 * bob;
+    let py = -0.225 - this.sway.y * 0.05 + Math.abs(Math.sin(bt * 0.5)) * 0.014 * bob + Math.sin(t * 1.3) * 0.004;
     let pz = -0.47 + this.kick * 0.06;
     if (cam.sprinting) { rx -= 0.28; ry += 0.55; px -= 0.04; py -= 0.04; }
 
@@ -320,7 +326,7 @@ export class SynapseBursterView {
     this.chamberCore.scale.setScalar(chamberScale * breath * (0.6 + 0.4 * ammoFrac));
     this.chamberMat.emissiveIntensity = 0.2 + 0.6 * ammoFrac * (this.reloadT > 0 ? 0.4 : 1) + Math.sin(t * 5) * 0.2;
     this.egoMat.emissiveIntensity = 0.5 + ego * 4 + (ego >= 1 ? Math.sin(t * 12) * 1.5 : 0);
-    this.gun.scale.set(1, breath, 1);
+    this.gun.scale.set(GUN_SCALE, GUN_SCALE * breath, GUN_SCALE);
 
     for (let i = 0; i < this.tentacles.length; i++) {
       const tn = this.tentacles[i];

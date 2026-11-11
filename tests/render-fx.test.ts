@@ -185,3 +185,14 @@ describe('built-space atmosphere and grown walls', () => {
     expect(flesh).toBe(true);
   });
 });
+
+describe('first-person gun framing', () => {
+  it('keeps the gun at its framed size while it breathes', async () => {
+    const { SynapseBursterView, GUN_SCALE } = await import('../src/game/viewmodel');
+    const view = new SynapseBursterView(new THREE.PerspectiveCamera());
+    const gun = view.root.children.find((c) => c instanceof THREE.Group && c.children.length > 10) as THREE.Group;
+    for (let i = 0; i < 3; i++) view.update(1 / 60, { yaw: 0, pitch: 0, speed: 0, sprinting: false, grounded: true }, 1, 0, null);
+    expect(gun.scale.x).toBeCloseTo(GUN_SCALE);
+    expect(gun.scale.y).toBeLessThan(GUN_SCALE * 1.05);
+  });
+});
