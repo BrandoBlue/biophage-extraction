@@ -1,0 +1,84 @@
+{
+  "_note": "Online play (the Hive milestone). Server-authoritative raids, squads, the shared squad vault. Times s, distances m. See docs/gdd/hive-milestone.md.",
+  "raid": {
+    "maxHosts": 12,
+    "squadSize": [
+      1,
+      3
+    ],
+    "minHumansBeforeBots": 6,
+    "botsFillTo": 8,
+    "lateJoinUntil": 120,
+    "spawnSeparation": 80,
+    "spawnProtection": 10
+  },
+  "matchmaking": {
+    "byZone": true,
+    "queueMaxSeconds": 90,
+    "gearScoreBands": [
+      0,
+      1500,
+      5000,
+      12000
+    ],
+    "note": "gear score = value of what you carry in; bands keep fresh hosts away from fully kitted squads, widening after 45 s in queue",
+    "widenAfter": 45
+  },
+  "squad": {
+    "sharedScannerPings": true,
+    "pingTypes": [
+      "here",
+      "enemy",
+      "loot",
+      "extract",
+      "danger"
+    ],
+    "downedState": {
+      "bleedOut": 20,
+      "crawlSpeed": 1.2,
+      "canBeExecuted": true
+    },
+    "revive": {
+      "time": 4,
+      "biomassFraction": 0.3,
+      "maxPerRaid": 2
+    },
+    "friendlyFireMultiplier": 0.25,
+    "sharedExtract": true,
+    "lootRule": "free within the squad; ping to call items",
+    "partyLeaderPicksZone": true
+  },
+  "vault": {
+    "columns": 10,
+    "rows": 4,
+    "members": "squad",
+    "withdrawLimitPerDay": null,
+    "note": "a shared squad stash next to each personal stash; deposits and withdrawals are logged so squads can see who took what"
+  },
+  "pvp": {
+    "headMultiplier": 1.8,
+    "lootCavities": true,
+    "stealCarriedKillDna": 0.5,
+    "extractVisibleOnScanner": true,
+    "killFeed": false,
+    "note": "no kill feed: you learn who died by what you find"
+  },
+  "network": {
+    "tickRate": 30,
+    "clientInterpolation": 0.1,
+    "lagCompensation": 0.15,
+    "serverAuthoritative": [
+      "damage",
+      "hits",
+      "loot rolls",
+      "inventory",
+      "extract",
+      "death"
+    ],
+    "reconnectWindow": 60
+  },
+  "bots": {
+    "replaceRivalsWithHumans": true,
+    "note": "rival host bots (rivals.json) fill empty slots up to botsFillTo; they leave as humans join late"
+  }
+}

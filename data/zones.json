@@ -147,7 +147,7 @@
   "hollowChoir": {
     "label": "The Hollow Choir",
     "milestone": "apex",
-    "order": 4,
+    "order": 7,
     "pitch": "A vertical cave-cathedral under Zone 7 where sound is light: noise makes the walls glow and gives you away.",
     "look": "black stone, mineral curtains, light that only blooms where sound hits it",
     "threat": [
@@ -155,12 +155,37 @@
       5
     ],
     "access": "apex",
-    "why": "stealth zone; Wraith territory; a choir-boss at the bottom"
+    "why": "stealth zone; Wraith territory; a choir-boss at the bottom",
+    "size": {
+      "depth": 200,
+      "chambers": 5
+    },
+    "raidTime": 1800,
+    "landmarks": [
+      "choirMouth",
+      "echoGallery",
+      "mineralCurtains",
+      "silentStair",
+      "choirFloor"
+    ],
+    "creatures": [
+      "glasswalker",
+      "oculimoth",
+      "veilwing",
+      "hollowed"
+    ],
+    "boss": "hymnal",
+    "mechanics": {
+      "soundIsLight": {
+        "noiseToLightRadius": 1.0,
+        "note": "any noise lights the walls around you for 2 s; creatures see the light"
+      }
+    }
   },
   "ossuaryReef": {
     "label": "The Ossuary Reef",
     "milestone": "apex",
-    "order": 5,
+    "order": 8,
     "pitch": "A dried sea floor of bone coral in low gravity, drifting between ribs of things the size of mountains.",
     "look": "pale bone, dust, a huge dim sun, slow floating debris",
     "threat": [
@@ -168,6 +193,326 @@
       5
     ],
     "access": "apex",
-    "why": "Behemoth territory; huge open fights; the hardest zone"
+    "why": "Behemoth territory; huge open fights; the hardest zone",
+    "size": {
+      "playableRadius": 600
+    },
+    "raidTime": 2100,
+    "landmarks": [
+      "ribArch",
+      "coralForest",
+      "dryTrench",
+      "voidEdge",
+      "tidePath"
+    ],
+    "creatures": [
+      "bristleback",
+      "veilwing",
+      "mournback",
+      "lumenGrazer",
+      "needlemaw"
+    ],
+    "boss": "boneTide",
+    "mechanics": {
+      "lowGravity": {
+        "gravityMultiplier": 0.45,
+        "jumpMultiplier": 1.8,
+        "fallDamageMultiplier": 0.3
+      },
+      "squadsOnly": true
+    }
+  },
+  "ochreReach": {
+    "label": "The Ochre Reach",
+    "milestone": "host",
+    "order": 4,
+    "pitch": "A sun-baked alien savannah under three suns and a ringed planet: red dust, lone umbrella trees, a dead settler colony of clay domes and drill rigs, and things under the sand.",
+    "look": "hot haze and blowing dust, low-saturation ochre and rust, three soft suns, the ring planet huge in the sky, blue-veined trees; no neon",
+    "reference": "Brandon's desert image (inspiration only: our creatures are not the ones in it)",
+    "size": {
+      "playableRadius": 400
+    },
+    "raidTime": 1500,
+    "threat": [
+      2,
+      4
+    ],
+    "access": "host level 3 or contract dustAndDomes",
+    "structures": [
+      "Settler Domes (a village of clay domes and tin lean-tos, enterable, lockers inside; Shroudlings nest here)",
+      "Rig Yard (rusted derricks and lookout towers with ladders; sniper roosts)",
+      "Acacia Flats (open grass and lone trees; the Bristleback herds)",
+      "Dune Sea (shifting dunes; Dunewake burrows)",
+      "Cactus Gulch (a narrow canyon run with cover)",
+      "Skyfall Crater (where ring debris fell; the Sandwidow's arena)"
+    ],
+    "landmarks": [
+      "domeVillage",
+      "rigYard",
+      "acaciaFlats",
+      "duneSea",
+      "cactusGulch",
+      "skyfallCrater"
+    ],
+    "creatures": [
+      "dunewake",
+      "bristleback",
+      "shroudling",
+      "needlemaw",
+      "bilecantor"
+    ],
+    "nests": [],
+    "boss": "sandwidow",
+    "lootFocus": "settler tech and guns in the domes, Bristleback cisterns, the Sandwidow's eggs",
+    "containers": {
+      "settlerLocker": 8,
+      "cargoCrate": 4,
+      "bioPod": 4
+    },
+    "threatScaling": {
+      "model": "by area",
+      "areas": {
+        "domeVillage": 2,
+        "rigYard": 3,
+        "acaciaFlats": 2,
+        "duneSea": 3,
+        "cactusGulch": 3,
+        "skyfallCrater": 4
+      }
+    },
+    "mechanics": {
+      "heat": {
+        "overloadPerSecondInSun": 0.5,
+        "shadeStopsIt": true,
+        "note": "noon sun slowly fills Overload outside shade"
+      },
+      "sandstorm": {
+        "every": [
+          300,
+          420
+        ],
+        "duration": 45,
+        "sightMultiplier": 0.35,
+        "note": "visibility drops; Dunewake hunt more"
+      }
+    },
+    "extracts": "three: the rig lift (north), a settler crawler (east), a paid sky-tether (crater rim)",
+    "why": "open long-range fights, herds to stampede, a village to clear room by room"
+  },
+  "marrowPit": {
+    "label": "The Marrow Pit",
+    "milestone": "host",
+    "order": 6,
+    "pitch": "A vertical shaft hundreds of metres deep, strung with rickety walkways, cables and hanging huts. The deeper you go the stranger, stronger and richer it gets, and the further it is back up.",
+    "look": "dark stone and roots, mist in shafts of grey light from above, warm lamp glow on the walkways, a sickly green glow from the bottom; no neon",
+    "reference": "Brandon's pit image (inspiration only)",
+    "size": {
+      "shaftDiameter": 260,
+      "depth": 240
+    },
+    "raidTime": 1800,
+    "threat": [
+      2,
+      5
+    ],
+    "access": "host level 5 or contract theLongDrop",
+    "structures": [
+      "Rim Camp (scaffold, winches and the lift; spawn and the main extract)",
+      "Cable Bridges (rope and bone walkways across the shaft)",
+      "Hanging Warren (huts lashed to the cliff on platforms)",
+      "Bone Gallery (caves cut into the walls, full of the Hollowed)",
+      "The Undermouth (the pit floor; the Nethermaw)"
+    ],
+    "landmarks": [
+      "rimCamp",
+      "cableBridge",
+      "hangingWarren",
+      "boneGallery",
+      "undermouth"
+    ],
+    "creatures": [
+      "cablecrawler",
+      "veilwing",
+      "hollowed",
+      "glasswalker",
+      "oculimoth"
+    ],
+    "nests": [],
+    "boss": "nethermaw",
+    "lootFocus": "the deeper the better: pit crates up top, deep caches near the floor, the Nethermaw's lobes",
+    "containers": {
+      "pitCrate": 12,
+      "deepCache": 4
+    },
+    "layers": [
+      {
+        "id": "rim",
+        "depth": [
+          0,
+          40
+        ],
+        "landmarks": [
+          "rimCamp"
+        ],
+        "hpMultiplier": 1.0,
+        "damageMultiplier": 1.0,
+        "lootTier": 1,
+        "containers": {
+          "pitCrate": 4
+        },
+        "light": "daylight from above"
+      },
+      {
+        "id": "cables",
+        "depth": [
+          40,
+          100
+        ],
+        "landmarks": [
+          "cableBridge"
+        ],
+        "hpMultiplier": 1.2,
+        "damageMultiplier": 1.1,
+        "lootTier": 2,
+        "containers": {
+          "pitCrate": 4
+        },
+        "light": "grey mist, lamps"
+      },
+      {
+        "id": "warrens",
+        "depth": [
+          100,
+          170
+        ],
+        "landmarks": [
+          "hangingWarren",
+          "boneGallery"
+        ],
+        "hpMultiplier": 1.45,
+        "damageMultiplier": 1.25,
+        "lootTier": 3,
+        "containers": {
+          "pitCrate": 4,
+          "deepCache": 2
+        },
+        "light": "lamps only"
+      },
+      {
+        "id": "deep",
+        "depth": [
+          170,
+          240
+        ],
+        "landmarks": [
+          "undermouth"
+        ],
+        "hpMultiplier": 1.75,
+        "damageMultiplier": 1.4,
+        "lootTier": 4,
+        "containers": {
+          "deepCache": 2
+        },
+        "light": "the green glow"
+      }
+    ],
+    "threatScaling": {
+      "model": "by depth",
+      "see": "layers"
+    },
+    "mechanics": {
+      "fall": {
+        "lethalOver": 18,
+        "note": "a fall of more than 18 m kills; walkways can be cut"
+      },
+      "climbBack": {
+        "ladderSpeed": 2.5,
+        "liftWait": 20,
+        "note": "every metre down is a metre to climb back"
+      },
+      "dread": {
+        "overloadPerSecondBelow": 170,
+        "rate": 0.4
+      }
+    },
+    "extracts": "the rim lift (always); the updraft at the bottom (only once the Nethermaw is dead)",
+    "why": "push-your-luck descent: every layer is richer and deadlier, and the only easy way out is up"
+  },
+  "weepingFen": {
+    "label": "The Weeping Fen",
+    "milestone": "host",
+    "order": 5,
+    "pitch": "A drowned swamp under giant mushroom-trees: knee-deep black water, glowing moss, mist, long-necked giants wading through it, and something in the deep pool.",
+    "look": "teal mist and black water, moss glow as accents, huge pale cap-trees, roots like cathedrals, a coloured campfire smoke; restrained, not neon",
+    "reference": "Brandon's swamp image (inspiration only)",
+    "size": {
+      "playableRadius": 380
+    },
+    "raidTime": 1500,
+    "threat": [
+      2,
+      4
+    ],
+    "access": "host level 4 or contract lightsInTheFen",
+    "structures": [
+      "Root Hut (a dwelling grown into a giant root, with a ladder inside the trunk)",
+      "Mushroom Cathedral (the tallest cap-trees; climbable caps)",
+      "Stilt Village (drowned houses on stilts, rope bridges)",
+      "Mistwader Shallows (open shallows, the giants graze)",
+      "Spider Hollow (Mirebrood nest around an old fire)",
+      "Drowned Pod (a sunken seedship pod, half under water, locker inside)",
+      "Regent Pool (deep black pool ringed by root islands; the Mire Regent)"
+    ],
+    "landmarks": [
+      "rootHut",
+      "mushroomCathedral",
+      "stiltVillage",
+      "mistwaderShallows",
+      "spiderHollow",
+      "drownedPod",
+      "regentPool"
+    ],
+    "creatures": [
+      "fenstalker",
+      "mirebrood",
+      "mistwader",
+      "titheWeaver",
+      "glasswalker"
+    ],
+    "nests": [
+      "broodHeart"
+    ],
+    "boss": "mireRegent",
+    "lootFocus": "root hollows and stilt houses, the drowned pod's tech, Mistwader hearts, the Regent's pearls",
+    "containers": {
+      "fenHollow": 10,
+      "drownedLocker": 2,
+      "bioPod": 3
+    },
+    "threatScaling": {
+      "model": "by area",
+      "areas": {
+        "rootHut": 2,
+        "stiltVillage": 2,
+        "mushroomCathedral": 3,
+        "mistwaderShallows": 2,
+        "spiderHollow": 3,
+        "drownedPod": 3,
+        "regentPool": 4
+      }
+    },
+    "mechanics": {
+      "water": {
+        "kneeDeepSpeed": 0.85,
+        "waistDeepSpeed": 0.6,
+        "noiseMultiplier": 1.5,
+        "note": "wading is slow and loud; Fenstalkers hear it"
+      },
+      "mist": {
+        "sightMultiplier": 0.55
+      }
+    },
+    "extracts": "three: the stilt-village ferry, a root-lift in the cathedral, and a paid swim-out at the pool's outflow",
+    "why": "slow, tense wading; ambushes from the water; a rich passive giant to hunt if you dare"
   }
 }

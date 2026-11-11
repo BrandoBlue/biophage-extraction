@@ -296,6 +296,151 @@
       "requires": [
         "rivalTithe"
       ]
+    },
+    {
+      "id": "dustAndDomes",
+      "vendor": "archivist",
+      "milestone": "host",
+      "title": "Dust and Domes",
+      "brief": "A colony went quiet under three suns. The Archivist wants its records.",
+      "objectives": [
+        {
+          "type": "extractWith",
+          "item": "settlerLedger",
+          "count": 2
+        }
+      ],
+      "reward": {
+        "dna": 500,
+        "rep": 100,
+        "unlock": "zone:ochreReach"
+      },
+      "requires": [
+        "signalInTheWreck"
+      ]
+    },
+    {
+      "id": "lightsInTheFen",
+      "vendor": "motherClot",
+      "milestone": "host",
+      "title": "Lights in the Fen",
+      "brief": "Mother Clot dreams of a swamp where the moss glows. Bring her some.",
+      "objectives": [
+        {
+          "type": "harvest",
+          "item": "mireLantern",
+          "count": 10
+        }
+      ],
+      "reward": {
+        "dna": 450,
+        "rep": 100,
+        "unlock": "zone:weepingFen"
+      },
+      "requires": [
+        "heartOfTheBrood"
+      ]
+    },
+    {
+      "id": "theLongDrop",
+      "vendor": "gulletBroker",
+      "milestone": "host",
+      "title": "The Long Drop",
+      "brief": "The Broker sells rope to people who go down the pit. None come back to pay.",
+      "objectives": [
+        {
+          "type": "extractWith",
+          "item": "veilMembrane",
+          "count": 1
+        },
+        {
+          "type": "killRival",
+          "count": 1
+        }
+      ],
+      "reward": {
+        "dna": 800,
+        "rep": 150,
+        "unlock": "zone:marrowPit"
+      },
+      "requires": [
+        "husksAndLiars"
+      ]
+    },
+    {
+      "id": "widowsClutch",
+      "vendor": "motherClot",
+      "milestone": "host",
+      "title": "The Widow's Clutch",
+      "brief": "Mother wants an egg from the thing under the crater.",
+      "objectives": [
+        {
+          "type": "killBoss",
+          "boss": "sandwidow"
+        },
+        {
+          "type": "extractWith",
+          "item": "widowEgg",
+          "count": 1
+        }
+      ],
+      "reward": {
+        "dna": 1500,
+        "rep": 250
+      },
+      "requires": [
+        "lightsInTheFen"
+      ]
+    },
+    {
+      "id": "whatTheDeepKeeps",
+      "vendor": "archivist",
+      "milestone": "host",
+      "title": "What the Deep Keeps",
+      "brief": "Bring back a lobe of whatever is at the bottom.",
+      "objectives": [
+        {
+          "type": "killBoss",
+          "boss": "nethermaw"
+        },
+        {
+          "type": "extractWith",
+          "item": "nethermawLobe",
+          "count": 1
+        }
+      ],
+      "reward": {
+        "dna": 2500,
+        "rep": 350
+      },
+      "requires": [
+        "dustAndDomes"
+      ]
+    },
+    {
+      "id": "pearlOfTheRegent",
+      "vendor": "gulletBroker",
+      "milestone": "host",
+      "title": "Pearl of the Regent",
+      "brief": "A pearl from the deep pool. The Broker has a buyer.",
+      "objectives": [
+        {
+          "type": "killBoss",
+          "boss": "mireRegent"
+        },
+        {
+          "type": "extractWith",
+          "item": "regentPearl",
+          "count": 1
+        }
+      ],
+      "reward": {
+        "dna": 1800,
+        "rep": 250
+      },
+      "requires": [
+        "theLongDrop"
+      ]
     }
   ]
 }
