@@ -34,6 +34,14 @@ export interface GameEvents {
   harvestStart: { type: string; time: number };
   harvestProgress: { progress: number };
   harvestDone: { item: string; type: string };
+  /** Melee strike (kit melee); `hit` is the creature id or null on a whiff. */
+  melee: { id: string; hit: number | null };
+  /** Flesh Market gear: thrown or placed, then detonated. */
+  gearUsed: { item: string };
+  explosion: { item: string; position: Vec3Like };
+  /** Heart Husk: lethal damage turned into a delayed revive. */
+  reviving: { time: number };
+  revived: { biomass: number };
   /** A late Seed Spire has opened (World layout; RAID.larva.extracts opensAt). */
   extractOpened: { label: string; x: number; z: number };
   /** Brood Heart nests (PvE AI). */
@@ -47,6 +55,10 @@ export interface GameEvents {
   extractDone: { items: { item: string; count: number }[]; dna: number; value: number };
   death: { cause: string; items: { item: string; count: number }[]; dna: number; value: number };
   raidEnd: { result: 'extracted' | 'lost'; value: number; kills: number; time: number };
+  // Contracts (Gameplay): first open of a container, a landmark reached, a boss killed.
+  containerOpened: { id: string; container: string };
+  landmarkVisited: { landmark: string };
+  bossKilled: { boss: string };
 }
 
 type Handler<T> = (payload: T) => void;

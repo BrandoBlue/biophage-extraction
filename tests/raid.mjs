@@ -155,6 +155,8 @@ try {
   await call('hold', 'KeyE', false);
   if (!s.pods[0].opened) await fail('Bio-Pod did not open while holding E');
   if (!s.carried.items.length) await fail('Bio-Pod gave no items');
+  // Contract log: the harvest, the kill and the first pod open are recorded for the Hive's contract settlement.
+  if (s.zone !== 'glowmireIsle' || !s.log.harvested.needlemawGland || !s.log.killed.needlemaw || !Object.keys(s.log.opened).length) await fail(`contract log incomplete: ${JSON.stringify({ zone: s.zone, log: s.log })}`);
   log(`Bio-Pod: ${s.carried.items.map((i) => `${i.count}x ${i.item}`).join(', ')}; haul ${s.carried.value}`);
 
   // --- In-raid inventory: put the gland into the open pod and take it back (UI's Tab overlay API).
@@ -194,7 +196,8 @@ try {
   await freezeAndScreenshot(page, 'tests/out/raid-collapse.png', { resume: true });
   await call('setTimeLeft', 500);
 
-  // --- Extract.
+  // --- Extract. Waits run at 8x sim speed so the two raid smokes fit CI's 35 min job (software rendering is ~1 fps).
+  await call('setTimeScale', 8);
   await call('extractNow');
   for (let i = 0; i < 120; i++) { await frames(4); s = await state(); if (s.phase !== 'raid') break; }
   if (s.phase !== 'extracted') await fail(`expected extracted, got ${s.phase} (progress ${s.extractProgress})`);
@@ -247,6 +250,32 @@ try {
     if (s.nests[0].state !== 'destroyed' || s.pods.length !== pods + 1) await fail(`Brood Heart kill did not drop a Brood Cache: ${JSON.stringify(s.nests[0])}`);
     log(`Brood Heart woke, sent wave ${s.nests[0].wave} (${s.nests[0].brood} spawn), died and dropped a Brood Cache`);
   }
+  await call('killAll');
+  await call('setTimeScale', 8);
+  // Brood Cache: the container PvE AI's Brood Heart drops on death always holds a Brood Heart Seed.
+  const cacheId = await call('dropContainer', 'broodCache');
+  await frames(1);
+  await call('hold', 'KeyE', true);
+  for (let i = 0; i < 60; i++) { await frames(3); s = await state(); if (s.pods.find((q) => q.id === cacheId)?.opened) break; }
+  await call('hold', 'KeyE', false);
+  if (!s.pods.find((q) => q.id === cacheId)?.opened) await fail('Brood Cache did not open while holding E');
+  const inCache = (await call('openContainer'))?.items ?? [];
+  if (![...s.carried.items, ...inCache].some((i) => i.item === 'broodHeartSeed')) await fail(`Brood Cache had no Brood Heart Seed: carried ${JSON.stringify(s.carried.items)} cache ${JSON.stringify(inCache)}`);
+  log(`Brood Cache opened: ${[...s.carried.items, ...inCache].map((i) => `${i.count}x ${i.item}`).join(', ')}`);
+  // Flesh Market gear: a grenade explodes after its fuse; a Heart Husk turns the first death into a revive.
+  await call('give', 'neuroSpikeGrenade', 1);
+  if (!(await call('grenade'))) await fail('could not throw a Neuro-Spike Grenade');
+  for (let i = 0; i < 40; i++) { await frames(2); s = await state(); if (s.grenades === 0) break; }
+  if (s.grenades !== 0) await fail('grenade never exploded');
+  await call('melee');
+  await call('give', 'heartHusk', 1);
+  await call('damage', 10000);
+  await frames(2);
+  s = await state();
+  if (s.phase !== 'raid' || !s.reviving) await fail(`Heart Husk did not catch the death: ${s.phase}, reviving ${s.reviving}`);
+  for (let i = 0; i < 40; i++) { await frames(2); s = await state(); if (!s.reviving) break; }
+  if (s.reviving || !(s.biomass > 0)) await fail(`Heart Husk revive did not finish: biomass ${s.biomass}`);
+  log(`Heart Husk revived the host at ${Math.round(s.biomass)} Biomass`);
   await call('damage', 10000);
   await frames(3);
   s = await state();

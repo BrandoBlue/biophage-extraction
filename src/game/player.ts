@@ -18,6 +18,9 @@ export const FEEL = { crouchMultiplier: 0.5, slideSpeed: 11, slideTime: 0.7, jum
  * First-person host controller: walk, sprint, crouch, slide, jump, head bob, camera shake and knockback.
  * Collides with the island heightfield and its rim. Static props get Rapier colliders in Larva.
  */
+/** Pixels; a single mousemove larger than this is a pointer-lock artefact, not a flick. */
+const MAX_MOUSE_DELTA = 400;
+
 export class Player {
   readonly velocity = new THREE.Vector3();
   /** Feet position. The camera sits on top at eye height. */
@@ -61,8 +64,14 @@ export class Player {
     addEventListener('keyup', (e) => this.keys.delete(e.code));
     addEventListener('blur', () => this.keys.clear());
     dom.addEventListener('click', () => dom.requestPointerLock?.());
+    // Chrome's first mousemove after pointer lock engages carries minus the cursor position (issue #42), which
+    // swung the camera to the sky on every click-to-play. Skip that event and drop absurd single-event jumps.
+    let freshLock = false;
+    document.addEventListener('pointerlockchange', () => { freshLock = document.pointerLockElement === dom; });
     addEventListener('mousemove', (e) => {
       if (document.pointerLockElement !== dom || !this.enabled) return;
+      if (freshLock) { freshLock = false; return; }
+      if (Math.abs(e.movementX) > MAX_MOUSE_DELTA || Math.abs(e.movementY) > MAX_MOUSE_DELTA) return;
       this.yaw -= e.movementX * 0.0022;
       this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * 0.0022, -1.5, 1.5);
     });
