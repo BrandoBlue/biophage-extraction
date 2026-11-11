@@ -657,7 +657,8 @@
       "z": 0,
       "coreRadius": 4,
       "ringRadius": 8,
-      "valves": 4
+      "valves": 4,
+      "gantryHeight": 12
     }
   }
 }
