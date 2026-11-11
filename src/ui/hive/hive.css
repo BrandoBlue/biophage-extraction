@@ -529,3 +529,5 @@
 .carry-row .carry { flex:1; display:grid; grid-template-columns:auto 1fr; column-gap:.8em; row-gap:.2em; margin:0; }
 .carry-row .carry em { grid-column:1 / -1; }
 .carry-row .hv-btn { flex:none; width:auto; margin:0; }
+/* Vendor stock scrolls once guns, feeds and mods join it (Design #53); keep the scrollbar a hairline. */
+.vd-mid .mk-cards { scrollbar-width:thin; scrollbar-color:var(--hair2) transparent; }

@@ -41,3 +41,4 @@
 .item-tip .tt-row { display:flex; justify-content:space-between; } .item-tip .tt-row span { opacity:.6; }
 .item-tip p { margin:.4em 0 0; line-height:1.35; } .item-tip .gain { color:var(--acid); } .item-tip .cost { color:var(--danger); } .item-tip .hint { opacity:.6; font-size:.9em; }
 .k-consumable { --kc:var(--acid); } .k-currency { --kc:var(--path-dna); } .k-mutagen { --kc:var(--lime); } .k-virus { --kc:var(--path-viral); } .k-tech { --kc:var(--cyan); } .k-organ { --kc:var(--magenta); }
+.k-weapon { --kc:var(--bone); } .k-ammo { --kc:var(--path-melee); } .k-mod { --kc:var(--violet); }
