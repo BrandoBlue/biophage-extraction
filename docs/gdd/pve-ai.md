@@ -40,6 +40,9 @@ The body can show an ambush through `Abomination.lurking` together with `brain.l
 | Glasswalker | stalker | Works round to your flank at 25 m. Freezes (8% visible) when you look at it; creeps when you don't (35%). Inside 25 m it charges at 11 m/s, strikes, then fades out to stalk again. | Lens flares through the 0.5 s wind-up | Keep turning, Psych-Wave Pulse, hits reveal it for 3 s |
 | Oculimoth | flyer | Each eye orbits on its own ring and height (2 to 10 m). One dives at a time to peck your face. One that can see you hangs still and screeches every 8 s per swarm, alerting everything within 35 m. | Iris blows wide for 0.6 s before the screech | Shoot the screamer |
 | Mournback | tank | Turns slowly (0.9 rad/s) to keep its 15% bone shield toward you. Lined up at 8 to 26 m it paws for 1 s (still tracking), then charges in a near-straight line (0.1 rad/s). Close in, it rears for a 5 m ground slam. Winded for 1.6 s after either. | Horns lower / body rears | Sidestep the charge, circle to the dorsal vents |
+| Husk Mimic | mimic | Walks up at a host's pace with no tell, as if it were another player. Inside its reveal distance it splits open (screech), then lunges. Shot, it drops the act at once. | The husk splits for 0.45 s | Treat any host walking straight at you as hostile |
+| Lumen Grazer | grazer | Drifts high and ignores hosts and noise until it is hurt. Then it panics: it hangs over the shooter while its glands flare, dives into a crushing slam, and repeats for its panic dives before it calms. | Lantern glands flare while it hovers overhead | Don't shoot it; if you do, run out from under it |
+| Tithe Weaver | weaver | Hovers near home, spinning strands. Hunting, it strings a strand across a running host's path and spits from 12 to 18 m. A strand roots whoever walks through it and calls every creature near the web. | A fresh strand across your path | Watch your feet, shoot strands, kill the weaver to drop its web |
 
 ## Brood Heart wave director
 `WaveDirector` (`src/ai/nest.ts`) is timing only: dormant until a host is within `activationRadius`, first wave after `firstWaveDelay`, then every `waveInterval` for `maxWaves`, never more than `maxAliveFromNest` of its brood alive (the overflow trickles out as the brood dies). Spawns are flung outward from the heart and hunt immediately. The raid owns the heart's body, damage and Brood Cache.
@@ -97,3 +100,10 @@ Enrage at 7:00: the pool fills the bowl; only the ledge is safe.
   - A faster spear.
 - **meltdown:** the reactor charges for the full 3 s wind-up (`windup` and `rear` swell), then pulses through the chamber. Only cover blocks it.
 - **Enrage:** the reactor pulses every `enragePulseEvery` s.
+- **In a raid** (`src/game/warden.ts` `RaidWarden`, wired in `raid.ts`): it uses World's `WardenArena` (`structures.warden`).
+  - Shooting a coolant valve's wheel vents it. The plume shows, and the seam with the same index cracks for `seamOpenTime` s.
+  - Seed pods are always weak points (×2, 300 Biomass each, and they shatter). Seams take ×3 while they are open.
+  - The pulse comes from the core. `SOLIDS.blocked` between the core's skin and the host's chest decides cover, so the four shield pillars save you.
+  - Catwalk events bring down the nearest standing catwalk, and anyone on it falls.
+  - The swarm spawns at the body's `birthPoint`, clamped inside the chamber.
+  - When it dies, the spoils drop on the floor under it.

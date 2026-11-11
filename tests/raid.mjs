@@ -26,7 +26,8 @@ const label = `${release ? 'release' : 'preview'}${HIVE_PART ? ' hive' : ''}`;
 const PREVIEW_URL = 'http://localhost:4173/';
 let server;
 let browser;
-const fail = async (msg) => { console.error(`RAID FAIL [${label}]: ${msg}`); await browser?.close(); server?.kill(); process.exit(1); };
+const errors = [];
+const fail = async (msg) => { console.error(`RAID FAIL [${label}]: ${msg}${errors.length ? `\nconsole errors:\n${errors.slice(0, 5).join('\n')}` : ''}`); await browser?.close(); server?.kill(); process.exit(1); };
 const log = (msg) => console.log(`raid [${label}]: ${msg}`);
 
 try {
@@ -50,7 +51,6 @@ try {
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
   });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-  const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   mkdirSync('tests/out', { recursive: true });
@@ -429,8 +429,35 @@ try {
   await boot();
   for (let i = 0; i < 20; i++) { s = await state(); if (s.phase === 'raid') break; await frames(1); }
   if (s.phase !== 'raid' || s.zone !== 'longSeedWreck') await fail(`zone switch did not deploy into the Wreck: phase ${s.phase}, zone ${s.zone}`);
-  await freezeAndScreenshot(page, 'tests/out/raid-wreck.png');
+  await freezeAndScreenshot(page, 'tests/out/raid-wreck.png', { resume: true });
   log('raid select: switched to the Wreck of the Long Seed, reloaded and deployed');
+
+  // The Warden of the Long Seed (PvE AI): it waits on the reactor chamber wall and wakes when a host walks in.
+  s = await state();
+  if (!s.warden) await fail('the Wreck has no Warden in its reactor chamber');
+  {
+    const A = s.warden.arena;
+    await call('killAll');
+    await call('setTimeScale', 3);
+    await call('teleport', A.core.x, A.core.z - A.core.radius - 4);
+    for (let i = 0; i < 60; i++) { await frames(2); s = await state(); if (s.warden.state === 'awake') break; }
+    if (s.warden.state !== 'awake') await fail(`the Warden did not wake: ${JSON.stringify(s.warden)}`);
+    await page.waitForFunction(() => /WARDEN/i.test(document.querySelector('#hud .h-boss:not(.hidden) .bh')?.textContent ?? ''), null, { timeout: 30000 })
+      .catch(() => fail('the boss bar did not name the Warden'));
+    await call('ventValve', 0);
+    await frames(2);
+    s = await state();
+    if (!s.warden.seams[0]) await fail(`venting valve 0 did not open the Warden's seam: ${JSON.stringify(s.warden.seams)}`);
+    await call('aimAt', s.warden.centre[0], s.warden.centre[1], s.warden.centre[2]);
+    await frames(4);
+    await freezeAndScreenshot(page, 'tests/out/raid-warden.png', { resume: true });
+    const dnaW = s.carried.dna;
+    await call('hitWarden', 1e6, null);
+    await frames(2);
+    s = await state();
+    if (s.warden.state !== 'dead' || !s.log.bosses.includes('warden') || s.carried.dna <= dnaW) await fail(`the Warden kill did not pay out: ${JSON.stringify({ warden: s.warden, bosses: s.log.bosses })}`);
+    log(`Warden woke in the reactor chamber, a vented valve opened its seam, and it was killed: +${s.carried.dna - dnaW} DNA`);
+  }
 
   }
 
