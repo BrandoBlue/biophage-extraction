@@ -81,8 +81,8 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
   scene.add(sky, cloudSea(-240), starField(rand), horizonLands({ seed: 23 }));
   scene.background = new THREE.Color(ZONE7.void);
   scene.fog = new THREE.FogExp2(ZONE7_SHADE.skyHorizon, 0.006);
-  scene.add(new THREE.HemisphereLight(ORGANIC.mist, ORGANIC.wetFleshDeep, 0.55));
-  const moon = new THREE.DirectionalLight(ORGANIC.mist, 1.2);
+  scene.add(new THREE.HemisphereLight(ORGANIC.mist, ORGANIC.wetFleshDeep, 0.8));
+  const moon = new THREE.DirectionalLight(ORGANIC.mist, 2.0);
   moon.position.set(80, 120, 40);
   scene.add(moon);
   const ground = new THREE.Mesh(new THREE.CircleGeometry(260, 64).rotateX(-Math.PI / 2), zoneRock({ veinColour: ORGANIC.vein, mossColour: ZONE7_SHADE.moss, scale: 1.2 }));
