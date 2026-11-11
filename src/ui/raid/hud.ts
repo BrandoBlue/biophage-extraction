@@ -4,8 +4,9 @@
  * with its EGO CHARGE ring, objectives top right, harvest / inject / extract rings in the centre.
  * Reads a HudView each frame and listens to gameplay events; never touches game objects.
  */
+import { def as itemOf } from '../items';
 import './hud.css';
-import { LOOT, VIRUSES, VIRUS_RULES } from '../../../data';
+import { VIRUSES, VIRUS_RULES } from '../../../data';
 import { HIVE, PATH, ZONE7 } from '../../render/palette';
 import { applyTheme } from '../theme';
 import { glyph, itemIcon, KIND_COLOUR } from '../icons';
@@ -113,8 +114,8 @@ export class OrganicHud {
     });
     on('overload', () => this.say('OVERLOADED', 'violet'));
     on<{ reason: string }>('abilityDenied', (e) => this.say(e.reason === 'overloaded' ? 'OVERLOADED' : e.reason === 'empty' ? 'NONE CARRIED' : 'RECHARGING'));
-    on<{ items: { item: string; count: number }[] }>('pickup', (e) => this.say(`HARVESTED ${e.items.map((i) => `${i.count > 1 ? `${i.count}× ` : ''}${LOOT.items[i.item]?.label ?? i.item}`).join(' · ')}`.toUpperCase(), 'cyan'));
-    on<{ items: { item: string; count: number }[] }>('cavityFull', (e) => this.say(`CAVITIES FULL · ${e.items.map((i) => LOOT.items[i.item]?.label ?? i.item).join(', ').toUpperCase()} LEFT BEHIND · [TAB] SWAP`, 'danger', 3.5));
+    on<{ items: { item: string; count: number }[] }>('pickup', (e) => this.say(`HARVESTED ${e.items.map((i) => `${i.count > 1 ? `${i.count}× ` : ''}${itemOf(i.item)?.label ?? i.item}`).join(' · ')}`.toUpperCase(), 'cyan'));
+    on<{ items: { item: string; count: number }[] }>('cavityFull', (e) => this.say(`CAVITIES FULL · ${e.items.map((i) => itemOf(i.item)?.label ?? i.item).join(', ').toUpperCase()} LEFT BEHIND · [TAB] SWAP`, 'danger', 3.5));
     on('collapseWarning', () => this.say('ZONE COLLAPSE IN 2:00 · EXTRACT NOW', 'danger alarm', 5));
     on<{ label: string }>('extractStart', (e) => this.say(`${e.label.toUpperCase()} SIGNAL · HOLD THE ZONE`, 'lime'));
     on('extractCancel', () => this.say('EXTRACTION INTERRUPTED', 'danger'));
@@ -122,7 +123,7 @@ export class OrganicHud {
     on<{ virus: string }>('virusInjectStart', (e) => this.say(`INJECTING ${(VIRUSES[e.virus]?.label ?? e.virus).toUpperCase()} · YOU ARE SLOWED`, 'violet', VIRUS_RULES.injectTime));
     on('virusInjectCancel', () => this.say('INJECTION INTERRUPTED', 'danger'));
     on<{ virus: string }>('virusInjected', (e) => this.mutate(e.virus));
-    on<{ item: string }>('harvestDone', (e) => this.say(`CUT OUT ${(LOOT.items[e.item]?.label ?? e.item).toUpperCase()}`, 'cyan'));
+    on<{ item: string }>('harvestDone', (e) => this.say(`CUT OUT ${(itemOf(e.item)?.label ?? e.item).toUpperCase()}`, 'cyan'));
     on<{ id: string; slot: number }>('ability', () => { this.bannerLeft = 1.4; });
   }
 
@@ -190,7 +191,7 @@ export class OrganicHud {
     const key = s.carried.map((c) => `${c.item}${c.count}`).join(',') + (s.cavityUsed ?? '');
     if (key !== this.lootKey) {
       this.lootKey = key;
-      q.carried.innerHTML = s.carried.map((c) => `<div class="chip" style="--kc:${KIND_COLOUR[(LOOT.items[c.item]?.kind ?? 'tech') as keyof typeof KIND_COLOUR]}" title="${c.label}">${itemIcon(c.item)}${c.count > 1 ? `<b>${c.count}</b>` : ''}</div>`).join('')
+      q.carried.innerHTML = s.carried.map((c) => `<div class="chip" style="--kc:${KIND_COLOUR[(itemOf(c.item)?.kind ?? 'tech') as keyof typeof KIND_COLOUR]}" title="${c.label}">${itemIcon(c.item)}${c.count > 1 ? `<b>${c.count}</b>` : ''}</div>`).join('')
         + (s.cavityUsed ? `<span class="cap">${s.cavityUsed[0]}/${s.cavityUsed[1]} <kbd>TAB</kbd></span>` : '');
     }
 

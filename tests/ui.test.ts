@@ -101,3 +101,17 @@ describe('settings', () => {
   });
 });
 
+
+describe('podLayout (TAB overlay pod grid)', async () => {
+  const { podLayout } = await import('../src/ui/raid-hud');
+  it('keeps one entry per pod stack, in order, without overlaps', () => {
+    const items = [{ item: 'glitchingHeart', count: 1 }, { item: 'clotGel', count: 4 }, { item: 'mutagenVial', count: 1 }, { item: 'lanternGland', count: 1 }, { item: 'broodHeartSeed', count: 1 }];
+    const lay = podLayout(items);
+    expect(lay.items.map((i) => i.item)).toEqual(items.map((i) => i.item));
+    expect(lay.size[1]).toBeGreaterThanOrEqual(3);
+    for (const a of lay.items) for (const b of lay.items) {
+      if (a === b) continue;
+      expect(fits({ zone: 'pod', label: '', size: lay.size, items: [b] }, a.item, a.x, a.y, a.rotated)).not.toBe('blocked');
+    }
+  });
+});

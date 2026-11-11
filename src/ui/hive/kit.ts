@@ -73,6 +73,8 @@ export interface FrameOpts {
   callsign: string;
   dna: number;
   extras?: { label: string; value: string; tone?: string }[];
+  /** Nav tabs to open even though their milestone has not arrived (feature-detected screens). */
+  unlocked?: string[];
 }
 
 export const NAV: { id: string; label: string; sub?: string; locked?: string }[] = [
@@ -101,7 +103,7 @@ export function frame(o: FrameOpts): { root: HTMLElement; body: HTMLElement; nav
       </div>
       <div class="hv-brand">BIOPHAGE: EXTRACTION <i>${glyph('virus')}</i></div>
     </header>
-    <nav class="hv-nav">${NAV.map((n) => `<button class="tab${n.id === o.tab ? ' on' : ''}${n.locked ? ' locked' : ''}" data-tab="${n.id}" ${n.locked ? 'disabled' : ''}>
+    <nav class="hv-nav">${NAV.map((n) => (o.unlocked?.includes(n.id) ? { ...n, locked: undefined } : n)).map((n) => `<button class="tab${n.id === o.tab ? ' on' : ''}${n.locked ? ' locked' : ''}" data-tab="${n.id}" ${n.locked ? 'disabled' : ''}>
       ${n.label}${n.sub ? `<small>${n.sub}</small>` : ''}${n.locked ? `<em>${glyph('lock')}${n.locked}</em>` : ''}</button>`).join('')}</nav>
     <h1 class="hv-title"><span>${esc(o.title)}</span></h1>
     <main class="hv-body"></main>`;

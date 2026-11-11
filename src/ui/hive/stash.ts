@@ -3,7 +3,8 @@
  * cavity grid on the right, gut pouch below it, DNA balance top right, expand-stash and upgrade-pouch
  * buttons. Drag between grids; R or right-click rotates mid-drag; double-click quick-moves.
  */
-import { CLASSES, LOOT } from '../../../data';
+import { def as itemOf } from '../items';
+import { CLASSES } from '../../../data';
 import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../../render/palette';
 import { glyph } from '../icons';
 import { DragLayer, firstFit, GridView } from './grid';
@@ -98,7 +99,7 @@ export function stashScreen(p: ProfileView, cb: StashCallbacks): HTMLElement & {
   right.insertAdjacentHTML('beforeend', `<div class="carry"><span>CARRYING IN</span><b>${valueOf(p.cavity).toLocaleString('en-US')} DNA</b><em>${glyph('warn')} lost if the host dies</em></div>`);
   right.append(upgrade);
 
-  const kinds = new Set(p.stash.map((s) => LOOT.items[s.item]?.kind));
+  const kinds = new Set(p.stash.map((s) => itemOf(s.item)?.kind));
   el.insertAdjacentHTML('beforeend', `<div class="legend-kinds">${(['consumable', 'currency', 'mutagen', 'virus', 'tech', 'organ'] as const).filter((k) => kinds.has(k) || k === 'organ' || k === 'virus').map((k) => `<span class="k-${k}"><i></i>${k}</span>`).join('')}</div>`);
   const go = cta('CHOOSE DROP ZONE', 'NEXT: RAID SELECT');
   el.append(go, keyHints([['DRAG', 'MOVE'], ['R / RMB', 'ROTATE WHILE DRAGGING'], ['DBL-CLICK', 'QUICK MOVE'], ['SHIFT+DBL', 'TO GUT POUCH'], ['ESC', 'BACK']]));

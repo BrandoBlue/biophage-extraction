@@ -157,6 +157,17 @@ try {
   if (s.carried.items.some((i) => i.item === 'needlemawGland')) await fail('gland still carried after moving it to the pod');
   if ((await call('transfer', 'pod', 0, 'cavity')) !== 1) await fail('could not take the gland back from the pod');
 
+  // --- TAB opens the cavity overlay with the open pod as a third grid; TAB closes it.
+  await page.keyboard.press('Tab');
+  await frames(2);
+  const ov = await page.evaluate(() => ({ open: !document.querySelector('.cav-overlay')?.classList.contains('hidden'),
+    zones: [...document.querySelectorAll('.cav-overlay [data-zone]')].map((e) => e.getAttribute('data-zone')) }));
+  if (!ov.open || !['cavity', 'pouch'].every((z) => ov.zones.includes(z))) await fail(`TAB overlay not shown: ${JSON.stringify(ov)}`);
+  await freezeAndScreenshot(page, 'tests/out/raid-cavities.png', { resume: true });
+  await page.keyboard.press('Tab');
+  if (await page.isVisible('.cav-overlay')) await fail('TAB did not close the cavity overlay');
+  log(`cavity overlay: ${[...new Set(ov.zones)].join(', ')}`);
+
   // --- Inject the Adrenaline Virus: 3 s channel, then it takes hold and lowers max Biomass.
   const vials = (st) => st.carried.items.filter((i) => i.item === 'adrenalineVirus').reduce((n, i) => n + i.count, 0);
   const vialsBefore = vials(s);

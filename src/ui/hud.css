@@ -128,3 +128,4 @@ html, body { margin:0; height:100%; overflow:hidden; background:var(--bg); color
 
 /* The Hive screens (src/ui/hive/hive.css) cover the game; the raid HUD hides behind them. */
 body.in-hive #hud { visibility:hidden; }
+body.cav-open #prompt { display:none; }

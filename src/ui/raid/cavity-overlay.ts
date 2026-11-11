@@ -3,7 +3,8 @@
  * the cavity grid, the gut pouch sits below and an open Bio-Pod's leftovers sit beside it, so a full host can swap.
  * The raid keeps running behind it. Viruses inject from here: select one and press I, or drag it onto the host's arm.
  */
-import { LOOT, VIRUS_RULES } from '../../../data';
+import { def as itemOf } from '../items';
+import { VIRUS_RULES } from '../../../data';
 import { glyph } from '../icons';
 import { DragLayer, firstFit, GridView } from '../hive/grid';
 import type { GridSource } from '../hive/grid';
@@ -106,14 +107,14 @@ export class CavityOverlay {
     if (!it || !item) return;
     it.classList.add('selected');
     this.selected = { zone, index };
-    this.root.classList.toggle('virus-armed', LOOT.items[item]?.kind === 'virus');
+    this.root.classList.toggle('virus-armed', itemOf(item)?.kind === 'virus');
   }
 
   private injectSelected(): void {
     const s = this.selected;
     if (!s) return;
     const item = this.grids[s.zone]?.src.items[s.index]?.item;
-    if (!item || LOOT.items[item]?.kind !== 'virus') { this.say('ONLY VIRUSES CAN BE INJECTED', 'danger'); return; }
+    if (!item || itemOf(item)?.kind !== 'virus') { this.say('ONLY VIRUSES CAN BE INJECTED', 'danger'); return; }
     if (this.inv.inject(s.zone, s.index)) this.toggle(false);
     else this.say('CANNOT INJECT NOW', 'danger');
   }

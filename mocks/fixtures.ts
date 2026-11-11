@@ -1,5 +1,6 @@
 /** Fixture profile and an in-memory HiveActions for the UI mocks and UI unit tests. */
-import { PROFILE, stashRowCost } from '../data';
+import { MARKET, PROFILE, stashRowCost } from '../data';
+import { def as itemOf } from '../src/ui/items';
 import { fits } from '../src/ui/hive/grid';
 import { gridSize, itemsIn } from '../src/ui/hive/model';
 import type { GridZone, HiveActions, ProfileView } from '../src/ui/hive/model';
@@ -74,6 +75,21 @@ export function fixtureActions(p: ProfileView, deploy: () => void = () => {}): H
       p.dna -= u.cost; p.gutPouchLevel++; return true;
     },
     deploy,
+    market: () => ({
+      mood: 1,
+      rotatesIn: 9 * 3600 + 22 * 60,
+      sellPrice: (item) => Math.floor((itemOf(item)?.value ?? 0) * MARKET.buyRate),
+      stock: ['clotGel', 'mutagenVial', 'plagueStalkerStrain', 'neuroSpikeGrenade', 'mawSeedMine', 'heartHusk'].map((item, i) => ({
+        item, price: MARKET.catalogue.find((c) => c.item === item)!.price, state: i === 5 ? 'dna' as const : 'ok' as const })),
+    }),
+    sell(zone, index, count) {
+      const list = itemsIn(zone, p), st = list[index];
+      if (!st) return 0;
+      const n = Math.min(count, st.count), paid = n * Math.floor((itemOf(st.item)?.value ?? 0) * MARKET.buyRate);
+      st.count -= n; if (st.count <= 0) list.splice(index, 1);
+      p.dna += paid; return paid;
+    },
+    buy: () => false,
   };
 }
 export { gridSize };

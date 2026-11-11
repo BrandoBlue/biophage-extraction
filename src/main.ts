@@ -23,7 +23,7 @@ function bootRaid(): void {
   const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1500);
   buildZone7(scene);
   const raid = new Raid(scene, camera, canvas);
-  const hud = new RaidHud(raid.bus);
+  const hud = new RaidHud(raid.bus, raid);
 
   // Persistent loop (Larva): boot into the Hive, deploy with the cavity loadout, settle the raid into the profile.
   const storage = browserStorage();
