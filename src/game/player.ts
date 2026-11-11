@@ -29,6 +29,8 @@ export class Player {
   crouched = false;
   /** Set by the raid each frame (abilities, overload). */
   speedMultiplier = 1;
+  /** Set by the raid each frame from the World layout (Gravity Bloom anomaly); 1 = normal gravity. */
+  gravityScale = 1;
   /** Virus modifiers: sprint speed and how far footsteps carry. */
   sprintBoost = 1;
   footstepScale = 1;
@@ -140,7 +142,7 @@ export class Player {
       this.peakY = this.position.y;
       this.onJump();
     }
-    this.velocity.y -= GRAVITY * dt;
+    this.velocity.y -= GRAVITY * this.gravityScale * dt;
 
     const p = this.position;
     p.addScaledVector(this.velocity, dt);

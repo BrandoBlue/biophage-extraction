@@ -145,3 +145,54 @@ describe('shot effects', () => {
     expect(shotFx.live).toBe(0);
   });
 });
+
+describe('built-space atmosphere and grown walls', () => {
+  it('orients a light shaft from the opening to where it lands, and boxes haze around its centre', async () => {
+    const { lightShaft, hazeVolume } = await import('../src/render/atmos');
+    const from = new THREE.Vector3(0, 6, 0), to = new THREE.Vector3(2, 0, 0);
+    const shaft = lightShaft({ from, to, width: 0.6 });
+    expect(shaft.position.distanceTo(from.clone().lerp(to, 0.5))).toBeLessThan(1e-6);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(shaft.quaternion);
+    expect(up.dot(from.clone().sub(to).normalize())).toBeCloseTo(1); // +Y (opening end) points back at the opening
+    expect((shaft.material as THREE.ShaderMaterial).blending).toBe(THREE.AdditiveBlending);
+    const haze = hazeVolume({ centre: new THREE.Vector3(1, 2, 3), size: new THREE.Vector3(4, 4, 4) });
+    const mat = haze.material as THREE.ShaderMaterial;
+    expect(mat.side).toBe(THREE.BackSide);
+    expect(mat.depthWrite).toBe(false);
+    expect((mat.uniforms.uMin.value as THREE.Vector3).toArray()).toEqual([-1, 0, 1]);
+    expect((mat.uniforms.uMax.value as THREE.Vector3).toArray()).toEqual([3, 4, 5]);
+  });
+
+  it('gives grown walls plates, bumped normals and restrained vein glow', async () => {
+    const { grownWall } = await import('../src/render/materials');
+    const s = compile(grownWall());
+    expect(s.fragmentShader).toContain('normal = normalize(abs(det) * normal - grad)');
+    expect(s.fragmentShader).toContain('* bioGlow');
+  });
+
+  it('keeps the held gun in lit, natural tones rather than neon pink', async () => {
+    const { ORGANIC, ZONE7 } = await import('../src/render/palette');
+    const { SynapseBursterView } = await import('../src/game/viewmodel');
+    const view = new SynapseBursterView(new THREE.PerspectiveCamera());
+    const lights: THREE.PointLight[] = [];
+    view.root.traverse((o) => { if ((o as THREE.PointLight).isPointLight) lights.push(o as THREE.PointLight); });
+    expect(lights.some((l) => l.color.getHexString() === new THREE.Color(ZONE7.magenta).getHexString())).toBe(false);
+    let flesh = false;
+    view.root.traverse((o) => {
+      const m = (o as THREE.Mesh).material as THREE.MeshPhysicalMaterial | undefined;
+      if (m?.color?.getHexString() === new THREE.Color(ORGANIC.wetFlesh).getHexString()) flesh = true;
+    });
+    expect(flesh).toBe(true);
+  });
+});
+
+describe('first-person gun framing', () => {
+  it('keeps the gun at its framed size while it breathes', async () => {
+    const { SynapseBursterView, GUN_SCALE } = await import('../src/game/viewmodel');
+    const view = new SynapseBursterView(new THREE.PerspectiveCamera());
+    const gun = view.root.children.find((c) => c instanceof THREE.Group && c.children.length > 10) as THREE.Group;
+    for (let i = 0; i < 3; i++) view.update(1 / 60, { yaw: 0, pitch: 0, speed: 0, sprinting: false, grounded: true }, 1, 0, null);
+    expect(gun.scale.x).toBeCloseTo(GUN_SCALE);
+    expect(gun.scale.y).toBeLessThan(GUN_SCALE * 1.05);
+  });
+});

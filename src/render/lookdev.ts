@@ -5,6 +5,9 @@ import { gore } from './gore';
 import { dissolvable } from './dissolve';
 import { createHiveLab, type HiveLab } from './hivelab';
 import { boltLook, shotFx } from './shotfx';
+import { grownWall } from './materials';
+import { hazeVolume, lightShaft } from './atmos';
+import { ZONE7_SHADE } from './palette';
 import { crystal, livingFlesh } from './materials';
 import { HIVE, ZONE7 } from './palette';
 import { Abomination } from '../game/abominations';
@@ -46,6 +49,25 @@ export function installLookdev(pipeline: Pipeline, base: THREE.PerspectiveCamera
         scene.add(b);
       }
       shotFx.flash(scene, new THREE.Vector3(tx, y1, tz), new THREE.Color(HIVE.acid), 0.9, 1e6);
+    },
+    /** A test chamber of grown walls (8 x 10 m, open top, one slit window) with a light shaft and haze. */
+    chamber(x: number, z: number) {
+      if (!scene) return;
+      const y = groundHeight(x, z), H = 10, W = 8, T = 0.8;
+      const wall = grownWall();
+      const add = (w: number, h: number, d: number, px: number, py: number, pz: number) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wall);
+        m.position.set(x + px, y + py, z + pz);
+        scene.add(m);
+      };
+      add(W, H, T, 0, H / 2, -W / 2);                 // back
+      add(T, H, W, -W / 2, H / 2, 0);                 // left
+      add(T, H, W, W / 2, H / 2, 0);                  // right, with a slit window cut as two pieces
+      add(W / 2 - 0.6, H, T, -W / 4 - 0.3, H / 2, W / 2);
+      add(W / 2 - 0.6, H, T, W / 4 + 0.3, H / 2, W / 2);
+      add(1.2, 3.5, T, 0, H - 1.75, W / 2);           // lintel over the doorway gap
+      scene.add(lightShaft({ from: new THREE.Vector3(x - 1.5, y + H + 4, z - 1), to: new THREE.Vector3(x + 0.5, y, z + 0.5), width: 2.2, spread: 1.4, colour: new THREE.Color(HIVE.bone).lerp(new THREE.Color(ZONE7.cyan), 0.25), strength: 0.14 }));
+      scene.add(hazeVolume({ centre: new THREE.Vector3(x, y + H / 2, z), size: new THREE.Vector3(W - T, H, W - T), colour: new THREE.Color(ZONE7_SHADE.skyHorizon).lerp(new THREE.Color(HIVE.bone), 0.35), density: 0.05 }));
     },
     /** Count visible objects with this name, and where the first one is (debugging transient FX). */
     find(name: string) {

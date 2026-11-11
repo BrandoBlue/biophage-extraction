@@ -7,6 +7,7 @@ import { HiveStage } from './ui/hive-stage';
 import { ItemGrid } from './game/grid';
 import { browserStorage, deploy, die, extract, loadProfile, saveProfile } from './game/profile';
 import { buildZone7 } from './world/zone7';
+import { zone7Layout } from './world/layout';
 import { createPipeline } from './render/pipeline';
 import { installLookdev } from './render/lookdev';
 import pkg from '../package.json';
@@ -22,8 +23,12 @@ else bootRaid();
 function bootRaid(): void {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1500);
-  buildZone7(scene);
-  const raid = new Raid(scene, camera, canvas);
+  // Each raid draws its live sites (which Seed Spires open, which Gene Blooms grow, where the anomaly sits)
+  // from a fresh seed. `?seed=N` pins it; automated runs use seed 1 (Design's RAID.larva layout) so tests are reproducible.
+  const seedParam = Number(new URLSearchParams(location.search).get('seed'));
+  const raidSeed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : navigator.webdriver ? 1 : 1 + Math.floor(Math.random() * 1e6);
+  const world = buildZone7(scene, zone7Layout(raidSeed));
+  const raid = new Raid(scene, camera, canvas, world.layout, world.sites);
   const hud = new RaidHud(raid.bus, raid);
 
   // Persistent loop (Larva): boot into the Hive, deploy with the cavity loadout, settle the raid into the profile.
@@ -94,6 +99,6 @@ function bootRaid(): void {
     if (!menu.visible || frames < 3 || stage.due()) pipeline.render(dt);
     frames++;
     // Read by tests/smoke.mjs and tests/raid.mjs: proves the loop is alive and drives scripted raids.
-    (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), profile, debug };
+    (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), profile, debug, layout: world.layout };
   });
 }
