@@ -9,9 +9,11 @@ import { freezeAndScreenshot } from './lib/harness.mjs';
 const URL = `http://localhost:4175/?quality=${process.env.QUALITY || 'high'}`;
 const TAG = process.env.TAG ?? '';
 const only = process.argv[2];
-const server = spawn('npx', ['vite', 'preview', '--port', '4175', '--strictPort'], { stdio: 'ignore' });
+// Detached so the whole process group (npx and vite) can be stopped; a leftover preview would silently serve an old dist.
+const server = spawn('npx', ['vite', 'preview', '--port', '4175', '--strictPort'], { stdio: 'ignore', detached: true });
+const stop = () => { try { process.kill(-server.pid); } catch { /* already gone */ } };
 let browser;
-const fail = async (msg) => { console.error(`PLAYERVIEW FAIL: ${msg}`); await browser?.close(); server.kill(); process.exit(1); };
+const fail = async (msg) => { console.error(`PLAYERVIEW FAIL: ${msg}`); await browser?.close(); stop(); process.exit(1); };
 try {
   for (let i = 0; i < 40; i++) {
     try { if ((await fetch('http://localhost:4175/')).ok) break; } catch { /* not up yet */ }
@@ -77,6 +79,6 @@ try {
 
   await browser.close();
   if (errors.length) await fail(errors.join('\n'));
-  server.kill();
+  stop();
   process.exit(0);
 } catch (e) { await fail(e.stack || e); }
