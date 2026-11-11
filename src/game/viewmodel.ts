@@ -200,12 +200,12 @@ export class SynapseBursterView {
     this.flash = new THREE.Group();
     this.flash.position.z = -0.37;
     const add = { blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false, transparent: true } as const;
-    const burst = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: C.acid.clone().lerp(new THREE.Color(1, 1, 1), 0.3).multiplyScalar(3), ...add }));
+    const burst = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: C.acid.clone().lerp(new THREE.Color(1, 1, 1), 0.3).multiplyScalar(1.8), ...add }));
     burst.scale.setScalar(0.22);
-    const star = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.05), new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.acid.clone().multiplyScalar(3), side: THREE.DoubleSide, ...add }));
+    const star = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.05), new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.acid.clone().multiplyScalar(1.8), side: THREE.DoubleSide, ...add }));
     const star2 = star.clone();
     star2.rotation.z = Math.PI / 2;
-    const streak = new THREE.Mesh(new THREE.PlaneGeometry(0.035, 2.2).rotateX(-Math.PI / 2).translate(0, 0, -1.1), new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.acid.clone().multiplyScalar(2.2), side: THREE.DoubleSide, ...add }));
+    const streak = new THREE.Mesh(new THREE.PlaneGeometry(0.035, 2.2).rotateX(-Math.PI / 2).translate(0, 0, -1.1), new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.acid.clone().multiplyScalar(1.3), side: THREE.DoubleSide, ...add }));
     const streak2 = streak.clone();
     streak2.rotation.z = Math.PI / 2;
     this.flash.add(burst, star, star2, streak, streak2);
