@@ -46,7 +46,8 @@ const GradeShader = {
       vec3 col = vec3(texture2D(tDiffuse, vUv + off).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - off).b);
       float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
       col = mix(vec3(l), col, uSaturation);
-      col = (col - 0.5) * uContrast + 0.5;
+      // Contrast as a power curve around a dark mid-grey: no linear pivot at 0.5, which clipped night shadows to black.
+      col = pow(max(col, 0.0) / 0.3, vec3(uContrast)) * 0.3;
       // Split tone: shadows pulled to the register's shadow colour, highlights to its highlight colour.
       col = mix(col, col * 0.6 + uShadow, (1.0 - smoothstep(0.0, 0.35, l)) * uSplit * 2.0);
       col = mix(col, col * uHighlight, smoothstep(0.55, 1.0, l) * uSplit);

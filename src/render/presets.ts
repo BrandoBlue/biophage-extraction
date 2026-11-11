@@ -20,7 +20,7 @@ export interface GradePreset {
 export const GRADE_PRESETS = {
   /** Grounded and eerie (Brandon, 2026-11-11 evening): a cold, low-saturation night, deep shadows, film grain, bloom only on true highlights. */
   zone7: {
-    exposure: 1.28,
+    exposure: 1.22,
     environment: 0.7,
     bloom: { strength: 0.26, radius: 0.45, threshold: 1.45 },
     aberration: 0.0007,
