@@ -119,5 +119,12 @@ See [07](07-economy-and-progression.md) and [08](08-zones-and-bosses.md). Host a
 - [ ] **The Warden of the Long Seed**: restoring power wakes it; reactor-chamber fight.
 - [ ] The Expanse gated by level 5 or *Rib and Hymn*.
 
+## Added 2026-11-11: three new zones
+Full spec in [10](10-new-zones.md). Host also ships:
+- [ ] **The Ochre Reach** (desert savannah): Dunewake, Bristleback and Shroudling; the Sandwidow.
+- [ ] **The Weeping Fen** (drowned swamp): Fenstalker, Mirebrood and Mistwader; the Mire Regent.
+- [ ] **The Marrow Pit** (descent): Cablecrawler, Veilwing and the Hollowed; four depth layers; the Nethermaw.
+- [ ] The contracts that unlock them, and their boss contracts.
+
 ## Out of scope for Host
-Online multiplayer and squads (Hive), Apex evolutions, raid boss, more maps.
+Online multiplayer and squads ([Hive](hive-milestone.md)), Apex evolutions and the raid boss ([Apex](apex-milestone.md)).

@@ -111,9 +111,6 @@
               "landmark": "fungalCaves"
             },
             "count": 1,
-            "fallback": {
-              "landmark": "longSeedDebris"
-            },
             "spread": 4
           }
         ]
@@ -370,6 +367,428 @@
           }
         ]
       }
+    },
+    "ochreReach": {
+      "dunewake": {
+        "home": "Under the Dune Sea and the crater rim; they feel footsteps through the sand.",
+        "roam": 40,
+        "groups": [
+          {
+            "where": {
+              "landmark": "duneSea"
+            },
+            "count": 3,
+            "packed": true,
+            "spread": 25
+          },
+          {
+            "where": {
+              "landmark": "skyfallCrater"
+            },
+            "count": 1,
+            "packed": true,
+            "spread": 20
+          },
+          {
+            "where": {
+              "landmark": "cactusGulch"
+            },
+            "count": 1,
+            "packed": true,
+            "spread": 10
+          }
+        ]
+      },
+      "bristleback": {
+        "home": "Herds graze the Acacia Flats and drift to the rig yard's water tanks at dusk.",
+        "roam": 60,
+        "groups": [
+          {
+            "where": {
+              "landmark": "acaciaFlats"
+            },
+            "count": 2,
+            "packed": true,
+            "spread": 20
+          },
+          {
+            "where": {
+              "landmark": "rigYard"
+            },
+            "count": 1,
+            "packed": true,
+            "spread": 15
+          }
+        ]
+      },
+      "shroudling": {
+        "home": "Nests in the Settler Domes; snipes from hut doorways and the rig towers.",
+        "roam": 30,
+        "groups": [
+          {
+            "where": {
+              "landmark": "domeVillage"
+            },
+            "count": 3,
+            "spread": 25
+          },
+          {
+            "where": {
+              "landmark": "rigYard"
+            },
+            "count": 2,
+            "spread": 15
+          }
+        ]
+      },
+      "needlemaw": {
+        "home": "Scavenger packs in the gulch.",
+        "roam": 35,
+        "groups": [
+          {
+            "where": {
+              "landmark": "cactusGulch"
+            },
+            "count": 2,
+            "packed": true,
+            "spread": 12
+          }
+        ]
+      },
+      "bilecantor": {
+        "home": "Hovers over the rig yard's leaking tanks.",
+        "roam": 20,
+        "groups": [
+          {
+            "where": {
+              "landmark": "rigYard"
+            },
+            "count": 2,
+            "spread": 15
+          }
+        ]
+      }
+    },
+    "marrowPit": {
+      "cablecrawler": {
+        "home": "On the walls and under the walkways of the cable layer and the warrens.",
+        "roam": 25,
+        "groups": [
+          {
+            "where": {
+              "landmark": "cableBridge"
+            },
+            "count": 3,
+            "packed": true,
+            "spread": 30
+          },
+          {
+            "where": {
+              "landmark": "hangingWarren"
+            },
+            "count": 2,
+            "packed": true,
+            "spread": 20
+          }
+        ]
+      },
+      "veilwing": {
+        "home": "Rides the updraft through the middle of the shaft.",
+        "roam": 80,
+        "groups": [
+          {
+            "where": {
+              "landmark": "cableBridge"
+            },
+            "count": 2,
+            "spread": 40,
+            "height": 20
+          },
+          {
+            "where": {
+              "landmark": "hangingWarren"
+            },
+            "count": 2,
+            "spread": 40,
+            "height": 20
+          }
+        ]
+      },
+      "hollowed": {
+        "home": "The warrens and the bone gallery: hosts who went too deep.",
+        "roam": 20,
+        "groups": [
+          {
+            "where": {
+              "landmark": "boneGallery"
+            },
+            "count": 3,
+            "spread": 20
+          },
+          {
+            "where": {
+              "landmark": "hangingWarren"
+            },
+            "count": 2,
+            "spread": 15
+          },
+          {
+            "where": {
+              "landmark": "undermouth"
+            },
+            "count": 2,
+            "spread": 15
+          }
+        ]
+      },
+      "glasswalker": {
+        "home": "Ambushes on the narrow rim scaffold.",
+        "roam": 12,
+        "groups": [
+          {
+            "where": {
+              "landmark": "rimCamp"
+            },
+            "count": 2,
+            "spread": 20
+          }
+        ]
+      },
+      "oculimoth": {
+        "home": "Swarms round the warren lamps.",
+        "roam": 30,
+        "groups": [
+          {
+            "where": {
+              "landmark": "hangingWarren"
+            },
+            "count": 2,
+            "packed": true,
+            "spread": 15
+          }
+        ]
+      }
+    },
+    "weepingFen": {
+      "fenstalker": {
+        "home": "Under the water of the shallows and around the stilt village.",
+        "roam": 30,
+        "groups": [
+          {
+            "where": {
+              "landmark": "mistwaderShallows"
+            },
+            "count": 2,
+            "spread": 25
+          },
+          {
+            "where": {
+              "landmark": "stiltVillage"
+            },
+            "count": 2,
+            "spread": 20
+          },
+          {
+            "where": {
+              "landmark": "regentPool"
+            },
+            "count": 1,
+            "spread": 15
+          }
+        ]
+      },
+      "mirebrood": {
+        "home": "Clustered in Spider Hollow and the Root Hut's roots.",
+        "roam": 15,
+        "groups": [
+          {
+            "where": {
+              "landmark": "spiderHollow"
+            },
+            "count": 3,
+            "packed": true,
+            "spread": 10
+          },
+          {
+            "where": {
+              "landmark": "rootHut"
+            },
+            "count": 1,
+            "packed": true,
+            "spread": 8
+          }
+        ]
+      },
+      "mistwader": {
+        "home": "Wades the open shallows in a small herd.",
+        "roam": 70,
+        "groups": [
+          {
+            "where": {
+              "landmark": "mistwaderShallows"
+            },
+            "count": 2,
+            "spread": 40
+          }
+        ]
+      },
+      "titheWeaver": {
+        "home": "Webs between the cathedral caps.",
+        "roam": 12,
+        "groups": [
+          {
+            "where": {
+              "landmark": "mushroomCathedral"
+            },
+            "count": 2,
+            "spread": 20
+          }
+        ]
+      },
+      "glasswalker": {
+        "home": "Inside the drowned pod's corridors.",
+        "roam": 10,
+        "groups": [
+          {
+            "where": {
+              "landmark": "drownedPod"
+            },
+            "count": 2,
+            "spread": 6
+          }
+        ]
+      }
+    },
+    "hollowChoir": {
+      "glasswalker": {
+        "home": "The echo gallery, invisible against the mineral curtains.",
+        "roam": 12,
+        "groups": [
+          {
+            "where": {
+              "landmark": "echoGallery"
+            },
+            "count": 3,
+            "spread": 15
+          },
+          {
+            "where": {
+              "landmark": "mineralCurtains"
+            },
+            "count": 2,
+            "spread": 15
+          }
+        ]
+      },
+      "oculimoth": {
+        "home": "Swarms that hunt by the light your noise makes.",
+        "roam": 40,
+        "groups": [
+          {
+            "where": {
+              "landmark": "choirMouth"
+            },
+            "count": 2,
+            "packed": true,
+            "spread": 20
+          }
+        ]
+      },
+      "veilwing": {
+        "home": "Drifts down the silent stair.",
+        "roam": 60,
+        "groups": [
+          {
+            "where": {
+              "landmark": "silentStair"
+            },
+            "count": 2,
+            "spread": 30
+          }
+        ]
+      },
+      "hollowed": {
+        "home": "Lost hosts on the choir floor.",
+        "roam": 20,
+        "groups": [
+          {
+            "where": {
+              "landmark": "choirFloor"
+            },
+            "count": 3,
+            "spread": 15
+          }
+        ]
+      }
+    },
+    "ossuaryReef": {
+      "bristleback": {
+        "home": "Herds in the dry trench.",
+        "roam": 80,
+        "groups": [
+          {
+            "where": {
+              "landmark": "dryTrench"
+            },
+            "count": 3,
+            "packed": true,
+            "spread": 40
+          }
+        ]
+      },
+      "veilwing": {
+        "home": "Glides between the rib arches in the low gravity.",
+        "roam": 100,
+        "groups": [
+          {
+            "where": {
+              "landmark": "ribArch"
+            },
+            "count": 4,
+            "spread": 60,
+            "height": 30
+          }
+        ]
+      },
+      "mournback": {
+        "home": "Grazes the coral forest.",
+        "roam": 40,
+        "groups": [
+          {
+            "where": {
+              "landmark": "coralForest"
+            },
+            "count": 3,
+            "spread": 40
+          }
+        ]
+      },
+      "lumenGrazer": {
+        "home": "Drifts over the void edge.",
+        "roam": 150,
+        "groups": [
+          {
+            "where": {
+              "landmark": "voidEdge"
+            },
+            "count": 2
+          }
+        ]
+      },
+      "needlemaw": {
+        "home": "Packs on the Bone Tide's path.",
+        "roam": 50,
+        "groups": [
+          {
+            "where": {
+              "landmark": "tidePath"
+            },
+            "count": 3,
+            "packed": true,
+            "spread": 30
+          }
+        ]
+      }
     }
   },
   "loot": {
@@ -424,6 +843,148 @@
         },
         "count": 3,
         "why": "spilled from the wreck: ammo and the first real guns"
+      }
+    ],
+    "ochreReach": [
+      {
+        "container": "settlerLocker",
+        "at": {
+          "landmark": "domeVillage"
+        },
+        "count": 6,
+        "why": "one in most domes; clear the village room by room"
+      },
+      {
+        "container": "settlerLocker",
+        "at": {
+          "landmark": "rigYard"
+        },
+        "count": 2,
+        "why": "in the lookout towers: climb for it"
+      },
+      {
+        "container": "cargoCrate",
+        "at": {
+          "landmark": "rigYard"
+        },
+        "count": 3,
+        "why": "supply crates by the derricks"
+      },
+      {
+        "container": "cargoCrate",
+        "at": {
+          "landmark": "cactusGulch"
+        },
+        "count": 1,
+        "why": "a crawler that never made it out"
+      },
+      {
+        "container": "bioPod",
+        "at": {
+          "landmark": "acaciaFlats"
+        },
+        "count": 2,
+        "why": "grown under the lone trees, in the herd's path"
+      },
+      {
+        "container": "bioPod",
+        "at": {
+          "landmark": "duneSea"
+        },
+        "count": 2,
+        "why": "half-buried in the dunes, Dunewake ground"
+      }
+    ],
+    "marrowPit": [
+      {
+        "container": "pitCrate",
+        "at": {
+          "landmark": "rimCamp"
+        },
+        "count": 4,
+        "why": "supplies by the winches"
+      },
+      {
+        "container": "pitCrate",
+        "at": {
+          "landmark": "cableBridge"
+        },
+        "count": 4,
+        "why": "lashed to the bridges"
+      },
+      {
+        "container": "pitCrate",
+        "at": {
+          "landmark": "hangingWarren"
+        },
+        "count": 4,
+        "why": "in the huts"
+      },
+      {
+        "container": "deepCache",
+        "at": {
+          "landmark": "boneGallery"
+        },
+        "count": 2,
+        "why": "what the Hollowed hoard"
+      },
+      {
+        "container": "deepCache",
+        "at": {
+          "landmark": "undermouth"
+        },
+        "count": 2,
+        "why": "at the Nethermaw's feet"
+      }
+    ],
+    "weepingFen": [
+      {
+        "container": "fenHollow",
+        "at": {
+          "landmark": "rootHut"
+        },
+        "count": 2,
+        "why": "in the root dwelling"
+      },
+      {
+        "container": "fenHollow",
+        "at": {
+          "landmark": "stiltVillage"
+        },
+        "count": 4,
+        "why": "one per stilt house"
+      },
+      {
+        "container": "fenHollow",
+        "at": {
+          "landmark": "mushroomCathedral"
+        },
+        "count": 2,
+        "why": "on the caps: climb"
+      },
+      {
+        "container": "fenHollow",
+        "at": {
+          "landmark": "spiderHollow"
+        },
+        "count": 2,
+        "why": "in the brood nest"
+      },
+      {
+        "container": "drownedLocker",
+        "at": {
+          "landmark": "drownedPod"
+        },
+        "count": 2,
+        "why": "seed-key lockers in the sunken pod"
+      },
+      {
+        "container": "bioPod",
+        "at": {
+          "landmark": "mistwaderShallows"
+        },
+        "count": 3,
+        "why": "grown on the shallows' islands"
       }
     ]
   }
