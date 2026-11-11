@@ -203,18 +203,18 @@ export class GenericWeaponModel implements WeaponModel {
     b.add(throat);
 
     // Sighting eye on long guns; otherwise a bone notch on the crown.
-    const sightY = R * 1.55;
+    const sightY = R * 2.3;
     if (shape.eye) {
       const eye = new THREE.Mesh(new THREE.SphereGeometry(R * 0.45, 20, 14), bioNode(ZONE7.cyan, 0.6));
       eye.scale.z = 2.2;
-      eye.position.set(0, sightY - R * 0.2, -L * 0.05);
+      eye.position.set(0, R * 1.35, -L * 0.05);
       b.add(eye);
     } else {
       const notch = new THREE.Mesh(new THREE.ConeGeometry(R * 0.12, R * 0.4, 5), m.bone);
       notch.position.set(0, R * 1.3, -L * 0.45);
       b.add(notch);
     }
-    this.sight.position.set(0, sightY, L * 0.2);
+    this.sight.position.set(0, sightY, L * 0.42);
     b.add(this.sight);
 
     this.muzzle.position.set(0, shape.barrels > 1 ? R * 0.15 : 0, -L * 0.68);

@@ -247,7 +247,7 @@ export class SynapseBursterView implements WeaponModel {
     g.rotation.set(-0.12, 0.16, -0.1);
     g.scale.setScalar(GUN_SCALE);
     // Eye line over the crown, toward the back of the gun: the rig lines it up with the crosshair when aiming.
-    this.sight.position.set(0, 0.2, 0.12);
+    this.sight.position.set(0, 0.24, 0.24);
     g.add(this.sight);
     this.root.add(g);
 

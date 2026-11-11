@@ -14,7 +14,7 @@ import { DEFAULT_KICK, type KickProfile, type WeaponFrame, type WeaponModel } fr
 export const RIG = {
   hip: new THREE.Vector3(0.27, -0.225, -0.47),
   /** Distance in front of the eye the sight sits at full aim. */
-  adsDepth: 0.36,
+  adsDepth: 0.3,
   sprint: { rx: -0.28, ry: 0.55, px: -0.04, py: -0.04 },
   /** Equip: the weapon comes up from below and rolls in. */
   equipDrop: 0.32,
@@ -100,6 +100,7 @@ export class WeaponRig {
   equip(model: WeaponModel, equipTime: number): void {
     this.next = null; this.holsterT = 0;
     this.add(model);
+    model.root.visible = true;
     this.model = model;
     this.equipT = this.equipDur = Math.max(0, equipTime);
     if (this.equipDur === 0) this.equipDur = 1;
@@ -110,7 +111,7 @@ export class WeaponRig {
     if (model.sight) {
       model.root.updateMatrixWorld(true);
       this.sightLocal.copy(model.sight.getWorldPosition(new THREE.Vector3()));
-      model.root.parent?.worldToLocal(this.sightLocal);
+      model.root.worldToLocal(this.sightLocal); // model roots sit at the holder's origin
     }
     for (const m of this.holder.children) if (m !== model.root && !this.isWarm(m)) m.visible = this.holderIsLight(m);
   }
@@ -161,14 +162,16 @@ export class WeaponRig {
     py -= this.dip * RIG.reloadDip; rz += this.dip * RIG.reloadRoll; rx += this.dip * 0.12;
     if (cam.sprinting) { rx += RIG.sprint.rx; ry += RIG.sprint.ry; px += RIG.sprint.px; py += RIG.sprint.py; }
 
-    // ADS: slide so the sight sits on the view axis, the barrel straight ahead.
+    // ADS: square the weapon up (undo the hip cant the bodies are modelled with) and slide it so the sight sits on
+    // the view axis, the barrel straight ahead.
     if (f.aim > 0) {
       const a = THREE.MathUtils.smoothstep(f.aim, 0, 1);
-      px = THREE.MathUtils.lerp(px, -this.sightLocal.x, a);
-      py = THREE.MathUtils.lerp(py, -this.sightLocal.y, a);
-      pz = THREE.MathUtils.lerp(pz, -RIG.adsDepth - this.sightLocal.z, a);
+      this.holder.rotation.set(0.12 * a, -0.16 * a, 0.1 * a);
+      const sight = this.sightLocal.clone().applyEuler(this.holder.rotation);
+      px = THREE.MathUtils.lerp(px, -sight.x, a);
+      py = THREE.MathUtils.lerp(py, -sight.y, a);
+      pz = THREE.MathUtils.lerp(pz, -RIG.adsDepth - sight.z, a);
       rx *= 1 - a * 0.7; ry *= 1 - a;
-      this.holder.rotation.set(0.12 * a, -0.16 * a, 0.1 * a); // undo the hip cant the bodies are modelled with
     } else this.holder.rotation.set(0, 0, 0);
 
     // Swap: the old weapon drops away, then the new one is drawn.

@@ -13,6 +13,7 @@ import { installLookdev } from './render/lookdev';
 import pkg from '../package.json';
 
 import { creatureViewerRequested, startCreatureViewer } from './creatures/viewer';
+import { Sfx } from './audio/sfx';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
 /** sessionStorage key: deploy right after the reload that built the newly picked zone. */
@@ -40,6 +41,7 @@ function bootRaid(): void {
   const zoneParam = new URLSearchParams(location.search).get('zone');
   const world = buildZone(scene, zoneParam ?? profile.economy.zone, raidSeed);
   const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures);
+  new Sfx(raid.bus); // code-generated gun, reload and hit sounds
   const hud = new RaidHud(raid.bus, raid);
   function deployNow(): void {
     if (raid.phase !== 'briefing') return;
