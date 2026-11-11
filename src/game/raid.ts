@@ -11,6 +11,7 @@ import type { Deployment } from './profile';
 import type { Placed } from './grid';
 import { Injection, SporeInfection, virusForItem, virusModifiers } from './virus';
 import type { Noise } from './perception';
+import { hostVisibility } from '../ai';
 import { Player } from './player';
 import { Projectiles, segmentSphere, type Projectile } from './projectiles';
 import { BioPod, Hazards, SeedSpire } from './props';
@@ -642,6 +643,22 @@ export class Raid {
     const ctx: AbominationContext = {
       player: p.position, playerVelocity: p.velocity, playerAlive: live, playerHidden: this.elapsed < RAID.spawn.safeTime,
       noises: this.noises, others: this.creatures, playableRadius: this.playable,
+      // PvE AI senses: how lit up the host is, and where it is looking (src/ai).
+      playerVisibility: hostVisibility({ moving: p.moving, sprinting: p.sprinting, crouched: p.crouched, sinceShot: p.sinceFired, virus: p.footstepScale }),
+      playerForward: { x: -Math.sin(p.yaw), z: -Math.cos(p.yaw) },
+      onKnockback: (c, strength) => {
+        const d = new THREE.Vector3(p.position.x - c.position.x, 0, p.position.z - c.position.z);
+        if (d.lengthSq() < 1e-6) d.set(Math.sin(c.yaw), 0, Math.cos(c.yaw));
+        d.normalize();
+        p.velocity.x += d.x * strength; p.velocity.z += d.z * strength;
+        p.velocity.y = Math.max(p.velocity.y, strength * 0.45);
+        p.grounded = false;
+        p.addTrauma(Math.min(0.8, strength / 12));
+      },
+      onScreech: (c, radius) => {
+        this.bus.emit('alert', { id: c.id, type: c.kind, position: { x: c.position.x, y: c.position.y, z: c.position.z } });
+        this.noise(c.position, radius, 'screech');
+      },
       onAlert: (c) => {
         this.bus.emit('alert', { id: c.id, type: c.kind, position: { x: c.position.x, y: c.position.y, z: c.position.z } });
         for (const o of this.creatures) if (o !== c && o.alive && o.position.distanceTo(c.position) <= c.t.perception.alertShare) o.alert();
