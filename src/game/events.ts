@@ -23,6 +23,8 @@ export interface GameEvents {
   abilityDenied: { id: string; reason: 'cooldown' | 'overloaded' | 'empty' };
   containerOpenStart: { container: string };
   pickup: { items: { item: string; count: number }[]; dna: number; source: string };
+  /** Pickup items that did not fit in the cavities or gut pouch; they stay where they were. */
+  cavityFull: { items: { item: string; count: number }[] };
   extractStart: { label: string; time: number };
   extractProgress: { progress: number; timeLeft: number };
   extractCancel: Record<string, never>;

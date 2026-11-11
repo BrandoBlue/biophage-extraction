@@ -115,6 +115,7 @@ export class RaidHud {
     });
     bus.on('overload', () => this.say('OVERLOADED', 'violet'));
     bus.on('abilityDenied', (e) => this.say(e.reason === 'overloaded' ? 'OVERLOADED' : e.reason === 'empty' ? 'NONE CARRIED' : 'RECHARGING'));
+    bus.on('cavityFull', (e) => this.say(`CAVITIES FULL · LEFT ${e.items.map((i) => `${i.count}× ${i.item.replace(/([A-Z])/g, ' $1')}`).join(' · ')}`.toUpperCase(), 'danger'));
     bus.on('pickup', (e) => this.say(`HARVESTED ${e.items.map((i) => (i.count > 1 ? `${i.count}× ` : '') + i.item.replace(/([A-Z])/g, ' $1')).join(' · ')}`.toUpperCase(), 'cyan'));
     bus.on('collapseWarning', () => this.say('ZONE COLLAPSE IN 2:00 · EXTRACT NOW', 'danger alarm', 5));
     bus.on('extractStart', (e) => this.say(`${e.label.toUpperCase()} SIGNAL · HOLD THE ZONE`, 'lime'));
@@ -272,18 +273,19 @@ export class RaidHud {
     c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.stroke();
   }
 
-  showResult(kind: 'extracted' | 'lost', r: { items: { item: string; count: number }[]; dna: number; value: number; cause?: string }, labels: Record<string, string>, kills: number, time: number): void {
+  showResult(kind: 'extracted' | 'lost', r: { items: { item: string; count: number }[]; dna: number; value: number; cause?: string }, labels: Record<string, string>, kills: number, time: number, note = ''): void {
     const rows = r.items.map((i) => `<li><span>${labels[i.item] ?? i.item}</span><b>×${i.count}</b></li>`).join('') + `<li><span>Kill DNA</span><b>${r.dna}</b></li>`;
     const won = kind === 'extracted';
     this.results.innerHTML = `
       <div class="panel ${won ? 'won' : 'lost'}">
         <h1>${won ? 'EXTRACTED' : 'HOST LOST'}</h1>
-        <p class="sub">${won ? 'The Seed Spire carried your haul out of Zone 7.' : `Biomass depleted${r.cause ? ` · ${r.cause}` : ''}. Everything you carried is gone.`}</p>
+        <p class="sub">${won ? 'The Seed Spire carried your haul out of Zone 7.' : `Biomass depleted${r.cause ? ` · ${r.cause}` : ''}. Everything in your cavities is gone.`}</p>
         <h2>${won ? 'HAUL BANKED' : 'LOST WITH THE HOST'}</h2>
         <ul>${rows}</ul>
         <div class="total"><span>${won ? 'HAUL VALUE' : 'VALUE LOST'}</span><b>${r.value} DNA</b></div>
         <div class="stats">KILLS ${kills} · TIME ${fmtTime(time)}</div>
-        <button class="cta" id="deploy-again">DEPLOY AGAIN<small>PVPVE ZONE · DEATH LOSES YOUR LOADOUT</small></button>
+        ${note ? `<p class="sub note">${note}</p>` : ''}
+        <button class="cta" id="deploy-again">RETURN TO THE HIVE<small>${won ? 'HAUL MOVED TO YOUR STASH' : 'YOUR GUT POUCH CAME HOME'}</small></button>
       </div>`;
     this.results.classList.remove('hidden');
     this.results.classList.add(kind);

@@ -6,7 +6,8 @@ import { AbilitySystem } from './abilities';
 import { EventBus } from './events';
 import { ExtractionPoint } from './extraction';
 import { Fx, GORE } from './fx';
-import { Carried } from './inventory';
+import { Carried, type CarriedSnapshot } from './inventory';
+import type { Deployment } from './profile';
 import type { Noise } from './perception';
 import { Player } from './player';
 import { Projectiles, segmentSphere, type Projectile } from './projectiles';
@@ -89,7 +90,7 @@ export class Raid {
   private collapseWarned = false;
   private spireSignal = 0;
   private sinceHit = 99;
-  private result: { items: { item: string; count: number }[]; dna: number; value: number; cause?: string } | null = null;
+  private result: (CarriedSnapshot & { cause?: string }) | null = null;
   private classId: ClassId = 'neuroInfiltrator';
   private spawnScale: number;
 
@@ -220,17 +221,22 @@ export class Raid {
     });
     addEventListener('contextmenu', (e) => e.preventDefault());
     addEventListener('keydown', (e) => {
-      if (this.phase === 'briefing' && !e.repeat) this.begin();
       if (this.phase !== 'raid' || e.repeat) return;
       if (e.code === 'KeyR') { if (this.weapon.reload()) this.onReload(); }
       if (e.code === 'KeyF') this.egoQueued = true;
       if (e.code === 'Digit1' || e.code === 'KeyQ') this.useAbility(1);
       if (e.code === 'Digit2') this.useAbility(2);
     });
-    this.canvas.addEventListener('click', () => { if (this.phase === 'briefing') this.begin(); });
   }
 
-  /** Starts the raid clock (first click or key). */
+  /** Deploys from the Hive with the profile's loadout and starts the raid clock. */
+  deploy(d: Deployment): void {
+    if (this.phase !== 'briefing') return;
+    this.carried.load(d.loadout, d.cavitySize, d.pouchSize);
+    this.begin();
+  }
+
+  /** Starts the raid clock with whatever is carried (the Hive menu calls `deploy`). */
   begin(): void {
     if (this.phase !== 'briefing') return;
     this.phase = 'raid';
@@ -493,10 +499,10 @@ export class Raid {
     this.interactTarget = null;
     for (const pod of this.pods) {
       pod.update(dt);
-      if (pod.opened || !live) continue;
+      if (!pod.lootable || !live) continue;
       if (Math.hypot(pod.position.x - p.position.x, pod.position.z - p.position.z) < 2.4) this.interactTarget = pod;
     }
-    for (const pod of this.pods) if (pod !== this.interactTarget && !pod.opened) pod.progress = 0;
+    for (const pod of this.pods) if (pod !== this.interactTarget && pod.lootable) pod.progress = 0;
     if (this.interactTarget) {
       const pod = this.interactTarget;
       const c = LOOT.containers[pod.type];
@@ -550,11 +556,19 @@ export class Raid {
   }
 
   private openPod(pod: BioPod): void {
+    const rolled = pod.opened ? pod.remaining : rollContainer(pod.type, this.rand);
     pod.open();
-    const items = rollContainer(pod.type, this.rand);
-    for (const s of items) this.carried.add(s.item, s.count);
+    pod.remaining = [];
+    const items: typeof rolled = [], left: typeof rolled = [];
+    for (const s of rolled) {
+      const miss = this.carried.add(s.item, s.count);
+      if (s.count - miss > 0) items.push({ item: s.item, count: s.count - miss });
+      if (miss > 0) left.push({ item: s.item, count: miss });
+    }
     this.fx.burst(pod.position.clone().add(new THREE.Vector3(0, 0.7, 0)), GORE.cyanFluid, 0.6);
-    this.bus.emit('pickup', { items, dna: 0, source: pod.type });
+    if (items.length) this.bus.emit('pickup', { items, dna: 0, source: pod.type });
+    // Never auto-drop what is carried: what does not fit stays in the pod (swap UI comes with the cavity overlay).
+    if (left.length) { pod.reseal(left); this.bus.emit('cavityFull', { items: left }); }
   }
 
   private steer(pr: Projectile, dt: number): void {
@@ -647,7 +661,7 @@ export class Raid {
       carried: this.carried.items.map((s) => ({ item: s.item, label: LOOT.items[s.item].label, count: s.count, kind: LOOT.items[s.item].kind })),
       dna: this.carried.dna, value: this.carried.value, kills: this.kills,
       extract: { progress: this.extract.progress, inside: this.extract.inside, distance: Math.hypot(this.extract.x - p.x, this.extract.z - p.z), label: RAID.extract.label },
-      interact: nearestPod ? { text: `HOLD E · TEAR OPEN ${LOOT.containers[nearestPod.type].label.toUpperCase()}`, progress: nearestPod.progress } : null,
+      interact: nearestPod ? { text: nearestPod.opened ? 'HOLD E · TAKE WHAT IS LEFT' : `HOLD E · TEAR OPEN ${LOOT.containers[nearestPod.type].label.toUpperCase()}`, progress: nearestPod.progress } : null,
       scanner: {
         x: p.x, z: p.z, yaw: this.player.yaw, range: 60,
         extract: { x: this.extract.x, z: this.extract.z },
@@ -692,6 +706,7 @@ export class Raid {
       setTimeScale: (k: number) => { this.timeScale = k; },
       setTimeLeft: (t: number) => { this.elapsed = RAID.raidTime - t; },
       give: (item: string, n = 1) => this.carried.add(item, n),
+      pouch: (item: string, n = 1) => this.carried.pouch.add(item, n),
     };
   }
 }
