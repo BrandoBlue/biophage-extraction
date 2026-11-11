@@ -36,7 +36,11 @@ To try it alone: open the build twice with `?net=local` (two windows of one brow
 - **claude.ai play link:** its sandbox blocks WebRTC and WebSockets, so the Hive-Mind panel there links to the
   online build instead.
 
-## Not yet synced (next PRs)
+## Background tabs
+Browsers stop drawing frames in a background tab. During an online raid a Worker timer keeps stepping the
+simulation (no rendering) while the tab is hidden, so the leader alt-tabbing does not freeze creatures for everyone.
+
+## Not yet synced (paused by Brandon 2026-11-11 until the world and zones are fun)
 Bosses (Reliquary, Pale Vigil) and Brood Hearts still run on each machine separately; containers and their loot;
 looting a fallen host's cavities; downed state and revives; shared squad extract; squad pings.
 
