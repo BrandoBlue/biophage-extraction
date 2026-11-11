@@ -24,6 +24,12 @@ const POSES = {
   anomaly: { at: [36, -17], eye: 2.5, yaw: -0.6, pitch: 0.3 },
   bloom: { at: [4, -31], eye: 1.7, yaw: -0.6, pitch: -0.22 },
   spire: { at: [96, 31], eye: 3, yaw: -2.07, pitch: 0.08 },
+  beacon: { at: [30, -95], eye: 1.8, yaw: -0.51, pitch: 0.3 },
+  tower: { at: [-44, -66], eye: 2, yaw: 0.68, pitch: 0.28 },
+  towerInside: { at: [-60, -86], eye: 1.7, yaw: 2.6, pitch: 0.35 },
+  bowl: { at: [52, 3], eye: 7, yaw: -1.5, pitch: -0.05 },
+  bowlFloor: { at: [80, -6], eye: 1.7, yaw: -0.5, pitch: 0.12 },
+  debris: { at: [-42, 66], eye: 2.2, yaw: 0.85, pitch: 0.05 },
 };
 const width = Number(process.env.LOOKDEV_W || 1280), height = Number(process.env.LOOKDEV_H || 720);
 const server = spawn('npx', ['vite', 'preview', '--port', '4174', '--strictPort'], { stdio: 'ignore' });
@@ -39,8 +45,11 @@ try {
   page.on('pageerror', (e) => errors.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`${m.type()}: ${m.text()}`); });
   await page.goto(URL);
-  await page.addStyleTag({ content: '#prompt,#hive{display:none!important}' });
   await page.waitForFunction(() => window.__biophage?.frames > 3, null, { timeout: 120000 });
+  // The game boots into the Hive and stops drawing the raid behind it: deploy first (as tests/smoke.mjs does).
+  if (await page.$('#hive .tab[data-tab="raid"]')) await page.click('#hive .tab[data-tab="raid"]');
+  if (await page.$('#deploy')) await page.click('#deploy');
+  await page.addStyleTag({ content: '#prompt,#hive{display:none!important}' });
   mkdirSync('tests/out', { recursive: true });
   const only = process.argv[2];
   for (const [name, pose] of Object.entries(POSES)) {

@@ -228,8 +228,18 @@ export interface Zone7Sites {
   broodCrater: { radius: number; depth: number; rimHeight: number };
   geneBlooms: { perRaid: number; clearingRadius: number; sites: (Placement & { id: string })[] };
   anomaly: { id: string; size: number; sites: (Placement & { id: string })[] };
+  structures: {
+    hollowSpire: Placement & { yaw: number; footprint: number; lootContainer: string };
+    reliquaryBowl: Placement & { yaw: number; size: number; depth: number };
+    longSeedDebris: Placement & { yaw: number; footprint: number };
+  };
+  /** Landmark id (Design's zones.json) → the catalogue site it names and its radius in metres. */
+  landmarks: Record<string, { site: string; radius: number }>;
 }
-export const ZONE7_SITES = strip<Zone7Sites>(zone7Json);
+/** Site catalogues keyed by zone id (World & Level). */
+export const ZONE_SITES = strip<{ glowmireIsle: Zone7Sites; longSeedWreck: Record<string, unknown> }>(zone7Json);
+/** Zone 1, Glowmire Isle: the Zone 7 island. */
+export const ZONE7_SITES = ZONE_SITES.glowmireIsle;
 /** PvE AI tuning (owned by PvE AI & Encounters): archetype per Abomination kind and how each archetype hunts. */
 export type Archetype = 'swarm' | 'spitter' | 'stalker' | 'flyer' | 'tank';
 export interface AiRules {

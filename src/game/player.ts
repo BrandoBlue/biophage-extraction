@@ -1,11 +1,13 @@
 import * as THREE from 'three';
-import { groundHeight, ISLAND_RADIUS } from '../world/zone7';
+import { groundHeight, ISLAND_RADIUS, SOLIDS } from '../world/zone7';
 import { footstepRadius } from './perception';
 import type { HostClass, HostRules } from '../../data';
 
 const EYE = 1.7;
 const EYE_CROUCH = 1.05;
 const GRAVITY = 22;
+/** Body radius against World structure walls. */
+const BODY_RADIUS = 0.4;
 const BASE_FOV = 75;
 
 /**
@@ -145,11 +147,16 @@ export class Player {
     this.velocity.y -= GRAVITY * this.gravityScale * dt;
 
     const p = this.position;
+    const prevY = p.y;
     p.addScaledVector(this.velocity, dt);
+    // World structures: walls push the body out, decks and ramps are floors, ceilings stop a jump.
+    SOLIDS.collide(p, BODY_RADIUS, this.crouched ? 1.2 : 1.8);
+    const ceiling = SOLIDS.ceilingAt(p.x, p.z, prevY);
+    if (p.y + 1.8 > ceiling && this.velocity.y > 0) { p.y = Math.max(prevY, ceiling - 1.8); this.velocity.y = 0; }
     const edge = ISLAND_RADIUS * 0.84;
     const r = Math.hypot(p.x, p.z);
     if (r > edge) { p.x *= edge / r; p.z *= edge / r; }
-    const floor = groundHeight(p.x, p.z);
+    const floor = SOLIDS.floorAt(p.x, p.z, Math.max(prevY, p.y));
     if (!this.grounded) this.peakY = Math.max(this.peakY, p.y);
     if (p.y <= floor) {
       if (!this.grounded) {

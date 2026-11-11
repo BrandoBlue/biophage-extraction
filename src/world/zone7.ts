@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ZONE7, ZONE7_SHADE } from '../render/palette';
+import { HIVE, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { bioNode, crystal, fungusCap, fungusStem, liquidLight, membrane, zoneRock, bioTime } from '../render/materials';
 import { capGeometry, crystalClusterGeometry, floatingIslandGeometry, ISLAND_TOP, ribbonGeometry, stemGeometry } from '../render/geometry';
 import { cloudSea, planet, sporeField, starField, zone7Sky } from '../render/sky';
@@ -8,6 +8,8 @@ import { ZONE7_SITES } from '../../data';
 import { mulberry32 } from './rng';
 import { CATALOGUE, zone7Layout, type Zone7Layout } from './layout';
 import { buildSites, clearings, type SiteDressing } from './sites';
+import { CollisionWorld } from './collision';
+import { hollowSpire, longSeedDebris, oldBone, reliquaryBowl, rootSkirt, type ArenaInfo, type BuiltStructures } from './structures';
 
 export { mulberry32 } from './rng';
 
@@ -24,7 +26,33 @@ export const FLAT_SPOTS: readonly { name: string; x: number; z: number; radius: 
   ...CATALOGUE.pads.map((p) => ({ name: p.id, ...xz(p), radius: ZONE7_SITES.padRadius })),
   ...CATALOGUE.pods.map((p, i) => ({ name: p.id, ...xz(p), radius: i === 0 ? 13 : ZONE7_SITES.podClearingRadius })),
   ...CATALOGUE.blooms.map((p) => ({ name: p.id, ...xz(p), radius: ZONE7_SITES.geneBlooms.clearingRadius })),
+  { name: CATALOGUE.spire.id, ...xz(CATALOGUE.spire), radius: CATALOGUE.spire.radius },
+  { name: CATALOGUE.debris.id, ...xz(CATALOGUE.debris), radius: CATALOGUE.debris.radius },
 ];
+
+/** The Reliquary Bowl's terrain: a sunken arena with sheer sides except at its two entrances. */
+export const BOWL = CATALOGUE.bowl;
+
+/** Bowl blend weight and target height at (x, z), or null outside it. */
+function bowlAt(x: number, z: number): { w: number; floor: number } | null {
+  const dx = x - BOWL.x, dz = z - BOWL.z;
+  const dist = Math.hypot(dx, dz), d = dist / BOWL.radius;
+  if (d > 1.15) return null;
+  // Entrances lie along the bowl's local u axis (see structures.ts reliquaryBowl).
+  const u = dx * Math.cos(BOWL.yaw) - dz * Math.sin(BOWL.yaw);
+  const e = dist > 0.01 ? smooth(0.86, 0.97, Math.abs(u) / dist) : 0;
+  const r0 = 0.75 + (0.25 - 0.75) * e, r1 = 0.95 + (1.12 - 0.95) * e;
+  // Entrances blend toward a straight ramp (constant slope) so the climb out is never a wall.
+  const lin = Math.min(1, Math.max(0, (d - r0) / (r1 - r0)));
+  const t = smooth(r0, r1, d) * (1 - e) + lin * e;
+  return { w: 1 - t, floor: rawHeight(BOWL.x, BOWL.z) - BOWL.depth };
+}
+
+/** World height of the Reliquary Bowl's floor. */
+export function bowlFloor(): number { return rawHeight(BOWL.x, BOWL.z) - BOWL.depth; }
+
+/** Static colliders of the zone's structures (walls, decks, ramps). Filled by buildZone7. */
+export const SOLIDS = new CollisionWorld((x, z) => groundHeight(x, z));
 
 function xz(p: { x: number; z: number }) { return { x: Math.round(p.x * 10) / 10, z: Math.round(p.z * 10) / 10 }; }
 
@@ -72,6 +100,8 @@ export function groundHeight(x: number, z: number): number {
       h += c.rimHeight * Math.exp(-((d - 1.05) ** 2) / 0.04);
     }
   }
+  const bowl = bowlAt(x, z);
+  if (bowl && bowl.w > 0) h += (bowl.floor - h) * bowl.w;
   // Pools sit in shallow basins so the liquid surface is never buried by the terrain.
   for (const p of POOLS) {
     const d = Math.hypot(x - p.x, z - p.z);
@@ -85,6 +115,7 @@ export function groundHeight(x: number, z: number): number {
 export function isReserved(x: number, z: number, margin = 0): boolean {
   return FLAT_SPOTS.some((s) => Math.hypot(x - s.x, z - s.z) < s.radius + margin)
     || CRATERS.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius * 0.8 + margin)
+    || Math.hypot(x - BOWL.x, z - BOWL.z) < BOWL.radius * 1.1 + margin
     || POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 1 + margin);
 }
 
@@ -216,7 +247,7 @@ function fall(from: THREE.Vector3, outward: THREE.Vector3, drop: number, width: 
   return mesh;
 }
 
-export interface Zone7World { layout: Zone7Layout; sites: SiteDressing }
+export interface Zone7World { layout: Zone7Layout; sites: SiteDressing; structures: BuiltStructures }
 
 /**
  * Zone 7: one floating island over the void, bioluminescent flora, cosmic sky, and the raid's sites
@@ -304,14 +335,21 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
   }
   scene.add(fungusMeshes(fungi));
 
-  // Crystal clusters and glowing pustules.
-  const crystals = [];
-  for (let i = 0; i < 160; i++) {
+  // Crystal shards: many small clusters sunk into the ground at varied tilts, with weathered bone and stone
+  // shards mixed in so the glow stays scattered and organic rather than a field of neon spikes.
+  const crystals = [], shards = [];
+  for (let i = 0; i < 420; i++) {
     const a = rand() * Math.PI * 2, d = 8 + Math.sqrt(rand()) * ISLAND_RADIUS * 0.8;
     const x = Math.cos(a) * d, z = Math.sin(a) * d;
-    crystals.push({ pos: new THREE.Vector3(x, groundHeight(x, z) - 0.2, z), scale: 0.8 + rand() * 3.2, yaw: rand() * 6.28, tilt: (rand() - 0.5) * 0.3, colour: rand() < 0.6 ? ZONE7.violet : ZONE7.cyan });
+    if (isReserved(x, z, 1)) continue;
+    const scale = 0.35 + rand() * rand() * 1.8;
+    const item = { pos: new THREE.Vector3(x, groundHeight(x, z) - 0.25 * scale - 0.1, z), scale, yaw: rand() * 6.28, tilt: (rand() - 0.5) * 1.1 };
+    const roll = rand();
+    if (roll < 0.4) shards.push({ ...item, scale: scale * 1.3, colour: roll < 0.22 ? HIVE.bone : ZONE7_SHADE.rock });
+    else crystals.push({ ...item, colour: roll < 0.78 ? ZONE7.violet : ZONE7.cyan });
   }
   scene.add(instanced(crystalClusterGeometry(rand, 6), crystal(), crystals, 'crystals'));
+  scene.add(instanced(crystalClusterGeometry(rand, 4), oldBone(ZONE7.cyan, 0.15), shards, 'bone-shards'));
   const pustules = [];
   for (let i = 0; i < 1400; i++) {
     const a = rand() * Math.PI * 2, d = 4 + Math.sqrt(rand()) * ISLAND_RADIUS * 0.84;
@@ -326,12 +364,13 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
   const clear = clearings(layout);
   scene.add(groundCover({
     height: groundHeight,
-    exclude: (x, z) => POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 0.6) || clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius),
+    exclude: (x, z) => POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 0.6) || clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius) || Math.hypot(x - CATALOGUE.spire.x, z - CATALOGUE.spire.z) < 8.8 || Math.hypot(x - CATALOGUE.debris.x, z - CATALOGUE.debris.z) < CATALOGUE.debris.radius,
   }).group);
 
   // Gameplay sites for this raid.
   const sites = buildSites(layout, groundHeight, seed);
   scene.add(sites.group);
+  const structures = buildStructures(scene);
 
   // A handful of real lights where the glow is strongest; everything else is emissive + bloom.
   const big = fungi.filter((f) => f.height > 9).sort((a, b) => b.height - a.height).slice(0, 6);
@@ -351,16 +390,43 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
 
   // Cosmos: ringed giant, a lit moon, a sea of luminous cloud far below, drifting spores.
   const lightDir = new THREE.Vector3(1, 0.4, 0.6);
-  const giantAt = new THREE.Vector3(-480, 420, -980);
+  const giantAt = new THREE.Vector3(-500, 520, -1040);
   // Tilt the ring nearly edge-on to the island so it reads as a ring, not a target.
   const toIsland = giantAt.clone().negate().normalize();
   const ringNormal = new THREE.Vector3().crossVectors(toIsland, new THREE.Vector3(1, 0, 0)).normalize().addScaledVector(toIsland, 0.35);
-  const giant = planet({ radius: 170, band: ZONE7.violet, rim: ZONE7.cyan, ring: ZONE7.magenta, lightDir, seed: 3, ringNormal });
+  const giant = planet({ radius: 110, band: ZONE7.violet, rim: ZONE7.cyan, ring: ZONE7.magenta, lightDir, seed: 3, ringNormal });
   giant.position.copy(giantAt);
   const moon = planet({ radius: 60, band: ZONE7.magenta, rim: ZONE7.magenta, lightDir, seed: 9 });
   moon.position.set(560, 300, -860);
   scene.add(giant, moon, cloudSea(-240), starField(rand));
   scene.add(sporeField(rand, 700, 60, 40, [ZONE7.cyan, ZONE7.lime, ZONE7.magenta]));
 
-  return { layout, sites };
+  return { layout, sites, structures };
+}
+
+/** The Reliquary's arena once the zone is built (PvE AI's boss reads it); null before buildZone7 runs. */
+export let reliquaryArena: ArenaInfo | null = null;
+
+/** Builds the enterable structures and their colliders (SOLIDS is reset first). */
+export function buildStructures(scene: THREE.Scene): BuiltStructures {
+  SOLIDS.clear();
+  const group = new THREE.Group();
+  group.name = 'structures';
+  const sp = CATALOGUE.spire;
+  const spire = hollowSpire(SOLIDS, sp.x, sp.z, sp.yaw, groundHeight);
+  rootSkirt(spire.group, 8.6, 14, 5);
+  const bowl = reliquaryBowl(SOLIDS, BOWL.x, BOWL.z, BOWL.yaw, BOWL.radius, bowlFloor(), groundHeight);
+  const db = CATALOGUE.debris;
+  const debris = longSeedDebris(SOLIDS, db.x, db.z, db.yaw, groundHeight);
+  group.add(spire.group, bowl.group, debris.group);
+  reliquaryArena = bowl.arena;
+  scene.add(group);
+  return {
+    group,
+    loot: [...spire.loot, ...debris.loot],
+    arena: bowl.arena,
+    breakPillar(id) {
+      bowl.arena.pillars.find((p) => p.id === id)?.destroy();
+    },
+  };
 }

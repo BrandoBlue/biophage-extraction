@@ -141,8 +141,9 @@ try {
   // --- World layout (seed 1 under automation): three Bio-Pods plus the raid's Gene Bloom harvest nodes.
   const layout = await page.evaluate(() => window.__biophage.layout);
   const blooms = s.pods.filter((q) => q.id.startsWith('bloom-'));
-  if (s.pods.length !== layout.pods.length + layout.nodes.length || blooms.length !== layout.nodes.length) await fail(`layout sites not spawned: ${JSON.stringify(s.pods.map((q) => q.id))}`);
-  log(`world sites: ${layout.pods.length} Bio-Pods, ${blooms.length} Gene Blooms, spires ${layout.extracts.map((e) => e.id).join(' then ')}, anomaly ${layout.anomaly.id}`);
+  const caches = s.pods.filter((q) => /^(spire|debris)-/.test(q.id));
+  if (s.pods.length !== layout.pods.length + layout.nodes.length + caches.length || blooms.length !== layout.nodes.length || caches.length < 2) await fail(`layout sites not spawned: ${JSON.stringify(s.pods.map((q) => q.id))}`);
+  log(`world sites: ${layout.pods.length} Bio-Pods, ${blooms.length} Gene Blooms, ${caches.length} structure caches, spires ${layout.extracts.map((e) => e.id).join(' then ')}, anomaly ${layout.anomaly.id}`);
 
   // --- Loot the Bio-Pod.
   const pod = s.pods[0];

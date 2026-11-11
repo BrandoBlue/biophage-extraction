@@ -18,6 +18,7 @@ import { Projectiles, segmentSphere, type Projectile } from './projectiles';
 import { BioPod, Hazards, SeedSpire } from './props';
 import { gravityAt, zone7Layout, type Zone7Layout } from '../world/layout';
 import type { SiteDressing } from '../world/sites';
+import type { ArenaInfo, BuiltStructures } from '../world/structures';
 
 /** One Seed Spire of the raid: the World layout says where and when it opens (src/world/layout.ts). */
 export interface SpireSite { id: string; label: string; opensAt: number; open: boolean; point: ExtractionPoint; spire: SeedSpire }
@@ -83,6 +84,8 @@ export class Raid {
   readonly pods: BioPod[] = [];
   /** Every Seed Spire this raid, in opening order. `extract`/`spire` are the one the host is at or nearest to. */
   readonly spires: SpireSite[] = [];
+  /** The zone's boss arena (World & Level): bounds, entrances, pillars, pool and boss spawn. Null if none. */
+  readonly arena: ArenaInfo | null;
   /** Brood Heart nests (PvE AI): wave-spawning set pieces placed from the World layout (RAID.larva.nests). */
   readonly nests: BroodNest[] = [];
   readonly fx: Fx;
@@ -135,7 +138,9 @@ export class Raid {
     /** Live sites for this raid (World & Level). Seed 1 is Design's RAID.larva layout. */
     readonly layout: Zone7Layout = zone7Layout(1),
     private sites?: SiteDressing,
+    structures?: BuiltStructures,
   ) {
+    this.arena = structures?.arena ?? null;
     const cls = CLASSES[this.classId];
     this.playable = Math.min(RAID.playableRadius, ISLAND_RADIUS * 0.84);
     this.spawnScale = this.playable / RAID.playableRadius;
@@ -166,6 +171,13 @@ export class Raid {
     const [ex, ez] = [this.spires[0].point.x, this.spires[0].point.z];
     for (const s of [...layout.pods, ...layout.nodes.map((n) => ({ ...n, type: 'geneBloom' }))]) {
       const pod = new BioPod(s.id, s.type, s.x, s.z);
+      this.pods.push(pod);
+      scene.add(pod.root);
+    }
+    // Caches inside structures stand on their decks, not on the terrain.
+    for (const spot of structures?.loot ?? []) {
+      const pod = new BioPod(spot.id, spot.container && LOOT.containers[spot.container] ? spot.container : 'bioPod', spot.x, spot.z);
+      pod.root.position.y = spot.y;
       this.pods.push(pod);
       scene.add(pod.root);
     }
@@ -511,7 +523,7 @@ export class Raid {
 
   private nearOpenPod(): BioPod | null {
     const p = this.player.position;
-    return this.pods.find((q) => q.opened && Math.hypot(q.position.x - p.x, q.position.z - p.z) < 2.4) ?? null;
+    return this.pods.find((q) => q.opened && Math.hypot(q.position.x - p.x, q.position.z - p.z) < 2.4 && Math.abs(q.position.y - p.y) < 2) ?? null;
   }
 
   /**
@@ -728,7 +740,7 @@ export class Raid {
     for (const pod of this.pods) {
       pod.update(dt);
       if (!pod.lootable || !live) continue;
-      if (Math.hypot(pod.position.x - p.position.x, pod.position.z - p.position.z) < 2.4) this.interactTarget = pod;
+      if (Math.hypot(pod.position.x - p.position.x, pod.position.z - p.position.z) < 2.4 && Math.abs(pod.position.y - p.position.y) < 2) this.interactTarget = pod;
     }
     for (const pod of this.pods) if (pod !== this.interactTarget && pod.lootable) pod.progress = 0;
     if (this.interactTarget) {
