@@ -5,7 +5,10 @@
     "bilecantor": "spitter",
     "glasswalker": "stalker",
     "oculimoth": "flyer",
-    "mournback": "tank"
+    "mournback": "tank",
+    "huskMimic": "mimic",
+    "lumenGrazer": "grazer",
+    "titheWeaver": "weaver"
   },
   "awareness": {
     "_note": "Awareness fills 0..1. At suspicious the creature turns and investigates the stimulus; at 1 it hunts. Sight fill per second = sightRate * visibility * (1 - distance/range); peripheral (outer half of the field of view) fills at peripheralFactor. A noise adds noiseGain scaled by how far inside its radius the creature is. Awareness decays at decayRate while nothing is sensed.",
@@ -172,5 +175,37 @@
     "steamTell": 0.8,
     "birthTell": 1.2,
     "enragePulseEvery": 8
+  },
+  "mimic": {
+    "_note": "Husk Mimic: walks up at walkFactor x its speed like a host until revealDistance (abominations.json), then an unmaskTell s rear-and-shriek, a lungeTime s lunge, recoverTime s, then hunts at full speed.",
+    "turnRate": 5,
+    "walkFactor": 0.55,
+    "unmaskTell": 0.45,
+    "lungeTime": 0.35,
+    "recoverTime": 0.5,
+    "knockback": 5
+  },
+  "grazer": {
+    "_note": "Lumen Grazer: idles at idleHeight m; panicking, it hangs at diveFrom m over a host within tellRange m through its wind-up, dives at diveSpeed m/s and slams at slamHeight m (abominations.json damage within attackRange), then climbs for climbTime s.",
+    "turnRate": 0.8,
+    "idleHeight": 32,
+    "tellRange": 40,
+    "diveFrom": 22,
+    "diveSpeed": 24,
+    "slamHeight": 3,
+    "diveTimeout": 3,
+    "climbTime": 4,
+    "knockback": 14
+  },
+  "weaver": {
+    "_note": "Tithe Weaver: hovers at hoverHeight m, strings a strand every spinEvery s (twice as often hunting, cutAhead m ahead of a running host), keeps keepRange m away and spits.",
+    "turnRate": 3,
+    "hoverHeight": 4,
+    "spinEvery": 6,
+    "cutAhead": 5,
+    "keepRange": [
+      12,
+      18
+    ]
   }
 }

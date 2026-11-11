@@ -12,7 +12,7 @@ import type { Placed } from './grid';
 import { Injection, SporeInfection, virusForItem, virusModifiers } from './virus';
 import { Grenade, huskRules, Mine, throwVelocity } from './gear';
 import type { Noise } from './perception';
-import { hostVisibility } from '../ai';
+import { hostVisibility, WebField } from '../ai';
 import { BroodNest } from './nest';
 import { RaidBoss, type HostStrike } from './boss';
 import { RaidVigil } from './vigil';
@@ -105,6 +105,11 @@ export class Raid {
   readonly boss: RaidBoss | null = null;
   /** The Pale Vigil hanging in World's Fungal Cave lair (PvE AI). Null when the zone has no lair. */
   readonly vigil: RaidVigil | null = null;
+  /** Tithe Weaver web strands (PvE AI, src/ai/web.ts): walking through one roots the host and rings the web. */
+  readonly webs = new WebField();
+  private readonly webLines = new Map<number, THREE.Line>();
+  private rootedFor = 0;
+  private readonly lastFeet = new THREE.Vector3();
   private bossPool: THREE.Mesh | null = null;
   readonly fx: Fx;
   readonly projectiles: Projectiles;
@@ -802,7 +807,7 @@ export class Raid {
     // Movement and Overload.
     p.canSprint = !this.overload.overloaded && this.useLeft <= 0;
     p.slowed = this.useLeft > 0 ? Number(ABILITIES.clotGel.movementMultiplierWhileUsing ?? 0.6) : 1;
-    p.speedMultiplier = (this.injection.injecting ? VIRUS_RULES.injectMovementMultiplier : 1) * (this.boss && this.boss.pinned > 0 ? 0 : 1) * (this.vigil && this.vigil.pinned > 0 ? 0 : 1);
+    p.speedMultiplier = (this.injection.injecting ? VIRUS_RULES.injectMovementMultiplier : 1) * (this.boss && this.boss.pinned > 0 ? 0 : 1) * (this.vigil && this.vigil.pinned > 0 ? 0 : 1) * (this.rootedFor > 0 ? 0 : 1);
     const mods = virusModifiers(this.injection.active);
     p.sprintBoost = mods.sprint;
     p.footstepScale = mods.footstep;
@@ -890,6 +895,16 @@ export class Raid {
         p.grounded = false;
         p.addTrauma(Math.min(0.8, strength / 12));
       },
+      onWeb: (c, from, to) => {
+        const W = c.t.web as { maxStrands: number; strandBiomass: number } | undefined;
+        const r = this.webs.add(c.id, from, to, W?.strandBiomass ?? 15, W?.maxStrands ?? 6);
+        for (const s of r.dropped) this.dropStrand(s.id);
+        const y = (x: number, z: number) => groundHeight(x, z) + 0.7;
+        const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(from.x, y(from.x, from.z), from.z), new THREE.Vector3(to.x, y(to.x, to.z), to.z)]);
+        const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: HIVE.bone, transparent: true, opacity: 0.55 }));
+        this.webLines.set(r.strand.id, line);
+        this.scene.add(line);
+      },
       onReveal: (c, how) => {
         this.bus.emit('creatureReveal', { id: c.id, type: c.kind, how, position: { x: c.position.x, y: c.position.y, z: c.position.z } });
         this.noise(c.position, 20, how);
@@ -915,6 +930,7 @@ export class Raid {
       },
     };
     for (const c of this.creatures) c.update(dt, ctx);
+    this.updateWebs(dt, live);
     if (live) this.updateNests(dt);
     if (this.boss) this.updateBoss(dt, live);
     if (this.vigil) this.updateVigil(dt, live);
@@ -1142,6 +1158,38 @@ export class Raid {
       this.bossPool.visible = r > this.arena!.pool.radius;
       if (this.bossPool.visible) this.bossPool.scale.setScalar(r);
     }
+  }
+
+  /** Web strands: a host who walks through one is rooted and every creature within the web's alert radius comes. */
+  private updateWebs(dt: number, live: boolean): void {
+    const p = this.player.position;
+    this.rootedFor = Math.max(0, this.rootedFor - dt);
+    // A dead weaver's web falls.
+    for (const s of [...this.webs.strands]) {
+      const owner = this.creatures.find((c) => c.id === s.owner);
+      if (!owner?.alive) { this.webs.clear(s.owner).forEach((x) => this.dropStrand(x.id)); }
+    }
+    if (live && this.lastFeet.lengthSq() > 0) {
+      const hit = this.webs.tripped({ x: this.lastFeet.x, z: this.lastFeet.z }, { x: p.x, z: p.z });
+      for (const s of hit) {
+        this.dropStrand(s.id);
+        const W = ABOMINATIONS.titheWeaver?.web as { rootDuration: number; alertRadius: number } | undefined;
+        this.rootedFor = Math.max(this.rootedFor, W?.rootDuration ?? 1.8);
+        this.player.addTrauma(0.25);
+        this.noise(p, W?.alertRadius ?? 40, 'web');
+        for (const c of this.creatures) if (c.alive && c.position.distanceTo(p) <= (W?.alertRadius ?? 40)) c.alert({ x: p.x, z: p.z });
+      }
+    }
+    this.lastFeet.copy(p);
+  }
+
+  private dropStrand(id: number): void {
+    const l = this.webLines.get(id);
+    if (!l) return;
+    this.scene.remove(l);
+    l.geometry.dispose();
+    (l.material as THREE.Material).dispose();
+    this.webLines.delete(id);
   }
 
   /** A boss hit on the host: damage, knockback away from `from` (or along `yaw`), and a shake. */
