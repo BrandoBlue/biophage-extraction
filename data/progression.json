@@ -13,7 +13,21 @@
       "lumenGrazer": 300,
       "reliquary": 1000,
       "warden": 1500,
-      "paleVigil": 900
+      "paleVigil": 900,
+      "dunewake": 12,
+      "bristleback": 60,
+      "shroudling": 35,
+      "cablecrawler": 15,
+      "veilwing": 40,
+      "hollowed": 60,
+      "fenstalker": 40,
+      "mirebrood": 3,
+      "mistwader": 300,
+      "sandwidow": 1200,
+      "nethermaw": 1800,
+      "mireRegent": 1300,
+      "hymnal": 2500,
+      "boneTide": 5000
     },
     "extract": 200,
     "extractPerHaulDna": 0.25,
@@ -77,19 +91,32 @@
         "label": "Shadow-Stalker",
         "level": 5,
         "milestone": "apex",
-        "body": "Light-eating velvet body, eyes that only glow when it strikes.",
+        "body": "The Wraith's chitin turns to a light-eating velvet, matte black-violet that swallows the glow of everything near it; the wings fold into a long cloak of membranes that drags without sound; the head narrows to a blade with no visible eyes, and two slits glow only in the half-second before it strikes. When it stands still in shadow it is a gap in the world. Mixes: velvet worm, owl feather, black-footed cat.",
         "cost": {
           "dna": 4000,
           "items": [
             {
-              "item": "mimicLure",
-              "count": 3
+              "item": "shroudSkin",
+              "count": 2
             },
             {
-              "item": "reliquaryHeart",
+              "item": "vigilLure",
               "count": 1
+            },
+            {
+              "item": "mimicLure",
+              "count": 2
             }
           ]
+        },
+        "statDelta": {
+          "biomass": 0,
+          "moveSpeed": 0.4
+        },
+        "grants": {
+          "camouflage.visibilityIdle": 0.12,
+          "camouflage.visibilityMoving": 0.4,
+          "footstepNoise": 0.5
         }
       },
       {
@@ -97,19 +124,29 @@
         "label": "Xenoflyer",
         "level": 12,
         "milestone": "apex",
-        "body": "Four huge veined wings, true flight, a tail like a dragonfly's that ends in a stinger.",
+        "body": "Four huge veined wings, each longer than the body, with smoky translucent panes that catch light like oil; true flight. The body stretches thin and long, the legs tuck into a landing cage, and the tail grows a dragonfly's segmented length ending in a hooked stinger. Hovering, it hums like a swarm. Mixes: dragonfly, manta ray, hornet.",
         "cost": {
           "dna": 9000,
           "items": [
             {
-              "item": "lanternGland",
-              "count": 2
+              "item": "veilMembrane",
+              "count": 3
             },
             {
-              "item": "wardenCore",
+              "item": "nethermawLobe",
               "count": 1
             }
           ]
+        },
+        "statDelta": {
+          "biomass": -10,
+          "moveSpeed": 0
+        },
+        "grants": {
+          "flight.enabled": true,
+          "flight.speed": 9,
+          "flight.overloadPerSecond": 6,
+          "flight.maxHeight": 40
         }
       }
     ],
@@ -142,19 +179,33 @@
         "label": "Spore-Caster",
         "level": 6,
         "milestone": "apex",
-        "body": "A walking fungal bloom: caps and gills cover the back and fire spore mortars.",
+        "body": "A walking fungal bloom: the Infiltrator's back splits into tiers of caps and gills that breathe visible spores; three chimney-like stalks rise from the shoulders and thump out spore mortars that arc and burst; the cranium is crowned with a frill of soft gills that flare when it fires. Moss and lichen creep over the rest. Mixes: shelf fungus, puffball, frilled lizard.",
         "cost": {
           "dna": 4000,
           "items": [
             {
-              "item": "wardenCore",
+              "item": "regentPearl",
               "count": 1
             },
             {
+              "item": "mireLantern",
+              "count": 10
+            },
+            {
               "item": "embryoPod",
-              "count": 3
+              "count": 2
             }
           ]
+        },
+        "statDelta": {
+          "biomass": 10,
+          "moveSpeed": -0.2
+        },
+        "grants": {
+          "sporeMortar.enabled": true,
+          "sporeMortar.damage": 45,
+          "sporeMortar.radius": 4,
+          "sporeMortar.cooldown": 8
         }
       },
       {
@@ -162,19 +213,29 @@
         "label": "Psych-Warlock",
         "level": 15,
         "milestone": "apex",
-        "body": "Levitating, skull split into a halo of floating neural lobes linked by light.",
+        "body": "It floats a hand's width off the ground. The skull has split along its seams into a halo of floating neural lobes, each tethered to the next by threads of light, slowly orbiting the bare stem of the brain. The body below thins to a trailing nervous system like a jellyfish. When it lashes a mind, the lobes all turn to face the target. Mixes: jellyfish, an exploded diagram, a saint's halo.",
         "cost": {
           "dna": 9000,
           "items": [
             {
-              "item": "lanternGland",
-              "count": 2
+              "item": "hymnalTongue",
+              "count": 1
             },
             {
-              "item": "reliquaryHeart",
-              "count": 2
+              "item": "nethermawLobe",
+              "count": 1
             }
           ]
+        },
+        "statDelta": {
+          "biomass": 0,
+          "moveSpeed": 0
+        },
+        "grants": {
+          "levitate.enabled": true,
+          "neuralPulse.radiusMultiplier": 1.5,
+          "mindLash.damagePerSecond": 20,
+          "mindLash.range": 25
         }
       }
     ],
@@ -212,19 +273,29 @@
         "label": "Gore-Gorgon",
         "level": 8,
         "milestone": "apex",
-        "body": "A head of writhing flesh-serpents, each with a mouth; muscle exposed and steaming.",
+        "body": "The Behemoth's head and shoulders burst into a writhing crown of flesh-serpents, each a raw red muscle tube with its own small jaw of bone teeth, striking independently at anything in reach; the exposed muscle of the torso steams; the Marrow Cannon is gripped by two of the serpents instead of a hand. Mixes: hagfish, Medusa's silhouette (not her face), skinned bull.",
         "cost": {
           "dna": 4000,
           "items": [
             {
-              "item": "wardenCore",
+              "item": "widowEgg",
               "count": 1
             },
             {
-              "item": "mournbackMarrow",
-              "count": 3
+              "item": "bristleCistern",
+              "count": 2
             }
           ]
+        },
+        "statDelta": {
+          "biomass": 30,
+          "moveSpeed": 0
+        },
+        "grants": {
+          "serpentHead.bites": 3,
+          "serpentHead.damage": 25,
+          "serpentHead.range": 4,
+          "lifesteal": 0.05
         }
       },
       {
@@ -232,19 +303,29 @@
         "label": "Juggernaut-Titan",
         "level": 20,
         "milestone": "apex",
-        "body": "Twice the size, a walking fortress of fused bone, glowing furnace heart in the chest.",
+        "body": "Twice the size: a walking fortress of fused bone plates grown in overlapping layers like tree rings, every step a dull crack. A furnace heart glows through a cage of ribs in the chest, venting heat shimmer; the arms are columns ending in bone mauls, one fused around the cannon. Moss and old arrows of other hosts' spines are stuck in its back. Mixes: elephant, termite mound, cathedral buttress.",
         "cost": {
           "dna": 9000,
           "items": [
             {
-              "item": "wardenCore",
-              "count": 2
+              "item": "tideHeart",
+              "count": 1
             },
             {
-              "item": "reliquaryHeart",
+              "item": "wardenCore",
               "count": 1
             }
           ]
+        },
+        "statDelta": {
+          "biomass": 160,
+          "moveSpeed": -0.6
+        },
+        "grants": {
+          "furnaceHeart.auraRadius": 5,
+          "furnaceHeart.auraDamagePerSecond": 8,
+          "impactVulnerability": -0.5,
+          "knockbackImmune": true
         }
       }
     ]
