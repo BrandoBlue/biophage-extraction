@@ -111,6 +111,8 @@ function bootRaid(): void {
   // `begin` deploys through the Hive so scripted raids (tests/raid.mjs, scripts/playtest.mjs) follow the real loop.
   const debug = { ...raid.debug(), begin: deployNow };
   const clock = new THREE.Clock();
+  // Online raids keep simulating while this tab is in the background (src/net keepAlive), so others don't freeze.
+  online.keepAlive((dt) => { raid.update(dt); online.tick(dt); });
   pipeline.renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.05);
     raid.update(dt);
