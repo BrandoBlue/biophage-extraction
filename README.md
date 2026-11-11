@@ -11,11 +11,19 @@ npm run dev      # then open the printed http://localhost:5173 link in Chrome or
 
 Click the screen to take control. WASD to move, Shift to sprint, Space to jump, Esc to release the mouse.
 
+Or build the single-file release and open it straight from disk, no server needed:
+
+```bash
+npm run release  # writes release/biophage-<version>.html; double-click it
+```
+
 ## Checks
 
 ```bash
-npm run check    # type-check + build, unit tests, headless smoke test with screenshot (tests/out/smoke.png)
+npm run check    # type-check, build and pack the release, unit tests, smoke tests (served and single-file), size budget
 ```
+
+Shipping and release steps: `docs/RELEASING.md`.
 
 ## Where things live
 
@@ -32,7 +40,7 @@ npm run check    # type-check + build, unit tests, headless smoke test with scre
 | `src/ui/` | Hive menus and in-raid HUD | UI & HUD |
 | `src/audio/` | Sound and music | Audio |
 | `server/` | Multiplayer and persistence | Online & Backend |
-| `tests/`, `.github/` | CI, smoke tests, releases | Build, QA & Release |
+| `tests/`, `.github/`, `scripts/`, `docs/RELEASING.md`, `docs/releases/` | CI, smoke tests, release packaging, patch notes | Build, QA & Release |
 
 ## The evolution chain
 
