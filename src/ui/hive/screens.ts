@@ -1,12 +1,13 @@
 /**
  * The Hive screens (Larva flow: main menu → host select → stash & loadout → raid select → deploy; results).
  * Each screen is a pure function of ProfileView plus callbacks, so the same code drives the game and the
- * static mocks in mocks/ui.html. Layouts follow references 01 to 03 (docs/reference/).
+ * static mocks in mocks/ui.html. Styled in the UI department's own "membrane" language (hive.css); the
+ * references in docs/reference/ set the mood only.
  */
 import { def as itemOf } from '../items';
 import { BOSSES, CLASSES, CONTRACTS, RAID, VIRUSES, ZONES, layoutPosition } from '../../../data';
 import type { ClassId } from '../../../data';
-import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../../render/palette';
+import { HIVE, ORGANIC, PATH, ZONE7, ZONE7_SHADE } from '../../render/palette';
 import { hostPortrait } from '../hosts';
 import { glyph, itemIcon, KIND_COLOUR } from '../icons';
 import { cta, esc, h, keyHints, meter, panel, q } from './kit';
@@ -69,16 +70,16 @@ export function mainMenu(p: ProfileView, cb: MenuCallbacks): HTMLElement {
   const el = h('div', 'scr scr-menu');
   const [used, cap] = usage('stash', p);
   el.innerHTML = `
-    <div class="logo"><span class="l1">BIOPHAGE</span><span class="l2">EXTRACTION</span><small>ZONE 7 · BIOLUMINESCENT PSYCH-WAVE SECTOR</small></div>
+    <div class="logo"><span class="l1">Biophage</span><span class="l2">EXTRACTION</span><small>Zone 7, the glowmire · a psych-wave sector</small></div>
     <ul class="menu-list">
-      <li><button data-go="deploy" class="primary">${glyph('play')}<span>DEPLOY</span><small>Choose host, loadout and drop zone</small></button></li>
-      <li><button data-go="stash">${glyph('stash')}<span>STASH & LOADOUT</span><small>${used}/${cap} cells · ${p.cavity.length} items in cavities</small></button></li>
-      ${cb.market ? `<li><button data-go="vendors">${glyph('dna')}<span>VENDORS</span><small>Mother Clot, the Archivist, the Gullet Broker</small></button></li>` : ''}
-      <li><button data-go="host">${glyph('virus')}<span>HOST SELECT</span><small>${esc(CLASSES[p.host].label)}</small></button></li>
-      <li><button data-go="settings">${glyph('gear')}<span>SETTINGS</span><small>Controls, video, audio</small></button></li>
-      <li><button data-go="quit">${glyph('quit')}<span>QUIT</span><small>Return the host to dormancy</small></button></li>
+      <li><button data-go="deploy" class="primary"><em>I</em><span>Deploy</span><small>Choose host, loadout and drop zone</small></button></li>
+      <li><button data-go="stash"><em>II</em><span>Stash & loadout</span><small>${used}/${cap} cells · ${p.cavity.length} items in cavities</small></button></li>
+      ${cb.market ? `<li><button data-go="vendors"><em>III</em><span>Vendors</span><small>Mother Clot, the Archivist, the Gullet Broker</small></button></li>` : ''}
+      <li><button data-go="host"><em>${cb.market ? 'IV' : 'III'}</em><span>Host</span><small>${esc(CLASSES[p.host].label)}</small></button></li>
+      <li><button data-go="settings"><em>${cb.market ? 'V' : 'IV'}</em><span>Settings</span><small>Controls, video, audio</small></button></li>
+      <li><button data-go="quit"><em>${cb.market ? 'VI' : 'V'}</em><span>Quit</span><small>Return the host to dormancy</small></button></li>
     </ul>
-    <div class="specimen">${hostPortrait(p.host)}<div class="pedestal"></div><div class="tag"><b>ACTIVE BIOSPECIMEN</b>${esc(CLASSES[p.host].label.toUpperCase())}</div></div>`;
+    <div class="specimen">${hostPortrait(p.host)}<div class="pedestal"></div><div class="tag"><b>ACTIVE BIOSPECIMEN</b>${esc(CLASSES[p.host].label)}</div></div>`;
   const side = panel('menu-record', 'HOST RECORD', 'Extraction history');
   side.insertAdjacentHTML('beforeend', `
     <dl class="record">
@@ -275,12 +276,12 @@ export function drawOrbit(cv: HTMLCanvasElement, t = 0): void {
   c.clearRect(0, 0, W, W);
   // Halo and orbital rings.
   const halo = c.createRadialGradient(cx, cy, R * 0.8, cx, cy, R * 1.45);
-  halo.addColorStop(0, `${ZONE7.violet}55`); halo.addColorStop(0.5, `${ZONE7.magenta}18`); halo.addColorStop(1, `${ZONE7.void}00`);
+  halo.addColorStop(0, `${ORGANIC.mist}30`); halo.addColorStop(0.5, `${ORGANIC.mist}0c`); halo.addColorStop(1, `${ZONE7.void}00`);
   c.fillStyle = halo; c.beginPath(); c.arc(cx, cy, R * 1.45, 0, Math.PI * 2); c.fill();
   c.save(); c.translate(cx, cy);
   for (let i = 0; i < 4; i++) {
     c.save(); c.rotate(t * (0.03 + i * 0.012) * (i % 2 ? -1 : 1) + i);
-    c.strokeStyle = i % 2 ? `${ZONE7.cyan}40` : `${HIVE.acid}38`; c.lineWidth = 1.2; c.setLineDash([2 + i * 3, 8 + i * 4]);
+    c.strokeStyle = i % 2 ? `${ORGANIC.mist}38` : `${HIVE.bone}30`; c.lineWidth = 1; c.setLineDash([2 + i * 3, 8 + i * 4]);
     c.beginPath(); c.ellipse(0, 0, R * (1.12 + i * 0.09), R * (1.12 + i * 0.09) * (0.94 - i * 0.03), 0, 0, Math.PI * 2); c.stroke();
     c.restore();
   }
@@ -293,8 +294,8 @@ export function drawOrbit(cv: HTMLCanvasElement, t = 0): void {
   c.fillStyle = g; c.fillRect(0, 0, W, W);
   // Swirling psych-wave clouds.
   for (let i = 0; i < 9; i++) {
-    c.strokeStyle = [ZONE7.magenta, ZONE7.cyan, ZONE7.violet, ZONE7.lime][i % 4];
-    c.globalAlpha = 0.16 + 0.06 * Math.sin(t * 0.8 + i);
+    c.strokeStyle = [ORGANIC.mist, ZONE7.cyan, HIVE.bone, ORGANIC.amber][i % 4];
+    c.globalAlpha = 0.09 + 0.04 * Math.sin(t * 0.8 + i);
     c.lineWidth = 2 + (i % 3) * 2;
     c.beginPath();
     for (let a = 0; a <= Math.PI * 2 + 0.01; a += 0.05) {
@@ -310,8 +311,8 @@ export function drawOrbit(cv: HTMLCanvasElement, t = 0): void {
   const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
   for (let i = 0; i < 160; i++) {
     const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * R;
-    c.fillStyle = [ZONE7.magenta, ZONE7.cyan, ZONE7.lime][i % 3];
-    c.globalAlpha = 0.25 + 0.5 * Math.abs(Math.sin(t * 1.3 + i));
+    c.fillStyle = [HIVE.bone, ZONE7.cyan, ORGANIC.amber][i % 3];
+    c.globalAlpha = 0.15 + 0.35 * Math.abs(Math.sin(t * 1.3 + i));
     c.beginPath(); c.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 1 + rnd() * 2.2, 0, Math.PI * 2); c.fill();
   }
   c.globalAlpha = 1;
@@ -321,10 +322,10 @@ export function drawOrbit(cv: HTMLCanvasElement, t = 0): void {
   c.fillStyle = sh; c.fillRect(0, 0, W, W);
   c.restore();
   // Rim.
-  c.strokeStyle = HIVE.acid; c.lineWidth = 2; c.shadowColor = HIVE.acid; c.shadowBlur = 18;
-  c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.stroke(); c.shadowBlur = 0;
+  c.strokeStyle = `${HIVE.bone}88`; c.lineWidth = 1.2;
+  c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.stroke();
   // Compass ticks.
-  c.fillStyle = HIVE.bone; c.font = `600 ${W * 0.018}px "Chakra Petch", sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillStyle = HIVE.bone; c.font = `600 ${W * 0.026}px "Cormorant Garamond", serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
   for (let b = 0; b < 360; b += 10) {
     const a = (b - 90) * (Math.PI / 180), r1 = R * 1.03, r2 = R * (b % 90 ? 1.05 : 1.09);
     c.strokeStyle = `${HIVE.bone}${b % 90 ? '55' : 'cc'}`; c.lineWidth = 1.5;
@@ -343,34 +344,34 @@ export function drawOrbit(cv: HTMLCanvasElement, t = 0): void {
     c.beginPath(); c.arc(x, y, r + pulse * 8, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
   };
   const label = (x: number, y: number, text: string, col: string) => {
-    c.font = `600 ${W * 0.017}px "Chakra Petch", sans-serif`; c.fillStyle = col; c.shadowColor = HIVE.background; c.shadowBlur = 6;
+    c.font = `600 ${W * 0.015}px "Manrope", sans-serif`; c.fillStyle = col; c.shadowColor = HIVE.background; c.shadowBlur = 6;
     c.fillText(text, x, y); c.shadowBlur = 0;
   };
   for (const pod of RAID.larva?.containers ?? RAID.containers) {
     const [x, y] = toMap(pod.radius, pod.bearing);
-    c.fillStyle = PATH.dna; c.shadowColor = PATH.dna; c.shadowBlur = 12;
-    c.beginPath(); c.ellipse(x, y, 7, 10, 0, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+    c.fillStyle = PATH.dna; c.shadowColor = PATH.dna; c.shadowBlur = 4;
+    c.beginPath(); c.ellipse(x, y, 6, 9, 0, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
     if (pod.guard) label(x, y + 22, 'GUARDED', PATH.dna);
   }
   for (const n of RAID.larva?.nests ?? []) {
     const [x, y] = toMap(n.radius, n.bearing);
     ring(x, y, HIVE.danger, 18);
-    c.fillStyle = HIVE.danger; c.shadowColor = HIVE.danger; c.shadowBlur = 20;
+    c.fillStyle = HIVE.danger; c.shadowColor = HIVE.danger; c.shadowBlur = 6;
     c.beginPath(); c.arc(x, y, 10, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
     label(x, y - 30, 'BROOD HEART', HIVE.danger);
   }
   const ex = RAID.larva?.extracts ?? [{ label: RAID.extract.label, radius: RAID.extract.radius, bearing: RAID.extract.bearing, opensAt: 0 }];
   for (const e of ex) {
     const [x, y] = toMap(e.radius, e.bearing);
-    ring(x, y, ZONE7.lime, 14);
-    c.strokeStyle = ZONE7.lime; c.lineWidth = 3; c.shadowColor = ZONE7.lime; c.shadowBlur = 14;
+    ring(x, y, HIVE.acid, 14);
+    c.strokeStyle = HIVE.acid; c.lineWidth = 2; c.shadowColor = HIVE.acid; c.shadowBlur = 4;
     c.beginPath(); c.moveTo(x, y - 12); c.lineTo(x + 9, y); c.lineTo(x, y + 12); c.lineTo(x - 9, y); c.closePath(); c.stroke(); c.shadowBlur = 0;
-    label(x, y - 28, e.opensAt ? `SPIRE · ${fmt(e.opensAt)}` : 'SEED SPIRE', ZONE7.lime);
+    label(x, y - 28, e.opensAt ? `SPIRE · ${fmt(e.opensAt)}` : 'SEED SPIRE', HIVE.acid);
   }
   const [sx, sy] = toMap(RAID.spawn.radius, RAID.spawn.bearing);
-  c.fillStyle = HIVE.acid; c.shadowColor = HIVE.acid; c.shadowBlur = 16;
+  c.fillStyle = ORGANIC.amber; c.shadowColor = ORGANIC.amber; c.shadowBlur = 4;
   c.beginPath(); c.moveTo(sx, sy - 12); c.lineTo(sx + 9, sy + 8); c.lineTo(sx - 9, sy + 8); c.closePath(); c.fill(); c.shadowBlur = 0;
-  label(sx, sy + 26, 'DROP', HIVE.acid);
+  label(sx, sy + 26, 'DROP', ORGANIC.amber);
 }
 
 /* ------------------------------------------------------------------------------------------- RESULTS */

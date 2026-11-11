@@ -7,7 +7,7 @@ import { def as itemOf } from '../items';
 import { CLASSES } from '../../../data';
 import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../../render/palette';
 import { glyph } from '../icons';
-import { DragLayer, firstFit, GridView } from './grid';
+import { DragLayer, firstFit, GridView, markLanded } from './grid';
 import type { GridSource } from './grid';
 import { cta, h, keyHints, panel } from './kit';
 import { gridSize, itemsIn, usage, valueOf } from './model';
@@ -63,7 +63,7 @@ export function stashScreen(p: ProfileView, cb: StashCallbacks): HTMLElement & {
       const order: GridZone[] = shift && from.zone !== 'pouch' ? ['pouch'] : from.zone === 'stash' ? ['cavity', 'pouch'] : ['stash'];
       for (const z of order) {
         const t = firstFit(source(z, p), pl.item, pl.rotated);
-        if (t && cb.actions.move(from.zone as GridZone, from.index, z, t.x, t.y, t.rotated)) { cb.changed(); return; }
+        if (t && cb.actions.move(from.zone as GridZone, from.index, z, t.x, t.y, t.rotated)) { markLanded(z, t.x, t.y); cb.changed(); return; }
       }
       cb.notice(order[0] === 'pouch' ? 'GUT POUCH FULL' : from.zone === 'stash' ? 'CAVITIES FULL' : 'STASH FULL', 'danger');
     },
@@ -96,8 +96,9 @@ export function stashScreen(p: ProfileView, cb: StashCallbacks): HTMLElement & {
   upgrade.id = 'upgrade-pouch';
   upgrade.disabled = !up || p.dna < up.cost;
   upgrade.addEventListener('click', () => { if (cb.actions.upgradePouch()) cb.changed(); else cb.notice('NOT ENOUGH DNA', 'danger'); });
-  right.insertAdjacentHTML('beforeend', `<div class="carry"><span>CARRYING IN</span><b>${valueOf(p.cavity).toLocaleString('en-US')} DNA</b><em>${glyph('warn')} lost if the host dies</em></div>`);
-  right.append(upgrade);
+  const foot = h('div', 'carry-row', `<div class="carry"><span>CARRYING IN</span><b>${valueOf(p.cavity).toLocaleString('en-US')} DNA</b><em>${glyph('warn')} lost if the host dies</em></div>`);
+  foot.append(upgrade);
+  right.append(foot);
 
   const kinds = new Set(p.stash.map((s) => itemOf(s.item)?.kind));
   el.insertAdjacentHTML('beforeend', `<div class="legend-kinds">${(['consumable', 'currency', 'mutagen', 'virus', 'tech', 'organ'] as const).filter((k) => kinds.has(k) || k === 'organ' || k === 'virus').map((k) => `<span class="k-${k}"><i></i>${k}</span>`).join('')}</div>`);

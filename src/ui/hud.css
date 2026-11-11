@@ -1,7 +1,6 @@
-/* Hive UI language: dark translucent panels, 1px acid-green lines, chamfered corners. See docs/ART_BIBLE.md */
-:root { --bg:#050F0C; --panel:#0B2A26; --acid:#6CFF4A; --bone:#D3CBB2; --danger:#E0402E; --viral:#A55BFF; }
-html, body { margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--bone);
-  font-family: "Chakra Petch", "Rajdhani", "Segoe UI", system-ui, sans-serif; text-transform:uppercase; letter-spacing:.08em; }
+/* Page base. Colours are CSS variables set from src/render/palette.ts by src/ui/theme.ts; fonts likewise (--ui, --display). */
+html, body { margin:0; height:100%; overflow:hidden; background:var(--background, black); color:var(--bone);
+  font-family:var(--ui, system-ui), sans-serif; letter-spacing:.04em; }
 #game { position:fixed; inset:0; width:100%; height:100%; display:block; }
 #hud { position:fixed; inset:0; pointer-events:none; }
 #brand { position:absolute; top:14px; right:20px; font-size:13px; color:var(--acid); }
