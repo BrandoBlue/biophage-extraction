@@ -6,7 +6,7 @@
  * with empty cavities, so quitting mid-raid loses the loadout like a death; `extract` or `die` settles the raid.
  */
 import { CLASSES, LOOT, PROFILE, stashRowCost, type ClassId } from '../../data';
-import { ItemGrid, type Placed } from './grid';
+import { footprint, ItemGrid, stackLimit, type Placed } from './grid';
 import type { CarriedSnapshot, Loadout } from './inventory';
 
 export interface RaidRecord { raids: number; extracts: number; deaths: number; kills: number }
@@ -129,6 +129,35 @@ export function transfer(p: Profile, from: Zone, index: number, to: Zone): numbe
   const moved = e.count - g[to].add(e.item, e.count);
   if (moved > 0) { e.count -= moved; if (e.count <= 0) g[from].take(e); commit(p, g); }
   return moved;
+}
+
+/**
+ * Drag and drop: puts the whole stack at `index` of `from` at cell (x, y) of `to`. Within one zone it moves or
+ * rotates in place. Dropped on a stack of the same item, it tops that stack up and leaves the remainder where it was.
+ * Returns false and changes nothing if the drop is blocked.
+ */
+export function placeAt(p: Profile, from: Zone, index: number, to: Zone, x: number, y: number, rotated = false): boolean {
+  const g = grids(p);
+  const e = g[from].entries[index];
+  if (!e) return false;
+  const under = g[to].entries.find((o) => {
+    if (o === e || o.item !== e.item) return false;
+    const [w, h] = footprint(o.item, o.rotated);
+    return x >= o.x && x < o.x + w && y >= o.y && y < o.y + h;
+  });
+  if (under) {
+    const n = Math.min(e.count, stackLimit(e.item) - under.count);
+    if (n <= 0) return false;
+    under.count += n; e.count -= n;
+    if (e.count <= 0) g[from].take(e);
+  } else if (from === to) {
+    if (!g[to].move(e, x, y, rotated)) return false;
+  } else {
+    if (!g[to].place(e.item, e.count, x, y, rotated)) return false;
+    g[from].take(e);
+  }
+  commit(p, g);
+  return true;
 }
 
 /** Rotates a stack in place if the rotated footprint fits. */

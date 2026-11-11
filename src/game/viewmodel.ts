@@ -47,6 +47,8 @@ interface Tentacle { root: THREE.Group; segs: THREE.Group[]; phase: number }
 export class SynapseBursterView {
   readonly root = new THREE.Group();
   readonly muzzle = new THREE.Object3D();
+  /** The host's hand and forearm: Creature & Mutation grows the virus mutation on this group. */
+  readonly arm = new THREE.Group();
   private gun = new THREE.Group();
   private eyes: Eye[] = [];
   private tentacles: Tentacle[] = [];
@@ -199,20 +201,22 @@ export class SynapseBursterView {
     const palm = new THREE.Mesh(organic(new THREE.SphereGeometry(0.05, 16, 12), 0.004, 60, 2), handMat);
     palm.scale.set(1.1, 0.6, 1.5);
     palm.position.set(0.02, -0.11, 0.1);
-    g.add(palm);
+    this.arm.add(palm);
     for (let i = 0; i < 3; i++) {
       const finger = new THREE.Mesh(new THREE.CapsuleGeometry(0.011, 0.09, 4, 8), handMat);
       finger.position.set(-0.035 + i * 0.006, -0.065 + i * 0.005, 0.04 + i * 0.04);
       finger.rotation.set(0, 0, 1.25);
-      g.add(finger);
+      this.arm.add(finger);
       const node = new THREE.Mesh(new THREE.SphereGeometry(0.007, 8, 6), glow(C.lime, 2));
       node.position.set(0.035, -0.1, 0.05 + i * 0.04);
-      g.add(node);
+      this.arm.add(node);
     }
     const wrist = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.05, 0.3, 12), handMat);
     wrist.position.set(0.06, -0.24, 0.24);
     wrist.rotation.set(0.9, 0, -0.3);
-    g.add(wrist);
+    this.arm.add(wrist);
+    this.arm.name = 'host-arm';
+    g.add(this.arm);
 
     // Angled so the barrel points at the crosshair and the eye crown and flank face the host.
     g.rotation.set(-0.12, 0.16, -0.1);

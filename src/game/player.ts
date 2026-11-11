@@ -29,6 +29,9 @@ export class Player {
   crouched = false;
   /** Set by the raid each frame (abilities, overload). */
   speedMultiplier = 1;
+  /** Virus modifiers: sprint speed and how far footsteps carry. */
+  sprintBoost = 1;
+  footstepScale = 1;
   canSprint = true;
   /** Seconds since the weapon last fired; drives noise. */
   sinceFired = 99;
@@ -77,7 +80,7 @@ export class Player {
   /** Footstep audible radius this frame in metres (0 when still). */
   get footstepNoise(): number {
     if (!this.grounded) return 0;
-    return footstepRadius({
+    return this.footstepScale * footstepRadius({
       moving: this.moving, sprinting: this.sprinting, crouched: this.crouched, classNoise: this.stats.noise,
       walk: this.host.noiseRadius.footstepWalk, sprint: this.host.noiseRadius.footstepSprint,
     });
@@ -114,7 +117,7 @@ export class Player {
 
     const sprint = active && this.canSprint && k.has('ShiftLeft') && !this.crouched && f > 0;
     let speed = this.stats.moveSpeed * this.speedMultiplier * this.slowed;
-    if (sprint) speed *= this.stats.sprintMultiplier;
+    if (sprint) speed *= this.stats.sprintMultiplier * this.sprintBoost;
     if (this.crouched) speed *= FEEL.crouchMultiplier;
 
     const wish = new THREE.Vector3(s, 0, -f);
