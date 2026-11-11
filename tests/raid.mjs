@@ -239,6 +239,10 @@ try {
     await call('aimAt', nest.position[0], 3, nest.position[1]);
     for (let i = 0; i < 40; i++) { await frames(2); s = await state(); if (s.nests[0].brood > 0) break; }
     if (s.nests[0].state !== 'active' || s.nests[0].wave < 1 || s.nests[0].brood < 1) await fail(`Brood Heart did not wake and spawn: ${JSON.stringify(s.nests[0])}`);
+    // The HUD's boss bar names the awake heart and shows its waves (src/ui/raid/hud.ts).
+    await page.waitForSelector('#hud .h-boss:not(.hidden)', { timeout: 30000 }).catch(() => fail('the boss bar did not show for the awake Brood Heart'));
+    const bossText = await page.textContent('#hud .h-boss .bh');
+    if (!/BROOD HEART/i.test(bossText) || !/WAVE \d+\/\d+/.test(bossText)) await fail(`boss bar reads "${bossText}"`);
     await freezeAndScreenshot(page, 'tests/out/raid-nest.png', { resume: true });
     const pods = s.pods.length;
     await call('hitNest', 0, 1e6, null);

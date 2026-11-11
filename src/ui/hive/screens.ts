@@ -4,7 +4,7 @@
  * static mocks in mocks/ui.html. Layouts follow references 01 to 03 (docs/reference/).
  */
 import { def as itemOf } from '../items';
-import { CLASSES, RAID, VIRUSES, layoutPosition } from '../../../data';
+import { BOSSES, CLASSES, CONTRACTS, RAID, VIRUSES, ZONES, layoutPosition } from '../../../data';
 import type { ClassId } from '../../../data';
 import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../../render/palette';
 import { hostPortrait } from '../hosts';
@@ -173,8 +173,46 @@ export function raidPlan(): RaidPlan {
 const NAMES: Record<string, string> = { needlemaw: 'Needlemaw', bilecantor: 'Bile Cantor', glasswalker: 'Glasswalker', oculimoth: 'Oculimoth', mournback: 'Mournback' };
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-export function raidSelect(p: ProfileView, cb: { deploy(): void }): HTMLElement {
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+/** The zone this build deploys into (Zone 7 is Glowmire Isle). */
+export const LIVE_ZONE = 'glowmireIsle';
+
+/** Plain-words access requirement for a zone (zones.json `access`). */
+export function zoneAccess(access: string): string {
+  if (access === 'open') return 'OPEN';
+  const c = /^contract (\w+)/.exec(access);
+  if (c) return `CONTRACT · ${(CONTRACTS.find((k) => k.id === c[1])?.title ?? c[1]).toUpperCase()}`;
+  if (access === 'apex') return 'APEX MILESTONE';
+  if (access.startsWith('host')) return 'HOST LEVEL 5';
+  return access.toUpperCase();
+}
+
+/** The zone roster in travel order: open zones first-class, the rest show what opens them. */
+export function zoneRoster(open: (id: string) => boolean = (id) => ZONES[id]?.access === 'open') {
+  return Object.entries(ZONES).sort(([, a], [, b]) => a.order - b.order).map(([id, z]) => ({
+    id, label: z.label, order: z.order, threat: z.threat, raidTime: z.raidTime ?? null, boss: z.boss ? BOSSES[z.boss]?.label ?? z.boss : null,
+    open: open(id), access: zoneAccess(z.access), pitch: z.pitch,
+  }));
+}
+
+function zoneRow(onLocked: (msg: string) => void): HTMLElement {
+  const row = h('div', 'zones');
+  for (const z of zoneRoster()) {
+    const b = h<HTMLButtonElement>('button', `zone${z.open ? '' : ' locked'}${z.id === LIVE_ZONE ? ' on' : ''}`, `<em>${ROMAN[z.order] ?? z.order}</em>
+      <div><b>${esc(z.label.toUpperCase())}</b><small>${z.open ? `<span class="pips">${[1, 2, 3, 4, 5].map((i) => `<i class="${i >= z.threat[0] && i <= z.threat[1] ? 'on' : ''}"></i>`).join('')}</span>${z.raidTime ? fmt(z.raidTime) : ''}` : `${glyph('lock')}${esc(z.access)}`}</small></div>`);
+    b.dataset.zone = z.id;
+    b.title = z.pitch;
+    if (!z.open) b.addEventListener('click', () => onLocked(`${z.label.toUpperCase()} · ${z.access}`));
+    row.append(b);
+  }
+  return row;
+}
+
+export function raidSelect(p: ProfileView, cb: { deploy(): void; notice?(msg: string, tone?: string): void }): HTMLElement {
   const el = h('div', 'scr scr-raid');
+  const zone = ZONES[LIVE_ZONE];
+  const boss = zone?.boss ? BOSSES[zone.boss] : null;
+  const roster = zoneRoster();
   const plan = raidPlan();
   const extracts = RAID.larva?.extracts ?? [{ label: RAID.extract.label, radius: RAID.extract.radius, bearing: RAID.extract.bearing, opensAt: 0 }];
   el.innerHTML = `
@@ -185,7 +223,7 @@ export function raidSelect(p: ProfileView, cb: { deploy(): void }): HTMLElement 
         <li class="pod">${glyph('pod')}Bio-Pod</li><li class="drop">${glyph('play')}Your drop point</li>
       </ul>
     </div>`;
-  const info = panel('raid-info', 'EXCLUSION ZONE: ZONE 7', 'The Island · 1 of 1 sectors open');
+  const info = panel('raid-info', `EXCLUSION ZONE: ${(zone?.label ?? 'Zone 7').toUpperCase()}`, `Zone 7 · ${roster.filter((z) => z.open).length} of ${roster.length} zones open`);
   info.insertAdjacentHTML('beforeend', `
     <div class="threat"><span>THREAT LEVEL</span><div class="pips">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= plan.threat ? 'on' : ''}"></i>`).join('')}</div><b>${['', 'LOW', 'GUARDED', 'HIGH', 'SEVERE', 'EXTREME'][plan.threat]}</b></div>
     <dl class="raidfacts">
@@ -196,6 +234,7 @@ export function raidSelect(p: ProfileView, cb: { deploy(): void }): HTMLElement 
     </dl>
     <h3>ACTIVE MODIFIERS</h3>
     <ul class="mods">
+      ${boss ? `<li class="bone">${glyph('nest')}<b>${esc(boss.label)} sleeps in the ${esc(String(boss.arena.shape ?? 'arena'))}</b><span>Dormant until a ${esc(boss.dormantUntil)}. Its song carries ${boss.songRadius} m.</span></li>` : ''}
       ${plan.nests ? `<li class="danger">${glyph('nest')}<b>Brood Heart nest present</b><span>Wakes within range, pulses spawn waves. Kill it for the Brood Cache.</span></li>` : ''}
       ${extracts.filter((x) => x.opensAt > 0).map((x) => `<li class="lime">${glyph('spire')}<b>Second ${esc(x.label)} opens at ${fmt(x.opensAt)}</b><span>Bearing ${x.bearing}°. Routes and timing shift mid-raid.</span></li>`).join('')}
       ${RAID.larva?.corpseHarvest ? `<li class="cyan">${glyph('dna')}<b>Corpse harvesting</b><span>Hold E on a dead Abomination to cut out its organ.</span></li>` : ''}
@@ -203,7 +242,7 @@ export function raidSelect(p: ProfileView, cb: { deploy(): void }): HTMLElement 
     </ul>
     <h3>KNOWN ABOMINATIONS</h3>
     <ul class="roster">${plan.hostiles.map((x) => `<li><span>${esc(NAMES[x.type] ?? x.type)}</span><b>×${x.count}</b></li>`).join('')}</ul>`);
-  el.append(info);
+  el.append(info, zoneRow((m) => cb.notice?.(m, 'danger')));
   el.insertAdjacentHTML('beforeend', `
     <div class="squad"><h3>HIVE-MIND SQUAD</h3>
       <div class="sq-slots"><div class="sq you">${hostPortrait(p.host)}<span>${esc(p.callsign)}</span></div>

@@ -63,7 +63,7 @@ export class HiveUI {
       case 'host': screen = hostSelect(p, { pick: (id) => { this.opts.pickHost?.(id); this.show('host'); }, next: () => this.show('stash') }); break;
       case 'stash': screen = stashScreen(p, { actions: this.actions, next: () => this.show('raid'), changed: () => this.show('stash'), notice: (m, t) => this.notice(m, t) }); break;
       case 'market': screen = marketScreen(p, { actions: this.actions, changed: () => this.show('market'), notice: (m, t) => this.notice(m, t), next: () => this.show('stash') }); break;
-      case 'raid': screen = raidSelect(p, { deploy: () => this.actions.deploy() }); this.animateOrbit(screen); break;
+      case 'raid': screen = raidSelect(p, { deploy: () => this.actions.deploy(), notice: (m, t) => this.notice(m, t) }); this.animateOrbit(screen); break;
       case 'results': screen = results(this.lastResult!, { again: () => (this.opts.afterResults ? this.opts.afterResults() : this.show('stash')) }); break;
       default: screen = this.settingsScreen();
     }

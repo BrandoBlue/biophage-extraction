@@ -28,4 +28,6 @@ export interface HudView {
   harvestProgress?: number;
   cavityUsed?: [number, number];
   objectives?: { text: string; detail?: string; done?: boolean; icon?: string }[];
+  /** Awake boss or nest in range (Gameplay's hud().boss): Biomass fraction and wave progress. */
+  boss?: { label: string; fraction: number; wave: number; waves: number } | null;
 }

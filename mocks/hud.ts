@@ -31,6 +31,7 @@ const states: Record<string, Partial<HudView>> = {
   mutated: { activeVirus: 'plagueStalkerStrain' },
   harvest: { harvestProgress: 0.62, interact: { text: 'HOLD E · HARVEST NEEDLEMAW GLAND', progress: 0.62 } },
   extract: { extract: { progress: 0.4, inside: true, distance: 2, label: 'Seed Spire', time: 10 }, activeVirus: 'adrenalineVirus' },
+  boss: { boss: { label: 'Brood Heart', fraction: 0.58, wave: 2, waves: 4 }, overload: 0.4 },
   low: { biomass: 38, overload: 0.92, overloaded: false, collapse: true, timeLeft: 94, activeVirus: 'splicedParasites', ammo: 6 },
 };
 const key = new URLSearchParams(location.search).get('state') ?? 'fight';
