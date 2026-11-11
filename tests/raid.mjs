@@ -305,8 +305,9 @@ try {
   await call('melee');
   // The cavities can be full of loot by now: throw loot away until the husk fits.
   for (let i = 0; (await call('give', 'heartHusk', 1)) > 0; i++) {
-    const loot = (await state()).carried.items.filter((e) => e.item !== 'heartHusk').sort((a, b) => a.count - b.count)[0];
-    if (!loot || i > 40) await fail('no room for the Heart Husk');
+    // The husk is 2x2: empty cavity stacks (discard spends the cavities first) until a block frees up.
+    const loot = (await state()).carried.cavity.filter((e) => e.item !== 'heartHusk').sort((a, b) => a.count - b.count)[0];
+    if (!loot || i > 200) await fail(`no room for the Heart Husk: ${JSON.stringify((await state()).carried.cavity)}`);
     await call('discard', loot.item);
   }
   await call('damage', 10000);
