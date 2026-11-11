@@ -122,12 +122,13 @@ export function zoneRock(opts: { veinColour?: string; mossColour?: string; scale
     fragment: /* glsl */ `
       vec3 p = vBioWorld * 0.18 * uScale;
       float strata = bioFbm(p * vec3(1.0, 3.5, 1.0));
-      vec3 rock = mix(uDeep, uRock, smoothstep(0.25, 0.75, strata));
+      // Deep strata keep a floor of the lit rock tone so night ground still shows form, never a black hole.
+      vec3 rock = mix(mix(uDeep, uRock, 0.4), uRock * 1.15, smoothstep(0.25, 0.75, strata));
       float up = smoothstep(0.55, 0.9, vBioNormal.y);
       float mossMask = up * smoothstep(0.36, 0.6, bioFbm(p * 1.7 + 4.0));
       // Moss colonies vary from deep teal to a lighter, almost luminous sea-green, with fine grain underfoot.
       float colony = bioNoise(p * 2.3 + 1.7);
-      vec3 moss = mix(uMoss * 0.8, uMoss * 2.0 + uVein * 0.05, smoothstep(0.35, 0.85, colony));
+      vec3 moss = mix(uMoss * 1.2, uMoss * 2.4 + uVein * 0.05, smoothstep(0.35, 0.85, colony));
       float grain = 0.72 + 0.5 * bioNoise(vBioWorld * 2.6 * uScale);
       vec3 col = mix(rock, moss, mossMask) * grain;
       // Mycelium: two scales of veins, pulsing slowly along their length.
