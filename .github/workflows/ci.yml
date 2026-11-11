@@ -63,6 +63,10 @@ jobs:
             run: npm run smoke:raid
           - name: raid-release
             run: npm run smoke:raid:release
+          - name: raid-hive
+            run: npm run smoke:raid:hive
+          - name: raid-hive-release
+            run: npm run smoke:raid:hive:release
           - name: creatures
             run: npm run smoke:creatures
     name: browser (${{ matrix.name }})

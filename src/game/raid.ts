@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ABILITIES, ABOMINATIONS, CLASSES, HOST, KITS, LOOT, RAID, VIRUSES, VIRUS_RULES, WEAPONS, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
+import { ABILITIES, ABOMINATIONS, BOSSES, CLASSES, HOST, KITS, LOOT, RAID, VIRUSES, VIRUS_RULES, WEAPONS, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
 import { groundHeight, ISLAND_RADIUS, mulberry32 } from '../world/zone7';
 import { Abomination, type AbominationContext, type AbominationKind, type HitSphere } from './abominations';
 import { AbilitySystem } from './abilities';
@@ -891,7 +891,7 @@ export class Raid {
     for (const pod of this.pods) if (pod !== this.interactTarget && pod.lootable) pod.progress = 0;
     if (this.interactTarget) {
       const pod = this.interactTarget;
-      const c = LOOT.containers[pod.type];
+      const c = pod.fixed ? { openTime: pod.fixed.openTime, noiseOnOpen: pod.fixed.noise } : LOOT.containers[pod.type];
       if (p.keys.has('KeyE')) {
         if (pod.progress === 0) { this.bus.emit('containerOpenStart', { container: pod.type }); this.noise(pod.position, c.noiseOnOpen, 'container'); }
         pod.progress = Math.min(1, pod.progress + dt / c.openTime);
@@ -923,7 +923,7 @@ export class Raid {
     if (this.harvestTarget && this.harvestProgress > 0) this.harvestFx.progress(this.scene, this.harvestTarget, this.harvestProgress);
     else this.harvestFx.cancel();
     this.interactText = this.interactTarget
-      ? { text: this.interactTarget.opened ? 'HOLD E · TAKE WHAT IS LEFT' : `HOLD E · TEAR OPEN ${LOOT.containers[this.interactTarget.type].label.toUpperCase()}`, progress: this.interactTarget.progress }
+      ? { text: this.interactTarget.opened ? 'HOLD E · TAKE WHAT IS LEFT' : `HOLD E · ${this.interactTarget.fixed?.verb ?? 'TEAR OPEN'} ${(this.interactTarget.fixed?.label ?? LOOT.containers[this.interactTarget.type]?.label ?? 'container').toUpperCase()}`, progress: this.interactTarget.progress }
       : this.harvestTarget ? { text: `HOLD E · HARVEST ${LOOT.items[ABOMINATIONS[this.harvestTarget.kind].harvest!.item].label.toUpperCase()}`, progress: this.harvestProgress } : null;
 
     // Seed Spires: late ones open on the clock; every open one can be channelled.
@@ -991,8 +991,8 @@ export class Raid {
 
   private openPod(pod: BioPod): void {
     if (pod.type === 'geneBloom') this.sites?.setNodeHarvested(pod.id, true);
-    const rolled = pod.opened ? pod.remaining : rollContainer(pod.type, this.rand);
-    if (!pod.opened) { this.log.open(pod.type); this.bus.emit('containerOpened', { id: pod.id, container: pod.type }); }
+    const rolled = pod.opened ? pod.remaining : pod.fixed ? pod.fixed.items.map((s) => ({ ...s })) : rollContainer(pod.type, this.rand);
+    if (!pod.opened && !pod.fixed) { this.log.open(pod.type); this.bus.emit('containerOpened', { id: pod.id, container: pod.type }); }
     pod.open();
     pod.remaining = [];
     const items: typeof rolled = [], left: typeof rolled = [];
@@ -1188,10 +1188,33 @@ export class Raid {
     this.bus.emit('landmarkVisited', { landmark });
   }
 
-  /** PvE AI calls this when a bosses.json boss dies; contracts count it. */
-  bossKilled(boss: string): void {
+  /**
+   * PvE AI calls this when a bosses.json boss dies at (x, z): contracts count it, its kill DNA is carried, its loot
+   * container drops beside the body and its organ (e.g. the Reliquary Heart) becomes a hold-E harvest. Once per raid.
+   */
+  bossKilled(boss: string, x = this.player.position.x, z = this.player.position.z): void {
+    if (this.log.bosses.has(boss)) return;
     this.log.killBoss(boss);
-    this.bus.emit('bossKilled', { boss });
+    const r = BOSSES[boss]?.rewards;
+    if (r) {
+      // bosses.json rewards: kill DNA, the boss's loot container, and its harvestable organ (hold E, loud).
+      this.carried.dna += r.dna;
+      if (r.container) this.dropContainer(r.container, x + 3, z, `${r.container}-${boss}`);
+      if (r.items?.length) {
+        const spoils = new BioPod(`${boss}-spoils`, 'spoils', x, z + 3);
+        const n = (c: number | [number, number]) => (Array.isArray(c) ? c[0] + Math.floor(this.rand() * (c[1] - c[0] + 1)) : c);
+        spoils.fixed = { items: r.items.map((i) => ({ item: i.item, count: n(i.count) })), openTime: LOOT.containers.bioPod.openTime, noise: 0, verb: 'TEAR OPEN', label: `${BOSSES[boss].label} spoils` };
+        this.pods.push(spoils);
+        this.scene.add(spoils.root);
+      }
+      if (r.harvest) {
+        const heart = new BioPod(`${boss}-harvest`, 'harvest', x - 3, z);
+        heart.fixed = { items: [{ item: r.harvest.item, count: 1 }], openTime: r.harvest.time, noise: r.harvest.noise, verb: 'CUT OUT', label: itemDef(r.harvest.item)?.label ?? r.harvest.item };
+        this.pods.push(heart);
+        this.scene.add(heart.root);
+      }
+    }
+    this.bus.emit('bossKilled', { boss, dna: r?.dna ?? 0, container: r?.container ?? null, harvest: r?.harvest?.item ?? null });
   }
 
   /**
@@ -1253,7 +1276,7 @@ export class Raid {
       dropContainer: (type: string) => this.dropContainer(type, this.player.position.x - 1.2, this.player.position.z).id,
       openContainer: () => this.openContainer(),
       visit: (landmark: string) => this.visit(landmark),
-      bossKilled: (boss: string) => this.bossKilled(boss),
+      bossKilled: (boss: string, x?: number, z?: number) => this.bossKilled(boss, x, z),
       /** Injects the first carried vial of `item` (cavities, then pouch). */
       inject: (item: string) => {
         for (const zone of ['cavity', 'pouch'] as const) {

@@ -1,6 +1,7 @@
 // Scripted raid: proves a Spore raid can be finished both ways, driving the game through window.__biophage.debug.
 //   npm run smoke:raid                 -> against dist/ via `vite preview` (run `npm run build` first)
 //   npm run smoke:raid -- --release    -> against release/index.html from disk
+//   npm run smoke:raid:hive            -> part 2 (`--hive`): vendors, Flesh Market, gear, boss rewards, zone switch
 // Boots into the Hive with a fresh profile, opens the stash, double-clicks Clot Gel into the cavities and deploys
 // from the raid select tab. Fights a Needlemaw with the
 // Synapse Burster, tears open the Bio-Pod, extracts at the Seed Spire, checks the EXTRACTED screen, returns to the
@@ -15,11 +16,13 @@ import { chromium } from 'playwright';
 import { freezeAndScreenshot } from './lib/harness.mjs';
 
 const release = process.argv.includes('--release');
+// Two CI jobs: the raid loop (default) and `--hive` (vendors, Flesh Market, gear, boss rewards, zone switch).
+const HIVE_PART = process.argv.includes('--hive');
 const LOOT = JSON.parse(readFileSync('data/loot.json', 'utf8'));
 const PROFILE = JSON.parse(readFileSync('data/profile.json', 'utf8'));
 const HOST_BIOMASS = JSON.parse(readFileSync('data/classes.json', 'utf8')).neuroInfiltrator.biomass;
 const starter = (item) => PROFILE.newProfile.stash.find((k) => k.item === item).count;
-const label = release ? 'release' : 'preview';
+const label = `${release ? 'release' : 'preview'}${HIVE_PART ? ' hive' : ''}`;
 const PREVIEW_URL = 'http://localhost:4173/';
 let server;
 let browser;
@@ -69,6 +72,7 @@ try {
   let s = await state();
   if (s.phase !== 'briefing') await fail(`expected briefing, got ${s.phase}`);
 
+  if (!HIVE_PART) {
   // --- The Hive: a fresh profile with Design's starter kit.
   let p = await profile();
   if (!(await page.isVisible('#hive'))) await fail('Hive menu is not shown at boot');
@@ -257,6 +261,56 @@ try {
     if (s.nests[0].state !== 'destroyed' || s.pods.length !== pods + 1) await fail(`Brood Heart kill did not drop a Brood Cache: ${JSON.stringify(s.nests[0])}`);
     log(`Brood Heart woke, sent wave ${s.nests[0].wave} (${s.nests[0].brood} spawn), died and dropped a Brood Cache`);
   }
+  await call('damage', 10000);
+  await frames(3);
+  s = await state();
+  if (s.phase !== 'lost') await fail(`expected lost, got ${s.phase}`);
+  const lost = await page.evaluate(() => document.querySelector('.results h1')?.textContent);
+  if (lost !== 'HOST LOST') await fail(`result screen says ${lost}`);
+  await freezeAndScreenshot(page, 'tests/out/raid-lost.png', { resume: true });
+  log(`HOST LOST; lost value ${s.result.value}`);
+  // The reload can take a while on software rendering; the next line waits for the fresh Hive.
+  await page.click('#deploy-again', { noWaitAfter: true });
+  await page.waitForFunction(() => window.__biophage?.state?.phase === 'briefing', null, { timeout: 90000 });
+  await boot();
+  p = await profile();
+  if (p.cavity.length || total(p.stash, 'dnaStrand') || total(p.stash, 'synapseLens') > total(haul, 'synapseLens')) await fail(`death did not empty the cavities: ${JSON.stringify(p)}`);
+  if (total(p.gutPouch, 'clotGel') !== pouchGel) await fail(`gut pouch did not survive death: ${JSON.stringify(p.gutPouch)}`);
+  if (p.stats.deaths !== 1 || p.dna !== expectDna) await fail(`death record or banked DNA wrong: ${JSON.stringify(p.stats)} DNA ${p.dna}`);
+  await freezeAndScreenshot(page, 'tests/out/raid-hive-after.png', { resume: true });
+  log('after death: cavities empty, gut pouch kept, banked DNA untouched');
+
+  } else {
+  // The Hive lab's first shader compile freezes software rendering for a while; let it finish before timing frames.
+  await page.waitForSelector('#hive.lab-live', { timeout: 180000 }).catch(() => fail('the 3D Hive lab is not live behind the main menu'));
+  // --- A raid with Flesh Market gear, a Brood Cache and a boss kill (Gameplay), then death back to the Hive.
+  await call('setTimeScale', 3);
+  await tab('raid');
+  await page.click('#deploy');
+  await frames(2);
+  s = await state();
+  if (s.phase !== 'raid') await fail(`Deploy did not start the raid (${s.phase})`);
+  await call('killAll'); // a quiet island for the scripted checks
+  await call('setTimeScale', 3);
+  // Boss rewards (bosses.json): a Reliquary kill banks its DNA, drops the Reliquary Cage and a hold-E Reliquary Heart.
+  s = await state();
+  const dnaBefore = s.carried.dna;
+  await call('bossKilled', 'reliquary'); // at the host's feet
+  await frames(1);
+  s = await state();
+  if (!s.log.bosses.includes('reliquary') || !s.pods.some((q) => q.id === 'reliquaryCage-reliquary') || s.carried.dna <= dnaBefore) await fail(`Reliquary kill gave no rewards: ${JSON.stringify({ log: s.log, dna: s.carried.dna })}`);
+  const heart = s.pods.find((q) => q.id === 'reliquary-harvest');
+  if (!heart) await fail('the Reliquary Heart is not harvestable');
+  await call('teleport', heart.position[0] - 1.2, heart.position[1]);
+  await call('setTimeScale', 8); // the cut is long (rewards.harvest.time); keep it short in frames so nothing hunts the host meanwhile
+  await call('killAll');
+  await frames(1);
+  await call('hold', 'KeyE', true);
+  for (let i = 0; i < 60; i++) { await call('killAll'); await frames(1); s = await state(); if (s.pods.find((q) => q.id === 'reliquary-harvest')?.opened || s.phase !== 'raid') break; } // the cut's noise draws packs in: keep clearing them
+  await call('hold', 'KeyE', false);
+  const heartIn = [...s.carried.items, ...((await call('openContainer'))?.items ?? [])];
+  if (!heartIn.some((i) => i.item === 'reliquaryHeart')) await fail(`harvesting the Reliquary gave no Reliquary Heart: ${JSON.stringify({ heartIn, heart: s.pods.find((q) => q.id === 'reliquary-harvest'), at: await page.evaluate(() => window.__biophage.position), phase: s.phase, result: s.result })}`);
+  log(`Reliquary killed: +${s.carried.dna - dnaBefore} DNA, Reliquary Cage dropped, Reliquary Heart harvested`);
   await call('killAll');
   await call('setTimeScale', 8);
   // Brood Cache: the container PvE AI's Brood Heart drops on death always holds a Brood Heart Seed.
@@ -286,21 +340,10 @@ try {
   await call('damage', 10000);
   await frames(3);
   s = await state();
-  if (s.phase !== 'lost') await fail(`expected lost, got ${s.phase}`);
-  const lost = await page.evaluate(() => document.querySelector('.results h1')?.textContent);
-  if (lost !== 'HOST LOST') await fail(`result screen says ${lost}`);
-  await freezeAndScreenshot(page, 'tests/out/raid-lost.png', { resume: true });
-  log(`HOST LOST; lost value ${s.result.value}`);
-  // The reload can take a while on software rendering; the next line waits for the fresh Hive.
+  if (s.phase !== 'lost') await fail(`expected lost after the gear run, got ${s.phase}`);
   await page.click('#deploy-again', { noWaitAfter: true });
   await page.waitForFunction(() => window.__biophage?.state?.phase === 'briefing', null, { timeout: 90000 });
   await boot();
-  p = await profile();
-  if (p.cavity.length || total(p.stash, 'dnaStrand') || total(p.stash, 'synapseLens') > total(haul, 'synapseLens')) await fail(`death did not empty the cavities: ${JSON.stringify(p)}`);
-  if (total(p.gutPouch, 'clotGel') !== pouchGel) await fail(`gut pouch did not survive death: ${JSON.stringify(p.gutPouch)}`);
-  if (p.stats.deaths !== 1 || p.dna !== expectDna) await fail(`death record or banked DNA wrong: ${JSON.stringify(p.stats)} DNA ${p.dna}`);
-  await freezeAndScreenshot(page, 'tests/out/raid-hive-after.png', { resume: true });
-  log('after death: cavities empty, gut pouch kept, banked DNA untouched');
 
   // --- Hive vendors: Mother Clot lists rep-gated stock and contracts, buys from the stash, and a contract can be taken.
   await tab('vendors');
@@ -341,6 +384,8 @@ try {
   if (s.phase !== 'raid' || s.zone !== 'longSeedWreck') await fail(`zone switch did not deploy into the Wreck: phase ${s.phase}, zone ${s.zone}`);
   await freezeAndScreenshot(page, 'tests/out/raid-wreck.png');
   log('raid select: switched to the Wreck of the Long Seed, reloaded and deployed');
+
+  }
 
   if (errors.length) await fail(`console errors:\n${errors.join('\n')}`);
   await browser.close();

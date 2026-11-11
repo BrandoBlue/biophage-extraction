@@ -58,7 +58,7 @@ export interface GameEvents {
   // Contracts (Gameplay): first open of a container, a landmark reached, a boss killed.
   containerOpened: { id: string; container: string };
   landmarkVisited: { landmark: string };
-  bossKilled: { boss: string };
+  bossKilled: { boss: string; dna: number; container: string | null; harvest: string | null };
 }
 
 type Handler<T> = (payload: T) => void;
