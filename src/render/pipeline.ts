@@ -33,7 +33,7 @@ const GradeShader = {
     uHitColour: { value: new THREE.Color() },
     uSplit: { value: 0.18 },
     /** Unsharp mask strength and one-pixel step: keeps surface detail crisp after TAA-free sampling and bloom. */
-    uSharpen: { value: 0.35 },
+    uSharpen: { value: 0.22 },
     uTexel: { value: new THREE.Vector2(1 / 1280, 1 / 720) },
   },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
