@@ -12,16 +12,17 @@ import type { HiveActions, ProfileView } from './model';
 import { drawOrbit, HOST_ORDER, hostSelect, mainMenu, raidSelect, results } from './screens';
 import type { ResultData } from './screens';
 import { stashScreen } from './stash';
+import { marketScreen } from './market';
 import { CLASSES } from '../../../data';
 import type { ClassId } from '../../../data';
 
-export type Tab = 'menu' | 'host' | 'stash' | 'raid' | 'settings' | 'results';
+export type Tab = 'menu' | 'host' | 'stash' | 'raid' | 'market' | 'settings' | 'results';
 
 const TITLES: Record<Tab, string> = {
   menu: 'THE HIVE', host: 'STARTER HOST SELECT & PROGRESSION', stash: 'STASH & INTERNAL CAVITIES',
-  raid: 'EXCLUSION ZONE SELECT', settings: 'SETTINGS', results: 'RAID DEBRIEF',
+  raid: 'EXCLUSION ZONE SELECT', market: 'FLESH MARKET', settings: 'SETTINGS', results: 'RAID DEBRIEF',
 };
-const NAV_TAB: Partial<Record<Tab, string>> = { menu: 'menu', host: 'host', stash: 'stash', raid: 'raid' };
+const NAV_TAB: Partial<Record<Tab, string>> = { menu: 'menu', host: 'host', stash: 'stash', raid: 'raid', market: 'market' };
 
 export interface HiveUIOptions {
   /** Called when the host changes (Gameplay stores it on the profile). */
@@ -50,16 +51,18 @@ export class HiveUI {
     this.cur?.dispose?.();
     const p = this.view();
     const f = frame({ title: TITLES[tab], tab: NAV_TAB[tab], callsign: p.callsign, dna: p.dna,
-      extras: [{ label: 'HOST', value: CLASSES[p.host].label.replace('The ', '').toUpperCase(), tone: 'lime' }, { label: 'EXTRACTS', value: String(p.stats.extracts), tone: 'amber' }] });
+      extras: [{ label: 'HOST', value: CLASSES[p.host].label.replace('The ', '').toUpperCase(), tone: 'lime' }, { label: 'EXTRACTS', value: String(p.stats.extracts), tone: 'amber' }],
+      unlocked: this.actions.market ? ['market'] : [] });
     f.nav.addEventListener('click', (e) => {
       const t = (e.target as HTMLElement).closest<HTMLButtonElement>('.tab');
       if (t && !t.disabled) this.show(t.dataset.tab as Tab);
     });
     let screen: HTMLElement & { dispose?: () => void };
     switch (tab) {
-      case 'menu': screen = mainMenu(p, { go: (t) => this.show(t as Tab), deploy: () => this.show('host'), quit: () => this.quit() }); break;
+      case 'menu': screen = mainMenu(p, { go: (t) => this.show(t as Tab), deploy: () => this.show('host'), quit: () => this.quit(), market: !!this.actions.market }); break;
       case 'host': screen = hostSelect(p, { pick: (id) => { this.opts.pickHost?.(id); this.show('host'); }, next: () => this.show('stash') }); break;
       case 'stash': screen = stashScreen(p, { actions: this.actions, next: () => this.show('raid'), changed: () => this.show('stash'), notice: (m, t) => this.notice(m, t) }); break;
+      case 'market': screen = marketScreen(p, { actions: this.actions, changed: () => this.show('market'), notice: (m, t) => this.notice(m, t), next: () => this.show('stash') }); break;
       case 'raid': screen = raidSelect(p, { deploy: () => this.actions.deploy() }); this.animateOrbit(screen); break;
       case 'results': screen = results(this.lastResult!, { again: () => (this.opts.afterResults ? this.opts.afterResults() : this.show('stash')) }); break;
       default: screen = this.settingsScreen();
@@ -141,7 +144,7 @@ export class HiveUI {
 
   private onKey = (e: KeyboardEvent) => {
     if (!this.visible || (e.target as HTMLElement)?.tagName === 'INPUT') return;
-    const back: Partial<Record<Tab, Tab>> = { host: 'menu', stash: 'host', raid: 'stash', settings: 'menu' };
+    const back: Partial<Record<Tab, Tab>> = { host: 'menu', stash: 'host', raid: 'stash', market: 'menu', settings: 'menu' };
     if (e.code === 'Escape' && back[this.tab]) { this.show(back[this.tab]); return; }
     if (e.code === 'Enter') {
       if (this.tab === 'menu') this.show('host');
@@ -154,6 +157,7 @@ export class HiveUI {
     if (this.tab === 'menu') {
       if (e.code === 'KeyS') this.show('stash');
       if (e.code === 'KeyH') this.show('host');
+      if (e.code === 'KeyM' && this.actions.market) this.show('market');
     }
     if (this.tab === 'host' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) {
       const open = HOST_ORDER.filter((id) => CLASSES[id].playableFrom !== 'host');

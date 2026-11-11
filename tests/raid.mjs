@@ -73,6 +73,8 @@ try {
   let p = await profile();
   if (!(await page.isVisible('#hive'))) await fail('Hive menu is not shown at boot');
   if ((await page.getAttribute('#hive', 'data-tab')) !== 'menu') await fail('the Hive does not open on the main menu');
+  // The main menu stands the host's 3D body in the Hive lab behind the specimen column (src/ui/hive-stage.ts).
+  await page.waitForSelector('#hive.lab-live', { timeout: 60000 }).catch(() => fail('the 3D Hive lab is not live behind the main menu'));
   await freezeAndScreenshot(page, 'tests/out/raid-hive-menu.png', { resume: true });
   await tab('stash');
   if (p.dna !== PROFILE.newProfile.dna || !PROFILE.newProfile.stash.every((k) => total(p.stash, k.item) === k.count)) await fail(`unexpected new profile ${JSON.stringify(p)}`);
@@ -163,6 +165,17 @@ try {
   if (s.carried.items.some((i) => i.item === 'needlemawGland')) await fail('gland still carried after moving it to the pod');
   if ((await call('transfer', 'pod', 0, 'cavity')) !== 1) await fail('could not take the gland back from the pod');
 
+  // --- TAB opens the cavity overlay with the open pod as a third grid; TAB closes it.
+  await page.keyboard.press('Tab');
+  await frames(2);
+  const ov = await page.evaluate(() => ({ open: !document.querySelector('.cav-overlay')?.classList.contains('hidden'),
+    zones: [...document.querySelectorAll('.cav-overlay [data-zone]')].map((e) => e.getAttribute('data-zone')) }));
+  if (!ov.open || !['cavity', 'pouch'].every((z) => ov.zones.includes(z))) await fail(`TAB overlay not shown: ${JSON.stringify(ov)}`);
+  await freezeAndScreenshot(page, 'tests/out/raid-cavities.png', { resume: true });
+  await page.keyboard.press('Tab');
+  if (await page.isVisible('.cav-overlay')) await fail('TAB did not close the cavity overlay');
+  log(`cavity overlay: ${[...new Set(ov.zones)].join(', ')}`);
+
   // --- Inject the Adrenaline Virus: 3 s channel, then it takes hold and lowers max Biomass.
   const vials = (st) => st.carried.items.filter((i) => i.item === 'adrenalineVirus').reduce((n, i) => n + i.count, 0);
   const vialsBefore = vials(s);
@@ -250,8 +263,18 @@ try {
   if (p.cavity.length || total(p.stash, 'dnaStrand') || total(p.stash, 'synapseLens') > total(haul, 'synapseLens')) await fail(`death did not empty the cavities: ${JSON.stringify(p)}`);
   if (total(p.gutPouch, 'clotGel') !== pouchGel) await fail(`gut pouch did not survive death: ${JSON.stringify(p.gutPouch)}`);
   if (p.stats.deaths !== 1 || p.dna !== expectDna) await fail(`death record or banked DNA wrong: ${JSON.stringify(p.stats)} DNA ${p.dna}`);
-  await freezeAndScreenshot(page, 'tests/out/raid-hive-after.png');
+  await freezeAndScreenshot(page, 'tests/out/raid-hive-after.png', { resume: true });
   log('after death: cavities empty, gut pouch kept, banked DNA untouched');
+
+  // --- Flesh Market: today's stock is listed and selling one stash item pays DNA.
+  await tab('market');
+  const cards = await page.locator('#hive .mk-card').count();
+  if (cards < 1) await fail('Flesh Market shows no stock');
+  const before = (await profile()).dna;
+  await page.click('#hive [data-sell="0"]');
+  if (!((await profile()).dna > before)) await fail('selling at the Flesh Market paid no DNA');
+  await freezeAndScreenshot(page, 'tests/out/raid-market.png');
+  log(`Flesh Market: ${cards} offers, sold one item for ${(await profile()).dna - before} DNA`);
 
   if (errors.length) await fail(`console errors:\n${errors.join('\n')}`);
   await browser.close();

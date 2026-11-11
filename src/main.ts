@@ -3,6 +3,7 @@ import { haulValue } from '../data';
 import { Raid } from './game/raid';
 import { RaidHud } from './ui/raid-hud';
 import { HiveMenu } from './ui/hive-menu';
+import { HiveStage } from './ui/hive-stage';
 import { ItemGrid } from './game/grid';
 import { browserStorage, deploy, die, extract, loadProfile, saveProfile } from './game/profile';
 import { buildZone7 } from './world/zone7';
@@ -28,7 +29,7 @@ function bootRaid(): void {
   const raidSeed = Number.isFinite(seedParam) && seedParam > 0 ? seedParam : navigator.webdriver ? 1 : 1 + Math.floor(Math.random() * 1e6);
   const world = buildZone7(scene, zone7Layout(raidSeed));
   const raid = new Raid(scene, camera, canvas, world.layout, world.sites);
-  const hud = new RaidHud(raid.bus);
+  const hud = new RaidHud(raid.bus, raid);
 
   // Persistent loop (Larva): boot into the Hive, deploy with the cavity loadout, settle the raid into the profile.
   const storage = browserStorage();
@@ -65,6 +66,7 @@ function bootRaid(): void {
   const pipeline = createPipeline(canvas, scene, camera, 'zone7');
   installLookdev(pipeline, camera, scene);
   raid.pipeline = pipeline;
+  const stage = new HiveStage(pipeline);
 
   function resize(): void {
     const w = innerWidth, h = innerHeight;
@@ -87,9 +89,14 @@ function bootRaid(): void {
     const dt = Math.min(clock.getDelta(), 0.05);
     raid.update(dt);
     hud.update(dt, raid.hud());
-    // The Hive screens cover the whole view: skip the 3D frame behind them (the loop and frame counter keep running).
-    // The first frames still render so shaders compile at boot, not on the DEPLOY click.
-    if (!menu.visible || frames < 3) pipeline.render(dt);
+    // The main menu draws the 3D Hive lab with the host on its pedestal; other Hive screens cover the whole view, so
+    // the 3D frame behind them is skipped (the loop and frame counter keep running). The first frames always render
+    // the raid scene so its shaders compile at boot, not on the DEPLOY click.
+    const lab = frames >= 3 && menu.wantsStage;
+    stage.set(lab, profile.host, camera.aspect);
+    menu.stageLive(lab);
+    stage.update(dt);
+    if (!menu.visible || frames < 3 || stage.due()) pipeline.render(dt);
     frames++;
     // Read by tests/smoke.mjs and tests/raid.mjs: proves the loop is alive and drives scripted raids.
     (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), profile, debug, layout: world.layout };
