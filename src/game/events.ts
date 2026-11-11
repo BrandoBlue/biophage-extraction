@@ -58,7 +58,7 @@ export interface GameEvents {
   nestDamaged: { id: string; biomass: number; fraction: number; weakPoint: boolean };
   nestDestroyed: { id: string; type: string; dna: number; container: string };
   /** A creature burst from its tank or dropped its disguise (PvE AI homes, data/habitats.json). */
-  creatureReveal: { id: number; type: string; how: 'hatch' | 'disguise'; position: { x: number; y: number; z: number } };
+  creatureReveal: { id: number; type: string; how: 'hatch' | 'disguise' | 'ambush'; position: { x: number; y: number; z: number } };
   /** Zone boss (PvE AI, src/game/boss.ts). `songRadius`: how far the wake song carries. */
   bossAwake: { boss: string; label: string; songRadius: number };
   bossPhase: { boss: string; phase: string };

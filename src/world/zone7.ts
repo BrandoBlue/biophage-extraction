@@ -10,7 +10,8 @@ import { mulberry32 } from './rng';
 import { CATALOGUE, zone7Layout, type Zone7Layout } from './layout';
 import { buildSites, clearings, type SiteDressing } from './sites';
 import { CollisionWorld } from './collision';
-import { fungalCaves, hollowSpire, longSeedDebris, oldBone, reliquaryBowl, rootSkirt, type ArenaInfo, type BuiltStructures } from './structures';
+import { caveDistance, fungalCaves, type CaveLair } from './cave';
+import { hollowSpire, longSeedDebris, oldBone, reliquaryBowl, rootSkirt, type ArenaInfo, type BuiltStructures } from './structures';
 
 export { mulberry32 } from './rng';
 
@@ -29,7 +30,6 @@ export const FLAT_SPOTS: readonly { name: string; x: number; z: number; radius: 
   ...CATALOGUE.blooms.map((p) => ({ name: p.id, ...xz(p), radius: ZONE7_SITES.geneBlooms.clearingRadius })),
   { name: CATALOGUE.spire.id, ...xz(CATALOGUE.spire), radius: CATALOGUE.spire.radius },
   { name: CATALOGUE.debris.id, ...xz(CATALOGUE.debris), radius: CATALOGUE.debris.radius },
-  ...ZONE7_SITES.caves.map((c) => ({ name: c.id, x: c.x, z: c.z, radius: c.radiusU + 2 })),
 ];
 
 /** The Reliquary Bowl's terrain: a sunken arena with sheer sides except at its two entrances. */
@@ -148,6 +148,11 @@ export function groundHeight(x: number, z: number): number {
       h += c.rimHeight * Math.exp(-((d - 1.05) ** 2) / 0.04);
     }
   }
+  // Caves: the chamber, its tunnels and the apron at the mouth sit on one level floor.
+  for (const c of ZONE7_SITES.caves) {
+    const d = caveDistance(c, x, z);
+    if (d < 12) h += (rawHeight(c.x, c.z) - h) * (1 - smooth(1, 12, d));
+  }
   const bowl = bowlAt(x, z);
   if (bowl && bowl.w > 0) h += (bowl.floor - h) * bowl.w;
   // Pools sit in shallow basins so the liquid surface is never buried by the terrain.
@@ -164,7 +169,8 @@ export function isReserved(x: number, z: number, margin = 0): boolean {
   return FLAT_SPOTS.some((s) => Math.hypot(x - s.x, z - s.z) < s.radius + margin)
     || CRATERS.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius * 0.8 + margin)
     || Math.hypot(x - BOWL.x, z - BOWL.z) < BOWL.radius * 1.1 + margin
-    || POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 1 + margin);
+    || POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 1 + margin)
+    || ZONE7_SITES.caves.some((c) => caveDistance(c, x, z) < 1 + margin);
 }
 
 const GLOWS = [ZONE7.cyan, ZONE7.magenta, ZONE7.lime, ZONE7.violet];
@@ -491,7 +497,7 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
   const structures = buildStructures(scene);
   const fungi = areaFungi(rand);
   // Inside the Fungal Caves: low glowing growth, a few tall stems reaching for the roof.
-  for (const g of structures.caveGlow) fungi.push(fungusAt(rand, g.x, g.z, g.big ? [3, 5] : [0.3, 1.6], g.big ? [1.2, 2] : [0.2, 0.8], g.big ? ZONE7.cyan : GLOWS[Math.floor(rand() * 2) * 3]));
+  for (const g of structures.caveGlow) fungi.push(fungusAt(rand, g.x, g.z, g.big ? [3, 5] : [0.3, 1.6], g.big ? [1.2, 2] : [0.2, 0.8], ORGANIC.mist));
   // Floating islands with their own flora and falls.
   for (const [k, isl] of FLOATING.entries()) {
     const mesh = new THREE.Mesh(floatingIslandGeometry(seed + k * 13, 2 + rand() * 1.5), rockMat);
@@ -527,7 +533,7 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
   const clear = clearings(layout);
   scene.add(groundCover({
     height: groundHeight,
-    exclude: (x, z) => POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 0.6) || clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius) || Math.hypot(x - CATALOGUE.spire.x, z - CATALOGUE.spire.z) < 8.8 || Math.hypot(x - CATALOGUE.debris.x, z - CATALOGUE.debris.z) < CATALOGUE.debris.radius,
+    exclude: (x, z) => POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 0.6) || clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius) || Math.hypot(x - CATALOGUE.spire.x, z - CATALOGUE.spire.z) < 8.8 || Math.hypot(x - CATALOGUE.debris.x, z - CATALOGUE.debris.z) < CATALOGUE.debris.radius || ZONE7_SITES.caves.some((c) => caveDistance(c, x, z) < 0.5),
   }).group);
 
   // Gameplay sites for this raid.
@@ -569,6 +575,8 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
 
 /** The Reliquary's arena once the zone is built (PvE AI's boss reads it); null before buildZone7 runs. */
 export let reliquaryArena: ArenaInfo | null = null;
+/** The Pale Vigil's lair in the Fungal Caves once the zone is built (PvE AI's boss reads it); null before. */
+export let paleVigilLair: CaveLair | null = null;
 
 /** Builds the enterable structures and their colliders (SOLIDS is reset first). */
 export function buildStructures(scene: THREE.Scene): BuiltStructures & { caveGlow: { x: number; z: number; big: boolean }[] } {
@@ -582,7 +590,8 @@ export function buildStructures(scene: THREE.Scene): BuiltStructures & { caveGlo
   const db = CATALOGUE.debris;
   const debris = longSeedDebris(SOLIDS, db.x, db.z, db.yaw, groundHeight);
   const cv = ZONE7_SITES.caves[0];
-  const cave = fungalCaves(SOLIDS, cv.x, cv.z, (cv.yaw * Math.PI) / 180, cv.radiusU, cv.radiusV, cv.height, groundHeight(cv.x, cv.z));
+  const cave = fungalCaves(SOLIDS, cv, groundHeight(cv.x, cv.z));
+  paleVigilLair = cave.lair;
   group.add(spire.group, bowl.group, debris.group, cave.group);
   reliquaryArena = bowl.arena;
   scene.add(group);
@@ -591,6 +600,7 @@ export function buildStructures(scene: THREE.Scene): BuiltStructures & { caveGlo
     loot: [...spire.loot, ...debris.loot, ...cave.loot],
     caveGlow: cave.glow,
     arena: bowl.arena,
+    lair: cave.lair,
     breakPillar(id) {
       bowl.arena.pillars.find((p) => p.id === id)?.destroy();
     },

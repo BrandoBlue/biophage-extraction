@@ -12,6 +12,7 @@ interface Slam { radius: number; damage: number; knockback: number }
 
 export class TankBrain extends Brain {
   protected readonly turnRate = AI.tank.turnRate;
+  protected readonly flees = false;
   private travelled = 0;
   private gored = false;
   private readonly slam = (this.data.slam as Slam | undefined) ?? { radius: 5, damage: 30, knockback: 8 };

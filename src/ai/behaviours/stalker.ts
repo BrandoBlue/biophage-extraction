@@ -12,6 +12,7 @@ interface Camo { visibilityIdle: number; visibilityMoving: number; revealOnHit: 
 
 export class StalkerBrain extends Brain {
   protected readonly turnRate = AI.stalker.turnRate;
+  protected readonly ambusher = true;
   private side = this.rand() < 0.5 ? -1 : 1;
   private revealFor = 0;
   private struck = false;

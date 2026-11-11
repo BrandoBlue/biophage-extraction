@@ -394,8 +394,15 @@ export interface Zone7Sites {
   areas: { id: string; label: string; tag: string; x: number; z: number; radius: number; dress: string[] }[];
   ridges: { id: string; points: [number, number][]; height: number; halfWidth: number; passes: [number, number][] }[];
   valleys: { id: string; points: [number, number][]; depth: number; halfWidth: number }[];
-  caves: { id: string; x: number; z: number; yaw: number; radiusU: number; radiusV: number; height: number }[];
+  caves: CaveSpec[];
   dropIn: { height: number; fallSpeed: number };
+}
+/** A domed cave chamber with side tunnels (World & Level); angles are local degrees, 180 = the main mouth. */
+export interface CaveSpec {
+  id: string; label: string; x: number; z: number; yaw: number; radius: number; height: number;
+  mouth: { width: number; height: number };
+  tunnels: { id: string; angle: number; length: number; width: number; height: number }[];
+  glowPatches: number; cover: number; collapsePoints: number; roots: number;
 }
 /** Site catalogues keyed by zone id (World & Level). */
 export const ZONE_SITES = strip<{ glowmireIsle: Zone7Sites; longSeedWreck: Record<string, unknown> }>(zone7Json);
@@ -416,6 +423,13 @@ export interface AiRules {
   flyer: { orbitRadius: Range; orbitSpeed: number; diveGap: number; faceHeight: number; flockRadius: number; calmHeight: Range; diveSpeed: number; diveTime: number; climbTime: number; screechTell: number; turnRate: number };
   tank: { turnRate: number; chargeTurnRate: number; hornReach: number; chargeRange: Range; chargeAimCone: number; chargeDistance: number; chargeKnockback: number; slamTrigger: number; slamWindup: number; recoverTime: number; approachFactor: number };
   nestSpawn: { ejectSpeed: number; ejectRadius: number; startAwareness: number };
+  menace: {
+    reaction: [number, number];
+    search: { predictTime: number; maxPredict: number; spread: number; sweepTime: number };
+    ambush: { chance: number; range: number; time: number };
+    wounded: { limpBelow: number; limpFactor: number; fleeBelow: number; fleeChance: number; fleeTime: number };
+    dodge: { chance: number; aimCone: number; range: number; minNoise: number; speed: number; cooldown: number };
+  };
 }
 const stripDeep = (o: unknown): unknown => {
   if (Array.isArray(o) || o === null || typeof o !== 'object') return o;

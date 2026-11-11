@@ -142,3 +142,18 @@ describe("Design's habitat bands on Glowmire Isle (data/habitats.json)", () => {
     }
   });
 });
+
+describe('the Fungal Caves on Glowmire', () => {
+  it('sits on one level floor across the chamber, tunnels and mouth', async () => {
+    const { caveDistance } = await import('../src/world/cave');
+    const c = ZONE7_SITES.caves[0];
+    const floor = groundHeight(c.x, c.z);
+    let n = 0;
+    for (let x = c.x - 40; x <= c.x + 40; x += 1.5) for (let z = c.z - 40; z <= c.z + 40; z += 1.5) {
+      if (caveDistance(c, x, z) > 0) continue;
+      n++;
+      expect(Math.abs(groundHeight(x, z) - floor), `${x},${z}`).toBeLessThan(0.35);
+    }
+    expect(n).toBeGreaterThan(400);
+  });
+});

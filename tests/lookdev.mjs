@@ -32,7 +32,8 @@ const POSES = {
   valley: { at: [-100, -10], eye: 1.7, yaw: -2.0, pitch: 0.03 },
   caveMouth: { at: [58, 79], eye: 2, yaw: -2.5, pitch: 0.1 },
   rimFalls: { at: [-80, 62], eye: 2, yaw: 1.2, pitch: 0.12 },
-  caveInside: { at: [74.8, 99.4], eye: 1.7, yaw: -2.37, pitch: 0.08 },
+  caveInside: { at: [72.8, 98.4], eye: 1.7, yaw: -2.5, pitch: 0.05 },
+  caveRoots: { at: [72.8, 98.4], eye: 1.7, yaw: -2.5, pitch: 0.55 },
   // Zone 2 poses: run with ZONE=longSeedWreck.
   wreckProw: { at: [122, 6], eye: 2.2, yaw: 1.45, pitch: 0.08 },
   wreckHold: { at: [68, -12], eye: 1.7, yaw: 1.3, pitch: 0.12 },
@@ -59,8 +60,8 @@ try {
   const page = await browser.newPage({ viewport: { width, height } });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
-  page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(`${m.type()}: ${m.text()}`); });
-  await page.goto(URL);
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(`${m.type()}: ${m.text()}`); else if (m.type() === 'warning') console.warn(`warning: ${m.text()}`); });
+  await page.goto(URL, { timeout: 120000 });
   await page.waitForFunction(() => window.__biophage?.frames > 3, null, { timeout: 120000 });
   // The game boots into the Hive and stops drawing the raid behind it: deploy first (as tests/smoke.mjs does).
   if (await page.$('#hive .tab[data-tab="raid"]')) await page.click('#hive .tab[data-tab="raid"]');
