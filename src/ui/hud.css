@@ -23,7 +23,8 @@ html, body { margin:0; height:100%; overflow:hidden; background:var(--bg); color
 
 /* ---------------------------------------------------------------- Spore raid HUD (Gameplay Engineering interim).
    Colour variables are set at runtime from src/render/palette.ts by src/ui/raid-hud.ts. */
-#hud.raid #brand { top:auto; bottom:6px; right:20px; font-size:10px; opacity:.6; }
+/* Bottom-left under the eye, clear of the weapon panel (Build play check, 2026-11-11). */
+#hud.raid #brand { top:auto; bottom:4px; left:20px; right:auto; font-size:10px; opacity:.45; color:var(--bone); }
 #hud.raid.briefing > :not(#prompt):not(#brand) { opacity:.35; }
 #hud.raid #vitals { left:24px; bottom:22px; width:420px; grid-template-columns:96px 1fr; grid-template-rows:auto auto; column-gap:14px; align-items:end; }
 #hud.raid #vitals .eye { grid-row:1 / span 2; }

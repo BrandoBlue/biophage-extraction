@@ -82,6 +82,12 @@ export class HiveMenu {
 
   get visible(): boolean { return this.ui.visible; }
 
+  /** The main menu shows the live 3D Hive lab (src/ui/hive-stage.ts) behind its specimen column. */
+  get wantsStage(): boolean { return this.ui.visible && this.ui.tab === 'menu'; }
+
+  /** The 2D specimen hides and the backdrop thins to a vignette while the 3D stage is drawing. */
+  stageLive(on: boolean): void { this.ui.root.classList.toggle('lab-live', on); }
+
   hide(): void { this.ui.hide(); document.body.classList.remove('in-hive'); }
 
   say(text: string): void { this.ui.notice(text.toUpperCase(), 'danger'); }
