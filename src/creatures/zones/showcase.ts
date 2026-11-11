@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Sandwidow, type WidowPhase } from './sandwidow';
 import { Nethermaw, type NethermawPhase } from './nethermaw';
+import { MireRegent, type RegentPhase } from './mireRegent';
 
 /**
  * Viewer adapters for the new-zone bosses, so the `?creatures` viewer drives every one of them through one small
@@ -23,11 +24,47 @@ export interface ZoneBossShow {
   state(): Record<string, unknown>;
 }
 
-export type ZoneBossId = 'sandwidow' | 'nethermaw';
-export const ZONE_BOSSES: { id: ZoneBossId; label: string }[] = [{ id: 'sandwidow', label: 'Sandwidow' }, { id: 'nethermaw', label: 'Nethermaw' }];
+export type ZoneBossId = 'sandwidow' | 'nethermaw' | 'mireRegent';
+export const ZONE_BOSSES: { id: ZoneBossId; label: string }[] = [{ id: 'sandwidow', label: 'Sandwidow' }, { id: 'nethermaw', label: 'Nethermaw' }, { id: 'mireRegent', label: 'Mire Regent' }];
 
 export function showZoneBoss(id: ZoneBossId, seed: number, scene: THREE.Scene, ground: (x: number, z: number) => number, origin: THREE.Vector3): ZoneBossShow {
+  if (id === 'mireRegent') return regentShow(seed, scene, ground, origin);
   return id === 'nethermaw' ? nethermawShow(seed, scene, ground, origin) : widowShow(seed, scene, ground, origin);
+}
+
+function regentShow(seed: number, scene: THREE.Scene, ground: (x: number, z: number) => number, origin: THREE.Vector3): ZoneBossShow {
+  const m = new MireRegent(seed, scene);
+  // The studio floor stands in for the pool's surface.
+  m.root.position.set(origin.x, ground(origin.x, origin.z), origin.z);
+  const order: RegentPhase[] = ['lurk', 'rise', 'drown'];
+  let lastAct = 0, yaw = 0;
+  const apply = () => {
+    const p = m.drive.phase;
+    m.drive.rise = p === 'lurk' ? 0 : p === 'rise' ? 1 : 0.45;
+    m.drive.thrash = p === 'drown' ? 1 : 0;
+  };
+  apply();
+  return {
+    id: 'mireRegent', root: m.root, frame: { y: 3, z: 3, dist: 26 },
+    nextPhase(phase?: string) { m.drive.phase = (phase as RegentPhase) ?? order[(order.indexOf(m.drive.phase) + 1) % order.length]; apply(); },
+    tick(i) {
+      const d = m.drive;
+      d.look = i.camera;
+      // Strike: an arm reaches for the camera's foot (lurk), or the tongue lashes out (rise and drown).
+      const striking = i.striking > 0;
+      d.reach = [striking && d.phase === 'lurk' ? i.camera.clone().setY(m.root.position.y + 0.5) : null, null];
+      d.tongue = striking && d.phase !== 'lurk' ? Math.min(1, i.striking * 1.5) : 0;
+      d.open = striking ? 1 : 0.1;
+      if (i.acting > 1.45 && lastAct <= 1.45) { if (d.phase === 'lurk') m.call(); else m.slam(); m.ripple(); }
+      lastAct = i.acting;
+      if (i.walking) { yaw += i.dt * 0.25; m.root.rotation.y = yaw; }
+      m.update(i.dt);
+    },
+    sever() { const k = m.weakPoints.findIndex((w) => w.alive && w.tag === 'pearl'); if (k >= 0) m.popWeakPoint(k); return k >= 0; },
+    gib() { m.destroy(); },
+    card: () => `<b>The Mire Regent</b><br>Phase ${m.drive.phase} · pearls ${m.pearlsAlive}/5 · eyes ${m.eyesAlive}/2. Click again for the next phase (lurk under the pool, rise rears out with the pearls bare, drown thrashes); Strike reaches an arm or lashes the tongue, Act calls the brood or slams, Walk turns it, Sever bursts a pearl, Gib kills it.`,
+    state: () => ({ phase: m.drive.phase, pearls: m.pearlsAlive, eyes: m.eyesAlive, risen: Number(m.risen.toFixed(2)), alive: m.alive }),
+  };
 }
 
 function nethermawShow(seed: number, scene: THREE.Scene, ground: (x: number, z: number) => number, origin: THREE.Vector3): ZoneBossShow {

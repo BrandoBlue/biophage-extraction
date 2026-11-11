@@ -4,6 +4,7 @@ import { Creature } from '../src/creatures/creature';
 import { SPECIES_IDS } from '../src/creatures/species';
 import { ZONE_SPECIES } from '../src/creatures/zones';
 import { Sandwidow } from '../src/creatures/zones/sandwidow';
+import { MireRegent } from '../src/creatures/zones/mireRegent';
 
 const run = (c: { update(dt: number): void }, secs: number, each?: (t: number) => void) => { for (let t = 0; t < secs; t += 1 / 30) { each?.(t); c.update(1 / 30); } };
 const bone = (c: Creature, n: string) => c.rig.bones.find((b) => b.name === n)!;
@@ -19,7 +20,9 @@ describe('new-zone creatures', () => {
       const c = new Creature(id, 3, 0);
       run(c, 0.3);
       const eyes = [...c.rig.parts.values()].filter((p) => p.spec.type === 'eye').length;
-      expect(eyes, id).toBeGreaterThanOrEqual(5);
+      // The Mistwader is eyeless by design (Design's brief); everything else watches you with a cluster.
+      if (id === 'mistwader') expect(eyes, id).toBe(0);
+      else expect(eyes, id).toBeGreaterThanOrEqual(5);
       expect(c.rig.hits.some((h) => h.spec.weak), id).toBe(true);
       let meshes = 0;
       c.root.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes++; });
@@ -153,6 +156,117 @@ describe('new-zone creatures', () => {
       const l = c.rig.limbs.get(id)!;
       expect(l.bones[2].getWorldPosition(new THREE.Vector3()).distanceTo(muzzle())).toBeLessThan(1.2);
     }
+  });
+});
+
+describe('Weeping Fen creatures', () => {
+  it('a Fenstalker sinks to its eye stalks, rings the water while it waits, and bursts out', () => {
+    const c = new Creature('fenstalker', 7, 0);
+    run(c, 0.3);
+    const motion = c.motion as unknown as { fx: { active: number } };
+    const eye = c.rig.parts.get('eye01')!.mesh;
+    expect(worldY(bone(c, 'body'))).toBeGreaterThan(0.4);
+    run(c, 2.5, () => { c.drive.burrow = 1; });
+    // Only the stalked eyes above the waterline (the root's height).
+    expect(worldY(bone(c, 'body'))).toBeLessThan(-0.1);
+    expect(worldY(bone(c, 'head'))).toBeLessThan(0);
+    expect(worldY(eye)).toBeGreaterThan(0.03);
+    expect(motion.fx.active).toBeGreaterThan(0);
+    // The ambush: out fast, in a burst of spray.
+    run(c, 0.4, () => { c.drive.burrow = 0; });
+    expect(worldY(bone(c, 'body'))).toBeGreaterThan(0.3);
+    expect(motion.fx.active).toBeGreaterThan(8);
+    // The eye stalks are the weak point.
+    expect(c.rig.hits.filter((h) => h.spec.weak).length).toBe(2);
+  });
+
+  it('a Fenstalker gapes on the wind-up', () => {
+    const c = new Creature('fenstalker', 7, 0);
+    run(c, 0.3);
+    const jaw = bone(c, 'jaw'), q0 = jaw.quaternion.clone();
+    c.drive.windup = 1;
+    run(c, 0.4);
+    expect(jaw.quaternion.angleTo(q0)).toBeGreaterThan(0.3);
+  });
+
+  it('a Mirebrood is hand-sized with a pulsing lantern back as its weak point', () => {
+    const c = new Creature('mirebrood', 7, 0);
+    run(c, 0.2);
+    const size = new THREE.Box3().setFromObject(c.root).getSize(new THREE.Vector3());
+    expect(Math.max(size.x, size.z)).toBeLessThan(0.6);
+    expect(c.rig.hits.find((h) => h.spec.weak)?.spec.part).toBe('lantern');
+    const glow = c.rig.materials.glow as THREE.MeshStandardMaterial;
+    let lo = 9, hi = 0;
+    run(c, 4, () => { lo = Math.min(lo, glow.emissiveIntensity); hi = Math.max(hi, glow.emissiveIntensity); });
+    expect(hi - lo).toBeGreaterThan(0.02);
+    // A swarm stays cheap: few meshes each.
+    let meshes = 0;
+    c.root.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes++; });
+    expect(meshes).toBeLessThan(20);
+  });
+
+  it('a Mistwader stands four storeys, combs the water when calm, lifts its neck when alarmed, and stomps', () => {
+    const c = new Creature('mistwader', 7, 0);
+    run(c, 0.3);
+    const head = bone(c, 'head');
+    expect(new THREE.Box3().setFromObject(c.root).max.y).toBeGreaterThan(12);
+    expect(c.rig.hits.filter((h) => h.spec.weak).length).toBe(4);
+    c.drive.excite = 0;
+    run(c, 10);
+    const combing = worldY(head);
+    expect(combing).toBeLessThan(6);
+    c.drive.excite = 1;
+    run(c, 4);
+    expect(worldY(head)).toBeGreaterThan(combing + 5);
+    const motion = c.motion as unknown as { fx: { active: number } };
+    c.drive.windup = 1;
+    run(c, 1);
+    c.drive.windup = 0; c.drive.action = 1;
+    run(c, 0.1);
+    expect(motion.fx.active).toBeGreaterThan(6);
+  });
+});
+
+describe('The Mire Regent body', () => {
+  it('lurks with only its eyes above the pool and rears out to bare its pearls', () => {
+    const m = new MireRegent(1);
+    run(m, 1);
+    const box = new THREE.Box3().setFromObject(m.root);
+    expect(box.max.z - box.min.z).toBeGreaterThan(12);
+    // Lurking: the eyes are just above the surface (y = 0), the pearls are not hittable.
+    for (const w of m.weakPoints.filter((p) => p.tag === 'eye')) expect(w.world.y).toBeGreaterThan(-0.2);
+    expect(m.hitSpheres.filter((h) => h.tag === 'pearl').every((h) => h.r === 0)).toBe(true);
+    const head = m.hitSpheres.find((h) => h.tag === 'head')!;
+    const low = head.world.y;
+    m.drive.rise = 1;
+    run(m, 4);
+    expect(head.world.y).toBeGreaterThan(low + 4);
+    expect(m.hitSpheres.filter((h) => h.tag === 'pearl').every((h) => h.r > 0)).toBe(true);
+  });
+
+  it('reaches an arm for a target, lashes its tongue, and dives when shot in the eye', () => {
+    const m = new MireRegent(2, new THREE.Scene());
+    run(m, 0.5);
+    const target = new THREE.Vector3(6, 0.5, 9);
+    const hand = () => m.hands[1].getWorldPosition(new THREE.Vector3());
+    const before = hand().distanceTo(target);
+    m.drive.reach = [null, target];
+    run(m, 1.5);
+    expect(hand().distanceTo(target)).toBeLessThan(Math.min(before, 4));
+    m.drive.rise = 1; m.drive.tongue = 1;
+    run(m, 2);
+    m.popWeakPoint(m.weakPoints.findIndex((w) => w.tag === 'eye'));
+    expect(m.diving).toBe(true);
+    expect(m.eyesAlive).toBe(1);
+    run(m, 1.5);
+    expect(m.risen).toBeLessThan(0.3);
+    const pearl = m.weakPoints.findIndex((w) => w.tag === 'pearl');
+    m.popWeakPoint(pearl);
+    expect(m.pearlsAlive).toBe(4);
+    m.destroy();
+    run(m, 0.5);
+    expect(m.alive).toBe(false);
+    expect(m.hitSpheres.every((h) => h.r === 0)).toBe(true);
   });
 });
 

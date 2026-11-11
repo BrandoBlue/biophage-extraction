@@ -6,6 +6,9 @@ import { shroudling, shroudlingMotion } from './shroudling';
 import { cablecrawler, cablecrawlerMotion } from './cablecrawler';
 import { veilwing, veilwingMotion } from './veilwing';
 import { hollowed, hollowedMotion } from './hollowed';
+import { fenstalker, fenstalkerMotion } from './fenstalker';
+import { mirebrood, mirebroodMotion } from './mirebrood';
+import { mistwader, mistwaderMotion } from './mistwader';
 
 /**
  * New-zone creatures (Creature & Mutation, second team): the species Design wrote for the Ochre Reach, the Marrow
@@ -23,6 +26,9 @@ export const ZONE_SPECIES: Record<ZoneSpeciesId, (seed: number, stage?: number) 
   cablecrawler,
   veilwing,
   hollowed,
+  fenstalker,
+  mirebrood,
+  mistwader,
 };
 
 export const ZONE_MOTIONS: Partial<Record<SpeciesId, (c: Creature) => SpeciesMotion>> = {
@@ -32,4 +38,7 @@ export const ZONE_MOTIONS: Partial<Record<SpeciesId, (c: Creature) => SpeciesMot
   cablecrawler: cablecrawlerMotion,
   veilwing: veilwingMotion,
   hollowed: hollowedMotion,
+  fenstalker: fenstalkerMotion,
+  mirebrood: mirebroodMotion,
+  mistwader: mistwaderMotion,
 };
