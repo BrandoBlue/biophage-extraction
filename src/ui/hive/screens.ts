@@ -10,7 +10,7 @@ import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../../render/palette';
 import { hostPortrait } from '../hosts';
 import { glyph, itemIcon, KIND_COLOUR } from '../icons';
 import { cta, esc, h, keyHints, meter, panel, q } from './kit';
-import type { ProfileView } from './model';
+import type { ProfileView, ZoneView } from './model';
 import { usage, valueOf } from './model';
 
 const BASE: ClassId = 'neuroInfiltrator';
@@ -73,7 +73,7 @@ export function mainMenu(p: ProfileView, cb: MenuCallbacks): HTMLElement {
     <ul class="menu-list">
       <li><button data-go="deploy" class="primary">${glyph('play')}<span>DEPLOY</span><small>Choose host, loadout and drop zone</small></button></li>
       <li><button data-go="stash">${glyph('stash')}<span>STASH & LOADOUT</span><small>${used}/${cap} cells · ${p.cavity.length} items in cavities</small></button></li>
-      ${cb.market ? `<li><button data-go="market">${glyph('dna')}<span>FLESH MARKET</span><small>Buy and sell with The Gullet Broker</small></button></li>` : ''}
+      ${cb.market ? `<li><button data-go="vendors">${glyph('dna')}<span>VENDORS</span><small>Mother Clot, the Archivist, the Gullet Broker</small></button></li>` : ''}
       <li><button data-go="host">${glyph('virus')}<span>HOST SELECT</span><small>${esc(CLASSES[p.host].label)}</small></button></li>
       <li><button data-go="settings">${glyph('gear')}<span>SETTINGS</span><small>Controls, video, audio</small></button></li>
       <li><button data-go="quit">${glyph('quit')}<span>QUIT</span><small>Return the host to dormancy</small></button></li>
@@ -93,7 +93,7 @@ export function mainMenu(p: ProfileView, cb: MenuCallbacks): HTMLElement {
   el.append(side);
   const go = cta('ENTER EXCLUSION ZONE', 'PVPVE ZONE · DEATH LOSES YOUR LOADOUT');
   go.dataset.go = 'deploy';
-  el.append(go, keyHints([['ENTER', 'DEPLOY'], ['S', 'STASH'], ['H', 'HOST'], ...(cb.market ? [['M', 'MARKET'] as [string, string]] : []), ['ESC', 'BACK']]));
+  el.append(go, keyHints([['ENTER', 'DEPLOY'], ['S', 'STASH'], ['H', 'HOST'], ...(cb.market ? [['M', 'VENDORS'] as [string, string]] : []), ['ESC', 'BACK']]));
   el.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-go]');
     if (!b) return;
@@ -195,22 +195,33 @@ export function zoneRoster(open: (id: string) => boolean = (id) => ZONES[id]?.ac
   }));
 }
 
-function zoneRow(onLocked: (msg: string) => void): HTMLElement {
+interface ZoneCallbacks { notice?(msg: string, tone?: string): void; zones?(): ZoneView[]; selectZone?(id: string): boolean; changed?(): void }
+
+function zoneRow(current: string, cb: ZoneCallbacks): HTMLElement {
   const row = h('div', 'zones');
-  for (const z of zoneRoster()) {
-    const b = h<HTMLButtonElement>('button', `zone${z.open ? '' : ' locked'}${z.id === LIVE_ZONE ? ' on' : ''}`, `<em>${ROMAN[z.order] ?? z.order}</em>
-      <div><b>${esc(z.label.toUpperCase())}</b><small>${z.open ? `<span class="pips">${[1, 2, 3, 4, 5].map((i) => `<i class="${i >= z.threat[0] && i <= z.threat[1] ? 'on' : ''}"></i>`).join('')}</span>${z.raidTime ? fmt(z.raidTime) : ''}` : `${glyph('lock')}${esc(z.access)}`}</small></div>`);
+  // Gameplay's zoneList decides access when it is there; otherwise zones.json's `access` does.
+  const live = cb.zones?.();
+  const roster = zoneRoster(live ? (id) => live.find((z) => z.id === id)?.access.state === 'open' : undefined);
+  for (const z of roster) {
+    const acc = live?.find((x) => x.id === z.id)?.access;
+    const why = acc && acc.state !== 'open' ? acc.reason.toUpperCase() : z.access;
+    const b = h<HTMLButtonElement>('button', `zone${z.open ? '' : ' locked'}${z.id === current ? ' on' : ''}`, `<em>${ROMAN[z.order] ?? z.order}</em>
+      <div><b>${esc(z.label.toUpperCase())}</b><small>${z.open ? `<span class="pips">${[1, 2, 3, 4, 5].map((i) => `<i class="${i >= z.threat[0] && i <= z.threat[1] ? 'on' : ''}"></i>`).join('')}</span>${z.raidTime ? fmt(z.raidTime) : ''}` : `${glyph('lock')}${esc(why)}`}</small></div>`);
     b.dataset.zone = z.id;
     b.title = z.pitch;
-    if (!z.open) b.addEventListener('click', () => onLocked(`${z.label.toUpperCase()} · ${z.access}`));
+    b.addEventListener('click', () => {
+      if (!z.open) { cb.notice?.(`${z.label.toUpperCase()} · ${why}`, 'danger'); return; }
+      if (z.id !== current && cb.selectZone?.(z.id)) cb.changed?.();
+    });
     row.append(b);
   }
   return row;
 }
 
-export function raidSelect(p: ProfileView, cb: { deploy(): void; notice?(msg: string, tone?: string): void }): HTMLElement {
+export function raidSelect(p: ProfileView, cb: { deploy(): void } & ZoneCallbacks): HTMLElement {
   const el = h('div', 'scr scr-raid');
-  const zone = ZONES[LIVE_ZONE];
+  const zoneId = p.zone && ZONES[p.zone] ? p.zone : LIVE_ZONE;
+  const zone = ZONES[zoneId];
   const boss = zone?.boss ? BOSSES[zone.boss] : null;
   const roster = zoneRoster();
   const plan = raidPlan();
@@ -242,7 +253,7 @@ export function raidSelect(p: ProfileView, cb: { deploy(): void; notice?(msg: st
     </ul>
     <h3>KNOWN ABOMINATIONS</h3>
     <ul class="roster">${plan.hostiles.map((x) => `<li><span>${esc(NAMES[x.type] ?? x.type)}</span><b>×${x.count}</b></li>`).join('')}</ul>`);
-  el.append(info, zoneRow((m) => cb.notice?.(m, 'danger')));
+  el.append(info, zoneRow(zoneId, cb));
   el.insertAdjacentHTML('beforeend', `
     <div class="squad"><h3>HIVE-MIND SQUAD</h3>
       <div class="sq-slots"><div class="sq you">${hostPortrait(p.host)}<span>${esc(p.callsign)}</span></div>

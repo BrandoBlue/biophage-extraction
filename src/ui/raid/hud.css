@@ -176,3 +176,19 @@
 .organic .h-boss.low .fill { animation:hud-hot .6s infinite alternate; }
 .organic .h-boss .notches i { position:absolute; top:-1px; bottom:-1px; width:2px; margin-left:-1px; z-index:2; background:color-mix(in srgb, var(--bone) 70%, transparent); }
 .organic .h-boss .notches i.past { background:color-mix(in srgb, var(--bone) 25%, transparent); }
+
+/* Flesh Market gear carried into the raid (counts from the cavities), stacked over the weapon panel. */
+.organic .h-gear { position:absolute; right:calc(var(--u) * 1.6); bottom:calc(var(--u) * 9.6); display:flex; gap:calc(var(--u) * .45); }
+.organic .h-gear .gchip { display:flex; align-items:center; gap:.35em; padding:calc(var(--u) * .2) calc(var(--u) * .5); font-size:calc(var(--u) * .78); letter-spacing:.1em;
+  color:color-mix(in srgb, var(--bone) 85%, transparent); background:color-mix(in srgb, var(--void) 70%, transparent); border:1px solid color-mix(in srgb, var(--bone) 28%, transparent); }
+.organic .h-gear kbd { font:inherit; color:var(--bone); border:1px solid color-mix(in srgb, var(--bone) 45%, transparent); padding:0 .3em; }
+.organic .h-gear i { display:inline-flex; width:calc(var(--u) * 1.3); height:calc(var(--u) * 1.3); } .organic .h-gear i svg { width:100%; height:100%; }
+.organic .h-gear b { color:var(--bone); font-weight:600; }
+/* Heart Husk revive: the screen sinks into flesh-dark while the husk splits. */
+.organic .h-revive { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:calc(var(--u) * .5); z-index:5;
+  background:radial-gradient(ellipse at center, color-mix(in srgb, var(--shade-flesh) 30%, transparent), color-mix(in srgb, var(--void) 92%, transparent) 70%);
+  font-family:"Chakra Petch", sans-serif; text-shadow:0 0 8px var(--void); }
+.organic .h-revive.hidden { display:none; }
+.organic .h-revive b { font-size:calc(var(--u) * 2.2); letter-spacing:.3em; color:var(--bone); font-weight:600; }
+.organic .h-revive span { font-size:calc(var(--u) * 1); letter-spacing:.18em; color:color-mix(in srgb, var(--bone) 70%, transparent); }
+.organic .h-revive i { font-style:normal; color:var(--bone); }
