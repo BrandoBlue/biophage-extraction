@@ -204,7 +204,7 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
       const top = c.plan.locomotion === 'walker' ? h : h;
       target.copy(c.root.position).setY(c.root.position.y + (c.plan.locomotion === 'hover' ? h - 1.3 : c.plan.locomotion === 'flyer' ? h : top * 0.8));
       dist = c.plan.locomotion === 'hover' ? 9.5 : c.plan.locomotion === 'flyer' ? 1.7 : Math.max(2.2, r * 3.4 + h * 1.4);
-      if (st.walking) target.set(origin.x, target.y, origin.z);
+      if (st.walking) { target.set(origin.x, target.y, origin.z); dist = Math.max(3.2, r * 3.2) * 2.6 + h; }
     }
     dist *= zoom;
     camera.position.set(target.x + Math.sin(yaw) * Math.cos(pitch) * dist, target.y + Math.sin(pitch) * dist + 0.3, target.z + Math.cos(yaw) * Math.cos(pitch) * dist);
