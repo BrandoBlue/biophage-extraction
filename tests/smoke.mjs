@@ -3,6 +3,7 @@
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { freezeAndScreenshot } from './lib/harness.mjs';
 
 const URL = 'http://localhost:4173/';
 const server = spawn('npx', ['vite', 'preview', '--port', '4173', '--strictPort'], { stdio: 'ignore' });
@@ -31,7 +32,7 @@ try {
   await page.keyboard.up('KeyW');
   const end = await page.evaluate(() => window.__biophage.position);
   mkdirSync('tests/out', { recursive: true });
-  await page.screenshot({ path: 'tests/out/smoke.png' });
+  await freezeAndScreenshot(page, 'tests/out/smoke.png');
   await browser.close();
   if (errors.length) fail(`console errors:\n${errors.join('\n')}`);
   const moved = Math.hypot(end[0] - start[0], end[2] - start[2]);
