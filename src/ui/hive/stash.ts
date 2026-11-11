@@ -22,12 +22,12 @@ export function torsoSvg(): string {
   }).join('');
   return `<svg class="torso" viewBox="0 0 400 520" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
     <defs>
-      <radialGradient id="tz" cx="50%" cy="42%" r="60%"><stop offset="0" stop-color="${HIVE.acid}" stop-opacity=".16"/><stop offset=".6" stop-color="${HIVE.panel}" stop-opacity=".5"/><stop offset="1" stop-color="${HIVE.background}" stop-opacity=".2"/></radialGradient>
+      <radialGradient id="tz" cx="50%" cy="42%" r="60%"><stop offset="0" stop-color="${HIVE.bone}" stop-opacity=".07"/><stop offset=".6" stop-color="${HIVE.panel}" stop-opacity=".5"/><stop offset="1" stop-color="${HIVE.background}" stop-opacity=".2"/></radialGradient>
       <radialGradient id="tor" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="${ZONE7.magenta}"/><stop offset="1" stop-color="${ZONE7_SHADE.flesh}" stop-opacity=".2"/></radialGradient>
       <filter id="tg" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     </defs>
     <path d="M200 6 C238 6 252 34 248 60 C262 66 300 70 336 84 C366 96 382 126 384 168 C388 250 360 330 330 380 C312 420 296 470 290 516 L110 516 C104 470 88 420 70 380 C40 330 12 250 16 168 C18 126 34 96 64 84 C100 70 138 66 152 60 C148 34 162 6 200 6Z"
-      fill="url(#tz)" stroke="${HIVE.acid}" stroke-opacity=".55" stroke-width="1.5"/>
+      fill="url(#tz)" stroke="${HIVE.bone}" stroke-opacity=".35" stroke-width="1.5"/>
     <path d="M200 70 L200 500" stroke="${HIVE.bone}" stroke-opacity=".35" stroke-width="9" stroke-dasharray="14 6"/>
     ${ribs}
     <path d="M36 200 C30 250 40 300 60 340" stroke="${PATH.viral}" stroke-opacity=".6" stroke-width="3" fill="none" filter="url(#tg)"/>

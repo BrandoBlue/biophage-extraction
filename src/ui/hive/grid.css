@@ -1,7 +1,7 @@
 /* Item grids, drag ghost and item tooltips: shared by the Hive stash and the in-raid cavities. */
 .grid { --cell:calc(var(--u) * 3.6); position:relative; width:calc(var(--cell) * var(--cols)); height:calc(var(--cell) * var(--rows)); touch-action:none; }
 .grid .cells { position:absolute; inset:0; display:grid; grid-template-columns:repeat(var(--cols), 1fr); grid-template-rows:repeat(var(--rows), 1fr); }
-.grid .cells i { border:1px solid color-mix(in srgb, var(--acid) 14%, transparent); background:color-mix(in srgb, var(--background) 55%, transparent); box-shadow:inset 0 0 6px color-mix(in srgb, var(--background) 40%, transparent); }
+.grid .cells i { border:1px solid color-mix(in srgb, var(--bone) 12%, transparent); background:color-mix(in srgb, var(--background) 55%, transparent); box-shadow:inset 0 0 6px color-mix(in srgb, var(--background) 40%, transparent); }
 .grid .item { position:absolute; left:calc(var(--cell) * var(--x)); top:calc(var(--cell) * var(--y)); width:calc(var(--cell) * var(--w)); height:calc(var(--cell) * var(--h)); box-sizing:border-box; padding:2px;
   background:radial-gradient(ellipse at 50% 45%, color-mix(in srgb, var(--kc) 22%, transparent), color-mix(in srgb, var(--panel) 70%, transparent) 75%);
   border:1px solid color-mix(in srgb, var(--kc) 65%, transparent); cursor:grab; transition:box-shadow .12s, filter .12s; }

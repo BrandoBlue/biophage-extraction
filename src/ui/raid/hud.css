@@ -20,16 +20,16 @@
 .organic .h-timer { position:relative; width:calc(var(--u) * 11); height:calc(var(--u) * 2.9); display:grid; place-items:center; }
 .organic .h-timer b { position:relative; font-size:calc(var(--u) * 1.75); color:var(--bone); text-shadow:0 0 calc(var(--u) * .6) color-mix(in srgb, var(--violet) 35%, transparent); letter-spacing:.1em; }
 .organic .h-timer.collapse b { color:var(--danger); text-shadow:0 0 calc(var(--u) * .8) color-mix(in srgb, var(--danger) 35%, transparent); animation:hud-hot .5s infinite alternate; }
-.organic .h-objective { margin-top:calc(var(--u) * .45); font-size:calc(var(--u) * .9); color:var(--lime); text-shadow:0 0 6px var(--void), 0 0 2px var(--void); }
+.organic .h-objective { margin-top:calc(var(--u) * .45); font-size:calc(var(--u) * .9); color:color-mix(in srgb, var(--bone) 85%, transparent); text-shadow:0 0 6px var(--void), 0 0 2px var(--void); }
 @keyframes hud-hot { to { filter:brightness(1.6); } }
 
 /* Objectives, top right (reference 04's quest panel). */
 .organic .h-quest { position:absolute; right:calc(var(--u) * 1.6); top:calc(var(--u) * 1.4); width:calc(var(--u) * 18); padding:calc(var(--u) * .5) calc(var(--u) * .8);
-  background:linear-gradient(270deg, color-mix(in srgb, var(--void) 80%, transparent), transparent); border-right:2px solid var(--lime); }
+  background:linear-gradient(270deg, color-mix(in srgb, var(--void) 80%, transparent), transparent); border-right:1px solid color-mix(in srgb, var(--bone) 35%, transparent); }
 .organic .h-quest h4 { margin:0 0 .25em; font-size:calc(var(--u) * .85); color:var(--path-melee); display:flex; gap:.4em; align-items:center; justify-content:flex-end; }
 .organic .h-quest ul { list-style:none; margin:0; padding:0; display:grid; gap:.2em; font-size:calc(var(--u) * .95); }
 .organic .h-quest li { display:grid; grid-template-columns:auto 1fr auto; gap:.45em; align-items:center; text-align:right; }
-.organic .h-quest li .glyph { color:var(--lime); }
+.organic .h-quest li .glyph { color:color-mix(in srgb, var(--bone) 60%, transparent); }
 .organic .h-quest li b { color:var(--bone); }
 .organic .h-quest li.done { opacity:.5; text-decoration:line-through; }
 .organic .h-haul { display:flex; gap:.5em; justify-content:flex-end; align-items:baseline; margin-top:.35em; font-size:calc(var(--u) * .8); }
@@ -39,18 +39,18 @@
 .organic .h-carried .chip svg { width:100%; height:100%; }
 .organic .h-carried .chip b { position:absolute; right:1px; bottom:-1px; font-size:calc(var(--u) * .7); text-shadow:0 0 3px var(--void); }
 .organic .h-carried .cap { font-size:calc(var(--u) * .75); align-self:center; margin-left:.4em; }
-.organic .h-carried kbd { font:inherit; color:var(--acid); }
+.organic .h-carried kbd { font:inherit; color:var(--bone); }
 
 /* Vitals, bottom left: eyeball in a flesh socket, Biomass and Neural Overload bars in bone housings. */
 .organic .h-vitals { position:absolute; left:calc(var(--u) * 1.2); bottom:calc(var(--u) * 1.4); width:calc(var(--u) * 29); height:calc(var(--u) * 8.4); display:block; }
 .organic .h-socket { position:absolute; left:0; top:0; width:calc(var(--u) * 8.2); height:calc(var(--u) * 8.2); }
 .organic .h-socket .org-frame { filter:drop-shadow(0 0 calc(var(--u) * .7) color-mix(in srgb, var(--magenta) 25%, transparent)); }
 .organic .h-socket .eye { --iris:var(--acid); position:absolute; left:20%; top:20%; width:60%; height:60%; border-radius:50%; display:grid; place-items:center;
-  background:radial-gradient(circle at 40% 32%, var(--bone), color-mix(in srgb, var(--bone) 70%, var(--magenta)) 62%, color-mix(in srgb, var(--magenta) 50%, var(--void)) 100%);
-  box-shadow:inset 0 0 calc(var(--u) * .8) color-mix(in srgb, var(--magenta) 27%, transparent); transition:box-shadow .3s; }
+  background:radial-gradient(circle at 42% 34%, color-mix(in srgb, var(--bone) 62%, var(--void)), color-mix(in srgb, var(--bone) 30%, var(--shade-flesh)) 55%, color-mix(in srgb, var(--shade-rockDeep) 85%, var(--void)) 100%);
+  box-shadow:inset 0 0 calc(var(--u) * 1.4) var(--void), inset 0 calc(var(--u) * -.4) calc(var(--u) * .8) color-mix(in srgb, var(--void) 80%, transparent); transition:box-shadow .3s; }
 .organic .h-socket .eye .iris { width:54%; height:54%; border-radius:50%; display:grid; place-items:center; animation:look 5s infinite ease-in-out;
-  background:radial-gradient(circle, color-mix(in srgb, var(--iris) 60%, var(--bone)), var(--iris) 40%, color-mix(in srgb, var(--iris) 35%, var(--void)) 100%);
-  box-shadow:0 0 calc(var(--u) * .9) var(--iris); transition:background .8s, box-shadow .8s; }
+  background:radial-gradient(circle, color-mix(in srgb, var(--iris) 45%, var(--bone)), color-mix(in srgb, var(--iris) 60%, var(--void)) 45%, color-mix(in srgb, var(--iris) 20%, var(--void)) 100%);
+  box-shadow:0 0 calc(var(--u) * .5) color-mix(in srgb, var(--iris) 30%, transparent); transition:background .8s, box-shadow .8s; }
 .organic .h-socket .eye .pupil { width:calc(var(--dilate, .4) * 100%); height:calc(var(--dilate, .4) * 100%); border-radius:50%; background:var(--void); transition:all .2s; }
 .organic .h-socket .eye.hurt { box-shadow:inset 0 0 calc(var(--u) * 1.2) color-mix(in srgb, var(--danger) 35%, transparent), 0 0 calc(var(--u) * 1) color-mix(in srgb, var(--danger) 35%, transparent); }
 .organic .h-socket .eye.alarm .iris, .organic .h-socket .eye.over .iris { animation:twitch .08s infinite; }
@@ -59,7 +59,7 @@
 .organic .h-bar { position:relative; height:calc(var(--u) * 2.7); }
 .organic .h-bar label { white-space:nowrap; position:absolute; left:calc(var(--u) * 3); right:calc(var(--u) * 2); top:calc(var(--u) * -1.1); display:flex; justify-content:space-between; align-items:baseline; font-size:calc(var(--u) * .85); text-shadow:0 0 4px var(--void), 0 0 2px var(--void); }
 .organic .h-bar label small { font-size:.75em; opacity:.7; margin-left:.3em; margin-right:auto; padding-right:.8em; }
-.organic .h-bar.biomass label { color:var(--acid); } .organic .h-bar.neural label { color:var(--path-viral); }
+.organic .h-bar.biomass label { color:color-mix(in srgb, var(--bone) 80%, transparent); } .organic .h-bar.neural label { color:color-mix(in srgb, var(--bone) 80%, transparent); }
 .organic .h-bar .value { color:var(--bone); }
 .organic .h-bar .trk { position:absolute; left:12.6%; right:7%; top:28%; bottom:28%; background:color-mix(in srgb, var(--void) 85%, transparent); overflow:hidden;
   clip-path:polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }

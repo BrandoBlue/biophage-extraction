@@ -275,8 +275,8 @@ export class OrganicHud {
     // Swirling psych-wave spiral (reference 04's living map).
     c.lineWidth = 1.6;
     for (let i = 0; i < 3; i++) {
-      c.strokeStyle = [ZONE7.cyan, HIVE.acid, ZONE7.magenta][i];
-      c.globalAlpha = 0.35;
+      c.strokeStyle = [ZONE7.cyan, ZONE7.violet, ZONE7.magenta][i];
+      c.globalAlpha = 0.2;
       c.beginPath();
       for (let t = 0; t < 1; t += 0.01) {
         const a = t * Math.PI * 6 + this.time * (0.4 + i * 0.15) + (i * Math.PI * 2) / 3;
@@ -290,7 +290,7 @@ export class OrganicHud {
     const sweep = (this.time * 1.5) % (Math.PI * 2);
     if ('createConicGradient' in c) {
       const sg = c.createConicGradient(sweep, cx, cy);
-      sg.addColorStop(0, `${HIVE.acid}66`); sg.addColorStop(0.08, `${HIVE.acid}00`); sg.addColorStop(1, `${HIVE.acid}00`);
+      sg.addColorStop(0, `${HIVE.bone}38`); sg.addColorStop(0.08, `${HIVE.bone}00`); sg.addColorStop(1, `${HIVE.bone}00`);
       c.fillStyle = sg; c.fillRect(0, 0, W, W);
     }
     const k = R / sc.range;
@@ -313,13 +313,13 @@ export class OrganicHud {
     c.globalAlpha = 1;
     for (const ex of sc.extracts ?? [{ ...sc.extract, open: true }]) {
       const [x, y] = edge(toScreen(ex.x, ex.z));
-      c.strokeStyle = ex.open === false ? `${ZONE7.lime}66` : ZONE7.lime; c.lineWidth = 2; c.shadowColor = ZONE7.lime; c.shadowBlur = 10;
+      c.strokeStyle = ex.open === false ? `${ZONE7.lime}55` : `${ZONE7.lime}cc`; c.lineWidth = 1.6; c.shadowColor = ZONE7.lime; c.shadowBlur = 4;
       c.beginPath(); c.moveTo(x, y - 7); c.lineTo(x + 6, y); c.lineTo(x, y + 7); c.lineTo(x - 6, y); c.closePath(); c.stroke(); c.shadowBlur = 0;
     }
     c.fillStyle = HIVE.acid;
     c.beginPath(); c.moveTo(cx, cy - 8); c.lineTo(cx + 5, cy + 5); c.lineTo(cx - 5, cy + 5); c.closePath(); c.fill();
     c.restore();
-    c.strokeStyle = s.collapse ? HIVE.danger : `${HIVE.acid}aa`; c.lineWidth = 2;
+    c.strokeStyle = s.collapse ? HIVE.danger : `${HIVE.bone}66`; c.lineWidth = 1;
     c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.stroke();
   }
 }
