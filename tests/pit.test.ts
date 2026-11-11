@@ -177,4 +177,14 @@ describe('the Marrow Pit', () => {
       expect(Math.abs(m.y - layerY(m.layer))).toBeLessThan(4);
     }
   });
+
+  it('cuts a bridge walkway out from under you', () => {
+    const w = world.structures.walkways!;
+    expect(w.length).toBeGreaterThan(40);
+    const mid = w.find((s) => s.id === 'bridge-a-20')!;
+    expect(SOLIDS.floorAt(mid.x, mid.z, mid.y + 0.3)).toBeCloseTo(mid.y, 1);
+    mid.cut();
+    expect(mid.isCut).toBe(true);
+    expect(SOLIDS.floorAt(mid.x, mid.z, mid.y + 0.3)).toBeLessThan(mid.y - 20);
+  });
 });

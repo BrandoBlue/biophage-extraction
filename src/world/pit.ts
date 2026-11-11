@@ -7,7 +7,7 @@ import { horizonLands } from '../render/horizon';
 import { heightFog } from '../render/fog';
 import { ZONE_SITES } from '../../data';
 import { mulberry32 } from './rng';
-import { Kit, oldBone, type ArenaInfo, type BuiltStructures, type LootSpot } from './structures';
+import { Kit, oldBone, type ArenaInfo, type BuiltStructures, type LootSpot, type Walkway } from './structures';
 import { noise3 } from '../render/geometry';
 import type { SiteDressing } from './sites';
 import type { ExtractSite, Zone7Layout } from './layout';
@@ -407,6 +407,7 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
     lamp: bioNode(ORGANIC.amber, 0.4),
   };
   const loot: LootSpot[] = [];
+  const walkways: Walkway[] = [];
 
   // ---- Rock outcrops on the cliff faces and roots hanging over every lip: the walls read as mass, not a lathe.
   const lump = lumpGeometry(3);
@@ -558,7 +559,14 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
         // Over the shelf the deck sits a hand above the rubble, so it is a step down onto the ground, never up.
         const [gx, gz] = [dx * dir * rr, dz * dir * rr];
         const sy = rr > edgeRadius(kk, a) - 1 ? Math.max(y0 - sag, pitHeight(gx, gz) + 0.3) : y0 - sag;
-        k.box(dx * dir * rr, dz * dir * rr, segLen / 2 + 0.05, b.width / 2, sy - 0.25, sy, mats.deck, { yaw, tag: 'bridge-deck' });
+        const seg = k.box(dx * dir * rr, dz * dir * rr, segLen / 2 + 0.05, b.width / 2, sy - 0.25, sy, mats.deck, { yaw, tag: 'bridge-deck' });
+        let isCut = false;
+        walkways.push({
+          id: `bridge-${dir > 0 ? 'a' : 'b'}-${i}`, x: dx * dir * rr, y: sy, z: dz * dir * rr, halfLength: segLen / 2, halfWidth: b.width / 2, yaw,
+          get isCut() { return isCut; },
+          // The plank run falls away: no mesh, and the collider sinks far below anything that could stand on it.
+          cut() { if (isCut) return; isCut = true; seg.mesh.visible = false; seg.collider.y0 = seg.collider.y1 = -1e4; },
+        });
       }
       // Hand ropes and hangers.
       for (const side of [-1, 1]) {
@@ -790,7 +798,7 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
   return {
     layout,
     sites: { group, setExtractOpen(id, open) { const r = rings.get(id); if (r) r.visible = open; }, setNodeHarvested() { /* no harvest nodes in the pit */ } },
-    structures: { group: k.group, loot, arena, breakPillar(id) { arena.pillars.find((p) => p.id === id)?.destroy(); } },
+    structures: { group: k.group, loot, arena, walkways, breakPillar(id) { arena.pillars.find((p) => p.id === id)?.destroy(); } },
     landmarkAt: pitLandmarkAt,
   };
 }
