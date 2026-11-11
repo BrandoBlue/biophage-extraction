@@ -295,6 +295,8 @@ export interface Zone7Sites {
   ridges: { id: string; points: [number, number][]; height: number; halfWidth: number; passes: [number, number][] }[];
   valleys: { id: string; points: [number, number][]; depth: number; halfWidth: number }[];
   caves: CaveSpec[];
+  trails: string[][];
+  outcrops: { clusters: number; spacing: number; rocks: [number, number]; size: [number, number] };
   dropIn: { height: number; fallSpeed: number };
 }
 /** A domed cave chamber with side tunnels (World & Level); angles are local degrees, 180 = the main mouth. */
@@ -305,7 +307,7 @@ export interface CaveSpec {
   glowPatches: number; cover: number; collapsePoints: number; roots: number;
 }
 /** Site catalogues keyed by zone id (World & Level). */
-export const ZONE_SITES = strip<{ glowmireIsle: Zone7Sites; longSeedWreck: Record<string, unknown> }>(zone7Json);
+export const ZONE_SITES = strip<{ glowmireIsle: Zone7Sites; longSeedWreck: Record<string, unknown>; marrowPit: Record<string, unknown> }>(zone7Json);
 /** Zone 1, Glowmire Isle: the Zone 7 island. */
 export const ZONE7_SITES = ZONE_SITES.glowmireIsle;
 /** PvE AI tuning (owned by PvE AI & Encounters): archetype per Abomination kind and how each archetype hunts. */

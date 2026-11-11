@@ -120,6 +120,27 @@ try {
   log(`pvp: guest biomass ${before} -> ${(await st(guest)).biomass}`);
   await freezeAndScreenshot(lead, 'tests/out/online-raid.png', { resume: true });
 
+  // --- The leader's tab goes to the background: drawing stops, but the shared raid must keep running.
+  await lead.evaluate(() => {
+    window.__biophageRaf ??= window.requestAnimationFrame;
+    window.__biophagePending = null;
+    window.requestAnimationFrame = (cb) => { window.__biophagePending = cb; return 0; }; // no frames, as in a hidden tab
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+  });
+  const gotBefore = (await net(guest)).raid.received;
+  await new Promise((r) => setTimeout(r, 4000)); // wall clock on purpose: the hidden-tab timer is wall-clock
+  await frames(guest, 2);
+  const gotAfter = (await net(guest)).raid.received;
+  await lead.evaluate(() => {
+    delete document.hidden;
+    window.requestAnimationFrame = window.__biophageRaf;
+    const cb = window.__biophagePending;
+    window.__biophagePending = null;
+    if (cb) window.requestAnimationFrame(cb);
+  });
+  if (gotAfter - gotBefore < 20) await fail(`the leader's hidden tab stopped sending (${gotAfter - gotBefore} messages in 4 s)`);
+  log(`background: the hidden leader kept sending (${gotAfter - gotBefore} messages in 4 s)`);
+
   // --- Creatures: the guest kills one; the leader decides it, both agree, the guest gets the credit.
   const alive = (s) => s.enemies.filter((e) => e.alive).length;
   const kills0 = (await st(guest)).kills;

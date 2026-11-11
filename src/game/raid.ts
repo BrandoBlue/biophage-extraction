@@ -74,7 +74,8 @@ import { simplifyForSoftware } from '../render/pipeline';
 import { creatureGore } from '../creatures/gore';
 import { HostArm, VIRUS_LOOKS, attachToViewmodel, type VirusLook } from '../creatures/hostarm';
 import { HarvestFx } from '../creatures/organs';
-import { HIVE, ZONE7 } from '../render/palette';
+import { SPECIES } from '../creatures/species';
+import { HIVE, OCHRE, ZONE7 } from '../render/palette';
 import { NeuralOverload, Biomass } from './vitals';
 import { SynapseBurster, projectileLooks } from './weapon';
 import { DEFAULT_ZONE, RaidLog } from './economy';
@@ -110,6 +111,7 @@ export interface HudState {
 }
 
 const tmp = new THREE.Vector3();
+const SAND_SPRAY = new THREE.Color(OCHRE.dust);
 const CHEST = 1.2;
 const PLAYER_RADIUS = 0.55;
 
@@ -215,11 +217,14 @@ export class Raid {
   ) {
     this.arena = structures?.arena ?? null;
     const cls = CLASSES[this.classId];
-    this.playable = Math.min(RAID.playableRadius, ISLAND_RADIUS * 0.84);
-    this.spawnScale = this.playable / RAID.playableRadius;
+    // Bigger zones give their own walkable radius; spawn distances keep Glowmire's scale.
+    const island = Math.min(RAID.playableRadius, ISLAND_RADIUS * 0.84);
+    this.playable = layout.playableRadius ?? island;
+    this.spawnScale = island / RAID.playableRadius;
     scene.add(camera);
 
     this.player = new Player(camera, cls, HOST, canvas);
+    if (layout.playableRadius) this.player.edge = layout.playableRadius;
     this.biomass = new Biomass(cls.biomass);
     this.overload = new NeuralOverload(HOST.neuralOverload, cls.overloadDecayMultiplier);
     this.fx = new Fx(scene);
@@ -309,6 +314,24 @@ export class Raid {
 
   // ------------------------------------------------------------------ setup
   private spawnInitial(): void {
+    // Zones that place their own life (layout.spawns): fixed homes, some buried until the host comes close.
+    if (this.layout.spawns) {
+      for (const s of this.layout.spawns) {
+        const kind = s.kind as AbominationKind, data = ABOMINATIONS[kind];
+        if (!data || !(kind in SPECIES)) continue; // no body yet (Creature builds it): skip rather than crash
+        for (let n = 0; n < (s.count ?? 1); n++) {
+          const size = s.packed ? data.packSize[0] + Math.floor(this.rand() * (data.packSize[1] - data.packSize[0] + 1)) : 1;
+          for (let k = 0; k < size; k++) {
+            const a = this.rand() * Math.PI * 2, d = (s.spread ?? 3) * Math.sqrt(this.rand());
+            const c = this.addCreature(kind, s.x + Math.cos(a) * d, s.z + Math.sin(a) * d);
+            c.setHome(c.position.x, c.position.z, { roam: s.roam, hatchOnApproach: s.buried });
+            if (s.buried) c.burrowed = true;
+            if (s.toughness) c.biomass *= s.toughness;
+          }
+        }
+      }
+      return;
+    }
     const minFromSpawn = Math.max(15, RAID.spawn.noEnemyWithin * this.spawnScale);
     const spawn = this.player.position;
     const [ex, ez] = [this.extract.x, this.extract.z];
@@ -1002,7 +1025,9 @@ export class Raid {
       onReveal: (c, how) => {
         this.bus.emit('creatureReveal', { id: c.id, type: c.kind, how, position: { x: c.position.x, y: c.position.y, z: c.position.z } });
         this.noise(c.position, 20, how);
-        this.fx.burst(c.centre.clone(), c.fluid, 0.8);
+        // Burrowers erupt in a spray of sand and a dust ring instead of a fluid burst.
+        if (c.burrowed) { this.fx.burst(c.position.clone().setY(groundHeight(c.position.x, c.position.z) + 0.4), SAND_SPRAY, 1.6); this.fx.ring(c.position, SAND_SPRAY, 4 + c.radius * 2, 0.7); }
+        else this.fx.burst(c.centre.clone(), c.fluid, 0.8);
       },
       onScreech: (c, radius) => {
         this.bus.emit('alert', { id: c.id, type: c.kind, position: { x: c.position.x, y: c.position.y, z: c.position.z } });

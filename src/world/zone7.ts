@@ -11,6 +11,7 @@ import { CATALOGUE, zone7Layout, type Zone7Layout } from './layout';
 import { buildSites, clearings, type SiteDressing } from './sites';
 import { CollisionWorld } from './collision';
 import { caveDistance, fungalCaves, type CaveLair } from './cave';
+import { bakeEcology, wanderingTrail, type Ecology } from './ecology';
 import { hollowSpire, longSeedDebris, oldBone, reliquaryBowl, rootSkirt, type ArenaInfo, type BuiltStructures } from './structures';
 
 export { mulberry32 } from './rng';
@@ -108,6 +109,10 @@ function rawHeight(x: number, z: number): number {
   // Gentle spawn basin at the centre, full relief further out, then the mountains of the rim.
   const relief = hills * (0.15 + 0.85 * Math.min(1, d / 45)) + detail;
   let h = relief * Math.max(0, 1 - r * r) + rimHeight(x, z, r);
+  // Hummocks and creases: uneven ground between the areas, so open land is never a smooth sheet.
+  const hum = (noise3(x * 0.055, 3.1, z * 0.055) - 0.5) * 3.4 + (noise3(x * 0.16, 5.7, z * 0.16) - 0.5) * 0.9;
+  const crease = Math.pow(1 - Math.abs(noise3(x * 0.028 + 11, 0.7, z * 0.028) * 2 - 1), 6) * 2.4;
+  h += (hum - crease) * Math.max(0, 1 - r * r) * Math.min(1, d / 30);
   // Ridges: rounded spines of high ground between areas, dipping at their passes.
   for (const rg of RIDGES) {
     const { d: rd, at } = polyDist(x, z, rg.points);
@@ -128,8 +133,27 @@ const smooth = (a: number, b: number, t: number) => { const k = Math.min(1, Math
 
 /** The active map's ground, when it is not the island (the Long Seed wreck is a flat deck). */
 let terrain: ((x: number, z: number) => number) | null = null;
-/** Swap the ground every system reads through groundHeight(); null restores the island. */
-export function setTerrain(fn: ((x: number, z: number) => number) | null): void { terrain = fn; }
+/** Steepest ground (rise per metre) a body may walk up on the active map; Infinity means no limit (the island). */
+let maxSlope = Infinity;
+/**
+ * Swap the ground every system reads through groundHeight(); null restores the island. `maxSlope` makes cliff faces
+ * in the terrain itself block walking (the Marrow Pit's walls); maps without it keep the old free-climbing ground.
+ */
+export function setTerrain(fn: ((x: number, z: number) => number) | null, opts: { maxSlope?: number } = {}): void {
+  terrain = fn;
+  maxSlope = opts.maxSlope ?? Infinity;
+}
+
+/**
+ * True when a body with feet at `feetY` moving from (x0, z0) to (x1, z1) would walk up terrain steeper than the
+ * map allows. The Player reverts that part of its move, so terrain cliffs act as walls.
+ */
+export function climbBlocked(feetY: number, x0: number, z0: number, x1: number, z1: number): boolean {
+  if (maxSlope === Infinity) return false;
+  const rise = groundHeight(x1, z1) - feetY;
+  if (rise <= 0.05) return false;
+  return rise > Math.hypot(x1 - x0, z1 - z0) * maxSlope;
+}
 
 /** Height of the island surface at (x, z). Shared by the mesh and the player controller. */
 export function groundHeight(x: number, z: number): number {
@@ -166,7 +190,7 @@ export function groundHeight(x: number, z: number): number {
 
 /** True if (x, z) is inside a flat gameplay spot or pool (plus margin): keep big flora out. */
 export function isReserved(x: number, z: number, margin = 0): boolean {
-  return FLAT_SPOTS.some((s) => Math.hypot(x - s.x, z - s.z) < s.radius + margin)
+  return onTrail(x, z, margin) || FLAT_SPOTS.some((s) => Math.hypot(x - s.x, z - s.z) < s.radius + margin)
     || CRATERS.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius * 0.8 + margin)
     || Math.hypot(x - BOWL.x, z - BOWL.z) < BOWL.radius * 1.1 + margin
     || POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 1 + margin)
@@ -337,6 +361,70 @@ function mountainGeometry(): THREE.BufferGeometry {
 
 type Area = (typeof ZONE7_SITES.areas)[number];
 const AREAS = ZONE7_SITES.areas;
+
+/** Worn trails between the named areas (data/zone7.json `trails`), wandering a little. */
+export const TRAILS: [number, number][][] = ZONE7_SITES.trails.map((ids) => wanderingTrail(ids.map((id) => {
+  const a = AREAS.find((q) => q.id === id);
+  if (!a) throw new Error(`trail names unknown area ${id}`);
+  return [a.x, a.z] as [number, number];
+}), (x, z) => noise3(x * 0.05, 4.4, z * 0.05)));
+
+let ecology: Ecology | null = null;
+/** Glowmire's ground ecology (src/world/ecology.ts), baked on first use. */
+export function zone7Ecology(): Ecology {
+  ecology ??= bakeEcology({ height: groundHeight, pools: POOLS, valleys: VALLEYS, ridges: RIDGES, trails: TRAILS, noise: (x, z) => noise3(x * 0.045, 9.3, z * 0.045), extent: ISLAND_RADIUS });
+  return ecology;
+}
+
+/** True within a trail's worn strip (plus margin): big flora and rock keep off the routes. */
+export function onTrail(x: number, z: number, margin = 0): boolean {
+  return Math.hypot(x, z) < ISLAND_RADIUS && zone7Ecology().trailDist(x, z) < 1.8 + margin * 0.5;
+}
+
+export interface Outcrop { x: number; z: number; y: number; size: number; yaw: number; tilt: number }
+
+/**
+ * Bare rock breaking through where the ground is steep or along the ridge flanks (data/zone7.json `outcrops`),
+ * in small clusters that work as hard cover between the areas. Kept off trails, sites, pools and the caves.
+ */
+export function outcrops(rand: () => number): Outcrop[] {
+  const o = ZONE7_SITES.outcrops, eco = zone7Ecology();
+  const centres: [number, number][] = [];
+  for (let tries = 0; centres.length < o.clusters && tries < 4000; tries++) {
+    const a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * ISLAND_RADIUS * 0.8;
+    const x = Math.cos(a) * d, z = Math.sin(a) * d;
+    const flank = RIDGES.some((r) => { const q = polyDist(x, z, r.points).d; return q > r.halfWidth * 0.3 && q < r.halfWidth * 1.3; });
+    if (eco.slope(x, z) < 0.2 && !flank && rand() > 0.12) continue;
+    if (isReserved(x, z, 4) || ZONE7_SITES.caves.some((c) => caveDistance(c, x, z) < 6)) continue;
+    if (centres.some(([cx, cz]) => Math.hypot(cx - x, cz - z) < o.spacing)) continue;
+    centres.push([x, z]);
+  }
+  const out: Outcrop[] = [];
+  for (const [cx, cz] of centres) {
+    const n = o.rocks[0] + Math.floor(rand() * (o.rocks[1] - o.rocks[0] + 1));
+    for (let i = 0; i < n; i++) {
+      const size = o.size[0] + (o.size[1] - o.size[0]) * (i === 0 ? 0.6 + rand() * 0.4 : rand() * 0.6);
+      const a = rand() * Math.PI * 2, d = i === 0 ? 0 : 1.2 + rand() * 2.2;
+      const x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d;
+      if (isReserved(x, z, size)) continue;
+      out.push({ x, z, y: groundHeight(x, z) - size * 0.25, size, yaw: rand() * Math.PI * 2, tilt: (rand() - 0.5) * 0.4 });
+    }
+  }
+  return out;
+}
+
+/** One weathered boulder shape, sheared and dented so instances do not read as spheres. */
+function boulderGeometry(): THREE.BufferGeometry {
+  const g = new THREE.IcosahedronGeometry(1, 2);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const b = 0.78 + noise3(x * 1.7 + 3, y * 1.7, z * 1.7) * 0.42 + noise3(x * 5, y * 5, z * 5) * 0.08;
+    p.setXYZ(i, x * b * 1.15, Math.max(-0.3, y * b * 0.72), z * b);
+  }
+  g.computeVertexNormals();
+  return g;
+}
 
 /** A point in an area, denser toward its middle; null if it lands in a reserved gameplay spot. */
 function inArea(rand: () => number, a: { x: number; z: number; radius: number }, spread = 1, margin = 0): [number, number] | null {
@@ -520,6 +608,18 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
   const { crystals, shards } = areaShards(rand);
   scene.add(instanced(crystalClusterGeometry(rand, 6), crystal(), crystals, 'crystals'));
   scene.add(instanced(crystalClusterGeometry(rand, 4), oldBone(ORGANIC.mist, 0.15), shards, 'bone-shards'));
+
+  // Rock outcrops on the slopes and ridge flanks: hard cover between the areas, colliders for the bigger stones.
+  const rocks = outcrops(rand);
+  const rockMesh = new THREE.InstancedMesh(boulderGeometry(), zoneRock({ veinColour: ORGANIC.vein, mossColour: ZONE7_SHADE.moss, scale: 1.8 }), rocks.length);
+  rockMesh.name = 'outcrops';
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+  rocks.forEach((r, i) => {
+    rockMesh.setMatrixAt(i, m4.compose(new THREE.Vector3(r.x, r.y, r.z), q.setFromEuler(e.set(r.tilt, r.yaw, r.tilt * 0.5)), new THREE.Vector3(r.size, r.size, r.size)));
+    if (r.size > 0.9) SOLIDS.add({ cx: r.x, cz: r.z, hx: r.size * 0.8, hz: r.size * 0.7, yaw: r.yaw, y0: r.y - 1, y1: r.y + r.size * 0.75, tag: 'outcrop' });
+  });
+  rockMesh.castShadow = true;
+  scene.add(rockMesh);
   const pustules = [];
   for (let i = 0; i < 1400; i++) {
     const a = rand() * Math.PI * 2, d = 4 + Math.sqrt(rand()) * ISLAND_RADIUS * 0.84;
@@ -532,8 +632,11 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
 
   // Dense foreground growth around the viewer (reference 04's busy ground); clear of pools, pads, nodes and the crater bed.
   const clear = clearings(layout);
+  const eco = zone7Ecology();
   scene.add(groundCover({
     height: groundHeight,
+    density: (x, z) => eco.density(x, z),
+    tints: [ORGANIC.mist, ORGANIC.amber, ORGANIC.vein, ZONE7_SHADE.moss],
     exclude: (x, z) => POOLS.some((p) => Math.hypot(x - p.x, z - p.z) < p.radius + 0.6) || clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius) || Math.hypot(x - CATALOGUE.spire.x, z - CATALOGUE.spire.z) < 8.8 || Math.hypot(x - CATALOGUE.debris.x, z - CATALOGUE.debris.z) < CATALOGUE.debris.radius || ZONE7_SITES.caves.some((c) => caveDistance(c, x, z) < 0.5),
   }).group);
 

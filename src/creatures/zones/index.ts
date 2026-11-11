@@ -3,6 +3,9 @@ import type { Creature } from '../creature';
 import { dunewake, dunewakeMotion } from './dunewake';
 import { bristleback, bristlebackMotion } from './bristleback';
 import { shroudling, shroudlingMotion } from './shroudling';
+import { cablecrawler, cablecrawlerMotion } from './cablecrawler';
+import { veilwing, veilwingMotion } from './veilwing';
+import { hollowed, hollowedMotion } from './hollowed';
 
 /**
  * New-zone creatures (Creature & Mutation, second team): the species Design wrote for the Ochre Reach, the Marrow
@@ -17,10 +20,16 @@ export const ZONE_SPECIES: Record<ZoneSpeciesId, (seed: number, stage?: number) 
   dunewake,
   bristleback,
   shroudling,
+  cablecrawler,
+  veilwing,
+  hollowed,
 };
 
 export const ZONE_MOTIONS: Partial<Record<SpeciesId, (c: Creature) => SpeciesMotion>> = {
   dunewake: dunewakeMotion,
   bristleback: bristlebackMotion,
   shroudling: shroudlingMotion,
+  cablecrawler: cablecrawlerMotion,
+  veilwing: veilwingMotion,
+  hollowed: hollowedMotion,
 };

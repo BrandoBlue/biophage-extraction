@@ -531,3 +531,10 @@
 .carry-row .hv-btn { flex:none; width:auto; margin:0; }
 /* Vendor stock scrolls once guns, feeds and mods join it (Design #53); keep the scrollbar a hairline. */
 .vd-mid .mk-cards { scrollbar-width:thin; scrollbar-color:var(--hair2) transparent; }
+/* Eight zones now (Design #74): sealed zones fold to a numbered seed and unfold their name on hover, so the open
+   zones keep full cards and the whole route fits on one line. */
+.scr-raid .zone.locked { opacity:.8; min-width:0; padding:calc(var(--u) * .45) calc(var(--u) * .55); gap:0; transition:gap .25s var(--ease), padding .25s var(--ease), opacity .2s; }
+.scr-raid .zone.locked > div { max-width:0; overflow:hidden; opacity:0; transition:max-width .35s var(--ease), opacity .25s; }
+.scr-raid .zone.locked:hover { opacity:1; gap:calc(var(--u) * .7); padding-right:calc(var(--u) * .9); }
+.scr-raid .zone.locked:hover > div { max-width:calc(var(--u) * 20); opacity:1; }
+.scr-raid .zone.locked em { font-size:calc(var(--u) * 1.25); }

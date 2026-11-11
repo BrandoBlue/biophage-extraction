@@ -13,6 +13,12 @@ export interface ExtractSite extends Site { label: string; opensAt: number }
 export interface PodSite extends Site { type: string; guard?: string }
 export interface NestSite extends Site { type: string }
 export interface AnomalySite extends Site { kind: string; radius: number; gravityMultiplier: number }
+/**
+ * A fixed creature placement for zones that place their own life (nothing random). `buried` (metres) keeps it under
+ * the ground until the host comes that close, then it bursts out (PvE AI's hatchOnApproach lurk). `roam` is its leash.
+ * `spread` scatters a group round the point (metres).
+ */
+export interface SpawnPlacement { kind: string; x: number; z: number; count?: number; packed?: boolean; spread?: number; buried?: number; roam?: number; /** Biomass multiplier (deeper or elite homes). */ toughness?: number }
 
 export interface Zone7Layout {
   seed: number;
@@ -30,6 +36,10 @@ export interface Zone7Layout {
   area?: { x0: number; x1: number; z0: number; z1: number };
   /** Raid start drops the host in from this height above the spawn (open-sky zones only). */
   dropIn?: { height: number; fallSpeed: number };
+  /** Walkable radius from the origin for maps bigger than Glowmire (player edge and the creature brains' edge clamp). */
+  playableRadius?: number;
+  /** Fixed creature placements; when given, the raid spawns these instead of the Glowmire spawn groups. */
+  spawns?: SpawnPlacement[];
 }
 
 /** Walkable radius the layout is resolved against (same clamp the Raid uses). */
