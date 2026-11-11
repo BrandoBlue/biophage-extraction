@@ -8,7 +8,7 @@ import { HostArm, VIRUS_LOOKS, type VirusLook } from './hostarm';
 import { organMesh } from './organs';
 import { HostBody } from './hosts';
 import type { ClassId } from '../../data';
-import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
+import { HIVE, ORGANIC, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { bioSurface, bioNode } from '../render/materials';
 import { createPipeline, simplifyForSoftware, type Pipeline } from '../render/pipeline';
 import { buildZone7, groundHeight } from '../world/zone7';
@@ -76,17 +76,31 @@ function specimenStage(scene: THREE.Scene): void {
   scene.add(fill, fill.target);
 }
 
-interface ViewerState { species: SpeciesId; seed: number; stage: number; walking: boolean; striking: number; env: 'hive' | 'zone7' }
+/** Neutral look-dev stage (`?creatures&env=studio`): grey floor, bone-white key, cool mist rim, no coloured light. */
+function studioStage(scene: THREE.Scene): void {
+  scene.background = new THREE.Color(HIVE.background).lerp(new THREE.Color(ORGANIC.mist), 0.12);
+  scene.add(new THREE.Mesh(new THREE.CircleGeometry(40, 64).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: new THREE.Color(ORGANIC.mist).multiplyScalar(0.18), roughness: 0.9 })));
+  scene.add(new THREE.HemisphereLight(ORGANIC.mist, HIVE.background, 0.9));
+  const key = new THREE.SpotLight(HIVE.bone, 110, 34, 0.6, 0.5, 1.3);
+  key.position.set(5, 11, 7);
+  const rim = new THREE.SpotLight(ORGANIC.mist, 80, 34, 0.6, 0.5, 1.3);
+  rim.position.set(-6, 7, -9);
+  const fill = new THREE.SpotLight(ORGANIC.amber, 20, 30, 0.7, 0.6, 1.4);
+  fill.position.set(-4, 2.5, 8);
+  for (const l of [key, rim, fill]) { l.target.position.set(0, 1.2, 0); scene.add(l, l.target); }
+}
+
+interface ViewerState { species: SpeciesId; seed: number; stage: number; walking: boolean; striking: number; env: 'hive' | 'zone7' | 'studio' }
 
 export function startCreatureViewer(canvas: HTMLCanvasElement): void {
   const q = new URLSearchParams(location.search);
-  const env: ViewerState['env'] = q.get('env') === 'zone7' ? 'zone7' : 'hive';
+  const env: ViewerState['env'] = q.get('env') === 'zone7' ? 'zone7' : q.get('env') === 'studio' ? 'studio' : 'hive';
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.05, 1500);
   // Zone 7: a flat spot on the island (the Bio-Pod clearing).
   const origin = env === 'zone7' ? new THREE.Vector3(22, 0, 0) : new THREE.Vector3();
   const ground = env === 'zone7' ? groundHeight : () => 0;
-  if (env === 'zone7') buildZone7(scene); else specimenStage(scene);
+  if (env === 'zone7') buildZone7(scene); else if (env === 'studio') studioStage(scene); else specimenStage(scene);
   origin.y = ground(origin.x, origin.z);
   const pipeline: Pipeline = createPipeline(canvas, scene, camera, env === 'zone7' ? 'zone7' : 'hive');
   const soft = pipeline.quality === 'low';
