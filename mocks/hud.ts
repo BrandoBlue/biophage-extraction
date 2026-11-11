@@ -1,5 +1,5 @@
 /** In-raid HUD mock: the organic HUD fed with fixture HudViews over a captured Zone 7 frame. */
-import { OrganicHud } from '../src/ui/raid/hud';
+import { CONTROLS, OrganicHud } from '../src/ui/raid/hud';
 import type { HudView } from '../src/ui/raid/model';
 
 const base: HudView = {
@@ -33,6 +33,7 @@ const states: Record<string, Partial<HudView>> = {
   extract: { extract: { progress: 0.4, inside: true, distance: 2, label: 'Seed Spire', time: 10 }, activeVirus: 'adrenalineVirus' },
   gear: { carried: [...base.carried, { item: 'neuroSpikeGrenade', label: 'Neuro-Spike Grenade', count: 2, kind: 'tech' }, { item: 'mawSeedMine', label: 'Maw-Seed Mine', count: 1, kind: 'tech' }, { item: 'heartHusk', label: 'Heart Husk', count: 1, kind: 'organ' }] },
   boss: { boss: { label: 'Brood Heart', fraction: 0.58, wave: 2, waves: 4 }, overload: 0.4 },
+  prompt: {},
   low: { biomass: 38, overload: 0.92, overloaded: false, collapse: true, timeLeft: 94, activeVirus: 'splicedParasites', ammo: 6 },
 };
 const key = new URLSearchParams(location.search).get('state') ?? 'fight';
@@ -40,6 +41,7 @@ const hud = new OrganicHud(document.querySelector<HTMLElement>('#hud')!);
 const s = { ...base, ...states[key] } as HudView;
 let t = 0;
 const tick = () => { t++; hud.update(1 / 60, s); if (t < 40) requestAnimationFrame(tick); else (window as unknown as { __mock: object }).__mock = { ready: true }; };
+if (key === 'prompt') { const p = document.createElement('div'); p.id = 'prompt'; p.innerHTML = `CLICK TO TAKE CONTROL · THE RAID KEEPS RUNNING${CONTROLS}`; document.querySelector('#hud')!.append(p); }
 if (key === 'mutated') hud.mutate('plagueStalkerStrain');
 if (key === 'low') hud.say('ZONE COLLAPSE IN 2:00 · EXTRACT NOW', 'danger alarm', 99);
 requestAnimationFrame(tick);

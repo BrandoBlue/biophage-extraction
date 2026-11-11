@@ -192,3 +192,10 @@
 .organic .h-revive b { font-size:calc(var(--u) * 2.2); letter-spacing:.3em; color:var(--bone); font-weight:600; }
 .organic .h-revive span { font-size:calc(var(--u) * 1); letter-spacing:.18em; color:color-mix(in srgb, var(--bone) 70%, transparent); }
 .organic .h-revive i { font-style:normal; color:var(--bone); }
+
+/* Click-to-take-control prompt: sized in --u like the rest of the HUD and anchored above the bottom band (vitals,
+   slots, weapon), so the full control list never runs into the Biomass value at any window size. */
+#hud.organic #prompt { top:auto; bottom:calc(var(--u) * 12.5); max-width:calc(var(--u) * 58); padding:calc(var(--u) * .9) calc(var(--u) * 2);
+  font-size:calc(var(--u) * 1.25); line-height:1.15; box-sizing:border-box; }
+#hud.organic #prompt small { font-size:calc(var(--u) * .78); margin-top:calc(var(--u) * .45); line-height:1.3; }
+#hud.organic #prompt small + small { margin-top:calc(var(--u) * .15); }
