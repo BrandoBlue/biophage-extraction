@@ -1,3 +1,4 @@
+import { HIVE } from '../render/palette';
 import * as THREE from 'three';
 import { alienEye, bioNode, chitin, livingFlesh, membrane } from '../render/materials';
 import { meshSdf } from './sdf';
@@ -57,11 +58,14 @@ export const SLOTS: MaterialSlot[] = ['flesh', 'raw', 'chitin', 'bone', 'glow', 
  * Glow restraint (Brandon's playtest, 2026-11-11: heavy neon reads as AI-made). Veins, rims and chitin glow are
  * scaled down so form and wet surface detail carry the creature; eyes, weak points and nodes stay the accents.
  */
-const RESTRAINT = { vein: 0.55, rim: 0.6, chitinGlow: 0.45 };
+const RESTRAINT = { vein: 0.55, rim: 0.9, chitinGlow: 0.45 };
 const scaleHex = (c: string, k: number) => `#${new THREE.Color(c).multiplyScalar(k).getHexString()}`;
 
 export function slotMaterial(plan: BodyPlan, slot: MaterialSlot): THREE.Material {
-  const pal = { ...plan.palette, vein: scaleHex(plan.palette.vein, RESTRAINT.vein), rim: scaleHex(plan.palette.rim, RESTRAINT.rim), chitinGlow: scaleHex(plan.palette.chitinGlow, RESTRAINT.chitinGlow) };
+  // Rim: mostly bone-white, a hint of the species colour, so silhouettes separate from Zone 7's dark ground as
+  // light catching wet skin rather than as neon.
+  const rim = `#${new THREE.Color(plan.palette.rim).lerp(new THREE.Color(HIVE.bone), 0.65).multiplyScalar(RESTRAINT.rim).getHexString()}`;
+  const pal = { ...plan.palette, vein: scaleHex(plan.palette.vein, RESTRAINT.vein), rim, chitinGlow: scaleHex(plan.palette.chitinGlow, RESTRAINT.chitinGlow) };
   let m: THREE.Material;
   switch (slot) {
     case 'flesh': { const f = livingFlesh(pal.flesh, pal.vein, pal.rim, plan.fleshScale); f.vertexColors = true; f.clearcoatRoughness = 0.32; f.roughness = 0.5; m = f; break; }
@@ -70,10 +74,13 @@ export function slotMaterial(plan: BodyPlan, slot: MaterialSlot): THREE.Material
     case 'bone': m = chitin(pal.bone, pal.chitinGlow, 7); break;
     case 'glow': m = bioNode(pal.glow, 2.6); break;
     case 'glass': m = new THREE.MeshPhysicalMaterial({
-      color: pal.membrane, transparent: true, opacity: 0.38, roughness: 0.04, clearcoat: 1, emissive: pal.membrane, emissiveIntensity: 0.12, depthWrite: false, side: THREE.DoubleSide,
+      // Glassy tissue first, colour second: a pale, mostly clear body with a breath of the species hue.
+      color: new THREE.Color(pal.membrane).lerp(new THREE.Color(HIVE.bone), 0.55), transparent: true, opacity: 0.26, roughness: 0.06, clearcoat: 1,
+      emissive: pal.membrane, emissiveIntensity: 0.05, depthWrite: false, side: THREE.DoubleSide,
     }); break;
     case 'eye': m = alienEye(pal.iris, pal.sclera); break;
-    case 'membrane': m = membrane(pal.membrane, 0.5); break;
+    // Tissue before light: a paler, dimmer membrane so bells and wings read as skin with veins in it.
+    case 'membrane': m = membrane(`#${new THREE.Color(pal.membrane).lerp(new THREE.Color(HIVE.bone), 0.4).multiplyScalar(0.7).getHexString()}`, 0.42); break;
   }
   // The bio shaders seed their noise from the object's world position; creatures move, so pin it. One value for
   // every creature keeps one shader program per material slot (a define per seed would multiply programs).
@@ -159,6 +166,7 @@ export function partGeometry(s: PartSpec, rand: P.Rand): THREE.BufferGeometry {
     case 'lens': { const g = new THREE.SphereGeometry(s.size, 20, 14); g.scale(1, 0.55, 1); return g; }
     case 'eye': return new THREE.SphereGeometry(s.size, 20, 14);
     case 'lid': return P.lid(s.size);
+    case 'eyelids': return P.eyelids(s.size, p[0] ?? 0.32);
     case 'needleRing': return P.needleRing(s.size, p[0] ?? 12, s.size * (p[1] ?? 1), rand, p[2] ?? 0.5);
     case 'crystals': return P.crystals(s.size, rand, p[0] ?? 5);
     case 'fungus': return P.fungus(s.size, rand, p[0] ?? 4);

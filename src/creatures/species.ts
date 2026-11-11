@@ -327,11 +327,11 @@ export function oculimoth(seed: number, stage = 0): BodyPlan {
   const pal: Palette = {
     flesh: mix(ZONE7_SHADE.flesh, ZONE7.magenta, 0.15, 0.8), vein: dim(ZONE7.magenta, 0.4), rim: dim(ZONE7.lime, 0.5),
     chitin: mix(ZONE7.violet, ZONE7.void, 0.6), chitinGlow: ZONE7.magenta, bone: HIVE.bone,
-    glow: ZONE7.lime, fluid: ZONE7.lime, membrane: ZONE7.magenta, iris: ZONE7.lime, sclera: mix(HIVE.bone, ZONE7.magenta, 0.12),
+    glow: ZONE7.lime, fluid: ZONE7.lime, membrane: ZONE7.magenta, iris: mix(ZONE7.lime, PATH.melee, 0.55), sclera: mix(HIVE.bone, ZONE7.magenta, 0.12),
   };
   const s = 0.9 + r() * 0.2;
   const h = 3;
-  const b = new PlanBuilder('oculimoth', seed, stage, { locomotion: 'flyer', bodyHeight: h, radius: 0.3 * s, skinNoise: { amp: 0.004, freq: 40 }, skinResolution: 36, fleshScale: 18, palette: pal });
+  const b = new PlanBuilder('oculimoth', seed, stage, { locomotion: 'flyer', bodyHeight: h, radius: 0.3 * s, skinNoise: { amp: 0.009, freq: 26 }, skinResolution: 36, fleshScale: 18, palette: pal });
   const S = (x: number, y: number, z: number) => V(x * s, h + y * s, z * s);
   const body = b.bone('body', -1, V(0, h, 0));
   const thorax = b.bone('thorax', body, S(0, 0.02, -0.15));
@@ -342,7 +342,7 @@ export function oculimoth(seed: number, stage = 0): BodyPlan {
   b.part({ id: 'eye', type: 'eye', bone: body, at: S(0, 0, 0.025), dir: V(0, 0, 1), size: 0.118 * s, material: 'eye', dynamic: true, weak: true });
   // Aperture iris blades: a camera diaphragm of bone ringing the pupil (cephalopod meets machine).
   b.part({ id: 'aperture', type: 'needleRing', bone: body, at: S(0, 0, 0.095), dir: V(0, 0, 1), fwd: V(0, 1, 0), size: 0.115 * s, p: [9, 0.5, 1.6], material: 'bone' });
-  b.part({ id: 'lid', type: 'lid', bone: body, at: S(0, 0, 0.06), dir: V(0, 0, 1), size: 0.118 * s, material: 'flesh' });
+  b.part({ id: 'lid', type: 'eyelids', bone: body, at: S(0, 0, 0.025), dir: V(0, 0, 1), fwd: V(0, 1, 0), size: 0.118 * s, p: [0.34], material: 'flesh' });
   // Two pairs of veined moth wings.
   const wings = (pairs: [number, number, number, number][], stageN: number, prefix: string) => pairs.forEach(([mz, span, chord, sweep], k) => b.both((side, n) => {
     const id = `${prefix}${n}${k}`;
