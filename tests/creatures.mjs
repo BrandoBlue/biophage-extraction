@@ -24,6 +24,10 @@ const SHOTS = {
   walk: { show: ['glasswalker', 7, 0], walk: true, view: [0.3, 0.35, 1.3], wait: 40 },
   mutate: { show: ['needlemaw', 7, 0], mutate: 3, view: [0.7, 0.2, 1], wait: 12 },
   sever: { show: ['mournback', 7, 0], sever: 'legL0', view: [1.2, 0.2, 1], wait: 10 },
+  nest: { call: ['nest'], view: [0.5, 0.18, 1], then: ['pulse'], wait: 6, expect: (st) => st.extra === 'nest' && st.nestWeak > 0 },
+  organs: { call: ['organs'], view: [0, 0.25, 1], expect: (st) => st.extra === 'organs' },
+  hosts: { call: ['host', 'neuroInfiltrator'], view: [0.35, 0.08, 1], expect: (st) => st.host === 'neuroInfiltrator' },
+  arm: { call: ['arm'], view: [0.3, 0.3, 1], then: ['arm', 'plagueStalkerStrain'], wait: 30, expect: (st) => st.arm === 'plagueStalkerStrain' },
 };
 const only = process.argv.slice(2);
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
@@ -52,15 +56,18 @@ try {
     if (only.length && !only.includes(name)) continue;
     if (s.lineup !== undefined) await page.evaluate((st) => window.__biophageViewer.lineup(st), s.lineup);
     if (s.show) await page.evaluate((a) => window.__biophageViewer.show(...a), s.show);
+    if (s.call) await page.evaluate(([m, ...a]) => window.__biophageViewer[m](...a), s.call);
     if (s.view) await page.evaluate((v) => window.__biophageViewer.view(...v), s.view);
     await page.evaluate((w) => window.__biophageViewer.walk(!!w), s.walk);
     await waitFrames(3);
     if (s.mutate) await page.evaluate((m) => window.__biophageViewer.mutate(m), s.mutate);
+    if (s.then) await page.evaluate(([m, ...a]) => window.__biophageViewer[m](...a), s.then);
     if (s.sever && !(await page.evaluate((id) => window.__biophageViewer.sever(id), s.sever))) fail(`could not sever ${s.sever}`);
     await waitFrames(s.wait ?? 3);
     const state = await page.evaluate(() => window.__biophageViewer.state());
     if (s.mutate && state.stage !== s.mutate) fail(`mutate: stage ${state.stage}`);
     if (s.sever && state.creatures[0].severed < 1) fail('sever: no limb severed');
+    if (s.expect && !s.expect(state)) fail(`${name}: unexpected state ${JSON.stringify(state)}`);
     await freezeAndScreenshot(page, `tests/out/creatures-${name}${env === 'zone7' ? '-zone7' : ''}.png`, { resume: true });
     console.log(`creatures-${name}.png`, JSON.stringify(await page.evaluate(() => window.__biophageViewer.stats())));
   }
