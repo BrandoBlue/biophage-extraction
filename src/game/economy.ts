@@ -276,11 +276,13 @@ export type ZoneAccess = { state: 'open' } | { state: 'locked'; reason: string }
 /**
  * Whether raid select may deploy to a zone. `access` in zones.json is 'open', or alternatives joined by 'or':
  * 'contract <id>' (done, or its unlock 'zone:<id>' granted) and '<class> level N' (needs host levels; until the
- * profile tracks levels this alternative is never met). A zone from a later milestone is 'coming'.
+ * profile tracks levels this alternative is never met). A zone from a later milestone is 'coming', and so is one
+ * missing from `built` (World's BUILT_ZONES) when that list is given.
  */
-export function zoneAccess(p: Profile, id: string, hostLevel = 0): ZoneAccess {
+export function zoneAccess(p: Profile, id: string, hostLevel = 0, built?: readonly string[]): ZoneAccess {
   const z = ZONES[id];
   if (!z) return { state: 'coming', reason: 'unknown zone' };
+  if (built && !built.includes(id)) return { state: 'coming', reason: 'its map is still growing' };
   if (!reached(z.milestone) || !z.raidTime) return { state: 'coming', reason: `arrives in ${z.milestone[0].toUpperCase()}${z.milestone.slice(1)}` };
   if (z.access === 'open' || p.economy.unlocks.includes(`zone:${id}`)) return { state: 'open' };
   const reasons: string[] = [];
@@ -303,13 +305,13 @@ export function zoneAccess(p: Profile, id: string, hostLevel = 0): ZoneAccess {
 }
 
 /** Every zone in roster order with its access. */
-export function zoneList(p: Profile, hostLevel = 0): { id: string; label: string; access: ZoneAccess }[] {
-  return Object.entries(ZONES).sort(([, a], [, b]) => a.order - b.order).map(([id, z]) => ({ id, label: z.label, access: zoneAccess(p, id, hostLevel) }));
+export function zoneList(p: Profile, hostLevel = 0, built?: readonly string[]): { id: string; label: string; access: ZoneAccess }[] {
+  return Object.entries(ZONES).sort(([, a], [, b]) => a.order - b.order).map(([id, z]) => ({ id, label: z.label, access: zoneAccess(p, id, hostLevel, built) }));
 }
 
 /** Picks the raid-select zone. Returns false if it is not open. */
-export function selectZone(p: Profile, id: string, hostLevel = 0): boolean {
-  if (zoneAccess(p, id, hostLevel).state !== 'open') return false;
+export function selectZone(p: Profile, id: string, hostLevel = 0, built?: readonly string[]): boolean {
+  if (zoneAccess(p, id, hostLevel, built).state !== 'open') return false;
   p.economy.zone = id;
   return true;
 }
