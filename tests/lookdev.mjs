@@ -4,11 +4,13 @@ import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
 
-const URL = 'http://localhost:4174/?quality=high';
+const URL = `http://localhost:4174/?quality=${process.env.QUALITY || 'high'}`;
 const POSES = {
   spawn: { at: [-41, 113], eye: 1.7, yaw: -0.35, pitch: 0.08 },
   pool: { at: [-5, 66], eye: 3, yaw: 0.45, pitch: -0.12 },
   vista: { at: [10, -30], eye: 2.5, yaw: 0.25, pitch: 0.16 },
+  gore: { at: [-41, 113], eye: 1.7, yaw: -0.35, pitch: -0.35, gore: [[-39.5, 108.5], [-37, 109.5, '#B6FF3B']] },
+  weapon: { main: true },
   rim: { at: [-105, -25], eye: 4, yaw: 1.25, pitch: -0.2 },
 };
 const width = Number(process.env.LOOKDEV_W || 1280), height = Number(process.env.LOOKDEV_H || 720);
@@ -31,8 +33,10 @@ try {
   const only = process.argv[2];
   for (const [name, pose] of Object.entries(POSES)) {
     if (only && only !== name) continue;
-    await page.evaluate((p) => window.__biophageLookdev.view(p), pose);
+    if (pose.main) await page.evaluate(() => window.__biophageLookdev.clear());
+    else await page.evaluate((p) => window.__biophageLookdev.view(p), pose);
     for (const n of (process.env.HIDE || '').split(',').filter(Boolean)) await page.evaluate((x) => window.__biophageLookdev.show(x, false), n);
+    for (const g of pose.gore ?? []) await page.evaluate(([x, z, c]) => window.__biophageLookdev.gore(x, z, c), g);
     if (process.env.RAW) await page.evaluate(() => window.__biophageLookdev.raw(true));
     const from = await page.evaluate(() => window.__biophage.frames);
     await page.waitForFunction((f) => window.__biophage.frames > f + 2, from, { timeout: 120000 });

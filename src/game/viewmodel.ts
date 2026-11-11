@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { HIVE, ZONE7 } from '../render/palette';
 import { mulberry32 } from '../world/zone7';
+import { alienEye, bioNode, chitin, livingFlesh, membrane } from '../render/materials';
+
+const hex = (c: THREE.Color) => `#${c.getHexString()}`;
 
 const C = {
   flesh: new THREE.Color(ZONE7.magenta).lerp(new THREE.Color(HIVE.bone), 0.25).multiplyScalar(0.32),
@@ -28,10 +31,6 @@ export function organic(geo: THREE.BufferGeometry, amount: number, freq: number,
   }
   geo.computeVertexNormals();
   return geo;
-}
-
-function wet(color: THREE.Color, o: Partial<THREE.MeshPhysicalMaterialParameters> = {}): THREE.MeshPhysicalMaterial {
-  return new THREE.MeshPhysicalMaterial({ color, roughness: 0.5, clearcoat: 0.7, clearcoatRoughness: 0.25, ...o });
 }
 
 function glow(color: THREE.Color, intensity = 2.2): THREE.MeshStandardMaterial {
@@ -77,17 +76,18 @@ export class SynapseBursterView {
     }
     const bodyGeo = organic(new THREE.LatheGeometry(profile, 28), 0.008, 38, 3);
     bodyGeo.rotateX(Math.PI / 2);
-    const body = new THREE.Mesh(bodyGeo, wet(C.flesh));
+    const fleshMat = livingFlesh(hex(C.flesh.clone().multiplyScalar(1.1)), ZONE7.magenta, ZONE7.magenta);
+    const body = new THREE.Mesh(bodyGeo, fleshMat);
     g.add(body);
 
     // Darker underbelly sac.
-    const belly = new THREE.Mesh(organic(new THREE.SphereGeometry(0.075, 24, 16), 0.006, 50, 5), wet(C.fleshDeep, { roughness: 0.3 }));
+    const belly = new THREE.Mesh(organic(new THREE.SphereGeometry(0.075, 24, 16), 0.006, 50, 5), livingFlesh(hex(C.fleshDeep.clone().multiplyScalar(1.5)), ZONE7.violet, ZONE7.violet));
     belly.scale.set(1, 0.8, 1.9);
     belly.position.set(0, -0.06, 0.03);
     g.add(belly);
 
     // Bone ribs wrapping the body.
-    const boneMat = new THREE.MeshPhysicalMaterial({ color: C.bone, roughness: 0.55, clearcoat: 0.4 });
+    const boneMat = chitin(HIVE.bone, ZONE7.cyan, 12);
     for (let i = 0; i < 5; i++) {
       const rib = new THREE.Mesh(new THREE.TorusGeometry(0.105 - Math.abs(i - 2) * 0.008, 0.009, 6, 20, Math.PI * 1.15), boneMat);
       rib.position.z = -0.12 + i * 0.065;
@@ -105,11 +105,10 @@ export class SynapseBursterView {
     // Spore chamber: membrane sphere with a glowing core (brightness = ammo).
     this.chamberMat = glow(C.acid, 1.5);
     this.chamberCore = new THREE.Mesh(new THREE.IcosahedronGeometry(0.045, 2), this.chamberMat);
-    const membrane = new THREE.Mesh(organic(new THREE.SphereGeometry(0.07, 24, 16), 0.004, 60, 9), new THREE.MeshPhysicalMaterial({
-      color: C.acid, transparent: true, opacity: 0.3, roughness: 0.1, clearcoat: 1, emissive: C.acid, emissiveIntensity: 0.12, depthWrite: false,
-    }));
+    const sac = new THREE.Mesh(organic(new THREE.SphereGeometry(0.07, 24, 16), 0.004, 60, 9), membrane(HIVE.acid, 0.3));
+    (sac.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.35;
     const chamber = new THREE.Group();
-    chamber.add(this.chamberCore, membrane);
+    chamber.add(this.chamberCore, sac);
     chamber.position.set(0.0, 0.085, 0.09);
     g.add(chamber);
 
@@ -123,33 +122,31 @@ export class SynapseBursterView {
       g.add(cr);
     }
 
-    // Tracking eyes along the flank.
-    const eyePositions: [number, number, number, number][] = [[0.085, 0.03, -0.02, 0.028], [0.09, -0.02, 0.06, 0.022], [0.07, 0.05, 0.1, 0.018], [-0.08, 0.035, 0.02, 0.02]];
-    for (const [x, y, z, r] of eyePositions) {
+    // Tracking eyes: a cluster on the crown that looks back at the host, two smaller on the flank.
+    // Each eye's local -Z is its gaze; the base orientation faces the player's eye.
+    const toPlayer = new THREE.Vector3(-0.35, 0.55, 1).normalize();
+    const eyePositions: [number, number, number, number][] = [
+      [0.0, 0.122, -0.1, 0.036], [0.058, 0.104, -0.16, 0.027], [-0.055, 0.106, -0.14, 0.024], [0.1, 0.035, 0.0, 0.02], [-0.098, 0.03, 0.03, 0.017],
+    ];
+    const lidMat = livingFlesh(hex(C.fleshDeep.clone().multiplyScalar(1.5)), ZONE7.violet, ZONE7.magenta);
+    for (const [k, [x, y, z, r]] of eyePositions.entries()) {
       const eg = new THREE.Group();
-      const ball = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), new THREE.MeshPhysicalMaterial({ color: C.bone, roughness: 0.15, clearcoat: 1 }));
-      const iris = new THREE.Mesh(new THREE.CircleGeometry(r * 0.62, 20), glow(rand() < 0.5 ? C.lime : C.cyan, 1.6));
-      iris.position.z = -r * 0.99;
-      iris.rotation.y = Math.PI;
-      const pupil = new THREE.Mesh(new THREE.CircleGeometry(r * 0.28, 16), new THREE.MeshBasicMaterial({ color: C.void }));
-      pupil.position.z = -r * 1.0;
-      pupil.rotation.y = Math.PI;
-      const lid = new THREE.Mesh(new THREE.TorusGeometry(r * 1.02, r * 0.28, 8, 20), wet(C.fleshDeep));
-      eg.add(ball, iris, pupil);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(r, 28, 20), alienEye(k % 2 ? ZONE7.lime : ZONE7.cyan, HIVE.bone));
+      eg.add(ball);
       const socket = new THREE.Group();
       socket.position.set(x, y, z);
+      const lid = new THREE.Mesh(new THREE.TorusGeometry(r * 1.0, r * 0.32, 10, 24), lidMat);
       lid.position.copy(socket.position);
-      lid.lookAt(new THREE.Vector3(x * 3, y * 3, z - 0.3));
+      lid.lookAt(socket.position.clone().add(toPlayer));
       socket.add(eg);
       g.add(socket, lid);
-      const base = new THREE.Euler(0, x > 0 ? -0.5 : 0.5, 0);
-      eg.rotation.copy(base);
-      this.eyes.push({ group: eg, base });
+      eg.lookAt(socket.position.clone().sub(toPlayer)); // Object3D.lookAt aims +Z, so aim it away to put -Z on the player
+      this.eyes.push({ group: eg, base: eg.rotation.clone() });
     }
 
     // Feeder tentacles curling off the back and underside.
-    const tentMat = wet(C.flesh, { roughness: 0.5 });
-    const tipMat = glow(C.lime, 2.5);
+    const tentMat = livingFlesh(hex(C.flesh.clone().multiplyScalar(1.6)), ZONE7.violet, ZONE7.magenta);
+    const tipMat = bioNode(ZONE7.lime, 3);
     for (let t = 0; t < 5; t++) {
       const root = new THREE.Group();
       root.position.set(-0.06 + rand() * 0.12, -0.02 + rand() * 0.06, 0.2 + rand() * 0.08);
@@ -175,7 +172,7 @@ export class SynapseBursterView {
     }
 
     // Muzzle sphincter with inward teeth.
-    const lip = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.016, 10, 24), wet(C.fleshDeep));
+    const lip = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.016, 10, 24), lidMat);
     lip.position.z = -0.31;
     g.add(lip);
     for (let i = 0; i < 8; i++) {
@@ -198,7 +195,7 @@ export class SynapseBursterView {
     g.add(this.flash);
 
     // Alien host hand: dark chitin fingers wrapped under the grip.
-    const handMat = wet(C.skin, { roughness: 0.6, clearcoat: 0.6 });
+    const handMat = chitin(hex(C.skin.clone().multiplyScalar(2.2)), ZONE7.lime, 14);
     const palm = new THREE.Mesh(organic(new THREE.SphereGeometry(0.05, 16, 12), 0.004, 60, 2), handMat);
     palm.scale.set(1.1, 0.6, 1.5);
     palm.position.set(0.02, -0.11, 0.1);
@@ -217,12 +214,25 @@ export class SynapseBursterView {
     wrist.rotation.set(0.9, 0, -0.3);
     g.add(wrist);
 
-    g.rotation.y = 0.04;
-    g.scale.setScalar(0.6);
+    // Angled so the barrel points at the crosshair and the eye crown and flank face the host.
+    g.rotation.set(-0.12, 0.16, -0.1);
+    g.scale.setScalar(0.55);
     this.root.add(g);
     this.root.position.set(0.24, -0.22, -0.42);
 
-    this.root.traverse((o) => { o.frustumCulled = false; });
+    // A cool key and warm rim that travel with the gun, so its form reads in dark corners of the raid.
+    const key = new THREE.PointLight(ZONE7.cyan, 0.25, 1.2, 2);
+    key.position.set(-0.25, 0.25, 0.1);
+    const rimLight = new THREE.PointLight(ZONE7.magenta, 0.9, 1.0, 2);
+    rimLight.position.set(0.3, 0.05, -0.35);
+    this.root.add(key, rimLight);
+
+    this.root.traverse((o) => {
+      o.frustumCulled = false;
+      // Arm's-length geometry never sits in fog.
+      const m = (o as THREE.Mesh).material as THREE.Material | undefined;
+      if (m && 'fog' in m) (m as THREE.Material & { fog: boolean }).fog = false;
+    });
     camera.add(this.root);
   }
 
@@ -254,9 +264,9 @@ export class SynapseBursterView {
     let rx = this.sway.y * 0.6 + this.kick * 0.12 + Math.sin(t * 1.3) * 0.006;
     let ry = this.sway.x * 0.8;
     let rz = 0;
-    let px = 0.2 + this.sway.x * 0.05 + Math.cos(bt * 0.5) * 0.012 * bob;
-    let py = -0.17 - this.sway.y * 0.05 + Math.abs(Math.sin(bt * 0.5)) * 0.014 * bob + Math.sin(t * 1.3) * 0.004;
-    let pz = -0.4 + this.kick * 0.06;
+    let px = 0.23 + this.sway.x * 0.05 + Math.cos(bt * 0.5) * 0.012 * bob;
+    let py = -0.2 - this.sway.y * 0.05 + Math.abs(Math.sin(bt * 0.5)) * 0.014 * bob + Math.sin(t * 1.3) * 0.004;
+    let pz = -0.47 + this.kick * 0.06;
     if (cam.sprinting) { rx -= 0.28; ry += 0.55; px -= 0.04; py -= 0.04; }
 
     // Reload: tip the gun, chamber deflates then swells.
@@ -274,7 +284,7 @@ export class SynapseBursterView {
     // Living details.
     const breath = 1 + Math.sin(t * 2.1) * 0.03;
     this.chamberCore.scale.setScalar(chamberScale * breath * (0.6 + 0.4 * ammoFrac));
-    this.chamberMat.emissiveIntensity = 0.3 + 1.1 * ammoFrac * (this.reloadT > 0 ? 0.4 : 1) + Math.sin(t * 5) * 0.2;
+    this.chamberMat.emissiveIntensity = 0.2 + 0.6 * ammoFrac * (this.reloadT > 0 ? 0.4 : 1) + Math.sin(t * 5) * 0.2;
     this.egoMat.emissiveIntensity = 0.5 + ego * 4 + (ego >= 1 ? Math.sin(t * 12) * 1.5 : 0);
     this.gun.scale.set(1, breath, 1);
 
@@ -287,12 +297,14 @@ export class SynapseBursterView {
     }
     for (const e of this.eyes) {
       if (look) {
-        const target = new THREE.Euler(THREE.MathUtils.clamp(look.y * 1.2, -0.7, 0.7), THREE.MathUtils.clamp(-look.x * 1.2, -0.9, 0.9), 0);
-        e.group.rotation.x = THREE.MathUtils.damp(e.group.rotation.x, target.x, 10, dt);
-        e.group.rotation.y = THREE.MathUtils.damp(e.group.rotation.y, target.y, 10, dt);
+        // Swivel off the resting gaze toward the threat.
+        const tx = e.base.x - THREE.MathUtils.clamp(look.y * 1.0, -0.6, 0.6);
+        const ty = e.base.y + THREE.MathUtils.clamp(-look.x * 1.0, -0.8, 0.8);
+        e.group.rotation.x = THREE.MathUtils.damp(e.group.rotation.x, tx, 10, dt);
+        e.group.rotation.y = THREE.MathUtils.damp(e.group.rotation.y, ty, 10, dt);
       } else {
-        e.group.rotation.x = THREE.MathUtils.damp(e.group.rotation.x, e.base.x + Math.sin(t * 0.7 + e.base.y * 9) * 0.3, 3, dt);
-        e.group.rotation.y = THREE.MathUtils.damp(e.group.rotation.y, e.base.y + Math.sin(t * 0.43 + e.base.y * 5) * 0.5, 3, dt);
+        e.group.rotation.x = THREE.MathUtils.damp(e.group.rotation.x, e.base.x + Math.sin(t * 0.7 + e.base.y * 9) * 0.15, 3, dt);
+        e.group.rotation.y = THREE.MathUtils.damp(e.group.rotation.y, e.base.y + Math.sin(t * 0.43 + e.base.y * 5) * 0.25, 3, dt);
       }
     }
 

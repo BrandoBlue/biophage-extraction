@@ -6,6 +6,9 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { bioTime } from './materials';
 import { GRADE_PRESETS, type GradePreset } from './presets';
+import { BioAOPass } from './ao';
+import { installHeightFog } from './fog';
+import { gore } from './gore';
 
 /**
  * Final grade: chromatic aberration (rises with Neural Overload), split toning, vignette toward the
@@ -44,7 +47,7 @@ const GradeShader = {
       // Split tone: shadows pulled to the register's shadow colour, highlights to its highlight colour.
       col = mix(col, col * 0.6 + uShadow, (1.0 - smoothstep(0.0, 0.35, l)) * uSplit * 2.0);
       col = mix(col, col * uHighlight, smoothstep(0.55, 1.0, l) * uSplit);
-      float vig = smoothstep(0.85, 0.15, sqrt(r2) * (1.0 + uVignette));
+      float vig = (1.0 - smoothstep(0.15, 0.85, sqrt(r2) * (1.0 + uVignette)));
       col = mix(uShadow * 0.3, col, mix(1.0, vig, uVignette + uOverload * 0.25));
       col = mix(col, uHitColour, uHit * smoothstep(0.1, 0.6, sqrt(r2)) * 0.6);
       col += (h(vUv * 1000.0 + fract(uTime) * 100.0) - 0.5) * uGrain;
@@ -68,6 +71,7 @@ export interface Pipeline {
   /** Skip post-processing (look-dev comparison of the raw lit frame). */
   bypassPost: boolean;
   readonly preset: GradePreset;
+  readonly quality: Quality;
 }
 
 /** Headless CI runs SwiftShader; keep it cheap there so frame-counted tests stay fast. */
@@ -81,7 +85,27 @@ export function detectQuality(renderer: THREE.WebGLRenderer): Quality {
   return /swiftshader|llvmpipe|software/i.test(name) ? 'low' : 'high';
 }
 
+/**
+ * SwiftShader JIT-compiles every shader on its first draw, so the first frame's cost is mostly
+ * shader size. On the software tier, drop the physical-material extras (clearcoat, sheen,
+ * iridescence) and switch the bio noise to its short form (BIO_LOW in GLSL_NOISE).
+ */
+export function simplifyForSoftware(root: THREE.Object3D): number {
+  let n = 0;
+  root.traverse((o) => {
+    const mats = (o as THREE.Mesh).material;
+    for (const m of Array.isArray(mats) ? mats : mats ? [mats] : []) {
+      if (m instanceof THREE.MeshPhysicalMaterial && (m.clearcoat || m.sheen || m.iridescence)) {
+        m.clearcoat = 0; m.sheen = 0; m.iridescence = 0;
+      }
+      if (!m.defines?.BIO_LOW) { m.defines = { ...(m.defines ?? {}), BIO_LOW: 1 }; m.needsUpdate = true; n++; }
+    }
+  });
+  return n;
+}
+
 export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, camera: THREE.Camera, presetName: keyof typeof GRADE_PRESETS = 'zone7'): Pipeline {
+  installHeightFog();
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   const quality = detectQuality(renderer);
   renderer.setPixelRatio(Math.min(devicePixelRatio, quality === 'high' ? 2 : 1));
@@ -91,6 +115,9 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
   const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: quality === 'high' ? 4 : 0 }));
   const renderPass = new RenderPass(scene, camera);
   composer.addPass(renderPass);
+  // Ambient occlusion only where there is a GPU: it is the most expensive pass and SwiftShader can't afford it.
+  const ao = quality === 'high' ? new BioAOPass(scene, camera) : null;
+  if (ao) composer.addPass(ao);
   const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 1, 0.6, 0.6);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
@@ -135,14 +162,17 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
     overrideCamera: null,
     bypassPost: false,
     get preset() { return preset; },
+    quality,
     render(dt) {
       bioTime.value += dt;
       hit = Math.max(0, hit - dt * 2.5);
       grade.uniforms.uTime.value = bioTime.value;
       grade.uniforms.uHit.value = hit;
       grade.uniforms.uOverload.value = overload;
-      if (!baked) bakeSky();
+      if (!baked) { bakeSky(); if (quality === 'low') simplifyForSoftware(scene); }
+      gore.update();
       renderPass.camera = pipeline.overrideCamera ?? camera;
+      if (ao) ao.syncCamera(renderPass.camera);
       if (pipeline.bypassPost) renderer.render(scene, renderPass.camera);
       else composer.render(dt);
     },

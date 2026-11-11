@@ -34,7 +34,7 @@ export function zone7Sky(radius = 900): THREE.Mesh {
         vec3 d = normalize(vDir);
         float h = d.y;
         vec3 sky = mix(uHorizon, uZenith, smoothstep(-0.1, 0.7, h));
-        sky = mix(sky, uVoid * 0.6, smoothstep(0.0, -0.5, h));
+        sky = mix(sky, uVoid * 0.6, (1.0 - smoothstep(-0.5, 0.0, h)));
 
         // Domain-warped nebula
         vec3 q = d * 2.2 + vec3(0.0, 0.0, bioTime * 0.004);
@@ -57,16 +57,7 @@ export function zone7Sky(radius = 900): THREE.Mesh {
         float dust = smoothstep(0.5, 0.75, bioFbm(q * 3.5 + w * 3.0));
         sky *= mix(1.0, 0.35, dust * density);
 
-        // Stars: hashed cells, two layers, gentle twinkle.
-        for (int l = 0; l < 2; l++) {
-          float s = l == 0 ? 180.0 : 420.0;
-          vec3 cell = floor(d * s);
-          float r = bioHash(cell + float(l) * 31.0);
-          vec3 c = (cell + 0.5) / s;
-          float star = smoothstep(1.2 / s, 0.0, length(d - normalize(c))) * step(0.985, r);
-          float tw = 0.6 + 0.4 * sin(bioTime * (1.0 + r * 3.0) + r * 40.0);
-          sky += mix(uCyan, vec3(1.0), r) * star * tw * (l == 0 ? 1.6 : 0.7) * smoothstep(-0.2, 0.1, h);
-        }
+        // Stars are a separate point layer (starField): crisp at any cubemap resolution.
         gl_FragColor = vec4(sky, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -127,7 +118,7 @@ export function planet(opts: { radius: number; band: string; rim: string; ring?:
           void main() {
             float t = (length(vP.xy) - uIn) / (uOut - uIn);
             float bands = bioNoise(vec3(t * 60.0, 0.0, 0.0)) * 0.7 + bioNoise(vec3(t * 13.0, 5.0, 0.0)) * 0.5;
-            float a = smoothstep(0.0, 0.08, t) * smoothstep(1.0, 0.75, t) * bands;
+            float a = smoothstep(0.0, 0.08, t) * (1.0 - smoothstep(0.75, 1.0, t)) * bands;
             vec3 c = mix(uCol, uRim, t);
             gl_FragColor = vec4(c * a * 1.4, a);
           }`,
@@ -156,7 +147,7 @@ export function cloudSea(y: number, size = 2400): THREE.Mesh {
         vec3 c = mix(uA, uB, smoothstep(0.35, 0.7, n));
         c = mix(c, uC, smoothstep(0.62, 0.8, bioFbm(p * 1.7 + 7.0)) * 0.6);
         float dist = length(vW.xz - cameraPosition.xz);
-        float a = smoothstep(0.25, 0.7, n) * smoothstep(1200.0, 300.0, dist);
+        float a = smoothstep(0.25, 0.7, n) * (1.0 - smoothstep(300.0, 1200.0, dist));
         gl_FragColor = vec4(mix(uVoid, c, 0.55) * (0.5 + n), a * 0.85);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -199,17 +190,60 @@ export function sporeField(rand: () => number, count: number, radius: number, he
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
         gl_PointSize = min((1.0 + seed * 2.5) * (90.0 / -mv.z), 7.0);
-        vC = color; vA = (0.4 + 0.6 * sin(bioTime * 2.0 + seed * 50.0) * 0.5 + 0.3) * smoothstep(120.0, 20.0, -mv.z) * smoothstep(2.0, 6.0, -mv.z);
+        vC = color; vA = (0.4 + 0.6 * sin(bioTime * 2.0 + seed * 50.0) * 0.5 + 0.3) * (1.0 - smoothstep(20.0, 120.0, -mv.z)) * smoothstep(2.0, 6.0, -mv.z);
       }`,
     fragmentShader: /* glsl */ `
       varying vec3 vC; varying float vA;
       void main() {
         float d = length(gl_PointCoord - 0.5);
-        float a = smoothstep(0.5, 0.0, d); a *= a;
+        float a = (1.0 - smoothstep(0.0, 0.5, d)); a *= a;
         gl_FragColor = vec4(vC * 1.2 * a * vA, a * vA);
       }`,
   }));
   pts.frustumCulled = false;
   pts.name = 'spore-field';
+  return pts;
+}
+
+/**
+ * Star layer: GPU points on a far sphere, always pixel-sharp (the sky cubemap is baked small on
+ * software renderers, where per-texel stars turned into squares). Follows the camera.
+ */
+export function starField(rand: () => number, count = 2600, radius = 1300): THREE.Points {
+  const pos = new Float32Array(count * 3), seed = new Float32Array(count);
+  const v = new THREE.Vector3();
+  for (let i = 0; i < count; i++) {
+    v.set(rand() * 2 - 1, rand() * 1.2 - 0.25, rand() * 2 - 1).normalize().multiplyScalar(radius);
+    pos.set([v.x, v.y, v.z], i * 3);
+    seed[i] = rand();
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('seed', new THREE.BufferAttribute(seed, 1));
+  const pts = new THREE.Points(geo, new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+    uniforms: { bioTime, uCyan: col(ZONE7.cyan) },
+    vertexShader: /* glsl */ `
+      uniform float bioTime; attribute float seed; varying float vS; varying float vTw;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position + cameraPosition, 1.0);
+        gl_Position = projectionMatrix * mv;
+        gl_Position.z = gl_Position.w * 0.9999; // behind everything, in front of the far plane
+        vS = seed;
+        vTw = 0.6 + 0.4 * sin(bioTime * (1.0 + seed * 3.0) + seed * 40.0);
+        gl_PointSize = seed > 0.97 ? 4.5 : (seed > 0.8 ? 3.0 : 2.0);
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform vec3 uCyan; varying float vS; varying float vTw;
+      void main() {
+        float d = length(gl_PointCoord - 0.5);
+        float a = 1.0 - smoothstep(0.15, 0.5, d);
+        vec3 c = mix(uCyan, vec3(1.0), vS) * (0.9 + vS * 1.6) * vTw;
+        gl_FragColor = vec4(c * a, a);
+      }`,
+  }));
+  pts.frustumCulled = false;
+  pts.renderOrder = -8;
+  pts.name = 'star-field';
   return pts;
 }
