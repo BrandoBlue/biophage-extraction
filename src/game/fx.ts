@@ -127,7 +127,6 @@ export class Fx {
       const c = this.rand() < 0.5 ? GORE.bone : GORE.flesh;
       this.chunks.spawn(at, tmpV, c, (0.08 + this.rand() * 0.16) * scale, 4 + this.rand() * 4, { drag: 0.4, grav: 18 });
     }
-    this.puddle(at.x, at.z, fluid, 1.4 * scale);
     this.ring(at, fluid, 3 * scale, 0.45);
   }
 
