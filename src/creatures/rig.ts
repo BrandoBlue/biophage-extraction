@@ -58,7 +58,7 @@ export const SLOTS: MaterialSlot[] = ['flesh', 'raw', 'chitin', 'bone', 'glow', 
  * Glow restraint (Brandon's playtest, 2026-11-11: heavy neon reads as AI-made). Veins, rims and chitin glow are
  * scaled down so form and wet surface detail carry the creature; eyes, weak points and nodes stay the accents.
  */
-const RESTRAINT = { vein: 0.55, rim: 0.9, chitinGlow: 0.45 };
+const RESTRAINT = { vein: 1, rim: 1, chitinGlow: 1 }; // Rendering's global bioGlow/bioSat restraint now does the dimming (#32)
 const scaleHex = (c: string, k: number) => `#${new THREE.Color(c).multiplyScalar(k).getHexString()}`;
 
 export function slotMaterial(plan: BodyPlan, slot: MaterialSlot): THREE.Material {

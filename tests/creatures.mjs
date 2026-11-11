@@ -12,7 +12,8 @@ const PORT = 4176;
 const quality = process.env.QUALITY || 'low';
 const env = process.env.ENV || 'hive';
 const base = `http://localhost:${PORT}/?creatures&quality=${quality}&env=${env}`;
-const width = Number(process.env.W || 1280), height = Number(process.env.H || 720);
+// CI default is small: software rendering cost scales with pixels (look-dev passes W and H).
+const width = Number(process.env.W || 960), height = Number(process.env.H || 540);
 const SHOTS = {
   lineup: { lineup: 0 },
   needlemaw: { show: ['needlemaw', 7, 0], view: [0.7, 0.15, 1] },
@@ -24,10 +25,10 @@ const SHOTS = {
   walk: { show: ['glasswalker', 7, 0], walk: true, view: [0.3, 0.35, 1.3], wait: 40 },
   mutate: { show: ['needlemaw', 7, 0], mutate: 3, view: [0.7, 0.2, 1], wait: 12 },
   sever: { show: ['mournback', 7, 0], sever: 'legL0', view: [1.2, 0.2, 1], wait: 10 },
-  nest: { call: ['nest'], view: [0.5, 0.18, 1], then: ['pulse'], wait: 6, expect: (st) => st.extra === 'nest' && st.nestWeak > 0 },
+  nest: { call: ['nest'], view: [0.5, 0.18, 1], then: ['pulse'], wait: 3, expect: (st) => st.extra === 'nest' && st.nestWeak > 0 },
   organs: { call: ['organs'], view: [0, 0.25, 1], expect: (st) => st.extra === 'organs' },
   hosts: { call: ['host', 'neuroInfiltrator'], view: [0.35, 0.08, 1], expect: (st) => st.host === 'neuroInfiltrator' },
-  arm: { call: ['arm'], view: [0.3, 0.3, 1], then: ['arm', 'plagueStalkerStrain'], wait: 30, expect: (st) => st.arm === 'plagueStalkerStrain' },
+  arm: { call: ['arm'], view: [0.3, 0.3, 1], then: ['arm', 'plagueStalkerStrain'], wait: 8, expect: (st) => st.arm === 'plagueStalkerStrain' },
 };
 const only = process.argv.slice(2);
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });

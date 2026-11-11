@@ -346,7 +346,7 @@ export class Creature {
     const d = this.drive, time = bioTime.value + this.time;
     const rig = this.rig;
     this.applyCamo(d.camo);
-    const glowK = (0.55 + d.excite * 0.45) * d.reveal * (0.2 + 0.8 * d.camo);
+    const glowK = (0.65 + d.excite * 0.5) * d.reveal * (0.2 + 0.8 * d.camo);
     for (const g of rig.glows) g.mat.emissiveIntensity = g.base * glowK;
     for (const p of rig.parts.values()) {
       const s = p.spec, m = p.mesh;
