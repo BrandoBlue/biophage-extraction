@@ -42,6 +42,12 @@ export interface DriveState {
   reveal: number;
   /** Hover and flight: body height above the root, overriding the plan's rest height. */
   altitude: number | null;
+  /** Visibility, 0..1 (Glasswalker camouflage): 1 = fully seen, low values fade and darken the body. */
+  camo: number;
+  /** Pulse: set to 1 to screech (eyes blow wide, wings flare, body shudders); decays over 0.6 s. */
+  screech: number;
+  /** Pulse: set to 1 to slam (the body rears, then crashes down); decays over 0.5 s. */
+  slam: number;
 }
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -52,7 +58,10 @@ const _q = new THREE.Quaternion();
 export class Creature {
   readonly rig: Rig;
   readonly plan: BodyPlan;
-  readonly drive: DriveState = { velocity: new THREE.Vector3(), excite: 0, windup: 0, look: null, strike: null, reveal: 1, altitude: null };
+  readonly drive: DriveState = { velocity: new THREE.Vector3(), excite: 0, windup: 0, look: null, strike: null, reveal: 1, altitude: null, camo: 1, screech: 0, slam: 0 };
+  /** Called with the limb id whenever a limb is severed (behaviour code: crawl phases, slow-downs). */
+  onLimbSevered: ((limbId: string) => void) | null = null;
+  private camoOn = false;
   ground: GroundFn = FLAT;
   /** Set false to freeze locomotion (dead bodies; the gore code poses them). */
   alive = true;
@@ -95,6 +104,13 @@ export class Creature {
   }
   get species(): SpeciesId { return this.plan.species; }
 
+  /** Legs still attached. */
+  get legsIntact(): number {
+    let n = 0;
+    for (const l of this.rig.limbs.values()) if (l.spec.kind === 'leg' && !l.severed) n++;
+    return n;
+  }
+
   /** Put every foot on the ground under its rest point (after teleporting the root). */
   plant(): void {
     this.rig.root.updateMatrixWorld(true);
@@ -130,6 +146,10 @@ export class Creature {
 
     if (loco === 'walker' && this.alive) this.walk(dt, speed);
     if (!this.alive) { this.deathPose(dt); return; }
+    d.screech = Math.max(0, d.screech - dt / 0.6);
+    d.slam = Math.max(0, d.slam - dt / 0.5);
+    // Slam: rear up for the first half of the pulse, then crash below rest.
+    const slamY = d.slam > 0.5 ? Math.sin((1 - d.slam) * 2 * Math.PI / 2) * 0.3 : -Math.sin(d.slam * 2 * Math.PI / 2) * 0.22;
 
     // Body ride: bob with the gait, lean into acceleration, coil on wind-up.
     this.gait += dt * (0.6 + speed * 2.2 / Math.max(0.4, scale));
@@ -140,8 +160,8 @@ export class Creature {
       let sagX = 0, sagZ = 0, missing = 0;
       for (const f of this.feet) if (f.limb.severed) { sagX += f.limb.spec.mount.x; sagZ += f.limb.spec.mount.z; missing++; }
       const restY = this.bodyRest.y - missing * 0.06 * scale;
-      body.position.set(this.bodyRest.x, restY + this.bob - d.windup * 0.08 * scale + this.footHeightOffset(), this.bodyRest.z);
-      this.bodyTilt.set(-d.windup * 0.25 + this.feetPitch() + sagZ * 0.15, 0, -sagX * 0.25 + Math.sin(this.gait) * 0.03 * stride);
+      body.position.set(this.bodyRest.x, restY + this.bob - d.windup * 0.08 * scale + slamY * scale + this.footHeightOffset(), this.bodyRest.z);
+      this.bodyTilt.set(-d.windup * 0.25 + this.feetPitch() + sagZ * 0.15 - Math.max(0, slamY) * 0.6, 0, -sagX * 0.25 + Math.sin(this.gait) * 0.03 * stride);
     } else if (loco === 'hover') {
       body.position.set(this.bodyRest.x, (d.altitude ?? this.bodyRest.y) + Math.sin(this.time * 0.9) * 0.25, this.bodyRest.z);
       this.bodyTilt.set(Math.cos(this.time * 0.6) * 0.05 + d.velocity.z * 0.02, 0, Math.sin(this.time * 0.7) * 0.06 - d.velocity.x * 0.02);
@@ -149,6 +169,8 @@ export class Creature {
       body.position.set(this.bodyRest.x, (d.altitude ?? this.bodyRest.y) + Math.sin(this.time * 6) * 0.04 + Math.sin(this.time * 1.3) * 0.15, this.bodyRest.z);
       this.bodyTilt.set(0.2 * Math.min(1, speed / 6) + Math.sin(this.time * 6) * 0.05, 0, Math.sin(this.time * 2.1) * 0.12);
     }
+    // Screech: a fast shudder through the body.
+    if (d.screech > 0) { this.bodyTilt.x += Math.sin(this.time * 70) * 0.04 * d.screech; this.bodyTilt.z += Math.sin(this.time * 53) * 0.05 * d.screech; }
     body.quaternion.setFromEuler(this.bodyTilt);
     body.updateMatrixWorld(true);
 
@@ -323,7 +345,8 @@ export class Creature {
   private animateParts(): void {
     const d = this.drive, time = bioTime.value + this.time;
     const rig = this.rig;
-    const glowK = (0.75 + d.excite * 0.55) * d.reveal;
+    this.applyCamo(d.camo);
+    const glowK = (0.55 + d.excite * 0.45) * d.reveal * (0.2 + 0.8 * d.camo);
     for (const g of rig.glows) g.mat.emissiveIntensity = g.base * glowK;
     for (const p of rig.parts.values()) {
       const s = p.spec, m = p.mesh;
@@ -333,13 +356,16 @@ export class Creature {
         if (p.mesh.userData.popped) continue;
         const swell = 1 + d.windup * 0.5 + Math.sin(time * 4 + s.at.x * 5) * 0.04;
         m.scale.setScalar(swell);
-        mat.emissiveIntensity = (0.75 + d.windup * 4) * d.reveal;
+        mat.emissiveIntensity = (0.6 + d.windup * 4) * d.reveal * (0.2 + 0.8 * d.camo);
       } else if (s.type === 'membraneDome') {
         // Bells and bladders breathe; faster when hunting, clench on wind-up.
         const rate = this.plan.locomotion === 'hover' ? 1.6 : 2.5 + d.excite * 4.5;
         const k = Math.sin(time * rate) * (this.plan.locomotion === 'hover' ? 0.025 : 0.07);
         m.scale.set(1 + k - d.windup * 0.12, 1 + k - d.windup * 0.12, 1 - k * 0.7);
+      } else if (s.type === 'eye' && d.screech > 0) {
+        m.scale.setScalar(1 + d.screech * 0.45);
       } else if (s.type === 'eye' && d.look) {
+        m.scale.setScalar(1);
         // Eyes track the target, within a cone.
         _w.copy(d.look);
         p.bone.worldToLocal(_w);
@@ -350,6 +376,8 @@ export class Creature {
           _q.setFromUnitVectors(fwd, to);
           m.quaternion.copy(_q.multiply(rest));
         }
+      } else if (s.type === 'eye') {
+        m.scale.setScalar(1);
       } else if (s.type === 'frill') {
         m.rotation.setFromRotationMatrix(p.base);
         m.rotateY(Math.sin(time * 5 + s.at.z * 6) * 0.15);
@@ -362,6 +390,25 @@ export class Creature {
       const k = Math.sin(time * 6 + i) * (0.08 + d.windup * 0.25);
       b.scale.set(1 + k, 1 + k * 1.6, 1 + k);
     }
+  }
+
+  /** Fade the whole body toward invisibility (first cut of Glasswalker camouflage; Rendering's refraction shader can replace it). */
+  private applyCamo(v: number): void {
+    const on = v < 0.99;
+    if (!on && !this.camoOn) return;
+    const mats = new Set<THREE.Material>(Object.values(this.rig.materials));
+    for (const p of this.rig.parts.values()) mats.add(p.mesh.material as THREE.Material);
+    if (this.rig.growth) for (const m of [this.rig.growth.material].flat()) mats.add(m);
+    const opacity = 0.05 + 0.95 * Math.pow(THREE.MathUtils.clamp(v, 0, 1), 1.5);
+    for (const m of mats) {
+      if (on !== this.camoOn) {
+        if (on) m.userData.camoBase = { transparent: m.transparent, opacity: m.opacity, depthWrite: m.depthWrite };
+        else { const b = m.userData.camoBase as { transparent: boolean; opacity: number; depthWrite: boolean }; m.transparent = b.transparent; m.opacity = b.opacity; m.depthWrite = b.depthWrite; }
+        m.needsUpdate = true;
+      }
+      if (on) { const b = m.userData.camoBase as { opacity: number }; m.transparent = true; m.depthWrite = false; m.opacity = b.opacity * opacity; }
+    }
+    this.camoOn = on;
   }
 
   /** Swap this creature's look for a mutated stage with the dissolve-grow transition; returns the new creature. */

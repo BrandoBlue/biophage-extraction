@@ -53,12 +53,19 @@ export interface BuildOptions {
 export const SLOTS: MaterialSlot[] = ['flesh', 'raw', 'chitin', 'bone', 'glow', 'glass', 'eye', 'membrane'];
 
 /** A fresh material for one slot; same program as every other creature's material for that slot. */
+/**
+ * Glow restraint (Brandon's playtest, 2026-11-11: heavy neon reads as AI-made). Veins, rims and chitin glow are
+ * scaled down so form and wet surface detail carry the creature; eyes, weak points and nodes stay the accents.
+ */
+const RESTRAINT = { vein: 0.55, rim: 0.6, chitinGlow: 0.45 };
+const scaleHex = (c: string, k: number) => `#${new THREE.Color(c).multiplyScalar(k).getHexString()}`;
+
 export function slotMaterial(plan: BodyPlan, slot: MaterialSlot): THREE.Material {
-  const pal = plan.palette;
+  const pal = { ...plan.palette, vein: scaleHex(plan.palette.vein, RESTRAINT.vein), rim: scaleHex(plan.palette.rim, RESTRAINT.rim), chitinGlow: scaleHex(plan.palette.chitinGlow, RESTRAINT.chitinGlow) };
   let m: THREE.Material;
   switch (slot) {
     case 'flesh': { const f = livingFlesh(pal.flesh, pal.vein, pal.rim, plan.fleshScale); f.vertexColors = true; f.clearcoatRoughness = 0.32; f.roughness = 0.5; m = f; break; }
-    case 'raw': { const f = livingFlesh(pal.flesh, pal.fluid, pal.fluid, plan.fleshScale * 1.8); f.side = THREE.DoubleSide; m = f; break; }
+    case 'raw': { const f = livingFlesh(pal.flesh, scaleHex(pal.fluid, 0.5), scaleHex(pal.fluid, 0.4), plan.fleshScale * 1.8); f.side = THREE.DoubleSide; m = f; break; }
     case 'chitin': m = chitin(pal.chitin, pal.chitinGlow, 3.5); break;
     case 'bone': m = chitin(pal.bone, pal.chitinGlow, 7); break;
     case 'glow': m = bioNode(pal.glow, 2.6); break;
