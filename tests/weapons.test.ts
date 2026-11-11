@@ -214,4 +214,22 @@ describe('weapon views and rig', () => {
     for (let i = 0; i < 120; i++) w.update(1 / 60, false, false, ctx);
     expect(w.bloom).toBe(0);
   });
+
+  it('gives the living-eye scope only to scoped marksman and sniper guns, and caps every other zoom', async () => {
+    const { LivingWeapon, setEyeScopeForTest } = await import('../src/game/weapon');
+    const { Projectiles } = await import('../src/game/projectiles');
+    const mk = (id: string) => { const spec = weaponSpec(id); return new LivingWeapon(spec, new GenericWeaponModel({ ...spec, id: `z-${id}` }), new Projectiles(new THREE.Scene(), new Proxy({}, { get: () => () => new THREE.Mesh() }) as never)); };
+    const cap = WEAPON_FEEL.scope!.noScopeZoom;
+    for (const id of Object.keys(WEAPONS)) {
+      const w = mk(id), long = WEAPON_FEEL.scope!.classes.includes(w.spec.class) && !!w.spec.ads?.scope;
+      expect(w.eyeScope).toBe(long);
+      if (!long) expect(w.adsZoom).toBeLessThanOrEqual(cap);
+    }
+    const sniper = mk('eyestalkMarksman');
+    expect(sniper.adsZoom).toBe(sniper.spec.ads!.zoom);
+    setEyeScopeForTest(false);
+    expect(sniper.eyeScope).toBe(false);
+    expect(sniper.adsZoom).toBe(cap);
+    setEyeScopeForTest(true);
+  });
 });

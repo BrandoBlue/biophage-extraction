@@ -963,9 +963,9 @@ export class Raid {
       }
     }
     // Aiming down sights zooms by the weapon's ads.zoom (weapons without ADS never zoom).
-    p.zoom = 1 + ((w.spec.ads?.zoom ?? 1) - 1) * THREE.MathUtils.smoothstep(w.aim, 0, 1);
+    p.zoom = 1 + (w.adsZoom - 1) * THREE.MathUtils.smoothstep(w.aim, 0, 1);
     this.rig.update(dt, { yaw: p.yaw, pitch: p.pitch, speed: Math.hypot(p.velocity.x, p.velocity.z), sprinting: p.sprinting, grounded: p.grounded },
-      { ammoFrac: w.state.ammo / w.spec.magazine, aim: w.aim, ego: w.egoFraction, charge: fire.charge, reloading: w.state.isReloading, look: this.lookTarget() });
+      { ammoFrac: w.state.ammo / w.spec.magazine, aim: w.aim, ego: w.egoFraction, charge: fire.charge, reloading: w.state.isReloading, look: this.lookTarget(), eyeScope: w.eyeScope });
 
     // Abilities.
     this.abilities.update(dt);
@@ -1600,11 +1600,11 @@ export class Raid {
       biomass: this.biomass.current, biomassMax: this.biomass.max,
       overload: this.overload.fraction, overloaded: this.overload.overloaded,
       ammo: w.state.ammo, magazine: w.spec.magazine, reloading: w.state.reloadProgress,
-      weapon: { id: w.id, label: w.spec.label, class: w.spec.class, slot: this.held, slots: this.weapons.map((x) => x.id), reserve: w.state.reserve, charge: w.state.charge, scope: w.spec.ads?.scope ? w.aim : 0, canAim: w.canAim },
+      weapon: { id: w.id, label: w.spec.label, class: w.spec.class, slot: this.held, slots: this.weapons.map((x) => x.id), reserve: w.state.reserve, charge: w.state.charge, scope: w.eyeScope ? w.aim : 0, canAim: w.canAim },
       crosshair: {
         radius: Math.tan(w.spreadRadians()) / Math.tan((this.player.camera.fov * Math.PI) / 360),
         bloom: Math.min(1, w.bloom / (w.feel?.bloomMax ?? 2)),
-        style: w.spec.ads?.scope && w.aim > 0.95 ? 'scope' : (w.feel?.reticle ?? 'cross'),
+        style: w.eyeScope && w.aim > 0.95 ? 'scope' : (w.feel?.reticle ?? 'cross'),
         ready: !w.state.isReloading && w.state.ammo > 0 && !this.rig.equipping && !(w.spec.spread.sprintBlocksFire && this.player.sprinting),
         pellets: w.spec.pellets, charge: w.state.charge, onTarget: !!this.aimTarget, weak: !!this.aimTarget?.weak,
       },

@@ -36,6 +36,8 @@ export interface WeaponFrame {
   reloading: boolean;
   /** Direction to the nearest threat in camera space, or null (eyes track it). */
   look: THREE.Vector3 | null;
+  /** The living-eye scope overlay is up for this gun (scoped long guns with the setting on): hide the body at full aim. */
+  eyeScope?: boolean;
 }
 
 export interface WeaponModel {

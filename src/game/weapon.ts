@@ -2,6 +2,13 @@ import * as THREE from 'three';
 import { HIVE, ORGANIC, ZONE7 } from '../render/palette';
 import { WEAPON_FEEL, type FireFeel, type ProjectileLook, type WeaponSpec } from '../../data';
 import { mulberry32 } from '../world/zone7';
+import { getSettings } from '../ui/settings';
+
+/** Settings eyeScope (UI adds it; on unless turned off), cached and refreshed when Settings change. */
+let eyeScopeOn = (getSettings() as { eyeScope?: boolean }).eyeScope !== false;
+if (typeof addEventListener === 'function') addEventListener('biophage:settings', () => { eyeScopeOn = (getSettings() as { eyeScope?: boolean }).eyeScope !== false; });
+/** Test hook: force the eyeScope setting. */
+export const setEyeScopeForTest = (on: boolean): void => { eyeScopeOn = on; };
 import { AutoWeaponState, type AmmoFeed } from './weapon-state';
 import type { Projectiles, ProjectileKind } from './projectiles';
 import type { KickProfile, WeaponModel } from './weapon-view';
@@ -87,6 +94,22 @@ export class LivingWeapon {
   credit(weakPoint: boolean): void {
     const e = this.spec.egoCharge;
     if (e) this.ego = Math.min(e.chargeToFire, this.ego + (weakPoint ? e.chargePerWeakPointHit : e.chargePerHit));
+  }
+
+  /**
+   * The living-eye scope: only scoped marksman and sniper guns (weapon-feel.json scope.classes), and only while the
+   * eyeScope setting is on. Everything else aims with a slight zoom (capped at scope.noScopeZoom) and the crosshair.
+   */
+  get eyeScope(): boolean {
+    const sc = WEAPON_FEEL.scope;
+    return !!this.spec.ads?.scope && (sc?.classes ?? ['marksman', 'sniper']).includes(this.spec.class)
+      && eyeScopeOn;
+  }
+
+  /** The FOV divisor at full aim. */
+  get adsZoom(): number {
+    const z = this.spec.ads?.zoom ?? 1;
+    return this.eyeScope ? z : Math.min(z, WEAPON_FEEL.scope?.noScopeZoom ?? 1.6);
   }
 
   /** Spread bloom in degrees: grows per shot (weapon-feel.json), recovers when the trigger rests. */

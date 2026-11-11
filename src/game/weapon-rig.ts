@@ -211,7 +211,7 @@ export class WeaponRig {
     if (this.model) {
       this.model.update(dt, f);
       // Scoped weapons hand over to the HUD's scope at full aim.
-      this.model.root.visible = !(this.model.scoped && f.aim > 0.95);
+      this.model.root.visible = !((f.eyeScope ?? this.model.scoped) && f.aim > 0.95);
     }
     for (const m of this.warm) if (m !== this.model) m.update(dt, { ...f, aim: 0 });
 

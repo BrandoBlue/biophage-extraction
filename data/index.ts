@@ -716,6 +716,8 @@ export interface WeaponFeel {
   fire: Record<WeaponClass, FireFeel>;
   idle: { breathe: { period: number; amplitude: number }; twitchEvery: Range; note: string };
   impact: { hitMarkerTime: number; weakPointHitMarkerScale: number; fleshDecalLife: number; note: string };
+  /** Which classes get the living-eye scope overlay, and the zoom cap for every other aiming gun. */
+  scope?: { classes: WeaponClass[]; noScopeZoom: number };
 }
 /** Firing and reload feel per weapon class and reload style (Design; read by Gameplay and Creature). */
 export const WEAPON_FEEL = stripDeep(weaponFeelJson) as WeaponFeel;

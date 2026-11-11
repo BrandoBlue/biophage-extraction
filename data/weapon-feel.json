@@ -195,5 +195,13 @@
     "weakPointHitMarkerScale": 1.4,
     "fleshDecalLife": 20,
     "note": "no damage numbers ever; hit-markers and wound VFX only"
+  },
+  "scope": {
+    "_note": "Only these classes get the full-screen living-eye scope, and only while Settings eyeScope is on. Every other aiming gun, and these with the eye off, zoom at most noScopeZoom with the normal crosshair.",
+    "classes": [
+      "marksman",
+      "sniper"
+    ],
+    "noScopeZoom": 1.6
   }
 }
