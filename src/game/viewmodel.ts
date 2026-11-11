@@ -257,6 +257,15 @@ export class SynapseBursterView {
       // Arm's-length geometry never sits in fog.
       const m = (o as THREE.Mesh).material as THREE.Material | undefined;
       if (m && 'fog' in m) (m as THREE.Material & { fog: boolean }).fog = false;
+      // The baked environment is the violet-magenta nebula; at arm's length its clearcoat reflection turned the
+      // whole gun neon pink. Keep a hint of it so the flesh still reads wet.
+      // three.js ignores envMapIntensity for scene.environment, so bind the scene's map to these materials directly.
+      if (m instanceof THREE.MeshStandardMaterial) {
+        m.envMapIntensity = 0.25;
+        (o as THREE.Mesh).onBeforeRender = (_r, scene) => {
+          if (scene.environment !== m.envMap && scene.environment?.isTexture) { m.envMap = scene.environment as THREE.Texture; m.needsUpdate = true; }
+        };
+      }
     });
     camera.add(this.root);
   }
