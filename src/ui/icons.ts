@@ -122,6 +122,24 @@ const DRAW: Record<string, (c: Ctx) => string> = {
       <circle cx="64" cy="62" r="13" fill="${HIVE.acid}" filter="url(#g${c.id})" opacity=".9"/><circle cx="64" cy="62" r="6" fill="${HIVE.bone}"/>
       ${[[40, 44], [88, 46], [46, 92], [84, 88]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="4" fill="${ZONE7.lime}" filter="url(#g${c.id})"/>`).join('')}
       <path d="M48 116 C40 122 30 124 22 122 M80 116 C88 122 98 124 106 122" stroke="${ZONE7_SHADE.flesh}" stroke-width="4" fill="none" stroke-linecap="round"/></g>`,
+
+  weaverGanglion: (c) => defs(c, radial(`r${c.id}`, [[0, HIVE.bone], [0.4, ZONE7.violet], [1, ZONE7_SHADE.rockDeep]], '50%', '50%'))
+    + `<g filter="url(#s${c.id})">${[0, 1, 2, 3, 4, 5, 6, 7].map((i) => { const a = (i / 8) * Math.PI * 2 + 0.3; return `<path d="M32 32 Q${32 + Math.cos(a + 0.5) * 18} ${32 + Math.sin(a + 0.5) * 18} ${32 + Math.cos(a) * 28} ${32 + Math.sin(a) * 28}" stroke="${HIVE.bone}" stroke-opacity=".6" stroke-width="1.2" fill="none"/>`; }).join('')}
+      <circle cx="32" cy="32" r="12" fill="url(#r${c.id})" stroke="${HIVE.bone}" stroke-opacity=".6"/>
+      ${[[26, 28], [37, 30], [31, 38]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3" fill="${PATH.viral}" filter="url(#g${c.id})"/>`).join('')}</g>`,
+
+  mimicLure: (c) => defs(c, radial(`r${c.id}`, [[0, HIVE.bone], [0.35, PATH.melee], [1, ZONE7_SHADE.flesh]], '50%', '40%'))
+    + `<g filter="url(#s${c.id})"><path d="M32 8 C40 20 38 40 34 56" stroke="${ZONE7_SHADE.flesh}" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M32 8 C40 20 38 40 34 56" stroke="${HIVE.bone}" stroke-opacity=".4" stroke-width="1.5" fill="none"/>
+      <ellipse cx="34" cy="84" rx="18" ry="24" fill="url(#r${c.id})" stroke="${HIVE.bone}" stroke-opacity=".5" filter="url(#g${c.id})"/>
+      <path d="M22 76 C28 70 40 70 46 76" stroke="${HIVE.bone}" stroke-opacity=".6" fill="none"/><circle cx="30" cy="80" r="4" fill="${HIVE.bone}"/>
+      <path d="M20 104 q-6 8 -2 14 M48 104 q6 8 2 14" stroke="${ZONE7_SHADE.flesh}" stroke-width="3" fill="none"/></g>`,
+
+  lanternGland: (c) => defs(c, radial(`r${c.id}`, [[0, HIVE.bone], [0.3, ZONE7.lime], [0.7, ZONE7_SHADE.moss], [1, ZONE7_SHADE.rockDeep]], '50%', '45%'))
+    + `<g filter="url(#s${c.id})">${[0, 1, 2, 3, 4].map((i) => `<path d="M${44 + i * 10} 104 C${40 + i * 12} 112 ${36 + i * 14} 118 ${30 + i * 16} 124" stroke="${ZONE7.lime}" stroke-opacity=".7" stroke-width="2" fill="none"/>`).join('')}
+      <path d="M64 12 C96 14 112 40 108 66 C104 92 86 106 64 106 C42 106 24 92 20 66 C16 40 32 14 64 12Z" fill="url(#r${c.id})" stroke="${HIVE.bone}" stroke-opacity=".5" stroke-width="1.5" filter="url(#g${c.id})"/>
+      ${[-24, -8, 8, 24].map((dx) => `<path d="M${64 + dx * 0.4} 14 C${64 + dx} 40 ${64 + dx} 80 ${64 + dx * 0.5} 104" stroke="${ZONE7_SHADE.moss}" stroke-opacity=".6" fill="none"/>`).join('')}
+      <ellipse cx="54" cy="44" rx="10" ry="14" fill="${HIVE.bone}" fill-opacity=".5"/></g>`,
 };
 
 /** Fallback by kind, for items Design adds before the UI draws them. */

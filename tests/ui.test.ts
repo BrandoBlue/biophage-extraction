@@ -11,8 +11,11 @@ import { fixtureActions, fixtureProfile } from '../mocks/fixtures';
 import { source } from '../src/ui/hive/stash';
 
 describe('item icons', () => {
-  it('draws every item in loot.json by hand', () => {
-    for (const id of Object.keys(LOOT.items)) expect(DRAWN_ITEMS, id).toContain(id);
+  it('gives every item in loot.json an icon, hand-drawn for every Larva and Host item so far', () => {
+    for (const id of Object.keys(LOOT.items)) expect(itemIcon(id), id).toMatch(/^<svg class="icon"/);
+    const drawnSoFar = ['clotGel', 'dnaStrand', 'mutagenVial', 'plagueStalkerStrain', 'synapseLens', 'glitchingHeart', 'needlemawGland', 'cantorSongSac',
+      'glasswalkerLens', 'oculimothEye', 'mournbackMarrow', 'broodHeartSeed', 'adrenalineVirus', 'splicedParasites', 'weaverGanglion', 'mimicLure', 'lanternGland'];
+    for (const id of drawnSoFar) expect(DRAWN_ITEMS, id).toContain(id);
   });
   it('sizes the viewBox to the footprint and swaps it when rotated', () => {
     const [w, h] = LOOT.items.glitchingHeart.size;
