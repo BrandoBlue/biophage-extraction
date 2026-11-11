@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Pipeline } from './pipeline';
 import { groundHeight } from '../world/zone7';
+import { gore } from './gore';
 
 /** A look-dev camera pose: position (or ground point `at` plus `eye` height), yaw and pitch in radians, vertical field of view in degrees. */
 export interface LookdevPose { pos?: [number, number, number]; at?: [number, number]; eye?: number; yaw: number; pitch: number; fov?: number }
@@ -25,6 +26,14 @@ export function installLookdev(pipeline: Pipeline, base: THREE.PerspectiveCamera
     overload(v: number) { pipeline.setOverload(v); },
     /** Toggle visibility of every object with this name (isolating a layer while tuning). */
     show(name: string, on: boolean) { scene?.traverse((o) => { if (o.name === name) o.visible = on; }); },
+    /** Spray a gore splat and burst on the ground at (x, z) for look-dev. */
+    gore(x: number, z: number, colour?: string) {
+      if (!scene) return;
+      const point = new THREE.Vector3(x, groundHeight(x, z), z);
+      gore.splat(scene, { point, normal: new THREE.Vector3(0, 1, 0), size: 2.2, colour });
+      gore.burst(scene, { point: point.clone().setY(point.y + 0.6), colour });
+    },
+    quality() { return pipeline.quality; },
     raw(on: boolean) { pipeline.bypassPost = on; },
     hit() { pipeline.hitPulse(1); },
     clear() { pipeline.overrideCamera = null; },

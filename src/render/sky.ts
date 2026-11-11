@@ -34,7 +34,7 @@ export function zone7Sky(radius = 900): THREE.Mesh {
         vec3 d = normalize(vDir);
         float h = d.y;
         vec3 sky = mix(uHorizon, uZenith, smoothstep(-0.1, 0.7, h));
-        sky = mix(sky, uVoid * 0.6, smoothstep(0.0, -0.5, h));
+        sky = mix(sky, uVoid * 0.6, (1.0 - smoothstep(-0.5, 0.0, h)));
 
         // Domain-warped nebula
         vec3 q = d * 2.2 + vec3(0.0, 0.0, bioTime * 0.004);
@@ -63,7 +63,7 @@ export function zone7Sky(radius = 900): THREE.Mesh {
           vec3 cell = floor(d * s);
           float r = bioHash(cell + float(l) * 31.0);
           vec3 c = (cell + 0.5) / s;
-          float star = smoothstep(1.2 / s, 0.0, length(d - normalize(c))) * step(0.985, r);
+          float star = (1.0 - smoothstep(0.0, 1.2 / s, length(d - normalize(c)))) * step(0.985, r);
           float tw = 0.6 + 0.4 * sin(bioTime * (1.0 + r * 3.0) + r * 40.0);
           sky += mix(uCyan, vec3(1.0), r) * star * tw * (l == 0 ? 1.6 : 0.7) * smoothstep(-0.2, 0.1, h);
         }
@@ -127,7 +127,7 @@ export function planet(opts: { radius: number; band: string; rim: string; ring?:
           void main() {
             float t = (length(vP.xy) - uIn) / (uOut - uIn);
             float bands = bioNoise(vec3(t * 60.0, 0.0, 0.0)) * 0.7 + bioNoise(vec3(t * 13.0, 5.0, 0.0)) * 0.5;
-            float a = smoothstep(0.0, 0.08, t) * smoothstep(1.0, 0.75, t) * bands;
+            float a = smoothstep(0.0, 0.08, t) * (1.0 - smoothstep(0.75, 1.0, t)) * bands;
             vec3 c = mix(uCol, uRim, t);
             gl_FragColor = vec4(c * a * 1.4, a);
           }`,
@@ -156,7 +156,7 @@ export function cloudSea(y: number, size = 2400): THREE.Mesh {
         vec3 c = mix(uA, uB, smoothstep(0.35, 0.7, n));
         c = mix(c, uC, smoothstep(0.62, 0.8, bioFbm(p * 1.7 + 7.0)) * 0.6);
         float dist = length(vW.xz - cameraPosition.xz);
-        float a = smoothstep(0.25, 0.7, n) * smoothstep(1200.0, 300.0, dist);
+        float a = smoothstep(0.25, 0.7, n) * (1.0 - smoothstep(300.0, 1200.0, dist));
         gl_FragColor = vec4(mix(uVoid, c, 0.55) * (0.5 + n), a * 0.85);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -199,13 +199,13 @@ export function sporeField(rand: () => number, count: number, radius: number, he
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
         gl_PointSize = min((1.0 + seed * 2.5) * (90.0 / -mv.z), 7.0);
-        vC = color; vA = (0.4 + 0.6 * sin(bioTime * 2.0 + seed * 50.0) * 0.5 + 0.3) * smoothstep(120.0, 20.0, -mv.z) * smoothstep(2.0, 6.0, -mv.z);
+        vC = color; vA = (0.4 + 0.6 * sin(bioTime * 2.0 + seed * 50.0) * 0.5 + 0.3) * (1.0 - smoothstep(20.0, 120.0, -mv.z)) * smoothstep(2.0, 6.0, -mv.z);
       }`,
     fragmentShader: /* glsl */ `
       varying vec3 vC; varying float vA;
       void main() {
         float d = length(gl_PointCoord - 0.5);
-        float a = smoothstep(0.5, 0.0, d); a *= a;
+        float a = (1.0 - smoothstep(0.0, 0.5, d)); a *= a;
         gl_FragColor = vec4(vC * 1.2 * a * vA, a * vA);
       }`,
   }));

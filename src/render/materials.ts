@@ -92,7 +92,7 @@ export function zoneRock(opts: { veinColour?: string; mossColour?: string; scale
       float pulse = 0.6 + 0.4 * sin(bioTime * 1.3 + bioFbm(p * 0.7) * 12.0);
       float veinMask = v * smoothstep(0.58, 0.72, bioFbm(p * 0.6 + 9.0));
       // Sparse glowing moss specks.
-      float specks = smoothstep(0.12, 0.02, bioCells(vBioWorld * 1.6)) * mossMask;
+      float specks = (1.0 - smoothstep(0.02, 0.12, bioCells(vBioWorld * 1.6))) * mossMask;
       diffuseColor.rgb = col;
       totalEmissiveRadiance += uVein * veinMask * pulse * 0.7 + uMossGlow * specks * 1.2 + uMossGlow * mossMask * 0.02;
       // Edges facing down darken to void; reads as mass hanging in space.
@@ -115,10 +115,10 @@ export function fungusCap(glow: string = ZONE7.cyan): THREE.MeshPhysicalMaterial
       #ifdef USE_COLOR
         glowCol = vColor.rgb;
       #endif
-      float under = smoothstep(0.1, -0.4, vBioNormal.y);           // gills face down
+      float under = (1.0 - smoothstep(-0.4, 0.1, vBioNormal.y));           // gills face down
       float radial = length(vBioLocal.xz);
       float gills = 0.5 + 0.5 * sin(atan(vBioLocal.z, vBioLocal.x) * 64.0);
-      float spots = smoothstep(0.3, 0.12, bioCells(vBioLocal * 5.0 + vBioSeed));
+      float spots = (1.0 - smoothstep(0.12, 0.3, bioCells(vBioLocal * 5.0 + vBioSeed)));
       float rim = smoothstep(0.75, 1.02, radial) * (1.0 - under);   // luminous lip
       float mottling = bioFbm(vBioLocal * 4.0 + vBioSeed);
       float breathe = 0.8 + 0.2 * sin(bioTime * 1.7 + vBioSeed.x * 3.0);
@@ -234,11 +234,11 @@ export function liquidLight(opts: { a?: string; b?: string; c?: string; flow?: n
         vec3 p;
         if (uPool > 0.5) {
           vec2 c = uv - 0.5; float r = length(c) * 2.0;
-          edge = smoothstep(1.0, 0.75, r); along = r;
+          edge = (1.0 - smoothstep(0.75, 1.0, r)); along = r;
           p = vec3(c * 6.0, bioTime * 0.25);
           p.xy += vec2(sin(bioTime * 0.3 + r * 6.0), cos(bioTime * 0.27 + r * 5.0)) * 0.4;
         } else {
-          edge = smoothstep(0.0, 0.25, uv.x) * smoothstep(1.0, 0.75, uv.x) * smoothstep(1.0, 0.7, uv.y);
+          edge = smoothstep(0.0, 0.25, uv.x) * (1.0 - smoothstep(0.75, 1.0, uv.x)) * (1.0 - smoothstep(0.7, 1.0, uv.y));
           along = uv.y;
           p = vec3(uv.x * 4.0, uv.y * 14.0 - bioTime * uFlow * 6.0, 0.0);
         }
