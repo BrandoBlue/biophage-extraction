@@ -118,3 +118,30 @@ describe('ground cover field', () => {
     expect(low).toBeLessThan(total * 0.45);
   });
 });
+
+describe('shot effects', () => {
+  it('stretch the tracer back to the muzzle, capped, and pool impact flashes that fade out', async () => {
+    const { boltLook, shotFx, glowTexture } = await import('../src/render/shotfx');
+    expect(glowTexture().image.width).toBe(64);
+    const bolt = boltLook('#6CFF4A', { tail: 8 })();
+    const trail = bolt.children.find((c) => (c as THREE.Mesh).isMesh) as THREE.Mesh;
+    const cam = new THREE.PerspectiveCamera();
+    bolt.userData.origin = new THREE.Vector3(0, 0, 0);
+    bolt.position.set(0, 0, -3);
+    trail.onBeforeRender(null as never, null as never, cam, null as never, null as never, null as never);
+    expect(trail.scale.y).toBeCloseTo(3);
+    bolt.position.set(0, 0, -40);
+    trail.onBeforeRender(null as never, null as never, cam, null as never, null as never, null as never);
+    expect(trail.scale.y).toBe(8);
+
+    shotFx.reset();
+    const scene = new THREE.Scene();
+    const t0 = bioTime.value;
+    for (let i = 0; i < 40; i++) shotFx.flash(scene, new THREE.Vector3(i, 0, 0), new THREE.Color('#6CFF4A'));
+    expect(scene.children.length).toBeLessThanOrEqual(24);
+    shotFx.update();
+    expect(shotFx.live).toBeGreaterThan(0);
+    bioTime.value = t0 + 1; shotFx.update();
+    expect(shotFx.live).toBe(0);
+  });
+});

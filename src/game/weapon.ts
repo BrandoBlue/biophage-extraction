@@ -5,20 +5,18 @@ import { mulberry32 } from '../world/zone7';
 import { AutoWeaponState } from './weapon-state';
 import { SynapseBursterView } from './viewmodel';
 import type { Projectiles } from './projectiles';
+import { boltLook } from '../render/shotfx';
 
 const DEG = Math.PI / 180;
 
 /** Glowing projectile looks, shared by the Projectiles pool. */
 export function projectileLooks(): Record<'spore' | 'ego' | 'bile', () => THREE.Mesh> {
-  const spore = new THREE.MeshBasicMaterial({ color: HIVE.acid, toneMapped: false });
-  const ego = new THREE.MeshBasicMaterial({ color: ZONE7.cyan, toneMapped: false });
   const bile = new THREE.MeshBasicMaterial({ color: ZONE7.lime, toneMapped: false });
-  const sporeGeo = new THREE.SphereGeometry(0.07, 8, 6); sporeGeo.scale(1, 5, 1);
-  const egoGeo = new THREE.SphereGeometry(0.14, 10, 8); egoGeo.scale(1, 3, 1);
   const bileGeo = new THREE.IcosahedronGeometry(0.28, 1);
   return {
-    spore: () => new THREE.Mesh(sporeGeo, spore),
-    ego: () => new THREE.Mesh(egoGeo, ego),
+    // Bolt cores, tracer tails and halos come from Rendering (src/render/shotfx.ts).
+    spore: boltLook(HIVE.acid),
+    ego: boltLook(ZONE7.cyan, { core: 0.1, tail: 10, width: 0.13, halo: 1.2 }),
     bile: () => new THREE.Mesh(bileGeo, bile),
   };
 }

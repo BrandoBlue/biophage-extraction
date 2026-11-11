@@ -45,6 +45,7 @@ export class Projectiles {
     const mesh = this.pool[kind].pop() ?? this.looks[kind]();
     mesh.visible = true;
     mesh.position.copy(from);
+    mesh.userData.origin = ((mesh.userData.origin as THREE.Vector3 | undefined) ?? new THREE.Vector3()).copy(from); // tracer length (render/shotfx)
     this.scene.add(mesh);
     const p: Projectile = {
       pos: from.clone(), prev: from.clone(), vel: vel.clone(), life: o.life ?? 2.5, owner, damage: o.damage,

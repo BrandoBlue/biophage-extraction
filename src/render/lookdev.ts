@@ -4,6 +4,7 @@ import { groundHeight } from '../world/zone7';
 import { gore } from './gore';
 import { dissolvable } from './dissolve';
 import { createHiveLab, type HiveLab } from './hivelab';
+import { boltLook, shotFx } from './shotfx';
 import { crystal, livingFlesh } from './materials';
 import { HIVE, ZONE7 } from './palette';
 import { Abomination } from '../game/abominations';
@@ -31,6 +32,27 @@ export function installLookdev(pipeline: Pipeline, base: THREE.PerspectiveCamera
       pipeline.overrideCamera = cam;
     },
     overload(v: number) { pipeline.setOverload(v); },
+    /** Freeze a volley of spore bolts in flight from (x, z) toward (tx, tz), with impact flashes at the far end. */
+    shots(x: number, z: number, tx: number, tz: number) {
+      if (!scene) return;
+      const make = boltLook(HIVE.acid);
+      const y0 = groundHeight(x, z) + 1.3, y1 = groundHeight(tx, tz) + 0.4;
+      for (let i = 0; i < 4; i++) {
+        const k = 0.2 + i * 0.2;
+        const b = make();
+        b.position.set(x + (tx - x) * k + (i % 2 ? 0.15 : -0.1), y0 + (y1 - y0) * k, z + (tz - z) * k);
+        b.userData.origin = new THREE.Vector3(x, y0, z).lerp(b.position, i * 0.25);
+        b.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(tx - x, y1 - y0, tz - z).normalize());
+        scene.add(b);
+      }
+      shotFx.flash(scene, new THREE.Vector3(tx, y1, tz), new THREE.Color(HIVE.acid), 0.9, 1e6);
+    },
+    /** Count visible objects with this name, and where the first one is (debugging transient FX). */
+    find(name: string) {
+      const hits: number[][] = [];
+      scene?.traverse((o) => { if (o.name === name && o.visible) hits.push(o.getWorldPosition(new THREE.Vector3()).toArray().map((v) => Math.round(v * 10) / 10)); });
+      return { n: hits.length, first: hits[0] ?? null };
+    },
     /** Toggle visibility of every object with this name (isolating a layer while tuning). */
     show(name: string, on: boolean) { scene?.traverse((o) => { if (o.name === name) o.visible = on; }); },
     /** Spray a gore splat and burst on the ground at (x, z) for look-dev. */
