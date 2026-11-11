@@ -19,7 +19,8 @@
     "mocks": "node tests/ui-mocks.mjs",
     "smoke:creatures": "node tests/creatures.mjs",
     "smoke:raid:hive": "node tests/raid.mjs --hive",
-    "smoke:raid:hive:release": "node tests/raid.mjs --hive --release"
+    "smoke:raid:hive:release": "node tests/raid.mjs --hive --release",
+    "sound-tour": "node tests/sound-tour.mjs"
   },
   "repository": {
     "type": "git",
