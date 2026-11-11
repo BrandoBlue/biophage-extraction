@@ -78,3 +78,35 @@ describe('Abominations run on PvE AI brains', () => {
     expect(c.state).toBe('dead');
   });
 });
+
+describe('desert creatures in a raid', () => {
+  it('a swimming Dunewake cannot be hit; once it bursts out it can', () => {
+    const d = new Abomination('dunewake', ABOMINATIONS.dunewake, 0, 25, 3);
+    const ctx = ctxFor([d], newLog());
+    d.alert({ x: 0, z: 0 });
+    run([d], ctx, 0.5);
+    expect(d.brain.submerged).toBeGreaterThan(0.5);
+    d.refreshHitSpheres();
+    expect(d.hitSpheres.every((h) => h.world.y < -100)).toBe(true);
+    for (let i = 0; i < 15 * 60 && d.brain.phase !== 'surface'; i++) d.update(1 / 60, ctx);
+    for (let i = 0; i < 30; i++) d.update(1 / 60, ctx);
+    expect(d.brain.phase).toBe('surface');
+    d.refreshHitSpheres();
+    expect(d.hitSpheres.some((h) => h.world.y > -10)).toBe(true);
+  });
+
+  it('a Bristleback alarm wakes its herd and nothing else; its quill volley fires its count of light quills', () => {
+    const herd = [0, 1, 2].map((i) => new Abomination('bristleback', ABOMINATIONS.bristleback, i * 4, 20, 30 + i));
+    const other = new Abomination('mournback', ABOMINATIONS.mournback, -4, 20, 9);
+    const spits: (number | undefined)[] = [];
+    const ctx = { ...ctxFor([...herd, other], newLog()), onSpit: (_a: Abomination, _f: THREE.Vector3, _v: THREE.Vector3, dmg?: number) => { spits.push(dmg); } };
+    herd[0].damage(1, null);
+    for (let i = 0; i < 2; i++) for (const c of [...herd, other]) c.update(1 / 60, ctx);
+    expect(herd.every((c) => c.engaged)).toBe(true);
+    expect(other.engaged).toBe(false);
+    for (let i = 0; i < 40 * 60 && spits.length === 0; i++) for (const c of herd) c.update(1 / 60, ctx);
+    const v = ABOMINATIONS.bristleback.quillVolley as { count: number; damage: number };
+    expect(spits.length).toBeGreaterThanOrEqual(v.count);
+    expect(spits.every((d) => d === v.damage)).toBe(true);
+  });
+});

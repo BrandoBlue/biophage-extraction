@@ -38,6 +38,10 @@ export abstract class Brain {
   strike: Vec3 | null = null;
   /** Camouflage: 1 = fully visible. */
   visibility = 1;
+  /** 0..1 how far under the sand or water it is (burrowers, swimmers); above 0.5 it cannot be hit. */
+  submerged = 0;
+  /** 0..1 the species action the new-zone bodies play (quill volley, shear cut, grab...). */
+  action = 0;
   /** One-shot events since the owner last drained them. */
   readonly events: AIEvent[] = [];
   readonly awareness: Awareness;

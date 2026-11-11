@@ -8,7 +8,11 @@
     "mournback": "tank",
     "huskMimic": "mimic",
     "lumenGrazer": "grazer",
-    "titheWeaver": "weaver"
+    "titheWeaver": "weaver",
+    "dunewake": "burrower",
+    "bristleback": "herd",
+    "shroudling": "spitter",
+    "mirebrood": "swarm"
   },
   "awareness": {
     "_note": "Awareness fills 0..1. At suspicious the creature turns and investigates the stimulus; at 1 it hunts. Sight fill per second = sightRate * visibility * (1 - distance/range); peripheral (outer half of the field of view) fills at peripheralFactor. A noise adds noiseGain scaled by how far inside its radius the creature is. Awareness decays at decayRate while nothing is sensed.",
@@ -207,5 +211,30 @@
       12,
       18
     ]
+  },
+  "burrower": {
+    "_note": "Burrower (Dunewake, src/ai/behaviours/burrower.ts). Sinks at diveRate and surfaces at surfaceRate (submerged per s); while rippling it closes at burrowSpeed x rippleFactor; the burst lunge lasts lungeTime s; swimCurl bends its approach so the ripple comes from the side.",
+    "turnRate": 6,
+    "diveRate": 1.6,
+    "surfaceRate": 5,
+    "rippleFactor": 0.8,
+    "lungeTime": 0.45,
+    "swimCurl": 0.6,
+    "knockback": 4
+  },
+  "herd": {
+    "_note": "Herd (Bristleback, src/ai/behaviours/herd.ts). Alarmed by a noise of at least gunfireNoise m within temperament.alarmedByGunfireWithin. Stampedes when the host is chargeRange m away, turning at most stampedeTurn rad/s; winded for wheelTime s after. Quill volleys aim volleyLead s ahead of the host, spread volleySpread m, never closer than volleyMin m.",
+    "turnRate": 1.1,
+    "gunfireNoise": 20,
+    "chargeRange": [
+      7,
+      30
+    ],
+    "stampedeTurn": 0.35,
+    "trampleKnockback": 12,
+    "wheelTime": 1.8,
+    "volleyLead": 0.4,
+    "volleySpread": 2.5,
+    "volleyMin": 6
   }
 }
