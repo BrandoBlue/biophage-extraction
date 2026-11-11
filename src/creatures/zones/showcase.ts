@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Sandwidow, type WidowPhase } from './sandwidow';
+import { Nethermaw, type NethermawPhase } from './nethermaw';
 
 /**
  * Viewer adapters for the new-zone bosses, so the `?creatures` viewer drives every one of them through one small
@@ -22,12 +23,38 @@ export interface ZoneBossShow {
   state(): Record<string, unknown>;
 }
 
-export type ZoneBossId = 'sandwidow';
-export const ZONE_BOSSES: { id: ZoneBossId; label: string }[] = [{ id: 'sandwidow', label: 'Sandwidow' }];
+export type ZoneBossId = 'sandwidow' | 'nethermaw';
+export const ZONE_BOSSES: { id: ZoneBossId; label: string }[] = [{ id: 'sandwidow', label: 'Sandwidow' }, { id: 'nethermaw', label: 'Nethermaw' }];
 
 export function showZoneBoss(id: ZoneBossId, seed: number, scene: THREE.Scene, ground: (x: number, z: number) => number, origin: THREE.Vector3): ZoneBossShow {
-  void id;
-  return widowShow(seed, scene, ground, origin);
+  return id === 'nethermaw' ? nethermawShow(seed, scene, ground, origin) : widowShow(seed, scene, ground, origin);
+}
+
+function nethermawShow(seed: number, scene: THREE.Scene, ground: (x: number, z: number) => number, origin: THREE.Vector3): ZoneBossShow {
+  const n = new Nethermaw(seed, scene);
+  n.root.position.set(origin.x, ground(origin.x, origin.z), origin.z);
+  const order: NethermawPhase[] = ['breathe', 'dream', 'swallow'];
+  let next = 0, timer = 2;
+  return {
+    id: 'nethermaw', root: n.root, frame: { y: 3, z: 0, dist: 24 },
+    nextPhase(phase?: string) { n.drive.phase = (phase as NethermawPhase) ?? order[(order.indexOf(n.drive.phase) + 1) % order.length]; if (n.drive.phase === 'dream') n.dreamLight(); },
+    tick(i) {
+      const d = n.drive;
+      // It breathes on its own; Walk runs the lobe cycle (swell, pulse, next); Strike swells them all; Act raises.
+      d.breath = d.phase === 'swallow' ? 0.6 + Math.sin(i.time * 1.4) * 0.4 : Math.sin(i.time * 0.6);
+      if (i.walking) {
+        timer -= i.dt;
+        d.swell = d.swell.map((v, k) => (k === next ? Math.min(1, v + i.dt * 0.8) : Math.max(0, v - i.dt * 2)));
+        if (timer <= 0) { n.pulse(next); next = (next + 1) % d.swell.length; timer = 2; }
+      } else d.swell = d.swell.map((v) => (i.striking > 0 ? Math.min(1, v + i.dt * 2) : Math.max(0, v - i.dt)));
+      if (i.acting > 1.45) n.raise();
+      n.update(i.dt);
+    },
+    sever() { const k = n.weakPoints.findIndex((w) => w.alive); if (k >= 0) n.popWeakPoint(k); return k >= 0; },
+    gib() { n.destroy(); },
+    card: () => `<b>The Nethermaw</b><br>Phase ${n.drive.phase} · lobes ${n.lobesAlive}/5. Click again for the next phase; Walk runs the lobe pulse cycle, Strike swells every lobe, Act raises the Hollowed, Sever bursts a lobe, Gib kills it.`,
+    state: () => ({ phase: n.drive.phase, lobes: n.lobesAlive, alive: n.alive }),
+  };
 }
 
 function widowShow(seed: number, scene: THREE.Scene, ground: (x: number, z: number) => number, origin: THREE.Vector3): ZoneBossShow {
