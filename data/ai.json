@@ -119,7 +119,7 @@
     "startAwareness": 1
   },
   "menace": {
-    "_note": "What makes hunters frightening (docs/gdd/pve-ai.md, Menace). reaction: seconds a creature that spots the host itself stands still and stares before it comes (alerted packmates skip it). search: a cold trail is chased to where the host was heading (velocity x predictTime, at most maxPredict m), and each searcher checks its own spot within spread m, sweeping sweepTime s before trying the next. ambush: after a chase that went cold, swarm and stalker hunters may crouch where they lost the host instead of going home, springing at range m, giving up after time s. wounded: below limpBelow Biomass a creature moves at limpFactor; on first dropping below fleeBelow it runs for fleeTime s with fleeChance, then calls its pack and returns.",
+    "_note": "What makes hunters frightening (docs/gdd/pve-ai.md, Menace). reaction: seconds a creature that spots the host itself stands still and stares before it comes (alerted packmates skip it). search: a cold trail is chased to where the host was heading (velocity x predictTime, at most maxPredict m), and each searcher checks its own spot within spread m, sweeping sweepTime s before trying the next. ambush: after a chase that went cold, swarm and stalker hunters may crouch where they lost the host instead of going home, springing at range m, giving up after time s. wounded: below limpBelow Biomass a creature moves at limpFactor; on first dropping below fleeBelow it runs for fleeTime s with fleeChance, then calls its pack and returns. dodge: swarm and flyer hunters inside the host's aimCone (degrees, full width) within range m juke sideways at speed m/s with chance when a shot (a noise of at least minNoise m radius at the host) goes off, at most once per cooldown s, never mid wind-up or lunge.",
     "reaction": [
       0.35,
       0.8
@@ -141,6 +141,14 @@
       "fleeBelow": 0.3,
       "fleeChance": 0.5,
       "fleeTime": 2.2
+    },
+    "dodge": {
+      "chance": 0.55,
+      "aimCone": 16,
+      "range": 30,
+      "minNoise": 15,
+      "speed": 7,
+      "cooldown": 1.4
     }
   }
 }

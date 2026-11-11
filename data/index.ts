@@ -314,6 +314,7 @@ export interface AiRules {
     search: { predictTime: number; maxPredict: number; spread: number; sweepTime: number };
     ambush: { chance: number; range: number; time: number };
     wounded: { limpBelow: number; limpFactor: number; fleeBelow: number; fleeChance: number; fleeTime: number };
+    dodge: { chance: number; aimCone: number; range: number; minNoise: number; speed: number; cooldown: number };
   };
 }
 const stripDeep = (o: unknown): unknown => {

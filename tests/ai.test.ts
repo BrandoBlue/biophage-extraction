@@ -455,6 +455,24 @@ describe('menace: the stare, the fanned search, the ambush, the wounded retreat'
     expect(tank.phase).not.toBe('flee');
   });
 
+  it('agile hunters juke out of the host\'s aim when it fires; not when it aims elsewhere or stays quiet', () => {
+    const shot = [{ x: 0, z: 0, radius: 25 }];
+    const dodges = (fwd: { x: number; z: number }, noises: typeof shot) => {
+      let n = 0;
+      for (let i = 1; i <= 8; i++) {
+        const b = hunting(at('needlemaw', i, 0, 12, i));
+        simulate([b], 0.05, host({ forward: fwd }));
+        n += simulate([b], 2, host({ forward: fwd }), { noises }).events.filter((e) => e.e.type === 'dodge').length;
+      }
+      return n;
+    };
+    expect(dodges({ x: 0, z: 1 }, shot)).toBeGreaterThan(2);
+    expect(dodges({ x: 1, z: 0 }, shot)).toBe(0);
+    expect(dodges({ x: 0, z: 1 }, [])).toBe(0);
+    const tank = hunting(at('mournback', 1, 0, 12));
+    expect(simulate([tank], 2, host({ forward: { x: 0, z: 1 } }), { noises: shot }).events.some((e) => e.e.type === 'dodge')).toBe(false);
+  });
+
   it('a wounded hunter limps', () => {
     const run = (left: number) => {
       const b = hunting(at('mournback', 5, 0, 60));

@@ -288,7 +288,7 @@ export class Abomination {
           }
           break;
         case 'reveal': ctx.onReveal?.(this, e.how); break;
-        case 'charge': case 'notice': break; // read by audio through the bus later
+        case 'charge': case 'notice': case 'dodge': break; // read by audio through the bus later
       }
     }
     this.brain.events.length = 0;

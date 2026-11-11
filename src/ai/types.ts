@@ -43,6 +43,8 @@ export type AIEvent =
   | { type: 'screech'; radius: number }
   | { type: 'slam'; radius: number; damage: number; knockback: number }
   | { type: 'charge' }
+  /** Juked sideways out of the host's aim. */
+  | { type: 'dodge' }
   /** Burst from its tank, dropped its disguise, or sprang the ambush it laid where it lost the host. */
   | { type: 'reveal'; how: 'hatch' | 'disguise' | 'ambush' };
 

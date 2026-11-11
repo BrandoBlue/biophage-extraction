@@ -71,6 +71,9 @@ export abstract class Brain {
   protected readonly ambusher: boolean = false;
   /** Archetypes that break off to run when badly hurt (not the tank). */
   protected readonly flees: boolean = true;
+  /** Agile archetypes that juke sideways when the host aims at them and fires (swarm, flyer). */
+  protected readonly dodges: boolean = false;
+  private dodgeCd = 0;
   protected phaseTime = 0;
   protected cooldown = 0;
   private staggerFor = 0;
@@ -238,6 +241,7 @@ export abstract class Brain {
           const dx = tgt.x - b.x, dz = tgt.z - b.z;
           const dist = Math.hypot(dx, dz) || 1e-6;
           this.hunt(dt, w, tgt, dist, dx / dist, dz / dist);
+          this.dodge(dt, w, dist);
         } else this.search(dt, w);
         break;
       }
@@ -329,6 +333,26 @@ export abstract class Brain {
       if (this.sweepFor <= 0) { this.searchPts++; this.searchTo = null; this.hostVel = { x: 0, z: 0 }; }
     }
     this.setPhase('search');
+  }
+
+  /**
+   * Under fire: if the host is aiming at it (inside menace.dodge.aimCone) and a shot just went off at the host, an
+   * agile hunter may juke sideways. Never while winding up or lunging, so committed attacks stay punishable.
+   */
+  private dodge(dt: number, w: BrainWorld, dist: number): void {
+    this.dodgeCd -= dt;
+    const D = M.dodge, h = w.host, f = h.forward;
+    if (!this.dodges || this.dodgeCd > 0 || !f || this.windup > 0.05 || this.strike || dist > D.range) return;
+    const shot = w.noises.some((n) => Math.hypot(n.x - h.x, n.z - h.z) < 1.5 && n.radius >= D.minNoise);
+    if (!shot) return;
+    const tx = (this.body.x - h.x) / (dist || 1), tz = (this.body.z - h.z) / (dist || 1);
+    if (f.x * tx + f.z * tz < Math.cos((D.aimCone * Math.PI) / 360)) return;
+    this.dodgeCd = D.cooldown;
+    if (this.rand() >= D.chance) return;
+    const side = this.rand() < 0.5 ? -1 : 1;
+    this.impulse(-tz * side * D.speed, tx * side * D.speed);
+    this.setPhase(this.phase); // keep the archetype's sub-state
+    this.events.push({ type: 'dodge' });
   }
 
   /** Badly hurt: breaks off and runs from the host, then turns and calls its pack before coming back. */

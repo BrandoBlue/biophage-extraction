@@ -11,6 +11,7 @@ const FACE = AI.flyer.faceHeight;
 
 export class FlyerBrain extends Brain {
   protected readonly turnRate = AI.flyer.turnRate;
+  protected readonly dodges = true;
   private theta = this.rand() * Math.PI * 2;
   private orbitDir = this.rand() < 0.5 ? -1 : 1;
   private ring = AI.flyer.orbitRadius[0] + this.rand() * (AI.flyer.orbitRadius[1] - AI.flyer.orbitRadius[0]);
