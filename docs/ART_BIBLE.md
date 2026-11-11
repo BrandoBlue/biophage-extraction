@@ -59,8 +59,16 @@ The organic tones are for bodies that are lit rather than glowing: the held weap
 4. Never-before-seen: combine at least two unrelated biology sources per creature. Nothing recognisable from another franchise.
 
 ## UI language
-- Dark translucent panels, 1 px acid-green borders, chamfered corners, thorned vine framing in screen corners with glowing pustules.
-- Uppercase condensed sans. Open-licence fonts only: Chakra Petch (headings), Rajdhani (body).
-- Trees are neurons: circular icon nodes joined by glowing veins, coloured by path, locked nodes greyed.
-- Primary action bottom-right: glowing bevelled green button with a red PvPvE warning line.
-- In-raid HUD is organic: Biomass and Neural Overload in bone-and-flesh frames, reactive eyeball portrait, round Psych-Wave Scanner, five ability slots, weapon panel with charge ring.
+"Membrane" (UI department, 2026-11-11). Brandon found the first UI too close to the reference images, so the references set the mood only. This is our own look.
+- Type: Cormorant Garamond, a display serif, for names, numbers and titles. Manrope for labels and body. Labels are small spaced caps. Both are SIL OFL and bundled through @fontsource.
+- Shape: glass panels with an asymmetric "seed" curve (two soft corners, two tight) and hairlines instead of borders. Actions are round nodes and capsules. No chamfers, no vine framing, no glow boxes.
+- Colour: bone at rest, amber for what is selected or in use, acid only for alive and ready, cyan for DNA, danger for loss. The 3D lab and the zone carry the colour; the UI stays quiet.
+- Primary action: a soft amber capsule, bottom right, with an arrow node. Its warning sits beneath it in small danger caps.
+- Feel: every control answers. Hover lifts and warms, press sinks. Screens settle in with a short stagger. Numbers tick when they change. Dragged items lift and tilt, then settle with a bounce where they land.
+- In-raid HUD: quiet clusters at the edges of vision on soft pools of shade, never framed.
+  - Top left: the collapse clock and the way out.
+  - Top centre: a bearing tape with extracts, pods and nearby creatures, with the boss line under it.
+  - Top right: objectives and what is carried.
+  - Bottom left: the host's ocellus and the Biomass and Neural Overload lines.
+  - Bottom centre: the kit as round cells.
+  - Bottom right: the weapon, ammo in the serif and ego charge as a ring.

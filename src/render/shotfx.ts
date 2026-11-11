@@ -122,3 +122,32 @@ export const shotFx = {
   /** Test helper: forget pooled flashes. */
   reset(): void { for (const f of flashes) f.sprite.removeFromParent(); flashes.length = 0; flashMats = []; },
 };
+
+/**
+ * How each living weapon's shots land and leave the muzzle (set per weapon view as `muzzleFx`). Rendering owns the
+ * look: particle pool, count, speed, size, drag, gravity and stretch per style, plus the flash size and how far the
+ * colour is greyed toward bone (lit material, not neon).
+ *   spore: soft glowing puff and fine sparks (Synapse Burster)
+ *   quill: few long bone shards that ricochet out
+ *   spit:  wet flecks that arc and fall
+ *   bile:  heavy droplets and a chunk or two, big splash
+ *   beam:  tight bright pinpoint with a few fast sparks
+ */
+export type ShotStyle = 'spore' | 'quill' | 'spit' | 'bile' | 'beam';
+export interface ShotStyleLook {
+  pool: 'sparks' | 'droplets' | 'chunks';
+  n: number; speed: number; size: [number, number]; life: [number, number];
+  drag: number; grav: number; stretch: number;
+  /** Impact flash size multiplier (0 = no flash) and how much the particle colour is pulled toward bone. */
+  flash: number; bone: number;
+}
+export const SHOT_STYLES: Record<ShotStyle, ShotStyleLook> = {
+  spore: { pool: 'sparks', n: 8, speed: 6, size: [0.05, 0.1], life: [0.25, 0.55], drag: 4, grav: 6, stretch: 0.08, flash: 1, bone: 0 },
+  quill: { pool: 'sparks', n: 5, speed: 11, size: [0.03, 0.05], life: [0.3, 0.6], drag: 1.5, grav: 9, stretch: 0.3, flash: 0.45, bone: 0.7 },
+  spit: { pool: 'droplets', n: 12, speed: 5, size: [0.03, 0.07], life: [0.5, 0.9], drag: 1.2, grav: 14, stretch: 0.12, flash: 0.5, bone: 0.35 },
+  bile: { pool: 'droplets', n: 16, speed: 4.5, size: [0.05, 0.11], life: [0.6, 1.1], drag: 0.8, grav: 16, stretch: 0.14, flash: 0.8, bone: 0.2 },
+  beam: { pool: 'sparks', n: 6, speed: 14, size: [0.02, 0.04], life: [0.12, 0.25], drag: 6, grav: 2, stretch: 0.2, flash: 0.7, bone: 0 },
+};
+export function shotStyle(style: string | undefined): ShotStyleLook {
+  return SHOT_STYLES[(style ?? 'spore') as ShotStyle] ?? SHOT_STYLES.spore;
+}

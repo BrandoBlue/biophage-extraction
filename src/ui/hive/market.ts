@@ -50,6 +50,9 @@ export function brokerSvg(mood = 0): string {
   </svg>`;
 }
 
+/** What the last trade changed, so the rebuilt screen can answer it (see vendors.ts). */
+let flash: { buy?: string; paid?: number } = {};
+
 export interface MarketCallbacks { actions: HiveActions; changed(): void; notice(msg: string, tone?: string): void; next(): void }
 
 export function marketScreen(p: ProfileView, cb: MarketCallbacks): HTMLElement {
@@ -71,14 +74,14 @@ export function marketScreen(p: ProfileView, cb: MarketCallbacks): HTMLElement {
   const grid = h('div', 'mk-cards');
   for (const s of m.stock) {
     const d = def(s.item);
-    const card = h('div', `mk-card${s.state === 'ok' ? '' : ' off'}`, `${tile(s.item, 1)}
+    const card = h('div', `mk-card${s.state === 'ok' ? '' : ' off'}${flash.buy === s.item ? ' bought' : ''}`, `${tile(s.item, 1)}
       <div class="mk-name"><b>${esc(d?.label ?? s.item)}</b><small>${esc(d?.kind ?? '')}${MARKET.contraband[s.item] ? ' · CONTRABAND' : ''}</small></div>
       <div class="mk-price">${glyph('dna')}<b>${s.price.toLocaleString('en-US')}</b></div>`);
     const buy = h<HTMLButtonElement>('button', 'hv-btn mk-buy', s.state === 'ok' ? 'BUY' : WHY[s.state]);
     buy.dataset.buy = s.item;
     buy.disabled = s.state !== 'ok';
     buy.addEventListener('click', () => {
-      if (cb.actions.buy?.(s.item)) { cb.notice(`BOUGHT ${(d?.label ?? s.item).toUpperCase()} · IN YOUR STASH`, 'good'); cb.changed(); }
+      if (cb.actions.buy?.(s.item)) { flash = { buy: s.item }; cb.notice(`BOUGHT ${(d?.label ?? s.item).toUpperCase()} · IN YOUR STASH`, 'good'); cb.changed(); }
       else cb.notice('THE BROKER WILL NOT PART WITH IT', 'danger');
     });
     card.append(buy);
@@ -98,7 +101,7 @@ export function marketScreen(p: ProfileView, cb: MarketCallbacks): HTMLElement {
     one.dataset.sell = String(i); all.dataset.sellAll = String(i);
     const sell = (n: number) => {
       const paid = cb.actions.sell?.('stash', i, n) ?? 0;
-      if (paid > 0) { cb.notice(`+${paid} DNA`, 'good'); cb.changed(); } else cb.notice('NOTHING SOLD', 'danger');
+      if (paid > 0) { flash = { paid }; cb.notice(`+${paid} DNA`, 'good'); cb.changed(); } else cb.notice('NOTHING SOLD', 'danger');
     };
     one.addEventListener('click', () => sell(1));
     all.addEventListener('click', () => sell(st.count));
@@ -107,7 +110,8 @@ export function marketScreen(p: ProfileView, cb: MarketCallbacks): HTMLElement {
   });
   if (!p.stash.length) list.innerHTML = '<li class="none">Your stash is empty</li>';
   right.append(list);
-  right.insertAdjacentHTML('beforeend', `<div class="cap"><span>STASH SELLS FOR</span><b>${total.toLocaleString('en-US')} DNA</b></div>`);
+  right.insertAdjacentHTML('beforeend', `<div class="cap"><span>STASH SELLS FOR</span><b>${total.toLocaleString('en-US')} DNA</b>${flash.paid ? `<i class="paid">+${flash.paid} DNA</i>` : ''}</div>`);
+  flash = {};
 
   const go = cta('STASH & LOADOUT', 'NEXT: PACK YOUR CAVITIES');
   go.addEventListener('click', () => cb.next());

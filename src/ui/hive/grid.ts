@@ -119,7 +119,9 @@ export class GridView {
       + src.items.map((pl, i) => {
         const [w, hh] = footprint(pl);
         const d = itemOf(pl.item);
-        return `<div class="item k-${d?.kind ?? 'tech'}" data-zone="${src.zone}" data-item="${esc(pl.item)}" data-index="${i}"
+        const land = landed && landed.zone === src.zone && landed.x === pl.x && landed.y === pl.y;
+        if (land) landed = null;
+        return `<div class="item k-${d?.kind ?? 'tech'}${land ? ' landed' : ''}" data-zone="${src.zone}" data-item="${esc(pl.item)}" data-index="${i}"
           style="--x:${pl.x};--y:${pl.y};--w:${w};--h:${hh};--kc:${KIND_COLOUR[d?.kind ?? 'tech']}">${itemIcon(pl.item, pl.rotated)}${pl.count > 1 ? `<b class="n">${pl.count}</b>` : ''}</div>`;
       }).join('');
   }
@@ -141,6 +143,13 @@ export class GridView {
   }
 }
 
+/**
+ * Where the last drop landed (zone and cell). Screens rebuild their grids after a move, so the next render of that
+ * zone marks the item there, and it settles in with a small bounce instead of just appearing.
+ */
+let landed: { zone: string; x: number; y: number } | null = null;
+export function markLanded(zone: string, x: number, y: number): void { landed = { zone, x, y }; }
+
 /** Shared drag state, ghost and tooltip for every GridView on screen. */
 export class DragLayer {
   private grids: GridView[] = [];
@@ -148,6 +157,8 @@ export class DragLayer {
   private tip = h('div', 'item-tip');
   private drag: { from: GridView; index: number; pl: Placed; rotated: boolean; grabX: number; grabY: number } | null = null;
   private lastPt = { x: 0, y: 0 };
+  /** Ghost tilt in degrees: it leans into the direction it is dragged and settles back. */
+  private tilt = 0;
 
   constructor(private root: HTMLElement, private handlers: GridHandlers) {
     root.append(this.ghost, this.tip);
@@ -225,11 +236,13 @@ export class DragLayer {
   }
 
   private onMove = (e: PointerEvent) => {
+    const dx = e.clientX - this.lastPt.x;
     this.lastPt = { x: e.clientX, y: e.clientY };
     if (!this.drag) return;
     const rr = this.root.getBoundingClientRect();
     const gw = this.ghost.offsetWidth, gh = this.ghost.offsetHeight;
-    this.ghost.style.transform = `translate(${e.clientX - rr.left - this.drag.grabX * gw}px, ${e.clientY - rr.top - this.drag.grabY * gh}px)`;
+    this.tilt = Math.max(-9, Math.min(9, this.tilt * 0.7 + dx * 0.35));
+    this.ghost.style.transform = `translate(${e.clientX - rr.left - this.drag.grabX * gw}px, ${e.clientY - rr.top - this.drag.grabY * gh}px) rotate(${this.tilt.toFixed(2)}deg) scale(1.06)`;
     for (const g of this.grids) g.showHint(0, 0, 0, 0, null);
     const t = this.target(e.clientX, e.clientY);
     if (!t) return;
@@ -244,11 +257,13 @@ export class DragLayer {
     this.cancel();
     if (!t) { this.handlers.outside?.({ zone: d.from.src.zone, index: d.index }, e.clientX, e.clientY); return; }
     if (t.grid === d.from && t.x === d.pl.x && t.y === d.pl.y && d.rotated === d.pl.rotated) return;
+    markLanded(t.grid.src.zone, t.x, t.y);
     this.handlers.drop({ zone: d.from.src.zone, index: d.index }, { zone: t.grid.src.zone, x: t.x, y: t.y, rotated: d.rotated });
   };
 
   private cancel(): void {
     this.drag = null;
+    this.tilt = 0;
     this.ghost.classList.remove('on');
     for (const g of this.grids) { g.showHint(0, 0, 0, 0, null); g.el.querySelectorAll('.lifted').forEach((x) => x.classList.remove('lifted')); }
   }

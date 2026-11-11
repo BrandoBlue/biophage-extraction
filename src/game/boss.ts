@@ -49,7 +49,6 @@ export class RaidBoss {
   pinned = 0;
   private pinBreak = 0;
   private rings: { x: number; z: number; r: number; speed: number; max: number; damage: number; height: number; hit: boolean }[] = [];
-  harvested = false;
   private readonly spot = new THREE.Vector3();
 
   constructor(readonly arena: ArenaInfo, scene?: THREE.Object3D, seed = 7, readonly ground: (x: number, z: number) => number = () => arena.floorY, readonly id = 'reliquary') {

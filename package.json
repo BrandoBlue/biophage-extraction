@@ -10,14 +10,16 @@
     "smoke": "node tests/smoke.mjs",
     "lookdev": "node tests/lookdev.mjs",
     "lookdev:player": "node tests/playerview.mjs",
-    "check": "npm run release && npm test && npm run smoke && npm run smoke:release && npm run budget && npm run smoke:raid && npm run smoke:creatures && npm run smoke:raid:release",
+    "check": "npm run release && npm test && npm run smoke && npm run smoke:release && npm run budget && npm run smoke:raid && npm run smoke:creatures && npm run smoke:raid:release && npm run smoke:raid:hive && npm run smoke:raid:hive:release",
     "release": "npm run build && node scripts/bundle-single.mjs",
     "smoke:release": "node tests/smoke.mjs --release",
     "budget": "node tests/budget.mjs",
     "smoke:raid": "node tests/raid.mjs",
     "smoke:raid:release": "node tests/raid.mjs --release",
     "mocks": "node tests/ui-mocks.mjs",
-    "smoke:creatures": "node tests/creatures.mjs"
+    "smoke:creatures": "node tests/creatures.mjs",
+    "smoke:raid:hive": "node tests/raid.mjs --hive",
+    "smoke:raid:hive:release": "node tests/raid.mjs --hive --release"
   },
   "repository": {
     "type": "git",
@@ -31,8 +33,6 @@
   },
   "homepage": "https://github.com/BrandoBlue/biophage-extraction#readme",
   "devDependencies": {
-    "@fontsource/chakra-petch": "^5.3.0",
-    "@fontsource/rajdhani": "^5.3.0",
     "@types/three": "^0.187.0",
     "playwright": "^1.63.0",
     "typescript": "^5.9.3",
@@ -40,6 +40,8 @@
     "vitest": "^3.2.7"
   },
   "dependencies": {
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "@fontsource/manrope": "^5.3.0",
     "three": "^0.187.0"
   },
   "private": true,
