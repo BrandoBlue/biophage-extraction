@@ -295,6 +295,8 @@ export interface Zone7Sites {
   ridges: { id: string; points: [number, number][]; height: number; halfWidth: number; passes: [number, number][] }[];
   valleys: { id: string; points: [number, number][]; depth: number; halfWidth: number }[];
   caves: CaveSpec[];
+  trails: string[][];
+  outcrops: { clusters: number; spacing: number; rocks: [number, number]; size: [number, number] };
   dropIn: { height: number; fallSpeed: number };
 }
 /** A domed cave chamber with side tunnels (World & Level); angles are local degrees, 180 = the main mouth. */
