@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import type { ClassId } from '../../data';
-import { HIVE, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
+import { HIVE, ORGANIC, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { alienEye, bioNode, chitin, livingFlesh, membrane } from '../render/materials';
-import { blade, horn, merge, plate, rng, spike, taperTube, wing } from './parts';
+import { blade, horn, merge, plate, rng, roughen, spike, taperTube, wing } from './parts';
 import { meshSdf, type SdfPrim } from './sdf';
 
 /**
@@ -58,18 +58,19 @@ const BUILDS: Record<ClassId, Build> = {
       r: { pelvis: 0.12, waist: 0.06, chest: [0.15, 0.18, 0.12], arm: 0.034, fore: 0.028, thigh: 0.055, shin: 0.034 },
       cranium: [0.11, 0.12, 0.2],
     },
-    skin: { base: mix(HIVE.bone, HIVE.panel, 0.5), vein: HIVE.acid, rim: HIVE.acid }, bone: HIVE.bone, glow: HIVE.acid,
+    skin: { base: mix(mix(HIVE.panel, ZONE7_SHADE.rockDeep, 0.35), HIVE.bone, 0.3), vein: HIVE.acid, rim: mix(HIVE.bone, HIVE.acid, 0.25) }, bone: mix(HIVE.bone, HIVE.panel, 0.35), glow: HIVE.acid,
   },
   // Reference 02, right: hunched mass, head slung low between huge shoulders, long heavy arms.
   goreBehemoth: {
     frame: {
-      hips: [0, 0.95, -0.12], waist: [0, 1.12, 0.02], chest: [0, 1.36, 0.22], neck: [0, 1.5, 0.42], head: [0, 1.5, 0.55],
-      shoulder: [0.42, 1.58, 0.18], elbow: [0.6, 1.08, 0.28], wrist: [0.58, 0.55, 0.42],
-      hip: [0.2, 0.95, -0.12], knee: [0.3, 0.58, 0.18], hock: [0.28, 0.24, -0.1], foot: [0.3, 0.04, 0.06],
-      r: { pelvis: 0.3, waist: 0.28, chest: [0.46, 0.38, 0.36], arm: 0.15, fore: 0.13, thigh: 0.18, shin: 0.12 },
-      cranium: [0.13, 0.13, 0.16],
+      hips: [0, 0.92, -0.1], waist: [0, 1.1, 0.0], chest: [0, 1.38, 0.14], neck: [0, 1.52, 0.34], head: [0, 1.47, 0.47],
+      shoulder: [0.4, 1.58, 0.1], elbow: [0.56, 1.13, 0.2], wrist: [0.55, 0.68, 0.36],
+      hip: [0.19, 0.92, -0.1], knee: [0.27, 0.56, 0.14], hock: [0.25, 0.24, -0.08], foot: [0.27, 0.04, 0.06],
+      r: { pelvis: 0.26, waist: 0.21, chest: [0.37, 0.3, 0.26], arm: 0.13, fore: 0.12, thigh: 0.16, shin: 0.11 },
+      cranium: [0.11, 0.1, 0.13],
     },
-    skin: { base: mix(HIVE.danger, ZONE7_SHADE.flesh, 0.6), vein: PATH.melee, rim: HIVE.danger }, bone: HIVE.bone, glow: PATH.melee,
+    // Raw dark muscle, not a red balloon: the bone does the talking.
+    skin: { base: mix(ORGANIC.wetFleshDeep, HIVE.danger, 0.18), vein: ORGANIC.amber, rim: HIVE.bone }, bone: mix(HIVE.bone, ZONE7_SHADE.rockDeep, 0.25), glow: PATH.melee,
   },
 };
 
@@ -90,7 +91,21 @@ function bodyPrims(f: Frame): SdfPrim[] {
     { shape: 'ellipsoid', a: T(f.head).add(V(0, 0.12, -0.17)), radii: V(f.cranium[0] * 0.9, f.cranium[1] * 0.85, f.cranium[2] * 0.75), blend: 0.05, bone: 0 },
     { shape: 'ellipsoid', a: T(f.head).add(V(0, -0.04, 0.06)), radii: V(f.cranium[0] * 0.42, f.cranium[1] * 0.35, f.cranium[2] * 0.4), blend: 0.04, bone: 0, tint: new THREE.Color(0.65, 0.65, 0.65) },
   ];
-  if (hump) prims.push({ shape: 'ellipsoid', a: T(f.chest).add(V(0, 0.2, -0.12)), radii: V(r.chest[0] * 0.8, r.chest[1] * 0.6, r.chest[2] * 0.7), blend: 0.12, bone: 0 });
+  if (hump) {
+    // Heavy build: a hunched trapezius yoke, pectorals, lats, a jaw and fists, so the mass reads as muscle.
+    const ch = T(f.chest), hd = T(f.head);
+    prims.push({ shape: 'ellipsoid', a: ch.clone().add(V(0, 0.2, -0.1)), radii: V(r.chest[0] * 0.75, r.chest[1] * 0.55, r.chest[2] * 0.7), blend: 0.1, bone: 0 });
+    for (const s of [-1, 1]) {
+      const sh = T(f.shoulder, s), wr = T(f.wrist, s);
+      prims.push(
+        { shape: 'cone', a: T(f.neck).add(V(s * 0.06, -0.02, -0.08)), b: sh.clone().add(V(-s * 0.06, 0.06, -0.04)), ra: 0.13, rb: 0.15, blend: 0.08, bone: 0 },
+        { shape: 'ellipsoid', a: ch.clone().add(V(s * 0.17, 0.04, r.chest[2] * 0.62)), radii: V(0.17, 0.12, 0.09), blend: 0.05, bone: 0 },
+        { shape: 'ellipsoid', a: ch.clone().add(V(s * 0.27, -0.14, -0.06)), radii: V(0.11, 0.2, 0.15), blend: 0.06, bone: 0 },
+        { shape: 'ellipsoid', a: wr.clone().add(V(0, -0.1, 0.04)), radii: V(r.fore * 1.0, r.fore * 0.95, r.fore * 1.15), blend: 0.04, bone: 0 },
+      );
+    }
+    prims.push({ shape: 'ellipsoid', a: hd.clone().add(V(0, -0.08, 0.05)), radii: V(0.12, 0.065, 0.11), blend: 0.04, bone: 0, tint: new THREE.Color(0.7, 0.62, 0.62) });
+  }
   for (const s of [-1, 1]) {
     const sh = T(f.shoulder, s), el = T(f.elbow, s), wr = T(f.wrist, s), hip = T(f.hip, s), kn = T(f.knee, s), hock = T(f.hock, s), ft = T(f.foot, s);
     prims.push(
@@ -143,7 +158,14 @@ export class HostBody {
 
     // Eyes: large glossy almonds on the Infiltrator, narrow slits on the others.
     const eyeMat = alienEye(hex(new THREE.Color(b.glow).multiplyScalar(0.6)), mix(HIVE.background, HIVE.panel, 0.6));
-    for (const s of [-1, 1]) {
+    if (big) for (const s of [-1, 1]) for (let i = 0; i < 2; i++) {
+      const e = new THREE.Mesh(new THREE.SphereGeometry(0.018 - i * 0.004, 14, 10), eyeMat);
+      e.scale.set(1.3, 0.6, 0.8);
+      e.position.copy(head).add(V(s * (0.05 + i * 0.035), 0.03 + i * 0.025, f.cranium[2] * 0.82 - i * 0.03));
+      e.rotation.set(0, Math.PI + s * 0.5, 0);
+      this.root.add(e);
+    }
+    if (!big) for (const s of [-1, 1]) {
       const e = new THREE.Mesh(new THREE.SphereGeometry(0.04, 20, 14), eyeMat);
       e.scale.set(1.35, classId === 'neuroInfiltrator' ? 0.85 : 0.4, 0.75);
       e.position.copy(head).add(V(0.062 * s, 0.03, f.cranium[2] * 0.42));
@@ -155,9 +177,9 @@ export class HostBody {
     const claws: THREE.BufferGeometry[] = [];
     for (const s of [-1, 1]) {
       const wr = T(f.wrist, s);
-      const len = big ? 0.22 : 0.16;
+      const len = big ? 0.26 : 0.16;
       for (let i = 0; i < 3; i++) {
-        claws.push(spike(len, f.r.fore * 0.32, 0.45).rotateX(Math.PI * 0.85).rotateZ(s * (i - 1) * 0.28).translate(wr.x + s * (i - 1) * f.r.fore * 0.6, wr.y - 0.05, wr.z + 0.02));
+        claws.push(spike(len, f.r.fore * (big ? 0.38 : 0.32), 0.45).rotateX(Math.PI * 0.85).rotateZ(s * (i - 1) * 0.28).translate(wr.x + s * (i - 1) * f.r.fore * 0.6, wr.y - 0.05, wr.z + 0.02));
       }
     }
     this.root.add(new THREE.Mesh(merge(claws), bone));
@@ -170,11 +192,11 @@ export class HostBody {
 
     // Spine ridge of small bone plates down the back.
     const spine: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < (big ? 0 : 7); i++) {
       const p = T(f.hips).lerp(T(f.neck), i / 6);
       spine.push(spike(big ? 0.12 : 0.05, big ? 0.04 : 0.014, 0.3).rotateX(-1.1).translate(p.x, p.y, p.z - (i < 4 ? f.r.waist + 0.01 : f.r.chest[2] * 0.9)));
     }
-    this.root.add(new THREE.Mesh(merge(spine), bone));
+    if (spine.length) this.root.add(new THREE.Mesh(merge(spine), bone));
 
     if (classId === 'neuroInfiltrator' || classId === 'venomWraith') {
       // Antennae rising from the crown.
@@ -193,15 +215,34 @@ export class HostBody {
       }
     }
     if (classId === 'venomWraith') {
+      // A segmented wasp abdomen curling down behind the hips to a venom stinger, and mandibles.
+      const hp = T(f.hips);
+      const pts = [hp.clone().add(V(0, 0.02, -0.08)), hp.clone().add(V(0, -0.06, -0.3)), hp.clone().add(V(0, -0.24, -0.44)), hp.clone().add(V(0, -0.46, -0.42)), hp.clone().add(V(0, -0.6, -0.3))];
+      const radii = [0.05, 0.11, 0.1, 0.07, 0.03];
+      const tube = taperTube(pts, radii, 10, 6);
+      // This curl's Frenet frame comes out mirrored, so the tube's normals point inward: flip them.
+      const nrm = tube.attributes.normal;
+      for (let i = 0; i < nrm.count; i++) nrm.setXYZ(i, -nrm.getX(i), -nrm.getY(i), -nrm.getZ(i));
+      const abd: THREE.BufferGeometry[] = [tube];
+      for (let i = 1; i < 6; i++) {
+        // Segment rims along the abdomen.
+        const c = new THREE.CatmullRomCurve3(pts), t = i / 6.5, p = c.getPointAt(t), d = c.getTangentAt(t);
+        const fi = t * 4, k = Math.min(3, Math.floor(fi)), r = (radii[k] + (radii[k + 1] - radii[k]) * (fi - k)) * 1.02;
+        abd.push(new THREE.TorusGeometry(r, 0.008, 5, 18).applyMatrix4(new THREE.Matrix4().compose(p, new THREE.Quaternion().setFromUnitVectors(V(0, 0, 1), d), V(1, 1, 1))));
+      }
+      const tip = new THREE.CatmullRomCurve3(pts).getTangentAt(1);
+      abd.push(spike(0.16, 0.026, 0.15).applyMatrix4(new THREE.Matrix4().compose(pts[4], new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), tip), V(1, 1, 1))));
+      for (const s of [-1, 1]) abd.push(spike(0.07, 0.012, 0.8).rotateX(Math.PI * 0.6).rotateZ(-s * 0.4).translate(head.x + s * 0.03, head.y - 0.07, head.z + f.cranium[2] * 0.55));
+      this.root.add(new THREE.Mesh(merge(abd), bone));
       // Blade forearms and four insect wings.
       for (const s of [-1, 1]) {
         const el = T(f.elbow, s);
-        const bl = new THREE.Mesh(blade(0.6, 0.08, 0.012), bone);
+        const bl = new THREE.Mesh(blade(0.72, 0.1, 0.014), bone);
         bl.position.copy(el);
         bl.rotation.set(Math.PI * 0.95, s * 0.15, s * 0.05);
         this.root.add(bl);
         for (let i = 0; i < 2; i++) {
-          const w = new THREE.Mesh(wing(0.95 - i * 0.22, 0.3, rand, 1 + i), membrane(mix(HIVE.bone, HIVE.acid, 0.3), 0.28));
+          const w = new THREE.Mesh(wing(1.05 - i * 0.25, 0.32, rand, 1 + i), membrane(mix(HIVE.bone, HIVE.acid, 0.3), 0.4));
           const g = new THREE.Group();
           g.position.copy(T(f.chest, s)).add(V(0.06 * s, 0.1 - i * 0.12, -f.r.chest[2] * 0.8));
           w.rotation.set(0, s < 0 ? Math.PI : 0, 0);
@@ -213,40 +254,52 @@ export class HostBody {
       }
     }
     if (classId === 'goreBehemoth') {
-      // Bone crown on the slung head, shoulder plates, spikes and a ridge of bone along the hump.
+      // Reference 02, right: ivory bone breaking through raw muscle. Thick horns, not hairline spikes.
       const bones: THREE.BufferGeometry[] = [];
-      for (let i = 0; i < 7; i++) {
-        const a = (i / 6 - 0.5) * 2.4;
-        bones.push(horn(0.32 + (i % 2) * 0.14, 0.05, 0.7, rand).rotateX(-0.6).rotateZ(a * 0.7).translate(head.x + Math.sin(a) * 0.13, head.y + 0.1, head.z - 0.06 + Math.cos(a) * 0.03));
-      }
-      for (const s of [-1, 1]) {
-        const sh = T(f.shoulder, s);
-        for (let i = 0; i < 5; i++) {
-          bones.push(spike(0.5 + i * 0.08, 0.11, 0.35).rotateZ(-s * (0.4 + i * 0.25)).rotateX(-0.4 - i * 0.1).translate(sh.x - s * i * 0.07, sh.y + 0.2 + i * 0.02, sh.z - 0.05 - i * 0.09));
-        }
-        const el = T(f.elbow, s);
-        for (let i = 0; i < 3; i++) bones.push(spike(0.3, 0.07, 0.2).rotateZ(-s * 1.4).rotateX(-0.6).translate(el.x + s * 0.17, el.y + 0.1 - i * 0.14, el.z - 0.1));
-      }
-      for (let i = 0; i < 6; i++) {
-        const p = T(f.hips).lerp(T(f.chest).add(V(0, 0.32, -0.15)), i / 5);
-        bones.push(horn(0.5 + (i % 2) * 0.18, 0.1, 0.5, rand).rotateX(-1.0).translate(p.x, p.y + 0.25, p.z - 0.42));
-      }
-      // Ivory armour plates: pauldrons, the hump and the forearms (reference 02's bone shell).
       const up = V(0, 1, 0), q = new THREE.Quaternion(), m = new THREE.Matrix4();
-      const plateAt = (at: THREE.Vector3, normal: THREE.Vector3, w: number, l: number, h: number) => {
+      const at = (g: THREE.BufferGeometry, p: THREE.Vector3, dir: THREE.Vector3) => {
+        q.setFromUnitVectors(up, dir.clone().normalize());
+        bones.push(g.applyMatrix4(m.compose(p, q, V(1, 1, 1))));
+      };
+      // A low crown of five swept horns on the slung head.
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 4 - 0.5) * 2.0;
+        at(horn(0.28 + (i % 2 ? 0 : 0.1) + (i === 2 ? 0.08 : 0), 0.045, 0.5, rand), head.clone().add(V(Math.sin(a) * 0.08, 0.07, -0.02 + Math.cos(a) * 0.02)), V(Math.sin(a) * 0.8, 1, -0.8));
+      }
+      // Mandible tusks curving forward and down from the jaw corners.
+      for (const s of [-1, 1]) at(spike(0.16, 0.025, 0.6), head.clone().add(V(s * 0.08, -0.1, 0.1)), V(s * 0.3, -0.5, 1));
+      for (const s of [-1, 1]) {
+        const sh = T(f.shoulder, s), el = T(f.elbow, s), wr = T(f.wrist, s);
+        // Three thick shoulder horns, an elbow spur, knuckle studs.
+        for (let i = 0; i < 3; i++) at(horn(0.42 + i * 0.1, 0.075 - i * 0.01, 0.4, rand).rotateY(s < 0 ? Math.PI : 0), sh.clone().add(V(s * (0.02 - i * 0.06), 0.16 + i * 0.03, -0.04 - i * 0.08)), V(s * (0.6 - i * 0.15), 1, -0.4 - i * 0.2));
+        at(spike(0.24, 0.05, 0.3), el.clone().add(V(s * 0.05, 0.02, -0.12)), V(s * 0.3, 0.2, -1));
+        for (let i = 0; i < 3; i++) at(spike(0.07, 0.025, 0.1), wr.clone().add(V(s * (i - 1) * 0.06, -0.12, 0.17)), V(0, -0.2, 1));
+        // Ribs breaking through the flank.
+        for (let i = 0; i < 3; i++) {
+          const y = T(f.chest).y - 0.08 - i * 0.09, x = s * (f.r.chest[0] * 0.9 - i * 0.015), z = T(f.chest).z;
+          bones.push(taperTube([V(x * 0.85, y + 0.02, z - 0.2), V(x * 1.04, y, z - 0.03), V(x * 0.98, y - 0.02, z + 0.12), V(x * 0.7, y - 0.03, z + 0.22)], [0.022, 0.024, 0.02, 0.012], 6, 3));
+        }
+      }
+      // Bone knobs along the hump.
+      for (let i = 0; i < 5; i++) {
+        const p = T(f.waist).lerp(T(f.neck), i / 4).add(V(0, 0.12 + Math.sin((i / 4) * Math.PI) * 0.12, -0.27 - Math.sin((i / 4) * Math.PI) * 0.08));
+        at(horn(0.16 + (i % 2) * 0.06, 0.05, 0.3, rand), p, V(0, 1, -1.2));
+      }
+      // Ivory armour plates: pauldrons, forearm guards and the hump (reference 02's bone shell).
+      const plateAt = (p: THREE.Vector3, normal: THREE.Vector3, w: number, l: number, h: number) => {
         q.setFromUnitVectors(up, normal.clone().normalize());
-        bones.push(plate(w, l, h, rand, 0.5).applyMatrix4(m.compose(at, q, V(1, 1, 1))));
+        bones.push(plate(w, l, h, rand, 0.5).applyMatrix4(m.compose(p, q, V(1, 1, 1))));
       };
       for (const s of [-1, 1]) {
-        const sh = T(f.shoulder, s);
-        plateAt(sh.clone().add(V(s * 0.06, 0.2, -0.02)), V(s * 0.5, 1, -0.1), 0.3, 0.32, 0.12);
-        plateAt(sh.clone().add(V(s * 0.2, 0.02, 0)), V(s, 0.35, 0), 0.22, 0.26, 0.1);
-        const el = T(f.elbow, s), wr = T(f.wrist, s);
-        plateAt(el.clone().lerp(wr, 0.4).add(V(s * 0.12, 0, -0.04)), V(s, 0.1, -0.3), 0.14, 0.26, 0.08);
+        const sh = T(f.shoulder, s), el = T(f.elbow, s), wr = T(f.wrist, s);
+        plateAt(sh.clone().add(V(s * 0.05, 0.14, -0.02)), V(s * 0.5, 1, -0.1), 0.2, 0.22, 0.09);
+        plateAt(sh.clone().add(V(s * 0.15, 0.0, 0)), V(s, 0.35, 0), 0.15, 0.18, 0.07);
+        plateAt(el.clone().lerp(wr, 0.45).add(V(s * 0.1, 0, -0.03)), V(s, 0.1, -0.3), 0.11, 0.2, 0.06);
+        plateAt(wr.clone().add(V(0, -0.04, 0.12)), V(0, 0.4, 1), 0.12, 0.1, 0.05);
       }
       const ch = T(f.chest);
-      for (let i = 0; i < 4; i++) plateAt(ch.clone().add(V(0, 0.32 - i * 0.18, -0.36 - i * 0.02)), V(0, 0.8 - i * 0.3, -1), 0.34 - i * 0.03, 0.22, 0.1);
-      this.root.add(new THREE.Mesh(merge(bones), chitin(HIVE.bone, hex(new THREE.Color(PATH.melee).multiplyScalar(0.3)), 6)));
+      for (let i = 0; i < 3; i++) plateAt(ch.clone().add(V(0, 0.27 - i * 0.16, -0.31 - i * 0.02)), V(0, 0.8 - i * 0.3, -1), 0.26 - i * 0.03, 0.17, 0.08);
+      this.root.add(new THREE.Mesh(roughen(merge(bones), 0.006, 30, 4), chitin(b.bone, hex(new THREE.Color(PATH.melee).multiplyScalar(0.08)), 6)));
     }
     this.root.traverse((o) => { (o as THREE.Mesh).castShadow = true; });
     // Stand exactly on y = 0 whatever the frame's feet do.
