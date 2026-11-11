@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ZONE7, ZONE7_SHADE, HIVE } from './palette';
+import { ZONE7, ZONE7_SHADE, HIVE, ORGANIC } from './palette';
 
 /**
  * Bio-material library for BIOPHAGE. Every surface is code-generated: procedural GLSL injected into
@@ -15,8 +15,8 @@ export const bioTime = { value: 0 };
  * `bioGlow` and pulled toward its own luminance by `1 - bioSat`, so bioluminescence reads as an organic
  * accent on lit surfaces rather than neon. Presets may tune these; departments should not bypass them.
  */
-export const bioGlow = { value: 0.5 };
-export const bioSat = { value: 0.8 };
+export const bioGlow = { value: 0.32 };
+export const bioSat = { value: 0.55 };
 
 export const GLSL_NOISE = /* glsl */ `
 // BIO_LOW (software tier) trims octaves and cell taps: SwiftShader JIT time scales with shader size.
@@ -116,8 +116,9 @@ export function zoneRock(opts: { veinColour?: string; mossColour?: string; scale
     uniforms: {
       uRock: u(ZONE7_SHADE.rock), uDeep: u(ZONE7_SHADE.rockDeep), uMoss: u(ZONE7_SHADE.moss),
       uVein: u(opts.veinColour ?? ZONE7.cyan), uMossGlow: u(opts.mossColour ?? ZONE7.lime), uScale: { value: opts.scale ?? 1 },
+      uGrowth: u(ORGANIC.wetFlesh), uBone: u(HIVE.bone),
     },
-    declarations: 'uniform vec3 uRock, uDeep, uMoss, uVein, uMossGlow; uniform float uScale;\n',
+    declarations: 'uniform vec3 uRock, uDeep, uMoss, uVein, uMossGlow, uGrowth, uBone; uniform float uScale;\n',
     fragment: /* glsl */ `
       vec3 p = vBioWorld * 0.18 * uScale;
       float strata = bioFbm(p * vec3(1.0, 3.5, 1.0));
@@ -140,9 +141,20 @@ export function zoneRock(opts: { veinColour?: string; mossColour?: string; scale
       float specks = (1.0 - smoothstep(0.02, 0.12, bioCells(vBioWorld * 1.6))) * mossMask;
       // Wet sheen: moss reads glossy and catches a teal rim at grazing angles.
       float fres = pow(1.0 - abs(dot(normalize(vBioNormal), normalize(cameraPosition - vBioWorld))), 3.0);
+      // Strange growths (what makes Zone 7 ours): ribbed, pitted flesh nodules erupt from the stone in colonies, and
+      // pale bone fragments are fossilised into it, like the ground is half skeleton, half tumour.
+      float growthMask = smoothstep(0.64, 0.8, bioFbm(p * 0.9 + 21.0)) * (1.0 - mossMask * 0.6);
+      float ribs = 0.5 + 0.5 * sin(bioFbm(p * 2.0 + 5.0) * 34.0);
+      float pits = 1.0 - smoothstep(0.05, 0.14, bioCells(vBioWorld * 3.2 * uScale));
+      vec3 growth = mix(uGrowth * 0.35, uGrowth * 0.8, ribs) * (1.0 - pits * growthMask * 0.65);
+      col = mix(col, growth, growthMask);
+      float bone = (1.0 - smoothstep(0.035, 0.08, bioCells(vBioWorld * 0.8 * uScale + 13.0))) * (1.0 - growthMask) * (1.0 - mossMask);
+      col = mix(col, uBone * 0.5, bone * 0.75);
+      roughnessFactor = mix(roughnessFactor, 0.25, growthMask * (1.0 - pits)); // growths read wet
       // Relief: strata, grain and gravel tilt the shading normal; moss sits softer. Hollows darken (cheap cavity AO).
       float gravel = bioNoise(vBioWorld * 9.0 * uScale);
-      float relief = strata * 0.5 + grain * 0.35 + gravel * 0.08 - mossMask * colony * 0.2;
+      float relief = strata * 0.5 + grain * 0.35 + gravel * 0.08 - mossMask * colony * 0.2
+        + growthMask * (0.45 + ribs * 0.2) - pits * growthMask * 0.35 + bone * 0.25;
       BIO_BUMP(relief, 0.14);
       col *= (0.72 + 0.28 * smoothstep(0.2, 0.9, relief)) * (0.94 + gravel * 0.12);
       diffuseColor.rgb = col;
@@ -180,7 +192,7 @@ export function fungusCap(glow: string = ZONE7.cyan): THREE.MeshPhysicalMaterial
       float mottling = bioFbm(vBioLocal * 4.0 + vBioSeed);
       float breathe = 0.8 + 0.2 * sin(bioTime * 1.7 + vBioSeed.x * 3.0);
       // Caps are lit flesh tinted by their colony colour; only spots, the lip and the gills glow.
-      vec3 capTint = mix(uFlesh, glowCol * 0.35, 0.3);
+      vec3 capTint = mix(uFlesh, glowCol * 0.35, 0.12);
       diffuseColor.rgb = mix(capTint * (0.45 + mottling * 0.8), mix(uFlesh, glowCol, 0.25) * (0.5 + 0.3 * gills), under);
       vec3 topGlow = glowCol * (spots * 0.9 + rim * 0.45 + mottling * 0.02);
       // Gills: a soft inner light that gathers toward the stem, ridges barely brighter than the hollows.
