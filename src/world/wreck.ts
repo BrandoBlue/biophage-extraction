@@ -85,16 +85,16 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
   const moon = new THREE.DirectionalLight(ORGANIC.mist, 1.2);
   moon.position.set(80, 120, 40);
   scene.add(moon);
-  const ground = new THREE.Mesh(new THREE.CircleGeometry(260, 64).rotateX(-Math.PI / 2), zoneRock({ veinColour: ZONE7.violet, mossColour: ZONE7.cyan, scale: 1.2 }));
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(260, 64).rotateX(-Math.PI / 2), zoneRock({ veinColour: ORGANIC.vein, mossColour: ZONE7_SHADE.moss, scale: 1.2 }));
   ground.position.y = -0.02;
   ground.name = 'ground';
   scene.add(ground);
 
   const k = new Kit(SOLIDS, 0, 0, 0, 0);
   k.group.name = 'long-seed-wreck';
-  const hull = grownWall({ base: ZONE7_SHADE.stem, seam: ZONE7_SHADE.rockDeep, vein: ZONE7.cyan, plate: 2.2 });
+  const hull = grownWall({ base: ZONE7_SHADE.stem, seam: ZONE7_SHADE.rockDeep, vein: ORGANIC.vein, plate: 2.2 });
   const deckMat = grownWall({ base: ZONE7_SHADE.rockDeep, seam: '#000000', vein: ORGANIC.amber, plate: 1.4 });
-  const bone = oldBone(ZONE7.cyan, 0.2);
+  const bone = oldBone(ORGANIC.mist, 0.2);
   const crateMat = oldBone(ORGANIC.amber, 0.15);
   const strip = bioNode(ORGANIC.amber, 0.6);
   const tankGlass = membrane(HIVE.acid, 0.22);
@@ -224,11 +224,11 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
 
   // ---- Reactor chamber: the cold core, a catwalk ring at deck height with four coolant valves, ramps up.
   const re = WRECK.reactor;
-  const core = new THREE.Mesh(new THREE.CylinderGeometry(re.coreRadius, re.coreRadius * 1.2, H - 1, 28, 6, true), oldBone(ZONE7.cyan, 0.35));
+  const core = new THREE.Mesh(new THREE.CylinderGeometry(re.coreRadius, re.coreRadius * 1.2, H - 1, 28, 6, true), oldBone(ORGANIC.mist, 0.35));
   core.position.set(re.x, (H - 1) / 2, re.z);
   k.group.add(core);
   k.solids.add({ cx: re.x, cz: re.z, hx: re.coreRadius, hz: re.coreRadius, yaw: 0, y0: 0, y1: H, tag: 'reactor-core' });
-  const coreGlow = new THREE.Mesh(new THREE.CylinderGeometry(re.coreRadius * 0.7, re.coreRadius * 0.7, H - 2, 20, 1, true), liquidLight({ a: ZONE7_SHADE.rockDeep, b: ZONE7_SHADE.moss, c: ZONE7.cyan, flow: 0.15 }));
+  const coreGlow = new THREE.Mesh(new THREE.CylinderGeometry(re.coreRadius * 0.7, re.coreRadius * 0.7, H - 2, 20, 1, true), liquidLight({ a: ZONE7_SHADE.rockDeep, b: ZONE7_SHADE.moss, c: ORGANIC.mist, flow: 0.15 }));
   coreGlow.position.copy(core.position);
   k.group.add(coreGlow);
   const segs = 16;
@@ -256,7 +256,7 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
   // ---- Escape pod bay: pods in their cradles along the south wall of the reactor room.
   const bay = room('escapePodBay');
   for (let x = bay.x0 + 3; x < bay.x1 - 2; x += 5) {
-    const pod = new THREE.Mesh(new THREE.CapsuleGeometry(1.2, 2.2, 6, 14), oldBone(ZONE7.cyan, 0.25));
+    const pod = new THREE.Mesh(new THREE.CapsuleGeometry(1.2, 2.2, 6, 14), oldBone(ORGANIC.mist, 0.25));
     pod.position.set(x, 1.8, bay.z0 + 2.4);
     pod.rotation.x = 0.25;
     k.group.add(pod);
@@ -276,7 +276,7 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
   for (let i = 0; i < 6; i++) {
     const pts = [new THREE.Vector3(prow.x1 + 8 + rand() * 10, -0.5, (rand() - 0.5) * 30)];
     for (let j = 1; j < 5; j++) pts.push(new THREE.Vector3(pts[0].x - j * (5 + rand() * 4), j < 4 ? 0.2 + rand() * 2.5 : 4 + rand() * 6, pts[0].z + (rand() - 0.5) * 6 * j));
-    k.group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 30, 0.25 + rand() * 0.2, 6), oldBone(ZONE7.cyan, 0.1)));
+    k.group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 30, 0.25 + rand() * 0.2, 6), oldBone(ORGANIC.mist, 0.1)));
   }
 
   // ---- Failing emergency strips along both walls at knee height, broken into flickering runs.
@@ -295,7 +295,7 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
     [(holdA.x0 + holdA.x1) / 2, D + 5, -6, ORGANIC.amber, 60, 34],
     [(holdB.x0 + holdB.x1) / 2, D + 5, 6, ORGANIC.amber, 50, 30],
     [(warrens.x0 + warrens.x1) / 2, 3.2, 0, ORGANIC.amber, 22, 18],
-    [re.x, H - 3, re.z, ZONE7.cyan, 50, 30],
+    [re.x, H - 3, re.z, ORGANIC.mist, 50, 30],
   ] as [number, number, number, string, number, number][]) {
     const l = new THREE.PointLight(colour, power, range, 2);
     l.position.set(x, y, z);
@@ -324,7 +324,7 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
   group.name = 'wreck-sites';
   const rings = new Map<string, THREE.Mesh>();
   for (const e of layout.extracts) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(2.8, 0.08, 6, 48).rotateX(-Math.PI / 2), bioNode(e.opensAt > 0 ? ZONE7.violet : ZONE7.lime, 3));
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(2.8, 0.08, 6, 48).rotateX(-Math.PI / 2), bioNode(e.opensAt > 0 ? ORGANIC.mist : ORGANIC.amber, 2));
     ring.position.set(e.x, 0.06, e.z);
     ring.visible = e.opensAt <= 0;
     rings.set(e.id, ring);
