@@ -11,6 +11,9 @@ import type { BodyPlan, Palette, SpeciesId } from './plan';
  * only from its own stream, so stage N's plan contains stage N-1's plan unchanged plus new ids.
  */
 
+import { titheWeaver } from './hostkin/titheweaver';
+import { huskMimic } from './hostkin/huskmimic';
+import { lumenGrazer } from './hostkin/lumengrazer';
 import { PlanBuilder, V, col, dim, mix, mutate, tint } from './builder';
 
 // ======================================================================= Needlemaw: lamprey × harvestman × comb jelly
@@ -384,7 +387,10 @@ export function mournback(seed: number, stage = 0): BodyPlan {
   return b.plan;
 }
 
-export const SPECIES: Record<SpeciesId, (seed: number, stage?: number) => BodyPlan> = { needlemaw, bilecantor, glasswalker, oculimoth, mournback };
+export const SPECIES: Record<SpeciesId, (seed: number, stage?: number) => BodyPlan> = {
+  needlemaw, bilecantor, glasswalker, oculimoth, mournback,
+  titheWeaver, huskMimic, lumenGrazer,
+};
 export const SPECIES_IDS = Object.keys(SPECIES) as SpeciesId[];
 
 export function planFor(species: SpeciesId, seed: number, stage = 0): BodyPlan {
