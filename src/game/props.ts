@@ -25,6 +25,8 @@ export class BioPod {
   progress = 0;
   /** Items left behind because the cavities were full; the pod can be emptied again. */
   remaining: { item: string; count: number }[] = [];
+  /** A fixed-content interaction (e.g. a boss's harvestable heart) instead of a loot-table container. */
+  fixed: { items: { item: string; count: number }[]; openTime: number; noise: number; verb: string; label: string } | null = null;
   private membrane: THREE.Mesh;
   private contents: THREE.Mesh[] = [];
   private coreMat: THREE.MeshStandardMaterial;

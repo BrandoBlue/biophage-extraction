@@ -289,6 +289,12 @@ export interface Zone7Sites {
   };
   /** Landmark id (Design's zones.json) → the catalogue site it names and its radius in metres. */
   landmarks: Record<string, { site: string; radius: number }>;
+  /** Named areas (world metres): dressing and PvE AI habitats. */
+  areas: { id: string; label: string; tag: string; x: number; z: number; radius: number; dress: string[] }[];
+  ridges: { id: string; points: [number, number][]; height: number; halfWidth: number; passes: [number, number][] }[];
+  valleys: { id: string; points: [number, number][]; depth: number; halfWidth: number }[];
+  caves: { id: string; x: number; z: number; yaw: number; radiusU: number; radiusV: number; height: number }[];
+  dropIn: { height: number; fallSpeed: number };
 }
 /** Site catalogues keyed by zone id (World & Level). */
 export const ZONE_SITES = strip<{ glowmireIsle: Zone7Sites; longSeedWreck: Record<string, unknown> }>(zone7Json);
@@ -489,6 +495,7 @@ export interface Boss {
   size: Record<string, number>; biomass: number;
   arena: Record<string, unknown>;
   dormantUntil: string; songRadius: number; wakeRadius: number; songLoops: boolean;
+  silent?: { footstepNoise: number; note: string };
   weakPoints: Record<string, Record<string, unknown>>;
   phases: BossPhase[];
   enrage: { after: number; effect: string };
@@ -499,6 +506,8 @@ export interface Zone {
   label: string; milestone: string; order: number; pitch: string; look: string;
   size?: Record<string, unknown>; raidTime?: number; threat: Range; access: string;
   structures?: string[]; landmarks?: string[]; creatures?: string[]; nests?: string[]; boss?: string | null;
+  /** Every boss in the zone when it has more than one; `boss` stays the headline boss. */
+  bosses?: string[];
   lootFocus?: string; containers?: Record<string, number>; mechanics?: Record<string, unknown>; extracts?: string; why: string; see?: string;
 }
 
