@@ -5,7 +5,7 @@
  * plus showResults for the debrief.
  */
 import { BUILT_ZONES } from '../world/zones';
-import { CLASSES, MARKET, PROFILE, VENDOR_REP_THRESHOLDS, VENDORS, vendorBuyPrice } from '../../data';
+import { CLASSES, CONTRACTS, HIVE_ORGANS, MARKET, PROFILE, RECIPES, VENDOR_REP_THRESHOLDS, VENDORS, vendorBuyPrice } from '../../data';
 import type { ClassId, VendorId } from '../../data';
 import {
   abandonContract, acceptContract, canVendorBuy, contractById, openVendors, repLevel, repPoints, selectZone, vendorBuy, vendorContracts, vendorSell, vendorStock, zoneList,
@@ -15,8 +15,12 @@ import {
   buy, canBuy, expandStash, marketStock, marketWindow, nextStashRowCost, placeAt, pouchUpgradeCost, sell, sellPrice, stashGrid, upgradePouch,
   type Profile,
 } from '../game/profile';
+import {
+  canGrowOrgan, canStartRecipe, collectGarden, collectVat, gardenStored, growOrgan, organLevel, organLockedBy, organNext, organNow, startRecipe, vatRecipes, vatStatus,
+} from '../game/hive';
+import { describeLevel } from './hive/body';
 import { HiveUI } from './hive/hive-ui';
-import type { HiveActions, ProfileView, VendorView } from './hive/model';
+import type { HiveActions, HiveBodyView, ProfileView, VendorView } from './hive/model';
 import { objectiveText } from './hive/vendors';
 import type { ResultData } from './hive/screens';
 
@@ -59,6 +63,11 @@ export class HiveMenu {
       // Zones whose map World has not built yet read as 'coming' instead of quietly loading Glowmire.
       zones: () => zoneList(p, 0, BUILT_ZONES),
       selectZone: (id) => { const ok = selectZone(p, id, 0, BUILT_ZONES); if (ok) onChange(); return ok; },
+      hiveBody: () => this.bodyView(),
+      growOrgan: (id) => { const ok = growOrgan(p, id); if (ok) onChange(); return ok; },
+      collectGarden: () => { const n = collectGarden(p); if (n) onChange(); return n; },
+      startRecipe: (id) => { const ok = startRecipe(p, id); if (ok) onChange(); return ok; },
+      collectVat: () => { const got = collectVat(p); if (got) onChange(); return got; },
     };
     this.ui = new HiveUI(root, () => this.view(), actions, {
       pickHost: (id) => this.pickHost(id),
@@ -72,6 +81,28 @@ export class HiveMenu {
     const p = this.profile;
     return { callsign: callsign(p), dna: p.dna, host: p.host, stash: p.stash, stashRows: p.stashRows, cavity: p.cavity,
       gutPouch: p.gutPouch, gutPouchLevel: p.gutPouchLevel, stats: p.stats, last: this.last, zone: p.economy.zone };
+  }
+
+  /** The Hive Body as its screen reads it: organs with costs against the stash, the garden and the vat. */
+  private bodyView(): HiveBodyView {
+    const p = this.profile, now = Date.now(), g = stashGrid(p);
+    const line = (c: { item: string; count: number }) => ({ item: c.item, count: c.count, have: g.count(c.item) });
+    const garden = organNow(p, 'sporeGarden');
+    const vat = organLevel(p, 'gestationVat') > 0;
+    const job = vatStatus(p, now);
+    return {
+      organs: Object.entries(HIVE_ORGANS).map(([id, o]) => {
+        const next = organNext(p, id), by = organLockedBy(p, id);
+        return { id, label: o.label, brief: o.brief, level: organLevel(p, id), max: o.levels.length, now: describeLevel(organNow(p, id)),
+          next: next ? { dna: next.cost.dna, items: next.cost.items.map(line), adds: describeLevel(next) } : null,
+          state: canGrowOrgan(p, id), lockedBy: by ? CONTRACTS.find((c) => c.id === by)?.title ?? by : null };
+      }),
+      garden: garden?.dnaPerHour ? { stored: gardenStored(p, now), cap: garden.cap ?? 0, perHour: garden.dnaPerHour } : null,
+      vat: vat ? {
+        recipes: vatRecipes(p).filter((r) => RECIPES[r]).map((r) => ({ id: r, inputs: RECIPES[r].inputs.map(line), output: RECIPES[r].output, time: RECIPES[r].time, state: canStartRecipe(p, r) })),
+        job: job ? { recipe: job.recipe, secondsLeft: job.secondsLeft, total: RECIPES[job.recipe]?.time ?? 0, ready: job.ready } : null,
+      } : null,
+    };
   }
 
   /** One vendor as the vendor screen reads it: rep band, rep-gated stock, unlock text, contract chain. */
