@@ -60,6 +60,9 @@ try {
   const hudText = await page.evaluate(() => document.querySelector('#vitals')?.textContent ?? '');
   if (!/BIOMASS/.test(hudText) || !/NEURAL OVERLOAD/.test(hudText)) await fail('HUD is missing Biomass or Neural Overload');
 
+  const hint = await page.evaluate(() => document.querySelector('#prompt')?.textContent ?? '');
+  for (const k of ['LMB fire', 'R regrow', 'F ego charge', '1/Q', '2 clot gel', 'hold E']) if (!hint.includes(k)) await fail(`control hint is missing "${k}"`);
+
   // Run the simulation 3x faster per frame so the scripted raid fits in CI time (the dt clamp keeps steps small).
   await call('setTimeScale', 3);
   await call('begin');
@@ -104,6 +107,14 @@ try {
   if (!s.carried.items.length) await fail('Bio-Pod gave no items');
   log(`Bio-Pod: ${s.carried.items.map((i) => `${i.count}x ${i.item}`).join(', ')}; haul ${s.carried.value}`);
 
+  // --- Zone collapse warning must be readable (issue #8): a backed, enlarged banner.
+  await call('setTimeLeft', 120.2);
+  await frames(6);
+  const banner = await page.evaluate(() => { const t = document.querySelector('.toast'); return { text: t?.textContent, cls: t?.className, bg: t ? getComputedStyle(t).backgroundColor : '' }; });
+  if (!/ZONE COLLAPSE/.test(banner.text ?? '') || !/alarm/.test(banner.cls ?? '') || /rgba\(0, 0, 0, 0\)/.test(banner.bg)) await fail(`collapse banner not shown as an alarm plate: ${JSON.stringify(banner)}`);
+  await freezeAndScreenshot(page, 'tests/out/raid-collapse.png', { resume: true });
+  await call('setTimeLeft', 500);
+
   // --- Extract.
   await call('extractNow');
   for (let i = 0; i < 120; i++) { await frames(4); s = await state(); if (s.phase !== 'raid') break; }
@@ -111,6 +122,8 @@ try {
   await frames(3);
   const won = await page.evaluate(() => document.querySelector('.results h1')?.textContent);
   if (won !== 'EXTRACTED') await fail(`result screen says ${won}`);
+  const promptShown = await page.evaluate(() => getComputedStyle(document.querySelector('#prompt')).display !== 'none');
+  if (promptShown) await fail('enter prompt shows behind the result screen (issue #7)');
   await freezeAndScreenshot(page, 'tests/out/raid-extracted.png', { resume: true });
   log(`EXTRACTED with haul ${s.result.value}`);
 
