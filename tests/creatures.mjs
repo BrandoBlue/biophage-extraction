@@ -37,6 +37,7 @@ const SHOTS = {
   nest: { call: ['nest'], view: [0.5, 0.18, 1], then: ['pulse'], wait: 3, expect: (st) => st.extra === 'nest' && st.nestWeak > 0 },
   organs: { call: ['organs'], view: [0, 0.25, 1], expect: (st) => st.extra === 'organs' },
   hosts: { call: ['host', 'neuroInfiltrator'], view: [0.35, 0.08, 1], expect: (st) => st.host === 'neuroInfiltrator' },
+  evolution: { call: ['host', 'neuroInfiltrator', 'neuroHound'], view: [0.6, 0.15, 1], expect: (st) => st.evolution === 'neuroHound' },
   boss: { call: ['boss'], view: [0.15, 0.05, 0.8], then: ['phase', 'bloom'], wait: 6, expect: (st) => st.extra === 'boss' && st.boss?.phase === 'bloom' && st.boss.legs === 6 && st.boss.weak === 4 },
   warden: { call: ['warden'], view: [0.9, 0.45, 1.1], then: ['wardenPhase', 'overheat'], wait: 10, expect: (st) => st.extra === 'warden' && st.warden?.phase === 'overheat' && st.warden.pods === 5 },
   vigil: { call: ['vigil'], view: [0.6, -0.2, 1], then: ['vigilPhase', 'stalk'], wait: 12, expect: (st) => st.extra === 'vigil' && st.vigil?.phase === 'stalk' && st.vigil.limbs === 4 && st.vigil.lure },
