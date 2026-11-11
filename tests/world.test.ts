@@ -157,3 +157,40 @@ describe('the Fungal Caves on Glowmire', () => {
     expect(n).toBeGreaterThan(400);
   });
 });
+
+describe('Glowmire ground ecology', () => {
+  it('grows thicker by the water, thinner on steep ground, ridge crests and worn trails', async () => {
+    const { zone7Ecology, TRAILS, POOLS: pools } = await import('../src/world/zone7');
+    const eco = zone7Ecology();
+    // Lush at a pool's edge, bare on the trail strip.
+    const p = pools[0];
+    const shore = eco.density(p.x + p.radius + 4, p.z);
+    expect(shore).toBeGreaterThan(0.6);
+    const mid = TRAILS[0][Math.floor(TRAILS[0].length / 2)];
+    expect(eco.trailDist(mid[0], mid[1])).toBeLessThan(1);
+    expect(eco.density(mid[0], mid[1])).toBeLessThan(0.2);
+    // Steep cells are sparser than flat ones on average.
+    let steep = 0, ns = 0, flat = 0, nf = 0;
+    for (let x = -140; x <= 140; x += 3) for (let z = -140; z <= 140; z += 3) {
+      if (Math.hypot(x, z) > 140) continue;
+      const s = eco.slope(x, z), d = eco.density(x, z);
+      if (s > 0.6) { steep += d; ns++; } else if (s < 0.1) { flat += d; nf++; }
+    }
+    expect(ns).toBeGreaterThan(10);
+    expect(steep / ns).toBeLessThan((flat / nf) * 0.5);
+  });
+
+  it('links named areas with trails and keeps rock outcrops off trails, sites and caves', async () => {
+    const { outcrops, onTrail, isReserved, TRAILS } = await import('../src/world/zone7');
+    const { caveDistance } = await import('../src/world/cave');
+    const { mulberry32 } = await import('../src/world/rng');
+    expect(TRAILS.length).toBe(ZONE7_SITES.trails.length);
+    const rocks = outcrops(mulberry32(5));
+    expect(rocks.length).toBeGreaterThan(ZONE7_SITES.outcrops.clusters);
+    for (const r of rocks) {
+      expect(onTrail(r.x, r.z), `${r.x},${r.z}`).toBe(false);
+      expect(isReserved(r.x, r.z)).toBe(false);
+      for (const c of ZONE7_SITES.caves) expect(caveDistance(c, r.x, r.z)).toBeGreaterThan(0);
+    }
+  });
+});

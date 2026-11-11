@@ -34,11 +34,18 @@ const states: Record<string, Partial<HudView>> = {
   gear: { carried: [...base.carried, { item: 'neuroSpikeGrenade', label: 'Neuro-Spike Grenade', count: 2, kind: 'tech' }, { item: 'mawSeedMine', label: 'Maw-Seed Mine', count: 1, kind: 'tech' }, { item: 'heartHusk', label: 'Heart Husk', count: 1, kind: 'organ' }] },
   boss: { boss: { label: 'Brood Heart', fraction: 0.58, wave: 2, waves: 4 }, overload: 0.4 },
   prompt: {},
+  'boss-phase': { boss: { label: 'The Sandwidow', fraction: 0.52, wave: 0, waves: 0 }, overload: 0.2 },
+  scope: { weapon: { id: 'eyestalkMarksman' }, aiming: true },
+  'scope-reload': { weapon: { id: 'eyestalkMarksman' }, aiming: true, reloading: 0.6 },
+  shotgun: { weapon: { id: 'gulletScatter' }, crosshair: { radius: 0.11, onTarget: true } },
+  weak: { weapon: { id: 'vertebraRifle' }, crosshair: { radius: 0.03, onTarget: true, weak: true } },
+  reload: { reloading: 0.45, ammo: 0 },
   low: { biomass: 38, overload: 0.92, overloaded: false, collapse: true, timeLeft: 94, activeVirus: 'splicedParasites', ammo: 6 },
 };
 const key = new URLSearchParams(location.search).get('state') ?? 'fight';
 const hud = new OrganicHud(document.querySelector<HTMLElement>('#hud')!);
-const s = { ...base, ...states[key] } as HudView;
+// w-<weaponId>: the reticle for any gun in data/weapons.json, hip-fire at rest.
+const s = { ...base, ...(key.startsWith('w-') ? { weapon: { id: key.slice(2) } } : states[key]) } as HudView;
 let t = 0;
 const tick = () => { t++; hud.update(1 / 60, s); if (t < 40) requestAnimationFrame(tick); else (window as unknown as { __mock: object }).__mock = { ready: true }; };
 if (key === 'prompt') { const p = document.createElement('div'); p.id = 'prompt'; p.innerHTML = `CLICK TO TAKE CONTROL · THE RAID KEEPS RUNNING${CONTROLS}`; document.querySelector('#hud')!.append(p); }

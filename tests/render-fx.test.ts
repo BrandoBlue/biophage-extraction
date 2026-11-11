@@ -248,8 +248,27 @@ describe('lighting, relief and world scale', () => {
     for (const m of [zoneRock(), livingFlesh('#5A2A55', '#FF3FA4', '#FF3FA4'), chitin()]) {
       const s = compile(m);
       expect(s.fragmentShader).toContain('#define BIO_BUMP');
-      expect(s.fragmentShader).toMatch(/BIO_BUMP\([^)]*\)\s*;/);
+      expect(s.fragmentShader).toMatch(/BIO_BUMP\(.+\)\s*;/);
     }
+  });
+
+  it('adds close-range micro detail that fades before it can alias', async () => {
+    const { zoneRock, livingFlesh, chitin } = await import('../src/render/materials');
+    for (const m of [zoneRock(), livingFlesh('#5A2A55', '#FF3FA4', '#FF3FA4'), chitin()]) {
+      const s = compile(m);
+      expect(s.fragmentShader).toContain('length(vViewPosition)');
+      expect(s.fragmentShader).toContain('fwidth(');
+    }
+  });
+
+  it('grades night shadows without clipping them to black, and sharpens', async () => {
+    const { GradeShader } = await import('../src/render/pipeline');
+    expect(GradeShader.fragmentShader).not.toContain('(col - 0.5) * uContrast');
+    expect(GradeShader.uniforms.uSharpen.value).toBeGreaterThan(0);
+    expect(GradeShader.uniforms.uSharpen.value).toBeLessThan(0.5);
+    // The power-curve contrast keeps a dark value above zero at the zone's contrast.
+    const curve = (v: number, k: number) => Math.pow(v / 0.3, k) * 0.3;
+    expect(curve(0.05, 1.12)).toBeGreaterThan(0.03);
   });
 
   it('has a complete impact look for every living-weapon style', async () => {

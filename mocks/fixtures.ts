@@ -1,9 +1,10 @@
 /** Fixture profile and an in-memory HiveActions for the UI mocks and UI unit tests. */
-import { CONTRACTS, MARKET, PROFILE, stashRowCost, VENDOR_REP_THRESHOLDS, VENDORS, vendorBuyPrice, vendorRepLevel, ZONES } from '../data';
+import { CONTRACTS, HIVE_ORGANS, MARKET, PROFILE, RECIPES, stashRowCost, VENDOR_REP_THRESHOLDS, VENDORS, vendorBuyPrice, vendorRepLevel, ZONES } from '../data';
 import { def as itemOf } from '../src/ui/items';
 import { fits } from '../src/ui/hive/grid';
 import { gridSize, itemsIn } from '../src/ui/hive/model';
-import type { GridZone, HiveActions, ProfileView, VendorView } from '../src/ui/hive/model';
+import type { GridZone, HiveActions, HiveBodyView, ProfileView, VendorView } from '../src/ui/hive/model';
+import { describeLevel } from '../src/ui/hive/body';
 import { objectiveText } from '../src/ui/hive/vendors';
 import { source } from '../src/ui/hive/stash';
 
@@ -112,6 +113,30 @@ export function fixtureActions(p: ProfileView, deploy: () => void = () => {}): H
     zones: () => Object.entries(ZONES).map(([id, z]) => ({ id, label: z.label,
       access: z.access === 'open' ? { state: 'open' as const } : z.milestone === 'larva' ? { state: 'locked' as const, reason: 'finish Signal in the Wreck' } : { state: 'coming' as const, reason: `arrives in ${z.milestone}` } })),
     selectZone: (id) => { p.zone = id; return true; },
+    // Hive Body fixture: the vat at I with a job nearly done, the garden at II half full, Memory Coral ready to grow,
+    // the Antibody Well still to come.
+    hiveBody: (): HiveBodyView => {
+      const have = (item: string) => p.stash.filter((s) => s.item === item).reduce((n, s) => n + s.count, 0);
+      const line = (c: { item: string; count: number }) => ({ ...c, have: have(c.item) });
+      const lv = { gestationVat: 1, sporeGarden: 2, memoryCoral: 0, antibodyWell: 0 } as Record<string, number>;
+      const st = { gestationVat: 'items', sporeGarden: 'dna', memoryCoral: 'ok', antibodyWell: 'coming' } as const;
+      return {
+        organs: Object.entries(HIVE_ORGANS).map(([id, o]) => {
+          const next = o.levels[lv[id] ?? 0];
+          return { id, label: o.label, brief: o.brief, level: lv[id] ?? 0, max: o.levels.length, now: describeLevel(o.levels[(lv[id] ?? 0) - 1]),
+            next: next ? { dna: next.cost.dna, items: next.cost.items.map(line), adds: describeLevel(next) } : null, state: st[id as keyof typeof st] ?? 'ok' };
+        }),
+        garden: { stored: 212, cap: 360, perHour: 45 },
+        vat: {
+          recipes: HIVE_ORGANS.gestationVat.levels[0].recipes!.map((r, i) => ({ id: r, inputs: RECIPES[r].inputs.map(line), output: RECIPES[r].output, time: RECIPES[r].time, state: i ? 'items' as const : 'busy' as const })),
+          job: { recipe: 'clotGelFromGlands', secondsLeft: 140, total: RECIPES.clotGelFromGlands.time, ready: false },
+        },
+      };
+    },
+    growOrgan: () => true,
+    collectGarden: () => 212,
+    startRecipe: () => true,
+    collectVat: () => ({ item: 'clotGel', count: 1 }),
   };
 }
 export { gridSize };

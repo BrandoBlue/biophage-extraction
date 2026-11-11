@@ -122,12 +122,13 @@ export function zoneRock(opts: { veinColour?: string; mossColour?: string; scale
     fragment: /* glsl */ `
       vec3 p = vBioWorld * 0.18 * uScale;
       float strata = bioFbm(p * vec3(1.0, 3.5, 1.0));
-      vec3 rock = mix(uDeep, uRock, smoothstep(0.25, 0.75, strata));
+      // Deep strata keep a floor of the lit rock tone so night ground still shows form, never a black hole.
+      vec3 rock = mix(mix(uDeep, uRock, 0.4), uRock * 1.15, smoothstep(0.25, 0.75, strata));
       float up = smoothstep(0.55, 0.9, vBioNormal.y);
       float mossMask = up * smoothstep(0.36, 0.6, bioFbm(p * 1.7 + 4.0));
       // Moss colonies vary from deep teal to a lighter, almost luminous sea-green, with fine grain underfoot.
       float colony = bioNoise(p * 2.3 + 1.7);
-      vec3 moss = mix(uMoss * 0.8, uMoss * 2.0 + uVein * 0.05, smoothstep(0.35, 0.85, colony));
+      vec3 moss = mix(uMoss * 1.2, uMoss * 2.4 + uVein * 0.05, smoothstep(0.35, 0.85, colony));
       float grain = 0.72 + 0.5 * bioNoise(vBioWorld * 2.6 * uScale);
       vec3 col = mix(rock, moss, mossMask) * grain;
       // Mycelium: two scales of veins, pulsing slowly along their length.
@@ -155,6 +156,15 @@ export function zoneRock(opts: { veinColour?: string; mossColour?: string; scale
       float gravel = bioNoise(vBioWorld * 9.0 * uScale);
       float relief = strata * 0.5 + grain * 0.35 + gravel * 0.08 - mossMask * colony * 0.2
         + growthMask * (0.45 + ribs * 0.2) - pits * growthMask * 0.35 + bone * 0.25;
+      // Close-range micro detail (grit, hairline cracks, pitting) that fades out with distance: surfaces stay crisp up close.
+      float near = 1.0 - smoothstep(3.0, 24.0, length(vViewPosition));
+      // Wrapped coordinates keep the hash precise at high frequency; fwidth fades grit before it can alias into pixel noise.
+      vec3 wp = mod(vBioWorld, 32.0) * uScale;
+      near *= 1.0 - smoothstep(0.2, 0.55, length(fwidth(wp * 34.0)));
+      float grit = bioNoise(wp * 14.0) * 0.6 + bioNoise(wp * 34.0 + 5.0) * 0.4;
+      float crack = 1.0 - smoothstep(0.0, 0.035, abs(bioNoise(vBioWorld * 6.5 * uScale + 3.0) - 0.5));
+      relief += near * (grit * 0.12 - crack * 0.18);
+      col *= 1.0 - near * (crack * 0.35 - (grit - 0.5) * 0.16);
       BIO_BUMP(relief, 0.14);
       col *= (0.72 + 0.28 * smoothstep(0.2, 0.9, relief)) * (0.94 + gravel * 0.12);
       diffuseColor.rgb = col;
@@ -247,7 +257,11 @@ export function chitin(base: string = HIVE.bone, glow: string = ZONE7.cyan, scal
       float plates = smoothstep(0.05, 0.12, bioCells(q * 4.0));
       float grainC = bioNoise(q * 9.0);
       diffuseColor.rgb *= mix(0.35, 1.0, plates) * (0.8 + 0.4 * grainC);
-      BIO_BUMP(plates * 0.8 + grainC * 0.15, 0.012);
+      vec3 qm = mod(q, 16.0);
+      float nearC = (1.0 - smoothstep(1.0, 10.0, length(vViewPosition))) * (1.0 - smoothstep(0.2, 0.55, length(fwidth(qm * 38.0))));
+      float microC = bioNoise(qm * 38.0);
+      diffuseColor.rgb *= 1.0 - nearC * (0.5 - microC) * 0.14;
+      BIO_BUMP(plates * 0.8 + grainC * 0.15 + microC * 0.06 * nearC, 0.012);
       totalEmissiveRadiance += uGlow * bioVein(q * 6.0) * (1.0 - plates) * 0.8;
     `,
   });
@@ -352,7 +366,13 @@ export function livingFlesh(base: string, vein: string, rim: string, scale = 28)
       diffuseColor.rgb *= 1.0 - pores * 0.45;
       float veins = max(bioVein(p * 0.5), bioVein(p * 1.3 + 4.0) * 0.6);
       // Skin relief: mottled swells, sunken pores, raised veins.
-      BIO_BUMP(mott * 0.5 - pores * 0.6 + veins * 0.3, 0.012);
+      // Fine skin up close: wrinkles and micro pores so flesh holds up at arm's length.
+      vec3 pm = mod(p, 16.0);
+      float nearF = (1.0 - smoothstep(1.0, 10.0, length(vViewPosition))) * (1.0 - smoothstep(0.2, 0.55, length(fwidth(pm * 40.0))));
+      float wrinkle = bioNoise(pm * vec3(14.0, 40.0, 14.0));
+      float micro = 1.0 - smoothstep(0.03, 0.09, bioCells(pm * 9.0));
+      diffuseColor.rgb *= 1.0 - nearF * (micro * 0.25 + (0.5 - wrinkle) * 0.1);
+      BIO_BUMP(mott * 0.5 - pores * 0.6 + veins * 0.3 + nearF * (wrinkle * 0.12 - micro * 0.15), 0.012);
       float flow = 0.55 + 0.45 * sin(bioTime * 3.0 - dot(vBioLocal, vec3(0.0, 0.0, 40.0)));
       vec3 V = normalize(cameraPosition - vBioWorld);
       float fres = pow(1.0 - abs(dot(normalize(vBioNormal), V)), 2.5);

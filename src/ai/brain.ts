@@ -117,6 +117,9 @@ export abstract class Brain {
   /** Wounded enough to limp, or running to recover. */
   get wounded(): boolean { return this.woundLeft < M.wounded.limpBelow; }
 
+  /** A disguise or trap the archetype runs itself just dropped (the Husk Mimic). */
+  protected unmask(how: LurkHow): void { this.events.push({ type: 'reveal', how }); }
+
   private reveal(): void {
     if (!this.lurk) return;
     this.events.push({ type: 'reveal', how: this.lurk.how });

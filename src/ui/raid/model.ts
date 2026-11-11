@@ -1,3 +1,5 @@
+import type { ReticleInput } from './reticle';
+
 /**
  * What the in-raid HUD reads each frame. A structural subset of Gameplay's HudState (src/game/raid.ts) plus the
  * Larva fields (virus, harvest, extra extracts, objectives) as optional, so the HUD runs on either side of a
@@ -29,5 +31,13 @@ export interface HudView {
   cavityUsed?: [number, number];
   objectives?: { text: string; detail?: string; done?: boolean; icon?: string }[];
   /** Awake boss or nest in range (Gameplay's hud().boss): Biomass fraction and wave progress. */
-  boss?: { label: string; fraction: number; wave: number; waves: number } | null;
+  boss?: { id?: string; label: string; fraction: number; wave: number; waves: number } | null;
+  /** Aim-down-sights held (Gameplay's HudState.aiming). */
+  aiming?: boolean;
+  /** Active gun (Gameplay's weapons roster); the reticle and scope key off its id and class. */
+  weapon?: { id: string; label?: string; class?: string; slot?: number; slots?: number; reserve?: number; charge?: number; scope?: number; canAim?: boolean } | null;
+  /** Movement for the reticle's moving spread: 0 standing to 1 at walk speed, and sprinting. */
+  motion?: { moving: number; sprinting: boolean } | null;
+  /** Gameplay's live crosshair; see ReticleInput in src/ui/raid/reticle.ts. */
+  crosshair?: ReticleInput['crosshair'];
 }

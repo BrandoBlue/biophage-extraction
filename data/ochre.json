@@ -1,0 +1,513 @@
+{
+  "_note": "The Ochre Reach (World & Level, src/world/ochre.ts): the desert savannah zone. Metres; +x east, +z south (the spawn is on the south edge). Landmark ids are Design's (zones.json ochreReach). Doors face the village plaza. Spawns are fixed homes (no random placement); `buried` spawns wait under the sand until the host is that many metres away. Dunewake packs wait under the Dune Sea, Bristleback herds graze the flats, Shroudlings haunt the domes and the rig. Extracts follow Design's brief: the rig lift, a settler crawler (east) and the sky-tether on the crater rim (the payment is Gameplay's).",
+  "playableRadius": 400,
+  "spawn": {
+    "x": 40,
+    "z": 352
+  },
+  "dropIn": {
+    "height": 60,
+    "fallSpeed": 9
+  },
+  "wind": 32,
+  "landmarks": {
+    "domeVillage": {
+      "x": 20,
+      "z": 60,
+      "radius": 78
+    },
+    "rigYard": {
+      "x": -228,
+      "z": -40,
+      "radius": 72
+    },
+    "acaciaFlats": {
+      "x": 160,
+      "z": 230,
+      "radius": 115
+    },
+    "duneSea": {
+      "x": 235,
+      "z": -150,
+      "radius": 130
+    },
+    "cactusGulch": {
+      "x": -185,
+      "z": 195,
+      "radius": 95
+    },
+    "skyfallCrater": {
+      "x": -40,
+      "z": -275,
+      "radius": 70
+    }
+  },
+  "flats": [
+    {
+      "x": 20,
+      "z": 60,
+      "radius": 72
+    },
+    {
+      "x": -228,
+      "z": -40,
+      "radius": 64
+    },
+    {
+      "x": 40,
+      "z": 352,
+      "radius": 14
+    }
+  ],
+  "crater": {
+    "x": -40,
+    "z": -275,
+    "radius": 52,
+    "depth": 11,
+    "rim": 4
+  },
+  "gulch": {
+    "plateau": {
+      "x": -190,
+      "z": 200,
+      "radius": 120,
+      "height": 16
+    },
+    "path": [
+      [
+        -330,
+        130
+      ],
+      [
+        -260,
+        170
+      ],
+      [
+        -200,
+        150
+      ],
+      [
+        -150,
+        215
+      ],
+      [
+        -90,
+        200
+      ],
+      [
+        -40,
+        250
+      ]
+    ],
+    "halfWidth": 9
+  },
+  "buttes": [
+    {
+      "x": -110,
+      "z": -150,
+      "radius": 20,
+      "height": 20
+    },
+    {
+      "x": 330,
+      "z": 90,
+      "radius": 26,
+      "height": 22
+    },
+    {
+      "x": -330,
+      "z": -210,
+      "radius": 30,
+      "height": 26
+    },
+    {
+      "x": 120,
+      "z": -300,
+      "radius": 18,
+      "height": 15
+    }
+  ],
+  "extracts": [
+    {
+      "id": "rigLift",
+      "label": "Rig Yard Lift",
+      "x": -300,
+      "z": -112,
+      "opensAt": 0
+    },
+    {
+      "id": "settlerCrawler",
+      "label": "Settler Crawler",
+      "x": 300,
+      "z": -228,
+      "opensAt": 0
+    },
+    {
+      "id": "skyTether",
+      "label": "Sky-Tether",
+      "x": 52,
+      "z": -330,
+      "opensAt": 240
+    }
+  ],
+  "village": {
+    "plaza": {
+      "x": 20,
+      "z": 70
+    },
+    "huts": [
+      {
+        "x": 20,
+        "z": 38,
+        "r": 9,
+        "h": 7.5,
+        "loot": "settlerLocker"
+      },
+      {
+        "x": -14,
+        "z": 60,
+        "r": 4.5,
+        "h": 4.2,
+        "loot": "settlerLocker"
+      },
+      {
+        "x": -30,
+        "z": 40,
+        "r": 5,
+        "h": 4.6,
+        "loot": "settlerLocker"
+      },
+      {
+        "x": -32,
+        "z": 80,
+        "r": 4,
+        "h": 3.8
+      },
+      {
+        "x": -10,
+        "z": 96,
+        "r": 5.5,
+        "h": 5,
+        "loot": "settlerLocker"
+      },
+      {
+        "x": 18,
+        "z": 104,
+        "r": 4,
+        "h": 3.8
+      },
+      {
+        "x": 46,
+        "z": 96,
+        "r": 5,
+        "h": 4.6,
+        "loot": "settlerLocker"
+      },
+      {
+        "x": 58,
+        "z": 68,
+        "r": 4.5,
+        "h": 4.2,
+        "loot": "settlerLocker"
+      },
+      {
+        "x": 54,
+        "z": 36,
+        "r": 6,
+        "h": 5.4,
+        "loot": "settlerLocker"
+      },
+      {
+        "x": 40,
+        "z": 10,
+        "r": 4,
+        "h": 3.8
+      },
+      {
+        "x": -6,
+        "z": 14,
+        "r": 4.5,
+        "h": 4.2,
+        "loot": "settlerLocker"
+      },
+      {
+        "x": 76,
+        "z": 46,
+        "r": 3.5,
+        "h": 3.4
+      }
+    ],
+    "well": {
+      "x": 20,
+      "z": 70,
+      "r": 2.2
+    },
+    "cistern": {
+      "x": -46,
+      "z": 60,
+      "r": 4
+    }
+  },
+  "rig": {
+    "derricks": [
+      {
+        "x": -252,
+        "z": -64,
+        "h": 26
+      },
+      {
+        "x": -204,
+        "z": -16,
+        "h": 22
+      },
+      {
+        "x": -246,
+        "z": -4,
+        "h": 18
+      }
+    ],
+    "lookout": {
+      "x": -206,
+      "z": -78,
+      "yaw": 20,
+      "deck": 8
+    },
+    "sheds": [
+      {
+        "x": -262,
+        "z": -24,
+        "yaw": 20,
+        "w": 10,
+        "d": 7,
+        "loot": "cargoCrate"
+      },
+      {
+        "x": -218,
+        "z": -46,
+        "yaw": -12,
+        "w": 8,
+        "d": 6,
+        "loot": "cargoCrate"
+      }
+    ],
+    "tanks": [
+      {
+        "x": -188,
+        "z": -40,
+        "r": 3.2,
+        "h": 5
+      },
+      {
+        "x": -190,
+        "z": -28,
+        "r": 2.4,
+        "h": 4
+      },
+      {
+        "x": -276,
+        "z": -50,
+        "r": 3,
+        "h": 6
+      }
+    ],
+    "pumps": [
+      {
+        "x": -268,
+        "z": -84,
+        "yaw": 40
+      },
+      {
+        "x": -226,
+        "z": 14,
+        "yaw": -30
+      },
+      {
+        "x": -180,
+        "z": -66,
+        "yaw": 80
+      }
+    ]
+  },
+  "colossus": {
+    "x": 232,
+    "z": -138,
+    "yaw": 30,
+    "length": 64,
+    "loot": "bioPod"
+  },
+  "loot": [
+    {
+      "id": "crater-heart",
+      "container": "bioPod",
+      "x": -40,
+      "y": null,
+      "z": -275
+    },
+    {
+      "id": "gulch-cache",
+      "container": "bioPod",
+      "x": -150,
+      "y": null,
+      "z": 212
+    }
+  ],
+  "burrows": [
+    {
+      "x": 200,
+      "z": -108
+    },
+    {
+      "x": 262,
+      "z": -172
+    },
+    {
+      "x": 222,
+      "z": -206
+    },
+    {
+      "x": 292,
+      "z": -118
+    },
+    {
+      "x": 284,
+      "z": -206
+    },
+    {
+      "x": -168,
+      "z": 196
+    },
+    {
+      "x": 250,
+      "z": -126
+    }
+  ],
+  "spawns": [
+    {
+      "kind": "dunewake",
+      "x": 200,
+      "z": -108,
+      "packed": true,
+      "spread": 5,
+      "buried": 10,
+      "roam": 40
+    },
+    {
+      "kind": "dunewake",
+      "x": 262,
+      "z": -172,
+      "packed": true,
+      "spread": 5,
+      "buried": 10,
+      "roam": 40
+    },
+    {
+      "kind": "dunewake",
+      "x": 222,
+      "z": -206,
+      "packed": true,
+      "spread": 5,
+      "buried": 9,
+      "roam": 40
+    },
+    {
+      "kind": "glasswalker",
+      "x": 292,
+      "z": -118,
+      "buried": 7,
+      "roam": 30
+    },
+    {
+      "kind": "dunewake",
+      "x": 284,
+      "z": -206,
+      "packed": true,
+      "spread": 4,
+      "buried": 11,
+      "roam": 35
+    },
+    {
+      "kind": "glasswalker",
+      "x": 250,
+      "z": -126,
+      "buried": 6,
+      "roam": 25
+    },
+    {
+      "kind": "glasswalker",
+      "x": -168,
+      "z": 196,
+      "buried": 6,
+      "roam": 25
+    },
+    {
+      "kind": "glasswalker",
+      "x": -230,
+      "z": 165,
+      "roam": 25
+    },
+    {
+      "kind": "shroudling",
+      "x": 20,
+      "z": 38,
+      "roam": 10
+    },
+    {
+      "kind": "needlemaw",
+      "x": 40,
+      "z": 80,
+      "packed": true,
+      "spread": 6,
+      "roam": 45
+    },
+    {
+      "kind": "shroudling",
+      "x": -212,
+      "z": -70,
+      "roam": 20
+    },
+    {
+      "kind": "shroudling",
+      "x": -250,
+      "z": -36,
+      "roam": 25
+    },
+    {
+      "kind": "bristleback",
+      "x": 180,
+      "z": 250,
+      "roam": 50,
+      "packed": true,
+      "spread": 8
+    },
+    {
+      "kind": "bristleback",
+      "x": 110,
+      "z": 190,
+      "roam": 50,
+      "packed": true,
+      "spread": 8
+    },
+    {
+      "kind": "oculimoth",
+      "x": -40,
+      "z": -270,
+      "packed": true,
+      "spread": 6,
+      "roam": 30
+    },
+    {
+      "kind": "mournback",
+      "x": -64,
+      "z": -252,
+      "roam": 25
+    }
+  ],
+  "trees": {
+    "acaciaFlats": 34,
+    "elsewhere": 26
+  },
+  "succulents": {
+    "cactusGulch": 40,
+    "elsewhere": 30
+  }
+}

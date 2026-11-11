@@ -174,7 +174,7 @@ export function raidPlan(): RaidPlan {
 const NAMES: Record<string, string> = { needlemaw: 'Needlemaw', bilecantor: 'Bile Cantor', glasswalker: 'Glasswalker', oculimoth: 'Oculimoth', mournback: 'Mournback' };
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 /** The zone this build deploys into (Zone 7 is Glowmire Isle). */
 export const LIVE_ZONE = 'glowmireIsle';
 
@@ -209,7 +209,7 @@ function zoneRow(current: string, cb: ZoneCallbacks): HTMLElement {
     const b = h<HTMLButtonElement>('button', `zone${z.open ? '' : ' locked'}${z.id === current ? ' on' : ''}`, `<em>${ROMAN[z.order] ?? z.order}</em>
       <div><b>${esc(z.label.toUpperCase())}</b><small>${z.open ? `<span class="pips">${[1, 2, 3, 4, 5].map((i) => `<i class="${i >= z.threat[0] && i <= z.threat[1] ? 'on' : ''}"></i>`).join('')}</span>${z.raidTime ? fmt(z.raidTime) : ''}` : `${glyph('lock')}${esc(why)}`}</small></div>`);
     b.dataset.zone = z.id;
-    b.title = z.pitch;
+    b.title = z.open ? z.pitch : `${z.label} · ${why.toLowerCase()}`;
     b.addEventListener('click', () => {
       if (!z.open) { cb.notice?.(`${z.label.toUpperCase()} · ${why}`, 'danger'); return; }
       if (z.id !== current && cb.selectZone?.(z.id)) cb.changed?.();

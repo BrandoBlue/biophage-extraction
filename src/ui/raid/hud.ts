@@ -7,9 +7,10 @@
  * when hit, numbers tick, cells flash when used, new loot blooms in, the ocellus dilates with overload.
  * Reads a HudView each frame and listens to gameplay events; never touches game objects.
  */
+import { Reticle } from './reticle';
 import { def as itemOf } from '../items';
 import './hud.css';
-import { VIRUSES, VIRUS_RULES } from '../../../data';
+import { BOSSES, VIRUSES, VIRUS_RULES, bossPhase } from '../../../data';
 import { HIVE, PATH, ZONE7 } from '../../render/palette';
 import { applyTheme } from '../theme';
 import { glyph, itemIcon, KIND_COLOUR } from '../icons';
@@ -80,6 +81,7 @@ export class OrganicHud {
   private lastBio = -1;
   private lastAmmo = -1;
   private lastEgoReady = false;
+  readonly reticle: Reticle;
 
   constructor(root: HTMLElement, bus?: Bus) {
     applyTheme();
@@ -122,6 +124,7 @@ export class OrganicHud {
     this.q.inject = ring('inject', 44, '<span>INJECTING</span><b></b>');
     this.q.extract = ring('extract', 46, '<span>EXTRACTING</span><b></b>');
     centre.append(this.q.harvest, this.q.inject, this.q.extract);
+    this.reticle = new Reticle(centre);
     this.tape = $('.h-tape canvas', root) as HTMLCanvasElement;
     this.tctx = this.tape.getContext('2d');
 
@@ -130,7 +133,9 @@ export class OrganicHud {
 
   private listen(bus: Bus): void {
     const on = <T>(t: string, fn: (e: T) => void) => bus.on(t, fn as (e: never) => void);
-    on<{ weakPoint: boolean; kill: boolean }>('hit', (e) => { this.hitLeft = 0.18; this.q.hit.className = `hitmarker on${e.weakPoint ? ' weak' : ''}${e.kill ? ' kill' : ''}`; });
+    on<{ weakPoint: boolean; kill: boolean }>('hit', (e) => { this.hitLeft = 0.18; this.q.hit.className = `hitmarker on${e.weakPoint ? ' weak' : ''}${e.kill ? ' kill' : ''}`;  this.reticle.hit(e.weakPoint, e.kill); });
+    on<{ weapon?: string; ego?: boolean }>('shot', (e) => { if (!e.ego) this.reticle.shot(e.weapon); });
+    on<{ weapon?: string }>('reload', () => this.reticle.reload());
     on<{ direction: { x: number; z: number } | null }>('damaged', (e) => {
       pulse(this.q.vitals, 'jolt');
       if (!e.direction) { for (const k of ['n', 's', 'e', 'w'] as const) this.veinLeft[k] = 0.6; return; }
@@ -178,6 +183,7 @@ export class OrganicHud {
 
   update(dt: number, s: HudView): void {
     this.time += dt;
+    this.reticle.update(dt, { aiming: !!s.aiming, ammo: s.ammo, magazine: s.magazine, reloading: s.reloading, weapon: s.weapon, motion: s.motion, crosshair: s.crosshair });
     const q = this.q;
     this.root.classList.toggle('briefing', s.phase === 'briefing');
     const bf = s.biomass / s.biomassMax;
@@ -326,10 +332,23 @@ export class OrganicHud {
     const gw = parseFloat(q.bossGhost.style.width || '100');
     q.bossGhost.style.width = `${Math.max(f * 100, gw - dt * 18)}%`;
     q.boss.classList.toggle('low', f < 0.25);
-    const key = `${b.label}|${b.wave}|${b.waves}`;
+    // Zone bosses (data/bosses.json) show their phase and notch the bar where the next phase begins;
+    // nests show waves instead.
+    const id = b.id ?? Object.keys(BOSSES).find((k) => BOSSES[k].label === b.label);
+    const phases = !b.waves && id && BOSSES[id]?.phases?.length ? BOSSES[id].phases : null;
+    const phase = phases ? bossPhase(id!, f) : null;
+    const key = `${b.label}|${b.wave}|${b.waves}|${phase?.id ?? ''}`;
     if (key === this.bossKey) return;
+    const phaseChanged = !!phase && this.bossKey.startsWith(`${b.label}|`) && !this.bossKey.endsWith(`|${phase.id}`);
     this.bossKey = key;
     q.bossName.textContent = b.label.toUpperCase();
+    if (phases && phase) {
+      const n = phases.indexOf(phase) + 1;
+      q.bossWave.textContent = `${phase.id.toUpperCase()} · ${n}/${phases.length}`;
+      q.bossNotches.innerHTML = phases.slice(0, -1).map((p, i) => `<i style="left:${p.to * 100}%"${i < n - 1 ? ' class="past"' : ''}></i>`).join('');
+      if (phaseChanged) pulse(q.boss, 'phase');
+      return;
+    }
     q.bossWave.textContent = b.waves ? `WAVE ${b.wave}/${b.waves}` : '';
     q.bossNotches.innerHTML = Array.from({ length: Math.max(0, b.waves - 1) }, (_, i) => `<i style="left:${((i + 1) / b.waves) * 100}%"${i < b.wave - 1 ? ' class="past"' : ''}></i>`).join('');
   }
@@ -391,7 +410,8 @@ export class OrganicHud {
       const r = rel(p.x, p.z);
       if (Math.abs(r) > span) continue;
       const big = p.kind === 'bilecantor' || p.kind === 'mournback';
-      c.fillStyle = HIVE.danger; c.globalAlpha = (p.revealed ? 1 : 0.55) * (1 - 0.6 * (d / sc.range));
+      // Online raids: squadmates read in bone, everything hostile in danger red.
+      c.fillStyle = p.kind === 'squad' ? HIVE.bone : HIVE.danger; c.globalAlpha = (p.revealed ? 1 : 0.55) * (1 - 0.6 * (d / sc.range));
       c.beginPath(); c.arc(toX(r), H - 7, big ? 4.2 : 3, 0, Math.PI * 2); c.fill();
     }
     c.globalAlpha = 1;
