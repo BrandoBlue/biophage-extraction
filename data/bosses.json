@@ -1,0 +1,274 @@
+{
+  "_note": "Bosses. Biomass and damage in the usual units; phase thresholds are fractions of total Biomass. Weak points are body parts Creature & Mutation builds and PvE AI targets. Bosses are dormant in their arena until a host enters it; their presence is announced zone-wide (a PvP magnet). Arena sizes are what World & Level must build.",
+  "reliquary": {
+    "label": "The Reliquary",
+    "zone": "glowmireIsle",
+    "milestone": "larva",
+    "brief": "A 10 to 12 m colony organism, part hermit crab, part siphonophore, part banyan tree. On its back it wears a cathedral of fused host ribcages as armour, the bones of everything that died in Zone 7. It walks on six pillar legs with root-like toes. A pendulous brood sac hangs beneath and drops Needlemaws. Three throat-heart chambers glow through the bone; they are the only bright things on it. Everything else is wet bone and dark flesh: no neon. It sings, low, like wind through a ribcage, audible across the island.",
+    "size": {
+      "length": 12,
+      "height": 9,
+      "crawlHeight": 5
+    },
+    "biomass": 3600,
+    "arena": {
+      "shape": "sunken bowl",
+      "diameter": 60,
+      "depth": 9,
+      "entrances": 2,
+      "ledge": {
+        "height": 3,
+        "arcDegrees": 180
+      },
+      "hardCover": 4,
+      "centrePool": true,
+      "exitWithin": 80
+    },
+    "dormantUntil": "host enters arena",
+    "songRadius": 150,
+    "weakPoints": {
+      "hearts": {
+        "count": 3,
+        "biomassEach": 450,
+        "multiplier": 2.5,
+        "exposedFrom": "phase2"
+      },
+      "broodSac": {
+        "biomass": 300,
+        "multiplier": 1.5,
+        "onDestroyed": "stops brood drops"
+      },
+      "legs": {
+        "count": 6,
+        "biomassEach": 250,
+        "severedFrom": "phase2"
+      }
+    },
+    "phases": [
+      {
+        "id": "stalk",
+        "from": 1.0,
+        "to": 0.65,
+        "frontArmourMultiplier": 0.2,
+        "speed": 2.4,
+        "attacks": {
+          "legStamp": {
+            "damage": 45,
+            "radius": 4,
+            "windup": 0.9,
+            "cooldown": 4
+          },
+          "ribSweep": {
+            "damage": 35,
+            "arc": 120,
+            "range": 9,
+            "windup": 1.1,
+            "cooldown": 7
+          },
+          "broodDrop": {
+            "spawn": {
+              "type": "needlemaw",
+              "count": 3
+            },
+            "cooldown": 25
+          }
+        },
+        "note": "the bone shell blocks frontal fire; flank via the ledge or bait a stamp and shoot the brood sac"
+      },
+      {
+        "id": "bloom",
+        "from": 0.65,
+        "to": 0.3,
+        "speed": 1.8,
+        "attacks": {
+          "rearAndVent": {
+            "sporeCloud": {
+              "radius": 7,
+              "damagePerSecond": 8,
+              "overloadPerSecond": 8,
+              "duration": 6
+            },
+            "cooldown": 14
+          },
+          "hymn": {
+            "ring": {
+              "damage": 25,
+              "speed": 12,
+              "jumpable": true
+            },
+            "cooldown": 10
+          },
+          "broodDrop": {
+            "spawn": {
+              "type": "needlemaw",
+              "count": 4
+            },
+            "cooldown": 20
+          },
+          "coverBreak": {
+            "destroysCover": true,
+            "cooldown": 18
+          }
+        },
+        "note": "rears up and splits the ribcage open: the three hearts are exposed while it vents; legs can now be severed (each severed leg slows it 15%)"
+      },
+      {
+        "id": "collapse",
+        "from": 0.3,
+        "to": 0.0,
+        "speed": 3.2,
+        "bodyDamageMultiplier": 1.5,
+        "attacks": {
+          "forelimbDrag": {
+            "damage": 50,
+            "range": 7,
+            "windup": 0.7,
+            "cooldown": 3.5
+          },
+          "tendrilGrab": {
+            "damage": 30,
+            "pin": 2,
+            "freedByDamage": 80,
+            "cooldown": 12
+          },
+          "lightFlood": {
+            "poolGrowsTo": 0.7,
+            "damagePerSecond": 10,
+            "overSeconds": 90
+          }
+        },
+        "note": "legs give out; it drags itself on two forelimbs, fast and desperate; the centre pool floods outward"
+      }
+    ],
+    "enrage": {
+      "after": 420,
+      "effect": "the pool floods the whole bowl floor (10/s); only the ledge is safe"
+    },
+    "rewards": {
+      "dna": 400,
+      "container": "reliquaryCage",
+      "harvest": {
+        "item": "reliquaryHeart",
+        "time": 6,
+        "noise": 40
+      },
+      "xp": 1000
+    },
+    "respawn": "every raid"
+  },
+  "warden": {
+    "label": "The Warden of the Long Seed",
+    "zone": "longSeedWreck",
+    "milestone": "host",
+    "brief": "The seedship's gardener: a caretaker organism grown to tend the embryos the ship was carrying, now fused with its reactor. A 20 m centipede-like body of overlapping hull plates and roots that moves along walls and ceiling as easily as the floor. Its head is a cluster of glass seed-pods, each holding a dormant embryo of some never-born species that twitches when it is hurt. Coolant pipes run through its body; it glows only where the reactor shows through cracked plates.",
+    "size": {
+      "length": 20,
+      "height": 3
+    },
+    "biomass": 5200,
+    "arena": {
+      "shape": "reactor chamber",
+      "diameter": 30,
+      "height": 24,
+      "catwalkLevels": 2,
+      "coolantValves": 4,
+      "exitWithin": 60
+    },
+    "dormantUntil": "ship power restored (raid objective)",
+    "songRadius": 120,
+    "weakPoints": {
+      "seedPods": {
+        "count": 5,
+        "biomassEach": 300,
+        "multiplier": 2.0
+      },
+      "reactorSeams": {
+        "count": 4,
+        "multiplier": 3.0,
+        "exposedBy": "venting a coolant valve beside it (8 s)"
+      }
+    },
+    "phases": [
+      {
+        "id": "tend",
+        "from": 1.0,
+        "to": 0.6,
+        "plateMultiplier": 0.3,
+        "attacks": {
+          "rootSpear": {
+            "damage": 40,
+            "windup": 0.6,
+            "cooldown": 3
+          },
+          "embryoSwarm": {
+            "spawn": {
+              "type": "oculimoth",
+              "count": 5
+            },
+            "cooldown": 30
+          }
+        },
+        "note": "stays on walls and ceiling; vent coolant to crack its plates"
+      },
+      {
+        "id": "overheat",
+        "from": 0.6,
+        "to": 0.25,
+        "attacks": {
+          "steamBurst": {
+            "radius": 6,
+            "damage": 30,
+            "cooldown": 9
+          },
+          "catwalkCollapse": {
+            "cooldown": 25
+          },
+          "rootSpear": {
+            "damage": 45,
+            "windup": 0.5,
+            "cooldown": 2.5
+          }
+        },
+        "note": "drops to the floor, glowing seams exposed; catwalks start to fall"
+      },
+      {
+        "id": "meltdown",
+        "from": 0.25,
+        "to": 0.0,
+        "attacks": {
+          "reactorPulse": {
+            "damage": 60,
+            "radius": 30,
+            "windup": 3,
+            "cooldown": 20,
+            "blockedByCover": true
+          }
+        },
+        "note": "the reactor goes critical; hide behind the shielded pillars during each pulse"
+      }
+    ],
+    "enrage": {
+      "after": 540,
+      "effect": "meltdown pulses every 8 s"
+    },
+    "rewards": {
+      "dna": 700,
+      "items": [
+        {
+          "item": "embryoPod",
+          "count": [
+            2,
+            4
+          ]
+        }
+      ],
+      "harvest": {
+        "item": "wardenCore",
+        "time": 6,
+        "noise": 40
+      },
+      "xp": 1500
+    },
+    "respawn": "every raid, after power is restored"
+  }
+}

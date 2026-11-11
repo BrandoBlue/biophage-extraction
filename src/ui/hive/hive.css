@@ -48,6 +48,7 @@
 .hv-nav .tab.on { color:var(--acid); border-color:var(--acid); background:color-mix(in srgb, var(--panel) 80%, transparent);
   box-shadow:0 0 calc(var(--u) * 1) color-mix(in srgb, var(--acid) 35%, transparent), inset 0 0 calc(var(--u) * 1) color-mix(in srgb, var(--acid) 18%, transparent); }
 .hv-nav .tab.on::after { content:''; position:absolute; left:50%; bottom:calc(var(--u) * -.55); width:6px; height:6px; margin-left:-3px; border-radius:50%; background:var(--acid); box-shadow:0 0 8px var(--acid); }
+.hv-nav .tab { white-space:nowrap; }
 .hv-nav .tab.locked { opacity:.38; cursor:default; }
 .hv-nav .tab em { position:absolute; top:calc(var(--u) * -.9); right:0; font-style:normal; font-size:.6em; color:var(--path-viral); display:flex; gap:.2em; align-items:center; }
 
@@ -118,6 +119,8 @@
 .scr-menu .logo .l2 { font-size:calc(var(--u) * 2.6); letter-spacing:.52em; color:var(--acid); text-shadow:0 0 calc(var(--u) * 1) var(--acid); margin-left:.2em; }
 .scr-menu .logo small { margin-top:calc(var(--u) * 1); font-family:"Rajdhani", sans-serif; font-size:calc(var(--u) * .95); letter-spacing:.24em; color:var(--bone); opacity:.6; }
 #hive[data-tab=menu] .hv-title { display:none; }
+/* The debrief is a one-way stop: RETURN TO HIVE reloads into the menu, so no tabs to wander off through. */
+#hive[data-tab=results] .hv-nav { display:none; }
 .menu-list { position:absolute; left:calc(var(--u) * 6); top:calc(var(--u) * 25.5); list-style:none; margin:0; padding:0; display:grid; gap:calc(var(--u) * .7); width:calc(var(--u) * 26); }
 .menu-list button { width:100%; display:grid; grid-template-columns:auto 1fr; grid-template-rows:auto auto; column-gap:calc(var(--u) * 1); text-align:left; align-items:center;
   padding:calc(var(--u) * .75) calc(var(--u) * 1.2); background:linear-gradient(90deg, color-mix(in srgb, var(--panel) 70%, transparent), transparent);
@@ -251,9 +254,10 @@
 .scr-results .res-head { position:absolute; left:0; right:0; top:calc(var(--u) * 11); text-align:center; }
 .scr-results h1 { margin:0; font-size:calc(var(--u) * 6); letter-spacing:.16em; color:var(--acid); text-shadow:0 0 calc(var(--u) * 2.5) var(--acid); animation:slam .5s cubic-bezier(.2,1.6,.4,1) both; }
 .scr-results.lost h1 { color:var(--danger); text-shadow:0 0 calc(var(--u) * 2.5) var(--danger); }
+.scr-results .res-head p.note { color:var(--path-dna); opacity:1; }
 .scr-results .res-head p { margin:.3em 0 0; font-size:calc(var(--u) * 1.2); text-transform:none; opacity:.8; }
 @keyframes slam { from { transform:scale(1.6); opacity:0; filter:blur(8px); } }
-.res-items { left:calc(var(--u) * 18); top:calc(var(--u) * 22); width:calc(var(--u) * 38); max-height:calc(var(--u) * 28); overflow:auto; }
+.res-items { left:calc(var(--u) * 18); top:calc(var(--u) * 24.5); width:calc(var(--u) * 38); max-height:calc(var(--u) * 28); overflow:auto; }
 .scr-results.lost .res-items { border-color:color-mix(in srgb, var(--danger) 60%, transparent); }
 .scr-results.lost .res-items > h2 { color:var(--danger); }
 .res-items ul { list-style:none; margin:0; padding:0; display:grid; gap:calc(var(--u) * .4); }
@@ -264,7 +268,7 @@
 .res-items h2.kept { margin-top:calc(var(--u) * 1); font-size:calc(var(--u) * 1.1); color:var(--path-dna) !important; }
 .scr-results.lost .res-items h2.kept ~ ul li { filter:none; }
 @keyframes slidein { from { transform:translateX(-20px); opacity:0; } }
-.res-sum { right:calc(var(--u) * 18); top:calc(var(--u) * 22); width:calc(var(--u) * 24); }
+.res-sum { right:calc(var(--u) * 18); top:calc(var(--u) * 24.5); width:calc(var(--u) * 24); }
 .res-sum .big { display:flex; flex-direction:column; } .res-sum .big span { font-size:calc(var(--u) * 1); opacity:.7; }
 .res-sum .big b { font-family:"Chakra Petch", sans-serif; font-size:calc(var(--u) * 4.4); color:var(--path-dna); text-shadow:0 0 calc(var(--u) * 1.2) var(--path-dna); }
 .scr-results.lost .res-sum .big b { color:var(--danger); text-shadow:0 0 calc(var(--u) * 1.2) var(--danger); }

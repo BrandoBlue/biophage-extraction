@@ -86,8 +86,8 @@ export function tooltipHtml(pl: Placed): string {
 
 export interface GridHandlers {
   drop(from: { zone: ZoneId; index: number }, to: DropTarget): void;
-  /** Double-click: quick-move to the most likely other grid. */
-  quick?(from: { zone: ZoneId; index: number }): void;
+  /** Double-click: quick-move to the most likely other grid (shift held: the secure gut pouch first). */
+  quick?(from: { zone: ZoneId; index: number }, shift?: boolean): void;
   /** Extra actions (inject) on a stack; shown in raid. */
   select?(from: { zone: ZoneId; index: number }): void;
   /** Dropped outside every grid (in raid: onto the host's arm to inject). */
@@ -272,7 +272,8 @@ export class DragLayer {
   };
 
   private onDbl = (e: MouseEvent) => {
-    const hit = this.itemAt(e.target);
-    if (hit && this.handlers.quick) this.handlers.quick({ zone: hit.grid.src.zone, index: hit.index });
+    // Pointer capture during the press retargets the dblclick to the layer root: find the item under the cursor.
+    const hit = this.itemAt(e.target) ?? this.itemAt(document.elementFromPoint(e.clientX, e.clientY));
+    if (hit && this.handlers.quick) this.handlers.quick({ zone: hit.grid.src.zone, index: hit.index }, e.shiftKey);
   };
 }

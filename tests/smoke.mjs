@@ -49,7 +49,9 @@ try {
   const firstFrameMs = Date.now() - t0;
   await page.waitForFunction(() => window.__biophage?.frames > 5, null, { timeout: 30000 });
 
-  // Larva boots into the Hive menu (Gameplay Engineering): deploy before walking.
+  // Larva boots into the Hive: open the raid select tab and deploy before walking.
+  const raidTab = '#hive .tab[data-tab="raid"]';
+  if (await page.$(raidTab)) await page.click(raidTab);
   if (await page.$('#deploy')) await page.click('#deploy');
   const start = await page.evaluate(() => window.__biophage.position);
   await page.keyboard.down('KeyW');
