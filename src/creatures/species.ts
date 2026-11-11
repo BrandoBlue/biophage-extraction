@@ -15,6 +15,7 @@ import { titheWeaver } from './hostkin/titheweaver';
 import { huskMimic } from './hostkin/huskmimic';
 import { lumenGrazer } from './hostkin/lumengrazer';
 import { PlanBuilder, V, col, dim, mix, mutate, tint } from './builder';
+import { ZONE_SPECIES } from './zones';
 
 // ======================================================================= Needlemaw: lamprey × harvestman × comb jelly
 export function needlemaw(seed: number, stage = 0): BodyPlan {
@@ -402,6 +403,7 @@ export function mournback(seed: number, stage = 0): BodyPlan {
 export const SPECIES: Record<SpeciesId, (seed: number, stage?: number) => BodyPlan> = {
   needlemaw, bilecantor, glasswalker, oculimoth, mournback,
   titheWeaver, huskMimic, lumenGrazer,
+  ...ZONE_SPECIES,
 };
 export const SPECIES_IDS = Object.keys(SPECIES) as SpeciesId[];
 

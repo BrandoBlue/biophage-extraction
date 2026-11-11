@@ -25,6 +25,12 @@ const SHOTS = {
   huskMimic: { show: ['huskMimic', 7, 0], view: [0.4, 0.1, 1] },
   lumenGrazer: { show: ['lumenGrazer', 7, 0], view: [0.9, 0.05, 0.75] },
   mutated: { lineup: 3 },
+  // New-zone creatures (src/creatures/zones).
+  dunewake: { show: ['dunewake', 7, 0], view: [0.9, 0.3, 1.7], then: ['act'], wait: 10 },
+  'dunewake-burrow': { show: ['dunewake', 7, 0], view: [0.6, 0.45, 2.2], walk: true, then: ['burrow', true], wait: 40 },
+  bristleback: { show: ['bristleback', 7, 0], view: [0.9, 0.3, 0.95] },
+  sandwidow: { call: ['zoneBoss', 'sandwidow'], view: [0.7, 0.18, 0.75], then: ['zoneBossPhase', 'erupt'], wait: 30, expect: (st) => st.zoneBoss?.id === 'sandwidow' && st.zoneBoss.phase === 'erupt' && st.zoneBoss.petals === 6 },
+  shroudling: { show: ['shroudling', 7, 0], view: [0.5, 0.08, 1], then: ['act'], wait: 8 },
   walk: { show: ['glasswalker', 7, 0], walk: true, view: [0.3, 0.35, 1.3], wait: 40 },
   mutate: { show: ['needlemaw', 7, 0], mutate: 3, view: [0.7, 0.2, 1], wait: 12 },
   sever: { show: ['mournback', 7, 0], sever: 'legL0', view: [1.2, 0.2, 1], wait: 10 },
