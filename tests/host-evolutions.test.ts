@@ -15,7 +15,8 @@ describe('host evolutions', () => {
 
   it('ignores an evolution of another class, or one without its own body yet', () => {
     expect(createHostBody('goreBehemoth', 'neuroHound').evolution).toBeNull();
-    expect(createHostBody('venomWraith', 'shadowStalker').evolution).toBeNull();
+    expect(createHostBody('venomWraith', 'notAnEvolution').evolution).toBeNull();
+    expect(createHostBody('neuroInfiltrator', 'goreGorgon').evolution).toBeNull();
   }, 20000);
 
   it('the Neuro-Hound drops to four legs: longer than tall, low, with its snout out front', () => {
