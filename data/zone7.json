@@ -767,8 +767,7 @@
     ],
     "spawn": {
       "bearing": 172,
-      "radius": 143
-    },
+      "radius": 143, "clearRadius": 60},
     "extracts": [
       {
         "id": "rimLift",
