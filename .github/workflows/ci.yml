@@ -25,7 +25,7 @@ jobs:
       - name: Pick browser suites
         id: suites
         run: |
-          smoke='{"name":"smoke","run":"npm run smoke && npm run smoke:release && npm run budget"}'
+          smoke='{"name":"smoke","run":"npm run smoke && npm run smoke:release && npm run budget && npm run smoke:install"}'
           raid='{"name":"raid","run":"npm run smoke:raid","timeout":50}'
           raidrel='{"name":"raid-release","run":"npm run smoke:raid:release","timeout":50}'
           raidhive='{"name":"raid-hive","run":"npm run smoke:raid:hive","timeout":50}'

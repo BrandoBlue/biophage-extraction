@@ -31,11 +31,9 @@ jobs:
       - run: npm ci
       - name: Build the single-file release
         run: npm run release
+      # index.html plus the installable-app files (manifest, icons, service worker) for the desktop icon.
       - name: Stage the site
-        run: |
-          mkdir -p site
-          cp release/index.html site/index.html
-          touch site/.nojekyll
+        run: node scripts/stage-pages.mjs site
       - uses: actions/configure-pages@v5
         with:
           enablement: true
