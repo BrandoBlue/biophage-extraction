@@ -155,11 +155,14 @@ export class Player {
       this.peakY = this.position.y;
       this.onJump();
     }
-    this.velocity.y -= GRAVITY * this.gravityScale * dt;
+    // Gravity in two half steps around the move: exact for constant gravity, so jump height is the same at 30 or 240 fps.
+    const fall = GRAVITY * this.gravityScale * dt * 0.5;
+    this.velocity.y -= fall;
 
     const p = this.position;
     const prevY = p.y, prevX = p.x, prevZ = p.z;
     p.addScaledVector(this.velocity, dt);
+    this.velocity.y -= fall;
     // Terrain cliffs (maps that set a max slope, e.g. the Marrow Pit's walls): slide along them, never up them.
     if (climbBlocked(prevY, prevX, prevZ, p.x, p.z)) {
       if (!climbBlocked(prevY, prevX, prevZ, p.x, prevZ)) { p.z = prevZ; this.velocity.z = 0; }

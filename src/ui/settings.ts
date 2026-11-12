@@ -3,10 +3,18 @@
  * Ranges are UI limits, not balance numbers.
  */
 /** eyeScope: long-range guns aim through the living-eye scope; off = a slight zoom with the normal reticle. */
-export interface Settings { sensitivity: number; fov: number; volume: number; reduceMotion: boolean; eyeScope: boolean }
+/**
+ * brightness: exposure multiplier on top of the zone's grade (1 = as designed).
+ * renderScale: fraction of the display's pixel density the 3D view renders at (lower = faster).
+ * graphics: 'high' (all effects), 'balanced' (no ambient occlusion), 'performance' (no AO or sun shadows, 1x density cap)
+ * for high refresh rates. The frame rate is never capped by the game; it follows the display (60 to 240 Hz and up).
+ */
+export type GraphicsLevel = 'high' | 'balanced' | 'performance';
+export const GRAPHICS_LEVELS: GraphicsLevel[] = ['high', 'balanced', 'performance'];
+export interface Settings { sensitivity: number; fov: number; volume: number; reduceMotion: boolean; eyeScope: boolean; brightness: number; renderScale: number; graphics: GraphicsLevel }
 export const SETTINGS_KEY = 'biophage.settings.v1';
-export const DEFAULT_SETTINGS: Settings = { sensitivity: 1, fov: 75, volume: 0.8, reduceMotion: false, eyeScope: true };
-export const SETTING_RANGES = { sensitivity: [0.2, 3, 0.05], fov: [60, 100, 1], volume: [0, 1, 0.05] } as const;
+export const DEFAULT_SETTINGS: Settings = { sensitivity: 1, fov: 75, volume: 0.8, reduceMotion: false, eyeScope: true, brightness: 1, renderScale: 1, graphics: 'high' };
+export const SETTING_RANGES = { sensitivity: [0.2, 3, 0.05], fov: [60, 100, 1], volume: [0, 1, 0.05], brightness: [0.6, 1.8, 0.05], renderScale: [0.5, 1, 0.05] } as const;
 
 export function getSettings(store: Pick<Storage, 'getItem'> | null = globalThis.localStorage ?? null): Settings {
   try {
@@ -18,6 +26,7 @@ export function getSettings(store: Pick<Storage, 'getItem'> | null = globalThis.
     }
     s.reduceMotion = !!s.reduceMotion;
     s.eyeScope = s.eyeScope !== false;
+    if (!GRAPHICS_LEVELS.includes(s.graphics)) s.graphics = DEFAULT_SETTINGS.graphics;
     return s;
   } catch { return { ...DEFAULT_SETTINGS }; }
 }
