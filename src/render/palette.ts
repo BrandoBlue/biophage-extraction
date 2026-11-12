@@ -89,6 +89,20 @@ export const FAUNA = {
   water: '#2C3A36',
 } as const;
 
+/**
+ * The starter gun (Gameplay's Synapse Burster, Brandon 2026-11-12: "veiny and brown", wants it to look good):
+ * pale polished bone plates over a dark slate carapace, a little tissue in the seams, one soft sea-green accent.
+ */
+export const ARMOURY = {
+  shell: '#D6CDB8',
+  shellShade: '#A89E89',
+  carapace: '#24272D',
+  carapaceEdge: '#3A3F47',
+  tissue: '#6A3F45',
+  accent: '#5ED6B8',
+  accentDeep: '#1F5E52',
+} as const;
+
 /** Colour grading targets for the final post pass (split-tone shadows and highlights). */
 export const GRADE = {
   zone7Shadow: '#0B1315',
@@ -96,4 +110,4 @@ export const GRADE = {
   hiveShadow: '#03120E',
   hiveHighlight: '#E6FFD9',
 } as const;
-export const ALL_COLOURS: Record<string, string> = { ...HIVE, ...PATH, ...ZONE7, ...ZONE7_SHADE, ...ORGANIC, ...OCHRE, ...FAUNA, ...GRADE };
+export const ALL_COLOURS: Record<string, string> = { ...HIVE, ...PATH, ...ZONE7, ...ZONE7_SHADE, ...ORGANIC, ...OCHRE, ...FAUNA, ...ARMOURY, ...GRADE };

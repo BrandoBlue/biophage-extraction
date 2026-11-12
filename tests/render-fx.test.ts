@@ -171,7 +171,7 @@ describe('built-space atmosphere and grown walls', () => {
   });
 
   it('keeps the held gun in lit, natural tones rather than neon pink', async () => {
-    const { ORGANIC, ZONE7 } = await import('../src/render/palette');
+    const { ARMOURY, ZONE7 } = await import('../src/render/palette');
     const { SynapseBursterView } = await import('../src/game/viewmodel');
     const view = new SynapseBursterView();
     const { WeaponRig } = await import('../src/game/weapon-rig');
@@ -180,12 +180,13 @@ describe('built-space atmosphere and grown walls', () => {
     const lights: THREE.PointLight[] = [];
     rig.root.traverse((o) => { if ((o as THREE.PointLight).isPointLight) lights.push(o as THREE.PointLight); });
     expect(lights.some((l) => l.color.getHexString() === new THREE.Color(ZONE7.magenta).getHexString())).toBe(false);
-    let flesh = false;
+    // The starter's body is polished bone over slate carapace (palette ARMOURY), lit rather than glowing.
+    let shell = false;
     view.root.traverse((o) => {
       const m = (o as THREE.Mesh).material as THREE.MeshPhysicalMaterial | undefined;
-      if (m?.color?.getHexString() === new THREE.Color(ORGANIC.wetFlesh).getHexString()) flesh = true;
+      if (m?.color?.getHexString() === new THREE.Color(ARMOURY.shell).getHexString() && !(m.emissiveIntensity > 0 && m.emissive?.getHex())) shell = true;
     });
-    expect(flesh).toBe(true);
+    expect(shell).toBe(true);
   });
 });
 
