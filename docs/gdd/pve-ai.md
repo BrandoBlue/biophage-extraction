@@ -43,6 +43,9 @@ The body can show an ambush through `Abomination.lurking` together with `brain.l
 | Husk Mimic | mimic | Walks up at a host's pace with no tell, as if it were another player. Inside its reveal distance it splits open (screech), then lunges. Shot, it drops the act at once. | The husk splits for 0.45 s | Treat any host walking straight at you as hostile |
 | Lumen Grazer | grazer | Drifts high and ignores hosts and noise until it is hurt. Then it panics: it hangs over the shooter while its glands flare, dives into a crushing slam, and repeats for its panic dives before it calms. | Lantern glands flare while it hovers overhead | Don't shoot it; if you do, run out from under it |
 | Tithe Weaver | weaver | Hovers near home, spinning strands. Hunting, it strings a strand across a running host's path and spits from 12 to 18 m. A strand roots whoever walks through it and calls every creature near the web. | A fresh strand across your path | Watch your feet, shoot strands, kill the weaver to drop its web |
+| Dunewake | burrower | Swims under the sand at `burrowSpeed`, where nothing can hit it, curling in from the side. Inside `burrow.triggerRadius` a line of ripples races in for `rippleTell` s, then it bursts out in a lunge. It fights on the surface (now hittable) for `resurfaceAfter` s and dives again. | The ripple line and a dry hiss | Keep moving sideways at the ripple, shoot it while it is up |
+| Bristleback | herd | Grazes and ignores hosts. Gunfire within `temperament.alarmedByGunfireWithin`, or hurting one, raises the alarm through every Bristleback within `stampede.herdAlertRadius`. They stampede through the host (the trample hits, and they barely turn), wheel round, and between charges rack and loose a quill volley. Armoured front. | Quills racking up; the herd turning as one | Don't shoot near a herd. If you do, sidestep the run and shoot the cistern seam from the side |
+| Shroudling | spitter | For now it is a long-range spitter at its `preferredRange` (20 to 35 m). Corpse looting and the host disguise come next. | Neck slides out before the spit | Close in or break line of sight |
 
 ## Brood Heart wave director
 `WaveDirector` (`src/ai/nest.ts`) is timing only: dormant until a host is within `activationRadius`, first wave after `firstWaveDelay`, then every `waveInterval` for `maxWaves`, never more than `maxAliveFromNest` of its brood alive (the overflow trickles out as the brood dies). Spawns are flung outward from the heart and hunt immediately. The raid owns the heart's body, damage and Brood Cache.
@@ -107,3 +110,13 @@ Enrage at 7:00: the pool fills the bowl; only the ledge is safe.
   - Catwalk events bring down the nearest standing catwalk, and anyone on it falls.
   - The swarm spawns at the body's `birthPoint`, clamped inside the chamber.
   - When it dies, the spoils drop on the floor under it.
+
+## The Sandwidow (Ochre Reach, Skyfall Crater)
+`src/ai/widow.ts` (`WidowBrain`) is renderer-free. Attack numbers come from `bosses.json` `sandwidow`; movement, tells and rise/sink rates from `ai.json` `widow`. `src/game/widow.ts` (`RaidWidow`) joins it to Creature's body (`src/creatures/zones/sandwidow.ts`) and World's crater (`structures.widow`, a `WidowArena`).
+- **Wake:** a host steps onto the crater floor near her (or shoots her while she is up).
+- **Under the sand** (`surface` below `hittableAbove`) nothing reaches her: shots, splash and the boss bar damage all stop.
+- **circle:** she swims `circleRadius` m round the host. The **undertow** sinks a funnel where the host stood (the tell) and bites up through it. Every `surface.every` s she **breathes** for `surface.duration` s: crown open, throat sacs exposed (×2.5, 400 each). **Brood call** brings Dunewake out of her throat.
+- **erupt:** the **breach** tracks the host through its wind-up, bursts out under them, and she stays up `eruptUp` s. Up, she **sand-blasts** a cone (damage and `blindDuration`, raised as the `hostBlinded` bus event). Jaw petals can be shot off (200 each), and each takes `petalBite` off her bites.
+- **drown:** the floor turns to **quicksand** (`floorFraction` of the radius, the whole floor once enraged). It slows the host to `slowMultiplier` and grinds `damagePerSecond`. She closes in and **thrashes**; her body takes ×1.3.
+- **Debris rocks** are the counter. A host standing on one (feet 0.9 m above the sand) is out of reach of the undertow, the thrash and the quicksand; the breach still reaches a low rock.
+- **Kill:** `bossKilled('sandwidow')` pays her DNA, the Widow Clutch and the Widow Egg harvest.
