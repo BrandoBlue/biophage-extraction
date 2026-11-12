@@ -20,6 +20,7 @@ import { marketScreen } from './market';
 import { vendorRow, vendorScreen } from './vendors';
 import { CLASSES } from '../../../data';
 import { canFullscreen, isFullscreen, toggleFullscreen } from '../fullscreen';
+import { canInstall, installHint, onInstallChange, promptInstall } from '../install';
 import type { ClassId } from '../../../data';
 
 export type Tab = 'menu' | 'host' | 'stash' | 'arms' | 'raid' | 'market' | 'vendors' | 'body' | 'settings' | 'results';
@@ -184,6 +185,20 @@ export class HiveUI {
       fs.addEventListener('click', () => void toggleFullscreen());
       pnl.querySelector('.set-full')!.append(fs);
     }
+    // Desktop icon (Brandon, 2026-11-12): the browser's own install dialog when it offers one, plain steps otherwise.
+    const app = h('div', 'set-app');
+    const drawApp = () => {
+      app.replaceChildren();
+      if (canInstall()) {
+        const ib = h<HTMLButtonElement>('button', 'hv-btn', `${glyph('plus')}INSTALL GAME (DESKTOP ICON)`);
+        ib.dataset.install = '';
+        ib.addEventListener('click', () => void promptInstall());
+        app.append(ib);
+      } else app.append(h('p', 'set-note', installHint()));
+    };
+    drawApp();
+    const offInstall = onInstallChange(drawApp);
+    pnl.querySelector('.set-full')!.append(app);
     pnl.addEventListener('input', (e) => {
       const i = e.target as HTMLInputElement;
       const k = i.dataset.k as keyof Settings;
@@ -200,7 +215,7 @@ export class HiveUI {
     const back = cta('BACK TO HIVE', 'SETTINGS SAVE AS YOU CHANGE THEM');
     back.addEventListener('click', () => this.show('menu'));
     el.append(pnl, back, keyHints([['ESC', 'BACK']]));
-    return el;
+    return Object.assign(el, { dispose: () => { offInstall(); } });
   }
 
   private quit(): void {

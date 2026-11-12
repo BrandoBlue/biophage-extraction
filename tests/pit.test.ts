@@ -3,7 +3,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { STEP_HEIGHT, type Vec3Like } from '../src/world/collision';
 import { buildPit, edgeRadius, layerIndex, layerY, PIT, pitHeight, pitLandmarkAt, pitLandmarks, polar, wallPointAt } from '../src/world/pit';
 import { SOLIDS, climbBlocked, groundHeight, setTerrain } from '../src/world/zone7';
-import { HOST, LOOT } from '../data';
+import { ABOMINATIONS, HOST, LOOT } from '../data';
+import { Abomination, type AbominationContext } from '../src/game/abominations';
 import habitats from '../data/habitats.json';
 
 const scene = new THREE.Scene();
@@ -221,5 +222,36 @@ describe('the Marrow Pit', () => {
     });
     expect(shaped).toBeGreaterThan(40); // hut roofs and posts, pylons, pillars, scaffolds, the lift cage
     expect(plain).toBeLessThan(shaped);
+  });
+  it('softens the shared rock shader\'s cracks and blotches: the lines it patches still exist', () => {
+    const src = Object.values(import.meta.glob('../src/render/materials.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>)[0];
+    for (const anchor of ['smoothstep(0.0, 0.035, abs(bioNoise(vBioWorld * 6.5', 'col *= 1.0 - near * (crack * 0.35', 'relief += near * (grit * 0.12 - crack * 0.18)', 'col = mix(col, growth, growthMask);']) {
+      expect(src).toContain(anchor);
+    }
+  });
+  it('keeps the drop-in clear and spreads groups that share a landmark along its shelf', () => {
+    const spawns = world.layout.spawns!;
+    const sp = world.layout.spawn;
+    for (const s of spawns) {
+      if (pitHeight(s.x, s.z) > -10) expect(Math.hypot(s.x - sp.x, s.z - sp.z)).toBeGreaterThanOrEqual(PIT.spawn.clearRadius - 0.5);
+    }
+    const warren = spawns.filter((s) => pitLandmarkAt(s.x, s.z, pitHeight(s.x, s.z)) === 'hangingWarren');
+    expect(warren.length).toBeGreaterThanOrEqual(3);
+    for (let a = 0; a < warren.length; a++) for (let b = a + 1; b < warren.length; b++) {
+      expect(Math.hypot(warren[a].x - warren[b].x, warren[a].z - warren[b].z)).toBeGreaterThan(10);
+    }
+  });
+  it('a walker on the floor cannot climb the shaft walls to a host on the rim', () => {
+    const [fx, fz] = polar(172, 60), [px, pz] = polar(172, 140);
+    const hunter = new Abomination('hollowed', ABOMINATIONS.hollowed, fx, fz, 7);
+    const player = new THREE.Vector3(px, pitHeight(px, pz), pz);
+    const ctx: AbominationContext = {
+      player, playerVelocity: new THREE.Vector3(), playerAlive: true, playerHidden: false, noises: [], others: [hunter],
+      playableRadius: PIT.playableRadius, playerVisibility: 1, playerForward: { x: 0, z: 1 },
+      onAlert: () => {}, onMelee: () => {}, onSpit: () => {}, onKnockback: () => {}, onScreech: () => {},
+    };
+    hunter.alert({ x: px, z: pz });
+    for (let i = 0; i < 20 * 60; i++) hunter.update(1 / 60, ctx);
+    expect(hunter.position.y).toBeLessThan(layerY('warrens') - 20);
   });
 });

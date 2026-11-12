@@ -35,6 +35,7 @@ interface AudioData {
   creatures: { hearing: number; nearest: number; idle: [number, number]; hunt: [number, number]; stalkWarnRadius: number; heavyStepEvery: number };
   aliases: Record<string, string>;
   pitDepth: { floorY: number; extra: number; intensityFloor: number; heartbeatFrom: number };
+  edge: { from: number; to: number; level: number; musicDuck: number; perMinute: { shift: number; wet: number; call: number }; range: [number, number] };
   zones: Record<string, AmbienceProfile>;
 }
 

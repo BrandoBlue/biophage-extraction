@@ -92,8 +92,8 @@ import { WeaponRig } from './weapon-rig';
 import { createWeaponModel } from './weapon-view';
 // Creature & Mutation's living weapon bodies register themselves with the weapon view registry.
 import '../creatures/weapons/view';
-import { weaponSpec, WEAPONS as WEAPON_DATA, WEAPON_FEEL, type WeaponSpec } from '../../data';
-import { applyMods } from './mods';
+import { MODS, modFits, weaponSpec, WEAPONS as WEAPON_DATA, WEAPON_FEEL, type WeaponDef, type WeaponSpec } from '../../data';
+import { applyMods, isMod } from './mods';
 import { planHabitats, usesHabitats, type HabitatMap, type PlannedGroup } from './habitats';
 import { DEFAULT_ZONE, RaidLog } from './economy';
 
@@ -602,6 +602,7 @@ export class Raid {
     if (d.weapons?.length) this.arm(d.weapons, d.mods);
     // A gun packed into the cavities in the Hive (bought, or kept from a raid) is drawn into a free slot at once.
     this.pickUpWeapons();
+    this.fieldGraft();
     this.zone = d.zone ?? DEFAULT_ZONE;
     this.bankedDna = d.bankedDna ?? 0;
     this.bankToll = 0;
@@ -1481,6 +1482,7 @@ export class Raid {
     this.fx.burst(pod.position.clone().add(new THREE.Vector3(0, 0.7, 0)), GORE.cyanFluid, 0.6);
     if (items.length) this.bus.emit('pickup', { items, dna: 0, source: pod.type });
     this.pickUpWeapons();
+    this.fieldGraft();
     // Never auto-drop what is carried: what does not fit stays in the pod (swap UI comes with the cavity overlay).
     if (left.length) { pod.reseal(left); this.bus.emit('cavityFull', { items: left }); }
   }
@@ -2262,6 +2264,45 @@ export class Raid {
     return taken;
   }
 
+  /**
+   * Grafts found in the raid bud onto a carried gun at once: the held gun first, then the others, into a free socket
+   * the graft fits. What fits nowhere stays in the cavities for the Hive's mod bench. Extraction brings them home on
+   * the gun (result.mods); death loses them with it.
+   */
+  fieldGraft(): string[] {
+    const fitted: string[] = [];
+    const order = [this.held, ...this.weapons.map((_, i) => i).filter((i) => i !== this.held)];
+    for (const s of [...this.carried.items]) {
+      if (!isMod(s.item)) continue;
+      const m = MODS[s.item];
+      for (let n = s.count; n > 0; n--) {
+        const i = order.find((k) => {
+          const w = this.weapons[k];
+          return w && modFits(m, WEAPON_DATA[w.id] as WeaponDef) && !w.spec.mods.some((x) => MODS[x]?.slot === m.slot);
+        });
+        if (i === undefined || !this.carried.consume(s.item)) break;
+        this.regraft(i, [...this.weapons[i].spec.mods, s.item]);
+        fitted.push(s.item);
+        const w = this.weapons[i];
+        this.bus.emit('graftFitted', { weapon: w.id, label: w.spec.label, mod: s.item, modLabel: m.label, slot: i });
+      }
+    }
+    return fitted;
+  }
+
+  /** Rebuilds carried gun `i` with these grafts (new body with the graft budded on), keeping its loaded rounds. */
+  private regraft(i: number, mods: string[]): void {
+    const old = this.weapons[i];
+    const spec = applyMods(weaponSpec(old.id), mods);
+    const w = new LivingWeapon(spec, createWeaponModel(spec), this.projectiles, spec.ammo ? this.ammoFeed(old.id, spec.ammo) : null);
+    w.state.ammo = Math.min(old.state.ammo, spec.magazine);
+    w.ego = old.ego;
+    old.model.root.removeFromParent();
+    this.weapons[i] = w;
+    this.rig.add(w.model);
+    if (i === this.held) { this.held = -1; this.equip(i); }
+  }
+
   private ammoFeed(id: string, item: string): AmmoFeed {
     return {
       available: () => this.carried.count(item),
@@ -2447,6 +2488,7 @@ export class Raid {
       /** Loads these weapons.json ids as the raid's weapon slots. */
       arm: (ids: string[], mods?: string[][]) => this.arm(ids, mods),
       pickUpWeapons: () => this.pickUpWeapons(),
+      fieldGraft: () => this.fieldGraft(),
       /** Spawns an Abomination at (x, z) and returns its id (weapon tests need a target). */
       spawn: (kind: string, x: number, z: number) => this.addCreature(kind as AbominationKind, x, z).id,
       equip: (i: number) => this.equip(i),

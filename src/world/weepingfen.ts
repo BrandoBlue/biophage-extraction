@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { HIVE, ORGANIC, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { bioNode, bioTime, fungusCap, grownWall, membrane, zoneRock } from '../render/materials';
 import { capGeometry, noise3 } from '../render/geometry';
@@ -65,6 +65,8 @@ interface FenData {
   spawns: SpawnPlacement[];
   trails: { list: { id: string; to: string; points: [number, number][] }[] };
   hamlets: { list: Hamlet[] };
+  ferry: { jetty: [[number, number], [number, number]]; deck: number; raft: XZ & { yaw: number; length: number; width: number; top: number } };
+  rootLift: XZ & { radius: number };
   wrecks: { list: Wreck[] };
   boneRings: { list: (XZ & { id: string; area: string; radius: number; ribs: number })[] };
   skeletons: { list: (XZ & { id: string; area: string; yaw: number; length: number })[] };
@@ -336,7 +338,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   scene.add(back);
 
   // ---- Ground and water.
-  const span = (FEN.radius + 80) * 2, segs = Math.round(span / 3);
+  const span = FEN.radius * 1.32 * 2, segs = Math.round(span / 3);
   const ground = new THREE.PlaneGeometry(span, span, segs, segs).rotateX(-Math.PI / 2);
   const gp = ground.attributes.position;
   for (let i = 0; i < gp.count; i++) gp.setY(i, fenHeight(gp.getX(i), gp.getZ(i)));
@@ -358,7 +360,8 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
 
   // ---- Materials (three shader families of our own plus the zone's shared ones).
   const bark = fenBark({ base: ZONE7_SHADE.rock });
-  const paleBark = fenBark({ base: HIVE.bone, deep: ZONE7_SHADE.stem, mossy: 0.5 });
+  // Pale cap-tree stalks: bone-pale but dimmed and broad-ridged, so they read calm at range instead of glaring.
+  const paleBark = fenBark({ base: HIVE.bone, deep: ZONE7_SHADE.stem, mossy: 0.6, ridges: 3, dim: 0.28 });
   // Drowned ribs: finer plated, stained bone, a shade darker than the hut bone so they read old, not plastic.
   const ribBone = oldBone(ORGANIC.mist, 0.9);
   ribBone.color.multiplyScalar(0.7);
@@ -452,12 +455,15 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
       ];
       batch.add(bark, taperedTube(pts, R * 0.3, R * 0.08, lite ? 6 : 12, lite ? 5 : 6));
       const bx = t.x + c * len, bz = t.z + sn * len, by = base + y + len * 0.45;
-      const blob = new THREE.IcosahedronGeometry(1, lite ? 1 : 2);
+      let blob: THREE.BufferGeometry = new THREE.IcosahedronGeometry(1, lite ? 1 : 2);
       const bp = blob.attributes.position;
       for (let i = 0; i < bp.count; i++) {
         const n = 0.6 + noise3(bp.getX(i) * 2.2 + s + k, bp.getY(i) * 2.2, bp.getZ(i) * 2.2) * 0.7;
         bp.setXYZ(i, bp.getX(i) * n, bp.getY(i) * n * 0.8, bp.getZ(i) * n);
       }
+      // Weld the shared corners so the lumps shade soft rather than faceted.
+      blob.deleteAttribute('normal'); blob.deleteAttribute('uv');
+      blob = mergeVertices(blob);
       blob.computeVertexNormals();
       const br = R * (1.3 + noise3(k, s, 14) * 0.8);
       batch.add(mossMass, blob, M4(bx, by, bz, a, br * 1.3, br, br * 1.3));
@@ -489,7 +495,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
       const a = fixed() * Math.PI * 2, d = Math.sqrt(fixed()) * g.radius;
       const x = g.x + Math.cos(a) * d, z = g.z + Math.sin(a) * d;
       const R = g.caps ? 1.2 + fixed() * 1.1 : 1.1 + fixed() * 1.6;
-      if (Math.hypot(x, z) > FEN.radius - 8 || !clear(x, z, R * 2.2)) continue;
+      if (Math.hypot(x, z) > FEN.radius - 16 || !clear(x, z, R * 2.2)) continue; // canopies stay inside the edge murk
       keep.push({ x, z, r: R * 2.2 });
       tree({ x, z, radius: R, height: g.caps ? 22 + fixed() * 14 : 16 + R * 6 + fixed() * 6, roots: 4 + Math.floor(fixed() * 3) }, 100 + gi++ * 3.1, g.caps);
       placed++;
@@ -498,7 +504,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   // The wall of trunks beyond the walkable ring: dense, dark, half lost in fog.
   const wall = Math.round(FEN.radius * 0.32);
   for (let i = 0; i < wall; i++) {
-    const a = (i / wall) * Math.PI * 2 + fixed() * 0.1, d = FEN.radius + 8 + fixed() * 40;
+    const a = (i / wall) * Math.PI * 2 + fixed() * 0.1, d = FEN.radius * (1.21 + fixed() * 0.08); // past the edge murk's curtains (Rendering keeps 0.98-1.2 R clear)
     const R = 1.6 + fixed() * 2.6;
     tree({ x: Math.cos(a) * d, z: Math.sin(a) * d, radius: R, height: 22 + R * 6, roots: 5 }, 400 + i * 1.7, false, true);
   }
@@ -1042,12 +1048,71 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   // ---- Mistwaders: tall grazers wading slowly through the mist beyond the ring (ambient only).
   root.add(mistwaders(fixed));
 
+  // ---- The Causeway Ferry (Design's stilt-village ferry): a plank jetty off the islet to a moored log raft.
+  {
+    const F = FEN.ferry, [[x0, z0], [x1, z1]] = F.jetty, dir = Math.atan2(z1 - z0, x1 - x0), len = Math.hypot(x1 - x0, z1 - z0);
+    solid(batch, plank, (x0 + x1) / 2, (z0 + z1) / 2, len / 2, 1.2, dir, F.deck - 0.3, F.deck, 0, 'ferry-jetty');
+    for (let s = 0; s <= len; s += 2.6) {
+      for (const side of [-1, 1]) {
+        const px = x0 + Math.cos(dir) * s - Math.sin(dir) * side * 1.25, pz = z0 + Math.sin(dir) * s + Math.cos(dir) * side * 1.25;
+        const g = fenHeight(px, pz) - 0.6, top = F.deck + (s > len - 3 ? 1.6 : 0.3);
+        batch.add(bark, new THREE.CylinderGeometry(0.11, 0.15, top - g, 6), M4(px, (top + g) / 2, pz, s));
+      }
+    }
+    // The raft: a lashed float of crooked logs, riding low and a little skewed on its mooring lines.
+    const R = F.raft, ry = deg(R.yaw), ux = Math.cos(ry), uz = Math.sin(ry);
+    const n = Math.round(R.width / 0.62);
+    for (let k = 0; k < n; k++) {
+      const off = (k / (n - 1) - 0.5) * (R.width - 0.6), cx = R.x - uz * off, cz = R.z + ux * off;
+      const l = R.length * (0.88 + noise3(k, 3, 9) * 0.2), bow = (noise3(k, 4, 9) - 0.5) * 0.5;
+      const pts = [-0.5, -0.1, 0.25, 0.5].map((t) => new THREE.Vector3(cx + ux * (t * l + bow), R.top - 0.28 + Math.sin((t + 0.5) * Math.PI) * 0.05, cz + uz * (t * l + bow)));
+      batch.add(bark, taperedTube(pts, 0.32, 0.26, 10, 7));
+    }
+    for (const t of [-0.32, 0.32]) {
+      const lash = new THREE.CylinderGeometry(0.07, 0.07, R.width + 0.3, 5).rotateX(Math.PI / 2);
+      batch.add(hide, lash, M4(R.x + ux * t * R.length, R.top + 0.03, R.z + uz * t * R.length, -ry));
+    }
+    solid(null, null, R.x, R.z, R.length / 2, R.width / 2, ry, R.top - 0.6, R.top, 0, 'ferry-raft');
+    // A pole lantern on the raft and a mooring line back to the jetty's end posts.
+    batch.add(bark, new THREE.CylinderGeometry(0.06, 0.08, 3.2, 5).rotateZ(0.12), M4(R.x - ux * R.length * 0.35, R.top + 1.6, R.z - uz * R.length * 0.35));
+    batch.add(amber, new THREE.SphereGeometry(0.2, 8, 6), M4(R.x - ux * R.length * 0.35 + 0.18, R.top + 3.1, R.z - uz * R.length * 0.35));
+    const moor = [new THREE.Vector3(x1, F.deck + 1.4, z1), new THREE.Vector3((x1 + R.x) / 2, R.top + 0.4, (z1 + R.z) / 2), new THREE.Vector3(R.x - ux * R.length * 0.45, R.top + 0.3, R.z - uz * R.length * 0.45)];
+    batch.add(hide, taperedTube(moor, 0.04, 0.04, 8, 4));
+  }
+
+  // ---- The Root Lift (Design's root-lift in the cathedral): a woven root basket hung from the gallery cap.
+  {
+    const L = FEN.rootLift, g = fenHeight(L.x, L.z), floor = Math.max(g, FEN_WATER_Y) + 0.3;
+    const sp = FEN.cathedral.spire, top = fenHeight(sp.x, sp.z) + FEN.cathedral.climb.top;
+    // Woven sides: crossing root withies round a low rim you can step over; a solid woven floor.
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * Math.PI * 2, b = a + 0.9 * (k % 2 ? 1 : -1);
+      const pts = [0, 0.5, 1].map((t) => { const q = a + (b - a) * t, r = L.radius * (1 + Math.sin(t * Math.PI) * 0.08); return new THREE.Vector3(L.x + Math.cos(q) * r, floor + t * 0.5, L.z + Math.sin(q) * r); });
+      batch.add(bark, taperedTube(pts, 0.07, 0.05, 6, 4));
+    }
+    batch.add(bark, new THREE.CylinderGeometry(L.radius, L.radius * 0.8, 0.3, 14), M4(L.x, floor - 0.15, L.z));
+    octagon(L.x, L.z, L.radius * 0.9, floor - 1, floor, 'root-lift-floor');
+    // Root cables up to the gallery cap, twisting round each other; a seed-bulb counterweight hangs beside them.
+    for (let k = 0; k < 4; k++) {
+      const a = (k / 4) * Math.PI * 2 + 0.4, pts: THREE.Vector3[] = [];
+      for (let j = 0; j <= 6; j++) {
+        const t = j / 6, tw = a + t * 2.2, r = L.radius * (0.95 - t * 0.6);
+        pts.push(new THREE.Vector3(L.x + Math.cos(tw) * r, floor + 0.5 + t * (top - floor - 1), L.z + Math.sin(tw) * r));
+      }
+      batch.add(bark, taperedTube(pts, 0.14, 0.2, 18, 5));
+    }
+    const bulb = new THREE.IcosahedronGeometry(0.9, 2).scale(1, 1.5, 1);
+    batch.add(paleBark, bulb, M4(L.x + L.radius + 1.2, floor + 5.5, L.z));
+    batch.add(bark, new THREE.CylinderGeometry(0.06, 0.06, top - floor - 7, 5), M4(L.x + L.radius + 1.2, (top + floor + 7) / 2 - 0.5, L.z));
+  }
+
   // ---- Extract markers: lantern posts round each extract; a ring when it is open.
   const sitesGroup = new THREE.Group();
   sitesGroup.name = 'fen-sites';
   const rings = new Map<string, THREE.Mesh>();
   for (const e of layout.extracts) {
-    const g = fenHeight(e.x, e.z);
+    // On the raft or in the basket, the markers stand on that floor (never on the mud under the water).
+    const g = Math.max(fenHeight(e.x, e.z), SOLIDS.floorAt(e.x, e.z, fenHeight(e.x, e.z) + 3));
     for (let k = 0; k < 4; k++) {
       const a = (k / 4) * Math.PI * 2 + 0.4, px = e.x + Math.cos(a) * 5, pz = e.z + Math.sin(a) * 5;
       batch.add(bark, new THREE.CylinderGeometry(0.1, 0.14, 2.6, 6), M4(px, g + 1.3, pz));

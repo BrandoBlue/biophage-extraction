@@ -1,5 +1,5 @@
 {
-  "_note": "Weapon mods: living grafts that bud onto a gun's sockets (barrel, sight, under, chamber). effects.mult multiplies a weapon field by dotted path (noise.gunfire multiplies the host's gunfire noise radius while this gun fires); effects.set replaces a field; effects.special is a behaviour Gameplay implements by id. fits = weapon classes it can go on (omit = any gun with the slot). Installed mods stay on the gun and are lost with it. look = Creature's brief for the graft. See docs/gdd/09-weapons-and-habitats.md.",
+  "_note": "Weapon mods: living grafts that bud onto a gun's sockets (barrel, sight, under, chamber). effects.mult multiplies a weapon field by dotted path (noise.gunfire multiplies the host's gunfire noise radius while this gun fires); effects.set replaces a field; effects.special is a behaviour Gameplay implements by id. fits = weapon classes it can go on (omit = any gun with the slot). Installed mods stay on the gun and are lost with it. look = Creature's brief for the graft. See docs/gdd/09-weapons-and-habitats.md. A graft found in a raid buds onto a carried gun with a free socket it fits (src/game/raid.ts fieldGraft).",
   "lampreyMouth": {
     "label": "Lamprey Mouth",
     "slot": "barrel",
