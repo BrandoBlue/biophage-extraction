@@ -9,6 +9,8 @@ export interface GameEvents {
   raidStart: { raidTime: number };
   collapseWarning: { timeLeft: number };
   shot: { weapon: string; ammo: number; position: Vec3Like; ego: boolean };
+  /** A graft found in the raid budded onto a carried gun (it comes home on the gun if the host extracts). */
+  graftFitted: { weapon: string; label: string; mod: string; modLabel: string; slot: number };
   reload: { weapon: string; time: number };
   /** A reload reached one of its feel beats (weapon-feel.json reload[style].beats; perShell: per shell). */
   reloadBeat: { weapon: string; style: string; beat: number; cue: string };
