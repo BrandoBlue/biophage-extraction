@@ -84,8 +84,8 @@ export interface Pipeline {
    * 3D view's pixel density, graphics drops ambient occlusion ('balanced') and sun shadows too ('performance').
    */
   applyDisplay(d: DisplaySettings): void;
-  /** Exposure scale for the current zone (ZONE_EXPOSURE in presets.ts); 1 for the night zones. */
-  setZoneExposure(k: number): void;
+  /** Per-zone adjustments to the raid grade (ZONE_GRADE in presets.ts); empty for the night zones. */
+  setZoneGrade(over: Partial<GradePreset>): void;
   /** When set, render through this camera instead (look-dev captures). */
   overrideCamera: THREE.Camera | null;
   /** When set, render this scene instead (Hive lab stage, menus). Post stack and grade stay on. */
@@ -133,7 +133,7 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
   const maxRatio = () => Math.min(devicePixelRatio, quality === 'high' && display.graphics !== 'performance' ? 2 : 1);
   let display: DisplaySettings = { brightness: 1, renderScale: 1, graphics: 'high' };
   let size = { w: 1, h: 1 };
-  let zoneExposure = 1;
+  let zoneGrade: Partial<GradePreset> = {};
   renderer.setPixelRatio(maxRatio());
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -174,9 +174,10 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
   let preset: GradePreset = GRADE_PRESETS[presetName];
   let hit = 0;
   let overload = 0;
-  const applyPreset = (p: GradePreset) => {
-    preset = p;
-    renderer.toneMappingExposure = p.exposure * display.brightness * (p === GRADE_PRESETS.zone7 ? zoneExposure : 1);
+  const applyPreset = (base: GradePreset) => {
+    preset = base;
+    const p: GradePreset = base === GRADE_PRESETS.zone7 ? { ...base, ...zoneGrade } : base;
+    renderer.toneMappingExposure = p.exposure * display.brightness;
     scene.environmentIntensity = p.environment;
     bloom.strength = p.bloom.strength; bloom.radius = p.bloom.radius; bloom.threshold = p.bloom.threshold;
     const g = grade.uniforms;
@@ -222,7 +223,7 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
     setOverload(v) { overload = THREE.MathUtils.clamp(v, 0, 1); },
     hitPulse(strength = 1) { hit = Math.min(1, hit + strength); },
     setPreset(name) { applyPreset(GRADE_PRESETS[name]); },
-    setZoneExposure(k) { zoneExposure = k; applyPreset(preset); },
+    setZoneGrade(over) { zoneGrade = { ...over }; applyPreset(preset); },
     applyDisplay(d) {
       display = { ...d };
       applyPreset(preset);

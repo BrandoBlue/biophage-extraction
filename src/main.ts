@@ -13,7 +13,7 @@ import { createPipeline } from './render/pipeline';
 import { installLookdev } from './render/lookdev';
 import { GameAudio } from './audio';
 import { getSettings, type Settings } from './ui/settings';
-import { ZONE_EXPOSURE } from './render/presets';
+import { ZONE_GRADE } from './render/presets';
 import { organicize } from './render/organic';
 import { caveDistance } from './world/cave';
 import { layerAt } from './world/pit';
@@ -117,7 +117,7 @@ function bootRaid(): void {
   const pipeline = createPipeline(canvas, scene, camera, 'zone7');
   // Display settings (Hive → Settings): brightness, render scale and graphics level apply live.
   pipeline.applyDisplay(getSettings());
-  pipeline.setZoneExposure(ZONE_EXPOSURE[world.zone] ?? 1);
+  pipeline.setZoneGrade(ZONE_GRADE[world.zone] ?? {});
   addEventListener('biophage:settings', (e) => pipeline.applyDisplay((e as CustomEvent<Settings>).detail));
   installLookdev(pipeline, camera, scene);
   raid.pipeline = pipeline;

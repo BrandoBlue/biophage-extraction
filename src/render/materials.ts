@@ -180,8 +180,9 @@ export function zoneRock(opts: { veinColour?: string; mossColour?: string; scale
 /** Fungus cap: iridescent top with glowing spots, luminous gill underside. Glow colour comes from instance colour or `glow`. */
 export function fungusCap(glow: string = ZONE7.cyan): THREE.MeshPhysicalMaterial {
   const mat = new THREE.MeshPhysicalMaterial({
-    color: ZONE7_SHADE.flesh, roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.3,
-    iridescence: 0.8, iridescenceIOR: 1.5, emissive: glow,
+    // A damp, velvety skin with a faint sheen rather than a lacquer: a hard clearcoat read as black plastic at night.
+    color: ZONE7_SHADE.flesh, roughness: 0.58, clearcoat: 0.22, clearcoatRoughness: 0.5,
+    iridescence: 0.3, iridescenceIOR: 1.4, emissive: glow,
   });
   return bioSurface(mat, {
     uniforms: { uFlesh: u(ZONE7_SHADE.flesh) },
@@ -203,7 +204,7 @@ export function fungusCap(glow: string = ZONE7.cyan): THREE.MeshPhysicalMaterial
       float breathe = 0.8 + 0.2 * sin(bioTime * 1.7 + vBioSeed.x * 3.0);
       // Caps are lit flesh tinted by their colony colour; only spots, the lip and the gills glow.
       vec3 capTint = mix(uFlesh, glowCol * 0.35, 0.12);
-      diffuseColor.rgb = mix(capTint * (0.45 + mottling * 0.8), mix(uFlesh, glowCol, 0.25) * (0.5 + 0.3 * gills), under);
+      diffuseColor.rgb = mix(capTint * (0.62 + mottling * 0.7), mix(uFlesh, glowCol, 0.25) * (0.5 + 0.3 * gills), under);
       vec3 topGlow = glowCol * (spots * 0.9 + rim * 0.45 + mottling * 0.02);
       // Gills: a soft inner light that gathers toward the stem, ridges barely brighter than the hollows.
       vec3 gillGlow = glowCol * (0.18 + 0.22 * gills) * (0.35 + 0.65 * (1.0 - smoothstep(0.2, 1.0, radial)));
