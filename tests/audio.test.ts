@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { ABOMINATIONS, BOSSES, WEAPONS, WEAPON_FEEL, ZONES } from '../data';
+import { ABOMINATIONS, BOSSES, MODS, WEAPONS, WEAPON_FEEL, ZONES } from '../data';
 import { AUDIO, ambienceFor } from '../src/audio/config';
 import { AudioEngine, airCutoff, volumeGain } from '../src/audio/engine';
 import { Ambience } from '../src/audio/ambience';
 import { FLAVOURS, Music, flavourFor, layerLevels, tempo } from '../src/audio/music';
 import { Intensity, Stride, behind, stepLevel, surfaceFor, threatLevel, weightOf } from '../src/audio/director';
 import * as S from '../src/audio/sfx';
+import { GUNS, MOD_SOUNDS, gunShot, weaponSwap } from '../src/audio/guns';
 import { BOSSES as BOSS_VOICES, EMITTERS, SPECIES, bossVoice, speciesVoice, stalkWarn } from '../src/audio/voices';
 import { fakeContext } from './lib/fake-audio';
 
@@ -18,6 +19,15 @@ describe('audio coverage', () => {
   });
   it('every reload beat cue in weapon-feel.json has a sound', () => {
     for (const style of Object.values(WEAPON_FEEL.reload)) for (const b of style.beats) expect(S.RELOAD_CUES[b.cue], b.cue).toBeTypeOf('function');
+  });
+  it('every gun has its own voice and every barrel or chamber graft changes it', () => {
+    for (const id of Object.keys(WEAPONS)) expect(GUNS[id], id).toBeTypeOf('function');
+    for (const [id, m] of Object.entries(MODS)) if (m.slot === 'barrel' || m.slot === 'chamber') expect(MOD_SOUNDS[id], id).toBeDefined();
+    const fallback = S.FIRE.carbine;
+    expect(gunShot('quillet', [], fallback)).toBe(GUNS.quillet);
+    expect(gunShot('somethingNew', [], fallback)).toBe(fallback);
+    expect(gunShot('quillet', ['hushGill'], fallback)).not.toBe(GUNS.quillet);
+    expect(gunShot('quillet', ['pupilBud'], fallback)).toBe(GUNS.quillet); // sights are silent
   });
   it('every Abomination has its own voice and every boss its own set', () => {
     for (const kind of Object.keys(ABOMINATIONS)) expect(SPECIES[kind], kind).toBeDefined();
@@ -52,6 +62,10 @@ describe('recipes render without Web Audio errors', () => {
       S.uiHover, S.uiClick, S.uiTab, S.uiDeploy, S.uiError, S.distantShot, S.dryClick,
     ];
     for (const r of all) { const len = r(x, out, 0.1); expect(len).toBeGreaterThan(0); expect(len).toBeLessThan(15); }
+    for (const g of Object.values(GUNS)) for (const ego of [false, true]) { const len = g(x, out, 0.1, ego); expect(len).toBeGreaterThan(0); expect(len).toBeLessThan(8); }
+    for (const id of Object.keys(MOD_SOUNDS)) expect(gunShot('vertebraRifle', [id], S.FIRE.rifle)(x, out, 0.1, true), id).toBeGreaterThan(0);
+    expect(gunShot('gulletScatter', Object.keys(MOD_SOUNDS), S.FIRE.shotgun)(x, out, 0.1, false)).toBeGreaterThan(0);
+    expect(weaponSwap(x, out, 0.1)).toBeGreaterThan(0);
     for (const surface of ['moss', 'stone', 'metal', 'sand', 'flesh', 'water'] as const) for (const w of ['light', 'medium', 'heavy'] as const) {
       expect(S.footstep(x, out, 0, surface, w, 1)).toBeGreaterThan(0);
       expect(S.land(x, out, 0, surface, w, 6)).toBeGreaterThan(0);
