@@ -113,6 +113,24 @@ describe('the Weeping Fen', () => {
     expect(p.y).toBeCloseTo(v.deck, 1);
   });
 
+  it('climbs the Great Spire\'s shelf brackets to the Mushroom Cathedral gallery and crosses the gill bridge to the chapel', () => {
+    const C = FEN.cathedral, sp = C.spire, ch = C.chapel;
+    const sb = fenHeight(sp.x, sp.z), toChapel = Math.atan2(ch.z - sp.z, ch.x - sp.x);
+    const sweep = C.climb.turns * Math.PI * 2, start = toChapel - C.climb.endShort - sweep, Rr = sp.radius + 2.2;
+    const path: [number, number][] = [];
+    for (let k = 0; k <= 30; k++) path.push(polar(sp.x, sp.z, start + (k / 30) * sweep, Rr));
+    const gal = polar(sp.x, sp.z, toChapel, C.gallery.out);
+    path.push(gal);
+    const from = polar(sp.x, sp.z, start - 0.3, Rr + 0.5);
+    const p = walk({ x: from[0], y: fenHeight(from[0], from[1]), z: from[1] }, path);
+    expect(near(p, gal[0], gal[1])).toBeLessThan(0.6);
+    expect(p.y).toBeCloseTo(sb + C.climb.top, 1);
+    const back = toChapel + Math.PI, land = polar(ch.x, ch.z, back, ch.radius + 1.6);
+    const q = walk(p, [land]);
+    expect(near(q, land[0], land[1])).toBeLessThan(0.6);
+    expect(q.y).toBeCloseTo(fenHeight(ch.x, ch.z) + ch.deck, 1);
+  });
+
   it('crosses the Fallen Span log from the landing', () => {
     const lg = FEN.logs[0];
     const p = walk({ x: lg.x0 - (lg.x1 - lg.x0) * 0.2, y: 1, z: lg.z0 - (lg.z1 - lg.z0) * 0.2 }, [[(lg.x0 + lg.x1) / 2, (lg.z0 + lg.z1) / 2]]);
