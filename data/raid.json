@@ -241,7 +241,15 @@
       "paidExtract": {
         "bearing": 140,
         "costDna": 150,
-        "extractTime": 5
+        "extractTime": 5,
+        "alwaysOpen": true,
+        "payFrom": [
+          "carriedKillDna",
+          "bankedDna"
+        ],
+        "chargeOn": "complete",
+        "perHost": true,
+        "_note": "Pay-to-leave: always open, never shifts. The toll is taken when the 5 s channel completes (an interrupted channel costs nothing), first from the host's carried kill DNA, then from banked DNA. If the host can't cover it from both, the extract shows 'needs 150 DNA' and won't start. In a squad each host pays their own toll. Items are never taken."
       }
     },
     "anomalies": [

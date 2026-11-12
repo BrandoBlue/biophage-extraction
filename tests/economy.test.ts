@@ -145,7 +145,8 @@ describe('zones', () => {
     p.economy.unlocks.push('zone:longSeedWreck');
     expect(selectZone(p, 'longSeedWreck')).toBe(true);
     expect(deploy(p).zone).toBe('longSeedWreck');
-    expect(zoneAccess(p, 'expanse').state).toBe('coming');
+    expect(zoneAccess(p, 'expanse').state).toBe('open'); // opened early for playtesting (zones.json accessNote)
+    expect(zoneAccess(p, 'hollowChoir').state).toBe('coming');
     expect(zoneAccess(p, 'longSeedWreck', 0, ['glowmireIsle']).state).toBe('coming'); // unlocked, but no map yet
     expect(selectZone(p, 'longSeedWreck', 0, ['glowmireIsle'])).toBe(false);
     expect(zoneList(p).map((z) => z.id)).toEqual(Object.entries(ZONES).sort(([, a], [, b]) => a.order - b.order).map(([id]) => id));
