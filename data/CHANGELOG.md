@@ -2,6 +2,10 @@
 
 Every tuning change to `data/*.json`, newest first, with the reason.
 
+## The Expanse opens now; the pay-to-leave rule (2026-11-12)
+- zones.json `expanse`: milestone larva, access open (coordinator: Brandon reviews by playing and wants the 1 km map now). The intended gate is kept in `accessNote`.
+- raid.json `host.extracts.paidExtract`: alwaysOpen, payFrom carried kill DNA then banked DNA, charged on a completed channel, per host.
+
 ## Vendors sell ammo for the guns they sell (2026-11-12)
 - vendors.json: Mother Clot adds Needle Feed (rep 1), Shard Feed (rep 2) and Bolt Feed (rep 3). The Gullet Broker adds Spore Feed (rep 2). Prices match the Archivist's. A data test enforces the rule.
 

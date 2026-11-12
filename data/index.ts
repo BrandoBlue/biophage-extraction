@@ -314,7 +314,7 @@ export interface RaidRules {
     spawns: { radius: number; count: number; minSeparation: number };
     extracts: {
       pool: Placement[]; openAtStart: number; shiftEvery: number; warnBeforeShift: number; maxOpen: number;
-      paidExtract: { bearing: number; costDna: number; extractTime: number };
+      paidExtract: { bearing: number; costDna: number; extractTime: number; alwaysOpen: boolean; payFrom: ('carriedKillDna' | 'bankedDna')[]; chargeOn: 'complete'; perHost: boolean };
     };
     anomalies: { id: string; label: string; chancePerRaid: number; duration?: number; radius?: number; effect: Record<string, unknown>; look: string }[];
     rivals: boolean;

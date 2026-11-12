@@ -86,7 +86,7 @@ Playable radius 500 m, 25-minute raid.
 | Choir Chasm | W | 3 | Floating island chain over the void, Bile Cantor colonies, liquid-light falls, the Lumen Grazers' sky |
 | Brood Hollow | NW rim | 4 | Fleshy crater field with two Brood Hearts; the best loot |
 - Six spawn points on the rim, at least 250 m apart.
-- **Shifting extracts:** two of five Seed Spires open at the start; every 5 minutes one closes and another opens (60 s warning on the scanner); never more than three open. A **paid extract** near the centre costs 150 DNA and channels in 5 s.
+- **Shifting extracts:** two of five Seed Spires open at the start; every 5 minutes one closes and another opens (60 s warning on the scanner); never more than three open. A **paid extract** near the centre costs 150 DNA and channels in 5 s. It is always open and never shifts. The toll is taken only when the channel completes, so an interrupted channel costs nothing. It comes first from the host's carried kill DNA, then from banked DNA; if both together can't cover it, the extract shows "needs 150 DNA" and won't start. In a squad each host pays their own toll. Items are never taken (`RAID.host.extracts.paidExtract`).
 - **Anomalies:** Psych-Wave Storm (scanner dead, Overload creeps up, the sky tears into magenta bands), Gravity Bloom (a turning violet lens where gravity drops to 35%), Red Tide (every Abomination glows red, moves 20% faster and drops 50% more DNA).
 
 ## Three new Abominations (`data/abominations.json`)
