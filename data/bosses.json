@@ -194,8 +194,8 @@
     "biomass": 5200,
     "arena": {
       "shape": "reactor chamber",
-      "diameter": 30,
-      "height": 24,
+      "diameter": 38,
+      "height": 18,
       "catwalkLevels": 2,
       "coolantValves": 4,
       "exitWithin": 60

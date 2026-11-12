@@ -32,6 +32,12 @@
       "item": "needlemawGland",
       "time": 2,
       "noise": 10
+    },
+    "mind": {
+      "wants": "Feed as a pack without losing members.",
+      "shows": "The pack chirps to each other, and the ring tightens or loosens with the shrieks. A coiling one swells its throat. The rest watch you, not the one attacking.",
+      "plans": "They herd you toward the pack, never chase one by one. Two hold you while the others circle behind and cut off the way you came.",
+      "learns": "If you back into a corner twice, they stop entering it and wait outside until you leave. If you kill the lunger every time, they feint with two and lunge with a third."
     }
   },
   "bilecantor": {
@@ -92,6 +98,12 @@
       "item": "cantorSongSac",
       "time": 3,
       "noise": 14
+    },
+    "mind": {
+      "wants": "Keep its distance and make you move into the pack.",
+      "shows": "It hums lower when it has you, and its choir rises as it charges. It turns to keep its pustules away from you.",
+      "plans": "It sings to call Needlemaws toward where it is aiming, and drifts so that a wall is between you and it.",
+      "learns": "Once you pop a pustule, it keeps that side turned away. If you rush it, it backs over open ground where you can't hide."
     }
   },
   "glasswalker": {
@@ -131,6 +143,12 @@
       "item": "glasswalkerLens",
       "time": 3,
       "noise": 10
+    },
+    "mind": {
+      "wants": "Kill without being seen.",
+      "shows": "Its lens catches the light just before it moves. It tilts its head while it decides. You hear it stop when you turn.",
+      "plans": "It circles to your blind side and uses foliage and the curtains between you. It waits for you to reload or open a container.",
+      "learns": "If you keep checking behind you, it stops approaching and waits for a noise to cover it. Once revealed, it changes the route it uses."
     }
   },
   "oculimoth": {
@@ -172,6 +190,12 @@
       "item": "oculimothEye",
       "time": 1,
       "noise": 4
+    },
+    "mind": {
+      "wants": "Find the intruder and tell everything else.",
+      "shows": "The swarm turns as one to face a noise, then drifts toward it, and their eyes flick open when they see you.",
+      "plans": "Scouts split up to search. When one finds you, the whole swarm spirals overhead, and that call pulls the nearby hunters in.",
+      "learns": "After a flare or a pulse scatters them, they search in pairs and stay higher."
     }
   },
   "mournback": {
@@ -215,6 +239,12 @@
       "item": "mournbackMarrow",
       "time": 4,
       "noise": 20
+    },
+    "mind": {
+      "wants": "Protect its ground and its smaller kin.",
+      "shows": "It plants its feet and lowers its head before a charge. It grieves over dead packmates, and that makes it angrier.",
+      "plans": "It stands in front of wounded creatures and blocks doors and bridges so the pack can reach your flank.",
+      "learns": "If you dodge its charge twice to the same side, it cuts the angle and aims that way next time."
     }
   },
   "titheWeaver": {
@@ -255,6 +285,12 @@
       "item": "weaverGanglion",
       "time": 2.5,
       "noise": 8
+    },
+    "mind": {
+      "wants": "Make you walk into its web.",
+      "shows": "It plucks its threads to listen. It freezes when a strand moves and then turns slowly toward the pull.",
+      "plans": "It webs the routes you used on the way in, so your way out is trapped. It strings webs across doorways near loot.",
+      "learns": "If you burn or cut a web, it rebuilds a different one somewhere you haven't been yet."
     }
   },
   "huskMimic": {
@@ -293,6 +329,12 @@
       "item": "mimicLure",
       "time": 2.5,
       "noise": 10
+    },
+    "mind": {
+      "wants": "Get close by pretending to be a host.",
+      "shows": "Its walk is almost right but not quite: it stops at the wrong moments, it echoes the last ping it heard, and it never reloads.",
+      "plans": "It walks toward loot like a player would, waits by extract, and copies the movements of the last host it saw.",
+      "learns": "If you shoot it as a decoy, the next Mimic you meet behaves more like a real player."
     }
   },
   "lumenGrazer": {
@@ -337,6 +379,12 @@
       "item": "lanternGland",
       "time": 5,
       "noise": 25
+    },
+    "mind": {
+      "wants": "Graze in peace.",
+      "shows": "It glows calmly and slowly; it flickers and pulls in its tendrils when it feels threatened.",
+      "plans": "Panicked, it flees through the area, and the chaos stirs up the hunters around it.",
+      "learns": "If you hurt one, the herd keeps away from your position for the rest of the raid."
     }
   },
   "dunewake": {
@@ -387,6 +435,12 @@
       "item": "dunewakeSpine",
       "time": 2,
       "noise": 8
+    },
+    "mind": {
+      "wants": "Strike from under the sand without being seen.",
+      "shows": "The sand trembles in lines that come toward you. They stop moving when you stop, and surface to taste the air.",
+      "plans": "The pack surrounds you from below. One surfaces in front of you to distract you while others come from behind.",
+      "learns": "If you stand on rock to stay safe, they wait at the edge of it in a ring. If you shoot the ripples, they dive deeper and move more slowly."
     }
   },
   "bristleback": {
@@ -443,6 +497,12 @@
       "item": "bristleCistern",
       "time": 3.5,
       "noise": 15
+    },
+    "mind": {
+      "wants": "Move the herd safely and protect the young.",
+      "shows": "The whole herd stops humming when it senses danger. The quills rise and whistle louder as they decide to stampede.",
+      "plans": "The bulls form a line and drive the stampede toward the threat. The rest of the herd moves behind them.",
+      "learns": "If you shoot at the herd, they remember the direction you shot from and stampede that way at the first sight of you."
     }
   },
   "shroudling": {
@@ -496,6 +556,12 @@
       "item": "shroudSkin",
       "time": 2.5,
       "noise": 8
+    },
+    "mind": {
+      "wants": "Take loot by being mistaken for one of you.",
+      "shows": "Its silhouette looks like a host, but it stops to watch you a little too long. It tilts its head when you ping.",
+      "plans": "It goes after downed or dead hosts and full containers, and snipes at whoever comes to help.",
+      "learns": "If you spot its disguise once, it changes to a different stolen skin and keeps more distance."
     }
   },
   "cablecrawler": {
@@ -537,6 +603,12 @@
       "item": "cablecrawlerShear",
       "time": 2,
       "noise": 8
+    },
+    "mind": {
+      "wants": "Drop its prey into the pit.",
+      "shows": "It taps the cables to feel your weight. You can hear it chewing before a cable snaps.",
+      "plans": "It cuts the walkway you need, not just the one you are on, so your way back is broken.",
+      "learns": "If you fight it on a walkway, it lures you onto damaged cables. If you guard a cable, it attacks the next one."
     }
   },
   "veilwing": {
@@ -582,6 +654,12 @@
       "item": "veilMembrane",
       "time": 2.5,
       "noise": 8
+    },
+    "mind": {
+      "wants": "Take you up and let you fall.",
+      "shows": "It goes silent above you, its skirt of tentacles spreads, then it folds and drops.",
+      "plans": "It waits for you to stand at an edge, or in the open, or for a teammate to be busy.",
+      "learns": "If you stay under cover, it circles over the next open stretch on your path and waits there."
     }
   },
   "hollowed": {
@@ -636,6 +714,12 @@
       "item": "hollowRoot",
       "time": 3,
       "noise": 12
+    },
+    "mind": {
+      "wants": "Use the dead host's body and gear like a player would.",
+      "shows": "Its head jerks toward sounds, and it whispers the dead host's last pings. It reloads too slowly and sometimes forgets its gun.",
+      "plans": "It takes cover, peeks, flanks and uses the dead host's grenades. It guards the place where its host died.",
+      "learns": "It mimics the last tactic used on it: if you flanked it, it flanks next."
     }
   },
   "fenstalker": {
@@ -678,6 +762,12 @@
       "item": "fenstalkerStripe",
       "time": 2.5,
       "noise": 10
+    },
+    "mind": {
+      "wants": "Ambush from the water and drag you under.",
+      "shows": "Only the eyes break the surface. Ripples point at you. The tail goes still just before it lunges.",
+      "plans": "It waits at the crossings you have to wade through, and drives you toward deeper water.",
+      "learns": "If you stay on the walkways, it waits under them and strikes at your legs through the boards."
     }
   },
   "mirebrood": {
@@ -718,6 +808,12 @@
       "item": "mireLantern",
       "time": 1,
       "noise": 3
+    },
+    "mind": {
+      "wants": "Overwhelm by numbers and protect the nest.",
+      "shows": "Their lanterns pulse faster when the swarm is roused. They go dark all together before pouring out.",
+      "plans": "Some of the swarm guards the nest while the rest cut off your retreat.",
+      "learns": "If you use fire on them, they go dark and come at you from above."
     }
   },
   "mistwader": {
@@ -765,6 +861,12 @@
       "item": "mistwaderHeart",
       "time": 6,
       "noise": 30
+    },
+    "mind": {
+      "wants": "Feed undisturbed.",
+      "shows": "It combs the water calmly. Its neck rises and it falls silent when you come too close.",
+      "plans": "Hurt, it stamps and pulls its head back. The fen's hunters gather round its feet.",
+      "learns": "After it has been shot at once, it moves away from you whenever it hears you, which drags the mist around it."
     }
   }
 }

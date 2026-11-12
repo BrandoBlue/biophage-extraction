@@ -67,35 +67,86 @@ export function tile(item: string, count: number, rotated = false): string {
 /* ------------------------------------------------------------------------------------------- MAIN MENU */
 export interface MenuCallbacks { go(tab: string): void; deploy(): void; quit(): void; /** Show the Flesh Market entry. */ market?: boolean }
 
+/** The observation lens on the main menu: radius in --u, and the arcs the places and the log hang from (degrees). */
+export const LENS = { r: 19.5, left: [-32, 32], right: [-42, 16], loadout: 28, release: 47 };
+
+/** A point on the lens rim: degrees from the horizontal (positive down), on the left or right side, `gap` u outside. */
+export function rim(deg: number, side: 'left' | 'right', gap = 0): { x: number; y: number } {
+  const a = (deg * Math.PI) / 180, r = LENS.r + gap;
+  return { x: (side === 'left' ? -1 : 1) * Math.cos(a) * r, y: Math.sin(a) * r };
+}
+const spread = ([a, b]: number[], n: number, i: number) => (n < 2 ? (a + b) / 2 : a + ((b - a) * i) / (n - 1));
+const at = (p: { x: number; y: number }) => `--x:${p.x.toFixed(2)};--y:${p.y.toFixed(2)}`;
+
+/** The living lens ring: a soft membrane of fibres around the aperture, a focus scale, and the specimen's names on the arc. */
+function lensSvg(top: string, bottom: string): string {
+  // 1000-unit box; the aperture is r 440 (LENS.r), the membrane runs out to 500.
+  let fibres = '';
+  let s = 11;
+  const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  for (let i = 0; i < 220; i++) {
+    const a = (i / 220) * Math.PI * 2 + rnd() * 0.02, r0 = 442 + rnd() * 6, r1 = r0 + 14 + rnd() * 34, bend = (rnd() - 0.5) * 0.05;
+    const p = (r: number, d: number) => `${(500 + Math.cos(a + d) * r).toFixed(1)} ${(500 + Math.sin(a + d) * r).toFixed(1)}`;
+    fibres += `<path d="M${p(r0, 0)}Q${p((r0 + r1) / 2, bend)} ${p(r1, bend * 1.6)}" style="--o:${(0.08 + rnd() * 0.22).toFixed(2)}"/>`;
+  }
+  let ticks = '';
+  for (let d = -62; d <= -28; d += 2) {
+    const a = (d * Math.PI) / 180, long = d % 10 === 0;
+    ticks += `<line x1="${(500 + Math.cos(a) * 452).toFixed(1)}" y1="${(500 + Math.sin(a) * 452).toFixed(1)}" x2="${(500 + Math.cos(a) * (long ? 474 : 464)).toFixed(1)}" y2="${(500 + Math.sin(a) * (long ? 474 : 464)).toFixed(1)}"${long ? ' class="long"' : ''}/>`;
+  }
+  return `<svg class="lens" viewBox="0 0 1000 1000" aria-hidden="true">
+    <defs>
+      <radialGradient id="lens-membrane"><stop offset="86%" style="stop-color:var(--background);stop-opacity:0"/><stop offset="88.5%" style="stop-color:var(--wetFleshDeep);stop-opacity:.55"/><stop offset="93%" style="stop-color:var(--background);stop-opacity:.85"/><stop offset="100%" style="stop-color:var(--background);stop-opacity:0"/></radialGradient>
+      <path id="lens-top" d="M 36 500 A 464 464 0 0 1 964 500"/>
+      <path id="lens-bottom" d="M 20 500 A 480 480 0 0 0 980 500"/>
+    </defs>
+    <circle class="membrane" cx="500" cy="500" r="500" fill="url(#lens-membrane)"/>
+    <g class="fibres">${fibres}</g>
+    <circle class="meniscus" cx="500" cy="500" r="440"/>
+    <circle class="meniscus inner" cx="500" cy="500" r="432"/>
+    <g class="focus">${ticks}<line class="needle" x1="${500 + Math.cos(-0.785) * 446}" y1="${500 + Math.sin(-0.785) * 446}" x2="${500 + Math.cos(-0.785) * 482}" y2="${500 + Math.sin(-0.785) * 482}"/></g>
+    <text class="arc top"><textPath href="#lens-top" startOffset="50%">${esc(top)}</textPath></text>
+    <text class="arc bottom"><textPath href="#lens-bottom" startOffset="50%">${esc(bottom)}</textPath></text>
+  </svg>`;
+}
+
 export function mainMenu(p: ProfileView, cb: MenuCallbacks): HTMLElement {
   const el = h('div', 'scr scr-menu');
   const [used, cap] = usage('stash', p);
+  const places: [string, string, string][] = [
+    ['deploy', 'Deploy', 'Choose host, loadout and drop zone'],
+    ['stash', 'Stash & loadout', `${used}/${cap} cells · ${p.cavity.length} items in cavities`],
+    ...(cb.market ? [['vendors', 'Vendors', 'Mother Clot, the Archivist, the Gullet Broker'] as [string, string, string]] : []),
+    ['host', 'Host', CLASSES[p.host].label],
+    ['settings', 'Settings', 'Controls, video, audio, fullscreen'],
+    ['quit', 'Quit', 'Return the host to dormancy'],
+  ];
+  const zone = p.zone && ZONES[p.zone] ? ZONES[p.zone].label : 'Glowmire Isle';
+  const rate = p.stats.raids ? Math.round((p.stats.extracts / p.stats.raids) * 100) : 0;
+  const notes: string[] = [
+    `<h2>Observation log</h2>`,
+    `<p><span>Raids</span><b>${p.stats.raids}</b></p>`,
+    `<p><span>Extracted</span><b class="good">${p.stats.extracts}</b></p>`,
+    `<p><span>Hosts lost</span><b class="bad">${p.stats.deaths}</b></p>`,
+    `<p><span>Kills</span><b>${p.stats.kills}</b></p>`,
+    `<p><span>Survival</span><b>${rate}%</b><i style="--v:${rate / 100}"></i></p>`,
+    p.last ? `<p class="last ${p.last.result}"><span>Last raid</span><b>${p.last.result === 'extracted' ? 'Extracted' : 'Host lost'} · ${p.last.value} DNA</b></p>` : `<p class="last none"><span>Last raid</span><b>None yet</b></p>`,
+    `<p><span>Stash value</span><b class="dna">${valueOf(p.stash).toLocaleString('en-US')} DNA</b></p>`,
+  ];
   el.innerHTML = `
-    <div class="logo"><span class="l1">Biophage</span><span class="l2">EXTRACTION</span><small>Zone 7, the glowmire · a psych-wave sector</small></div>
-    <ul class="menu-list">
-      <li><button data-go="deploy" class="primary"><em>I</em><span>Deploy</span><small>Choose host, loadout and drop zone</small></button></li>
-      <li><button data-go="stash"><em>II</em><span>Stash & loadout</span><small>${used}/${cap} cells · ${p.cavity.length} items in cavities</small></button></li>
-      ${cb.market ? `<li><button data-go="vendors"><em>III</em><span>Vendors</span><small>Mother Clot, the Archivist, the Gullet Broker</small></button></li>` : ''}
-      <li><button data-go="host"><em>${cb.market ? 'IV' : 'III'}</em><span>Host</span><small>${esc(CLASSES[p.host].label)}</small></button></li>
-      <li><button data-go="settings"><em>${cb.market ? 'V' : 'IV'}</em><span>Settings</span><small>Controls, video, audio</small></button></li>
-      <li><button data-go="quit"><em>${cb.market ? 'VI' : 'V'}</em><span>Quit</span><small>Return the host to dormancy</small></button></li>
-    </ul>
-    <div class="specimen">${hostPortrait(p.host)}<div class="pedestal"></div><div class="tag"><b>ACTIVE BIOSPECIMEN</b>${esc(CLASSES[p.host].label)}</div></div>`;
-  const side = panel('menu-record', 'HOST RECORD', 'Extraction history');
-  side.insertAdjacentHTML('beforeend', `
-    <dl class="record">
-      <div><dt>RAIDS</dt><dd>${p.stats.raids}</dd></div><div><dt>EXTRACTED</dt><dd class="good">${p.stats.extracts}</dd></div>
-      <div><dt>HOSTS LOST</dt><dd class="bad">${p.stats.deaths}</dd></div><div><dt>KILLS</dt><dd>${p.stats.kills}</dd></div>
-    </dl>
-    <div class="survival"><span>SURVIVAL RATE</span><b>${p.stats.raids ? Math.round((p.stats.extracts / p.stats.raids) * 100) : 0}%</b><i style="--v:${p.stats.raids ? p.stats.extracts / p.stats.raids : 0}"></i></div>
-    ${p.last ? `<div class="last ${p.last.result}"><span>LAST RAID</span><b>${p.last.result === 'extracted' ? 'EXTRACTED' : 'HOST LOST'}</b><em>${p.last.value} DNA</em></div>` : '<div class="last none"><span>LAST RAID</span><b>NO RAIDS YET</b><em>Zone 7 awaits</em></div>'}
-    <div class="stashval"><span>STASH VALUE</span><b>${valueOf(p.stash).toLocaleString('en-US')} DNA</b></div>
-    <div class="loadout"><span>LOADOUT <em>${valueOf(p.cavity).toLocaleString('en-US')} DNA AT RISK</em></span>
-      <div class="tiles">${p.cavity.map((c) => tile(c.item, c.count)).join('') || '<i class="none">Cavities empty</i>'}${p.gutPouch.length ? `<b class="sep">POUCH</b>${p.gutPouch.map((c) => tile(c.item, c.count)).join('')}` : ''}</div></div>`);
-  el.append(side);
-  const go = cta('ENTER EXCLUSION ZONE', 'PVPVE ZONE · DEATH LOSES YOUR LOADOUT');
+    <div class="lens-dof"></div><div class="lens-focus"></div>
+    ${lensSvg(`OBSERVATION CHAMBER · ${zone.toUpperCase()} · ${p.callsign}`, `ACTIVE BIOSPECIMEN · ${CLASSES[p.host].label.toUpperCase()}`)}
+    <div class="specimen">${hostPortrait(p.host)}<div class="pedestal"></div></div>
+    <ul class="menu-list">${places.map(([go, name, sub], i) => `<li style="${at(rim(spread(LENS.left, places.length, i), 'left', 1.2))}"><button data-go="${go}"${i === 0 ? ' class="primary"' : ''}><span>${esc(name)}</span><small>${esc(sub)}</small><i class="node"></i></button></li>`).join('')}</ul>
+    <div class="menu-record">${notes.map((n, i) => `<div class="note" style="${at(rim(spread(LENS.right, notes.length, i), 'right', 1.6))}">${n}</div>`).join('')}
+      <div class="note loadout" style="${at(rim(LENS.loadout, 'right', 1.6))}"><span>Carrying <em>${valueOf(p.cavity).toLocaleString('en-US')} DNA at risk</em></span>
+        <div class="tiles">${p.cavity.map((c) => tile(c.item, c.count)).join('') || '<i class="none">Cavities empty</i>'}${p.gutPouch.length ? `<b class="sep">POUCH</b>${p.gutPouch.map((c) => tile(c.item, c.count)).join('')}` : ''}</div></div>
+    </div>`;
+  // Release: a seed-shaped control on the lower rim, the one way out of the Hive.
+  const go = h<HTMLButtonElement>('button', 'lens-go', `<i class="seed">${glyph('play')}</i><span>Enter the zone<small>${glyph('warn')}PvPvE · death loses your loadout</small></span>`);
   go.dataset.go = 'deploy';
-  el.append(go, keyHints([['ENTER', 'DEPLOY'], ['S', 'STASH'], ['H', 'HOST'], ...(cb.market ? [['M', 'VENDORS'] as [string, string]] : []), ['ESC', 'BACK']]));
+  go.setAttribute('style', at(rim(LENS.release, 'right', 5.5)));
+  el.append(go, keyHints([['ENTER', 'DEPLOY'], ['S', 'STASH'], ['H', 'HOST'], ...(cb.market ? [['M', 'VENDORS'] as [string, string]] : []), ['F', 'FULLSCREEN'], ['ESC', 'BACK']]));
   el.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-go]');
     if (!b) return;
@@ -119,10 +170,10 @@ export function hostSelect(p: ProfileView, cb: { pick(id: ClassId): void; next()
     card.dataset.host = id;
     const evo = EVOLUTIONS[id];
     card.innerHTML = `
-      <div class="cls-slot"><span>${slot}</span><em>${open ? (selected ? 'ACTIVE' : 'AVAILABLE') : 'EVOLVES IN HOST'}</em></div>
+      <div class="cls-slot"><span>${slot}</span><em>${open ? (selected ? 'ACTIVE' : 'AVAILABLE') : 'GESTATING'}</em></div>
       <h3>${esc(c.label.toUpperCase())}</h3>
       <div class="type">CLASS TYPE: <b>${type}</b> (${role})</div>
-      <div class="portrait">${hostPortrait(id, { locked: !open })}${open ? '' : `<div class="lock">${glyph('lock')}<span>EVOLVES IN HOST</span></div>`}</div>
+      <div class="portrait">${hostPortrait(id, { locked: !open })}${open ? '' : `<div class="lock">${glyph('lock')}<span>Still gestating</span><small>Playable in the next update</small></div>`}</div>
       <div class="traits">
         <div class="buffs"><h4>BUFFS (+)</h4><ul>${tr.buffs.slice(0, 4).map(([g, t]) => `<li>${glyph(g)}${esc(t)}</li>`).join('')}</ul></div>
         <div class="negs"><h4>NEGATIVES (−)</h4><ul>${tr.negatives.slice(0, 4).map(([g, t]) => `<li>${glyph(g)}${esc(t)}</li>`).join('')}</ul></div>
@@ -133,8 +184,8 @@ export function hostSelect(p: ProfileView, cb: { pick(id: ClassId): void; next()
         ${meter('STEALTH', 'stealth', (c.stealth + 0.5) / 1, c.stealth > 0 ? 'HIGH' : c.stealth < 0 ? 'NONE' : 'MID', c.stealth > 0 ? 'good' : c.stealth < 0 ? 'bad' : 'mid')}
       </div>
       <div class="evo"><h4>PROGRESSION & UNLOCKS</h4>
-        <div class="evo-track">${evo.map((e, i) => `<div class="node${open && i === 0 ? ' lit' : ''}">${open && i === 0 ? glyph('virus') : glyph('lock')}<span>Lvl ${e.lvl}:<br/>${esc(e.name)}</span></div>`).join('<i class="vein"></i>')}</div>
-        <small>Strains unlock with the Synapse tree in HOST.</small>
+        <div class="evo-track">${evo.map((e) => `<div class="node">${glyph('lock')}<span>${esc(e.name)}<br/><em>Unlocks at level ${e.lvl}</em></span></div>`).join('<i class="vein"></i>')}</div>
+        <small>${open ? 'Host levels arrive in the next update.' : 'Evolves once this host can be played.'}</small>
       </div>`;
     cards.append(card);
   }
