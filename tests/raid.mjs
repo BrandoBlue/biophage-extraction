@@ -82,6 +82,8 @@ try {
   // and longer on CI runners; on a GPU it is well under a second.
   await page.waitForSelector('#hive.lab-live', { timeout: 180000 }).catch(() => fail('the 3D Hive lab is not live behind the main menu'));
   await freezeAndScreenshot(page, 'tests/out/raid-hive-menu.png', { resume: true });
+  // The main menu frames the host in its observation lens, with the release control on the rim (src/ui/hive/screens.ts).
+  if (!(await page.isVisible('#hive .scr-menu .lens')) || !(await page.isVisible('#hive .lens-go[data-go="deploy"]'))) await fail('the main menu lens or its release control is missing');
   await tab('stash');
   if (p.dna !== PROFILE.newProfile.dna || !PROFILE.newProfile.stash.every((k) => total(p.stash, k.item) === k.count)) await fail(`unexpected new profile ${JSON.stringify(p)}`);
   await page.dblclick(menuItem('stash', 'clotGel'));

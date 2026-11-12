@@ -97,10 +97,11 @@ function materials(glow: string): Mats {
   // Grounded and eerie (Art Bible): chambers glow a dull, warm, living light with only a hint of the gun's hue.
   glow = mix(glow, ORGANIC.amber, 0.6);
   return {
-    flesh: livingFlesh(mix(ORGANIC.wetFlesh, ORGANIC.wetFleshDeep, 0.45), ORGANIC.vein, ORGANIC.mist, 14),
-    fleshDeep: livingFlesh(mix(ORGANIC.wetFleshDeep, HIVE.background, 0.25), ORGANIC.vein, ORGANIC.mist, 18),
-    bone: chitin(mix(HIVE.bone, ORGANIC.wetFleshDeep, 0.35), ORGANIC.amber, 12),
-    boneDark: chitin(mix(HIVE.bone, ORGANIC.wetFleshDeep, 0.65), ORGANIC.amber, 16),
+    // Brandon (2026-11-12): "a bit too dark". Mid-tone flesh and stained bone that read in first person at night.
+    flesh: livingFlesh(mix(mix(ORGANIC.wetFlesh, ORGANIC.wetFleshDeep, 0.2), HIVE.bone, 0.1), ORGANIC.vein, ORGANIC.mist, 14),
+    fleshDeep: livingFlesh(mix(ORGANIC.wetFleshDeep, ORGANIC.wetFlesh, 0.3), ORGANIC.vein, ORGANIC.mist, 18),
+    bone: chitin(mix(HIVE.bone, ORGANIC.wetFleshDeep, 0.25), ORGANIC.amber, 12),
+    boneDark: chitin(mix(HIVE.bone, ORGANIC.wetFleshDeep, 0.5), ORGANIC.amber, 16),
     sac: membrane(mix(glow, ORGANIC.mist, 0.5), 0.35),
     core: bioNode(glow, 2.4),
   };
