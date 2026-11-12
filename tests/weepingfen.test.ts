@@ -44,7 +44,7 @@ describe('the Weeping Fen', () => {
     expect(fenHeight(FEN.spawn.x, FEN.spawn.z)).toBeGreaterThan(0.3);
     for (const e of FEN.extracts) expect(fenHeight(e.x, e.z), e.id).toBeGreaterThan(0.3);
     // Shallows never drown the host (eyes at 1.6 m stay above the surface everywhere inside the ring).
-    for (let x = -130; x <= 130; x += 5) for (let z = -130; z <= 130; z += 5) if (Math.hypot(x, z) < 140) expect(fenHeight(x, z)).toBeGreaterThan(-1.45);
+    for (let x = -370; x <= 370; x += 5) for (let z = -370; z <= 370; z += 5) if (Math.hypot(x, z) < FEN.radius - 8) expect(fenHeight(x, z)).toBeGreaterThan(-1.45);
     expect(regentPool!.floorY).toBeLessThan(-1);
   });
 
@@ -58,11 +58,23 @@ describe('the Weeping Fen', () => {
     expect(world.landmarkAt(-58, 8)).toBe('rootHut');
   });
 
-  it('walks from the spawn through the shallows to both extracts', () => {
+  it('walks from the spawn along the trails through the shallows to every extract', () => {
     const s = FEN.spawn;
     for (const e of FEN.extracts) {
-      const p = walk({ x: s.x, y: fenHeight(s.x, s.z), z: s.z }, [[10, 100], [20, 20], [e.x, e.z]]);
+      const trail = FEN.trails.list.find((t) => t.to === e.id)!;
+      expect(trail, e.id).toBeDefined();
+      const p = walk({ x: s.x, y: fenHeight(s.x, s.z), z: s.z }, trail.points);
       expect(near(p, e.x, e.z), e.id).toBeLessThan(1);
+    }
+  });
+
+  it('fills Design\'s 380 m ring: named districts out to the edge, extracts near the rim', () => {
+    expect(FEN.radius).toBe((ZONES.weepingFen as { size?: { playableRadius?: number } })?.size?.playableRadius ?? 380);
+    for (const e of FEN.extracts) expect(Math.hypot(e.x, e.z), e.id).toBeGreaterThan(FEN.radius * 0.6);
+    // Every compass quarter of the outer ring has a named district.
+    for (let q = 0; q < 4; q++) {
+      const hit = FEN.areas.some((a) => Math.hypot(a.x, a.z) > 180 && Math.floor(((Math.atan2(a.z, a.x) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2)) === q);
+      expect(hit, `quarter ${q}`).toBe(true);
     }
   });
 
