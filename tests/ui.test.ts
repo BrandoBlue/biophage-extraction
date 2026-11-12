@@ -4,7 +4,8 @@ import { objectiveText } from '../src/ui/hive/vendors';
 import { DRAWN_ITEMS, itemIcon } from '../src/ui/icons';
 import { ALL_COLOURS } from '../src/render/palette';
 import { hostPortrait } from '../src/ui/hosts';
-import { classTraits, LIVE_ZONE, plainLock, raidPlan, zoneAccess, zoneRoster } from '../src/ui/hive/screens';
+import { NAV, sag } from '../src/ui/hive/kit';
+import { classTraits, LENS, LIVE_ZONE, plainLock, rim, raidPlan, zoneAccess, zoneRoster } from '../src/ui/hive/screens';
 import { zoneExtracts, zoneMap } from '../src/ui/hive/zonemap';
 import { BUILT_ZONES } from '../src/world/zones';
 import { firstFit, fits, virusText } from '../src/ui/hive/grid';
@@ -172,6 +173,26 @@ describe('Raid select map per zone', () => {
     expect(new Set(drops).size).toBe(BUILT_ZONES.length);
     expect(zoneMap('hollowChoir').shape).toBe('uncharted');
     expect(zoneExtracts('ochreReach').count).toBe(3);
+  });
+});
+
+describe('Observation lens menu', () => {
+  it('hangs the places and the log from the lens rim, inside a 16:9 screen', () => {
+    for (const side of ['left', 'right'] as const) for (let d = -45; d <= 60; d += 5) {
+      const p = rim(d, side);
+      expect(Math.hypot(p.x, p.y)).toBeCloseTo(LENS.r);
+      expect(Math.sign(p.x)).toBe(side === 'left' ? -1 : 1);
+    }
+    // Every anchor stays clear of the header (top 7u) and the key hints (bottom 3u) with the lens centred 1.2u low.
+    for (const d of [...LENS.left, ...LENS.right, LENS.loadout, LENS.release]) {
+      const y = 28.125 + 1.2 + rim(d, 'right', 5.5).y;
+      expect(y).toBeGreaterThan(7);
+      expect(y).toBeLessThan(56.25 - 3);
+    }
+  });
+  it('hangs the nav on a symmetric vein and never names a milestone on a shut tab', () => {
+    expect(sag(0, 9)).toBe(1); expect(sag(8, 9)).toBe(1); expect(sag(4, 9)).toBe(0); expect(sag(2, 9)).toBeCloseTo(sag(6, 9));
+    for (const n of NAV) if (n.locked) expect(n.locked).not.toMatch(/SPORE|LARVA|HOST|HIVE|APEX/);
   });
 });
 

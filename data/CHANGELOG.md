@@ -5,6 +5,9 @@ Every tuning change to `data/*.json`, newest first, with the reason.
 ## Creature minds (2026-11-12, Brandon: smart, creepy, show how they think)
 - abominations.json: every creature gets a `mind` block (wants, shows, plans, learns). The bar is in docs/gdd/11-creature-minds.md, and a data test enforces it.
 
+## Warden arena fits the hull (2026-11-11, World #81)
+- bosses.json `warden.arena`: height 24 → 18 and diameter 30 → 38. The Long Seed's hull is 18 m, and World's built reactor chamber is about 38 × 40 m.
+
 ## Three new zones, Apex and online (2026-11-11, Brandon: everything now)
 - zones.json: `ochreReach`, `weepingFen` and `marrowPit` (orders 4–6, with depth `layers` for the pit). The Hollow Choir and Ossuary Reef move to orders 7–8 and get sizes, landmarks, creatures and bosses.
 - abominations.json: nine creatures (Dunewake, Bristleback, Shroudling, Cablecrawler, Veilwing, the Hollowed, Fenstalker, Mirebrood, Mistwader), introducedIn host.

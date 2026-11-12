@@ -54,7 +54,7 @@
 
 /* Nav: quiet text; the current screen gets bone text and an amber seed under it. */
 .hv-nav { position:absolute; left:50%; transform:translateX(-50%); top:calc(var(--u) * 4.9); display:flex; gap:calc(var(--u) * .3); z-index:4; }
-.hv-nav .tab { background:none; border:none; padding:calc(var(--u) * .5) calc(var(--u) * 1.1); font-size:calc(var(--u) * .74); font-weight:600; letter-spacing:.2em; color:var(--lab); position:relative;
+.hv-nav .tab { transform:translateY(calc(var(--d, 0) * var(--u) * .6)); background:none; border:none; padding:calc(var(--u) * .5) calc(var(--u) * 1.1); font-size:calc(var(--u) * .74); font-weight:600; letter-spacing:.2em; color:var(--lab); position:relative;
   display:flex; flex-direction:column; align-items:center; line-height:1.2; white-space:nowrap; transition:color .2s var(--ease); }
 .hv-nav .tab small { display:none; }
 .hv-nav .tab::after { content:''; position:absolute; left:50%; bottom:0; width:calc(var(--u) * .5); height:calc(var(--u) * .5); margin-left:calc(var(--u) * -.25); border-radius:50% 0;
@@ -138,47 +138,101 @@
 /* ---------------------------------------------------------------- MAIN MENU
    Left: the wordmark and a numbered list of places, set in the serif, no boxes. Centre: the host in the lab.
    Right: the host's record as one glass card. Bottom right: the capsule. */
-.scr-menu .logo { position:absolute; left:calc(var(--u) * 6); top:calc(var(--u) * 11.5); display:flex; flex-direction:column; line-height:.9; }
-.scr-menu .logo .l1 { font-size:calc(var(--u) * 6.2); font-weight:500; letter-spacing:-.01em; color:var(--bone); }
-.scr-menu .logo .l2 { font-family:var(--ui); font-weight:600; font-size:calc(var(--u) * 1.05); letter-spacing:1.05em; color:var(--lab); margin:calc(var(--u) * 1) 0 0 .3em; }
-.scr-menu .logo small { margin-top:calc(var(--u) * 1.6); font-family:var(--display); font-style:italic; font-weight:500; font-size:calc(var(--u) * 1.3); color:var(--lab); }
-.scr-menu .logo::after { content:''; width:calc(var(--u) * 6); height:1px; margin-top:calc(var(--u) * 1.4); background:linear-gradient(90deg, var(--amber), transparent); }
 #hive[data-tab=menu] .hv-title { display:none; }
 /* The debrief is a one-way stop: RETURN TO HIVE reloads into the menu, so no tabs to wander off through. */
 #hive[data-tab=results] .hv-nav { display:none; }
-.menu-list { position:absolute; left:calc(var(--u) * 6); top:calc(var(--u) * 27); list-style:none; margin:0; padding:0; display:grid; gap:calc(var(--u) * .2); width:calc(var(--u) * 28); }
-.menu-list button { position:relative; width:100%; display:grid; grid-template-columns:calc(var(--u) * 3) 1fr; grid-template-rows:auto auto; text-align:left; align-items:baseline;
-  padding:calc(var(--u) * .45) 0; background:none; border:none; transition:transform .25s var(--ease); }
-.menu-list button em { grid-row:1 / span 2; font-family:var(--display); font-style:normal; font-weight:500; font-size:calc(var(--u) * 1); color:var(--lab); transition:color .2s; }
-.menu-list button span { font-family:var(--display); font-weight:500; font-size:calc(var(--u) * 2.3); line-height:1.05; color:color-mix(in srgb, var(--bone) 82%, transparent); transition:color .2s; }
-.menu-list button small { font-size:calc(var(--u) * .8); color:var(--lab); max-height:0; opacity:0; overflow:hidden; transition:max-height .3s var(--ease), opacity .25s, margin .3s var(--ease); }
-.menu-list button::before { content:''; position:absolute; left:calc(var(--u) * 3); right:0; bottom:0; height:1px; background:linear-gradient(90deg, var(--amber), transparent 70%); transform:scaleX(0); transform-origin:left; transition:transform .35s var(--ease); }
-.menu-list button:hover, .menu-list button:focus-visible { transform:translateX(calc(var(--u) * .7)); outline:none; }
-.menu-list button:hover span, .menu-list button:focus-visible span { color:var(--bone); }
-.menu-list button:hover em, .menu-list button:focus-visible em { color:var(--amber); }
-.menu-list button:hover small, .menu-list button:focus-visible small, .menu-list button.primary small { max-height:2em; opacity:1; margin-top:.25em; }
-.menu-list button:hover::before, .menu-list button:focus-visible::before { transform:scaleX(1); }
-.menu-list button:active { transform:translateX(calc(var(--u) * .9)) scale(.99); }
-.menu-list button.primary span { color:var(--amber); font-style:italic; }
 .specimen { position:absolute; left:50%; top:calc(var(--u) * 11); width:calc(var(--u) * 30); height:calc(var(--u) * 40); transform:translateX(-45%); }
 .specimen svg { position:absolute; inset:0 0 calc(var(--u) * 4); width:100%; height:calc(100% - var(--u) * 4); animation:breathe 5s ease-in-out infinite; }
 .specimen .pedestal { position:absolute; left:10%; right:10%; bottom:calc(var(--u) * 1.5); height:calc(var(--u) * 5); border-radius:50%;
   background:radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--amber) 16%, transparent), color-mix(in srgb, var(--panel) 60%, transparent) 45%, transparent 70%); box-shadow:inset 0 0 0 1px var(--hair); }
-.specimen .tag { position:absolute; left:50%; bottom:calc(var(--u) * -2.2); transform:translateX(-50%); text-align:center; font-family:var(--display); font-style:italic; font-weight:500; font-size:calc(var(--u) * 1.6); white-space:nowrap; display:flex; flex-direction:column; color:var(--bone); }
-.specimen .tag b { font-family:var(--ui); font-style:normal; font-size:calc(var(--u) * .66); letter-spacing:.3em; font-weight:600; color:var(--lab); margin-bottom:.3em; }
 @keyframes breathe { 0%,100% { transform:translateY(0) scale(1); } 50% { transform:translateY(-.6%) scale(1.008); } }
-.menu-record { right:calc(var(--u) * 4); top:calc(var(--u) * 11.5); width:calc(var(--u) * 23); }
-.record { display:grid; grid-template-columns:1fr 1fr; gap:calc(var(--u) * 1) calc(var(--u) * 1.2); margin:0; }
-.record div { padding:0 0 calc(var(--u) * .4); border-bottom:1px solid var(--hair); }
-.record dt { font-size:calc(var(--u) * .66); letter-spacing:.22em; font-weight:600; color:var(--lab); }
-.record dd { margin:0; font-size:calc(var(--u) * 2.6); line-height:1.1; font-family:var(--display); font-weight:600; font-variant-numeric:lining-nums; }
-.record dd.good { color:var(--acid); } .record dd.bad { color:var(--danger); }
-.survival, .stashval, .last { display:grid; grid-template-columns:1fr auto; align-items:baseline; margin-top:calc(var(--u) * 1.1); font-size:calc(var(--u) * .7); letter-spacing:.2em; font-weight:600; color:var(--lab); }
-.survival b, .stashval b { font-family:var(--display); color:var(--path-dna); font-size:2.2em; letter-spacing:.02em; }
-.survival i { grid-column:1 / -1; height:2px; margin-top:6px; border-radius:99px; background:linear-gradient(90deg, var(--acid) calc(var(--v) * 100%), color-mix(in srgb, var(--danger) 40%, transparent) 0); }
-.last { padding:calc(var(--u) * .7) calc(var(--u) * .9); border-radius:calc(var(--u) * .8); background:color-mix(in srgb, var(--bone) 4%, transparent); box-shadow:inset 0 0 0 1px var(--hair); }
-.last b { grid-column:1; font-family:var(--display); font-size:2.2em; letter-spacing:.04em; color:var(--bone); } .last em { grid-row:1 / span 2; grid-column:2; font-style:normal; font-family:var(--display); color:var(--path-dna); font-size:2em; letter-spacing:0; }
-.last.extracted b { color:var(--acid); } .last.lost b { color:var(--danger); } .last span { font-size:1em; }
+
+/* The observation lens (main menu). You look at the host through a living instrument: the lab outside the aperture
+   falls out of focus and into shadow, the rim is a soft membrane of fibres with a meniscus, a focus scale settles as
+   the screen opens, and the places and the host's log hang from the rim instead of sitting in boxes.
+   Lens centre is the screen centre (where the stage camera looks); radius LENS.r in screens.ts. */
+.scr-menu { --lr:calc(var(--u) * 19.5); --lc:calc(var(--u) * 1.2); }
+.scr-menu .lens-dof { position:absolute; inset:0; pointer-events:none;
+  backdrop-filter:blur(calc(var(--u) * .8)) saturate(.85) brightness(.8);
+  -webkit-mask:radial-gradient(circle at 50% calc(50% + var(--lc)), transparent calc(var(--lr) * .97), #000 calc(var(--lr) * 1.12));
+  mask:radial-gradient(circle at 50% calc(50% + var(--lc)), transparent calc(var(--lr) * .97), #000 calc(var(--lr) * 1.12)); }
+/* Rack focus: the aperture opens blurred and pulls sharp. */
+.scr-menu .lens-focus { position:absolute; left:50%; top:calc(50% + var(--lc)); width:calc(var(--lr) * 2); height:calc(var(--lr) * 2); margin:calc(var(--lr) * -1) 0 0 calc(var(--lr) * -1); border-radius:50%; pointer-events:none;
+  backdrop-filter:brightness(1.18) contrast(1.04); }
+/* The lens gathers light: the specimen reads brighter than the room around it. */
+#hive[data-enter="1"] .scr-menu .lens-focus { animation:rack 1.4s var(--ease) both; }
+@keyframes rack { from { backdrop-filter:blur(calc(var(--u) * .7)) brightness(.9) contrast(1); } to { backdrop-filter:blur(0) brightness(1.18) contrast(1.04); } }
+.scr-menu .lens { position:absolute; left:50%; top:calc(50% + var(--lc)); width:calc(var(--lr) * 2.27); height:calc(var(--lr) * 2.27); transform:translate(-50%, -50%); overflow:visible; pointer-events:none; animation:lens-breathe 7s ease-in-out infinite; }
+@keyframes lens-breathe { 0%,100% { transform:translate(-50%, -50%) scale(1); } 50% { transform:translate(-50%, -50%) scale(1.006); } }
+.scr-menu .lens .fibres path { fill:none; stroke:var(--bone); stroke-width:1.1; opacity:var(--o); }
+.scr-menu .lens .meniscus { fill:none; stroke:color-mix(in srgb, var(--bone) 55%, transparent); stroke-width:1.4; }
+.scr-menu .lens .meniscus.inner { stroke:color-mix(in srgb, var(--amber) 35%, transparent); stroke-width:.8; stroke-dasharray:2 7; animation:meniscus 60s linear infinite; transform-origin:500px 500px; }
+@keyframes meniscus { to { transform:rotate(360deg); } }
+.scr-menu .lens .focus line { stroke:color-mix(in srgb, var(--bone) 45%, transparent); stroke-width:1.2; } .scr-menu .lens .focus line.long { stroke:var(--bone); }
+.scr-menu .lens .focus .needle { stroke:var(--amber); stroke-width:2; transform-origin:500px 500px; }
+#hive[data-enter="1"] .scr-menu .lens .focus .needle { animation:needle 1.4s var(--ease) both; }
+@keyframes needle { from { transform:rotate(-16deg); } 60% { transform:rotate(3deg); } }
+.scr-menu .lens .arc { font-family:var(--ui); font-weight:600; font-size:13px; letter-spacing:.42em; fill:var(--lab); text-anchor:middle; }
+.scr-menu .lens .arc.bottom { fill:color-mix(in srgb, var(--bone) 80%, transparent); font-size:14px; }
+/* 2D specimen (before the 3D lab is ready, and in the mocks): centred in the aperture. */
+.scr-menu .specimen { left:50%; top:calc(50% + var(--lc)); width:calc(var(--lr) * 1.15); height:calc(var(--lr) * 1.55); transform:translate(-50%, -52%); }
+
+/* Places, hanging from the left rim: the name in the serif, a node on the rim that lights, the hint beneath. */
+.scr-menu .menu-list { position:absolute; inset:0; list-style:none; margin:0; padding:0; pointer-events:none; }
+.scr-menu .menu-list li { pointer-events:auto; position:absolute; left:calc(50% + var(--x) * var(--u)); top:calc(50% + var(--lc) + var(--y) * var(--u)); transform:translate(-100%, -50%); }
+.scr-menu .menu-list button { position:relative; display:flex; flex-direction:column; align-items:flex-end; text-align:right; background:none; border:none; padding:calc(var(--u) * .3) calc(var(--u) * 1.8) calc(var(--u) * .3) calc(var(--u) * 1);
+  transition:transform .3s var(--ease); }
+.scr-menu .menu-list span { font-family:var(--display); font-weight:500; font-size:calc(var(--u) * 2.1); line-height:1.05; color:color-mix(in srgb, var(--bone) 78%, transparent); white-space:nowrap; transition:color .2s; }
+.scr-menu .menu-list small { font-size:calc(var(--u) * .74); color:var(--lab); white-space:nowrap; max-height:0; opacity:0; overflow:hidden; transition:max-height .3s var(--ease), opacity .25s, margin .3s; }
+.scr-menu .menu-list .node { position:absolute; right:0; top:50%; width:calc(var(--u) * .55); height:calc(var(--u) * .55); margin-top:calc(var(--u) * -.275); border-radius:50%;
+  background:color-mix(in srgb, var(--bone) 25%, transparent); box-shadow:0 0 0 1px color-mix(in srgb, var(--bone) 35%, transparent); transition:background .25s, box-shadow .25s, transform .3s var(--ease); }
+/* A tendril from the node to the name, drawn on hover. */
+.scr-menu .menu-list button::after { content:''; position:absolute; right:calc(var(--u) * .55); top:50%; width:calc(var(--u) * 1.1); height:1px; background:linear-gradient(270deg, var(--amber), transparent);
+  transform:scaleX(0); transform-origin:right; transition:transform .3s var(--ease); }
+.scr-menu .menu-list button:hover, .scr-menu .menu-list button:focus-visible { transform:translateX(calc(var(--u) * -.5)); outline:none; }
+.scr-menu .menu-list button:hover span, .scr-menu .menu-list button:focus-visible span { color:var(--bone); }
+.scr-menu .menu-list button:hover small, .scr-menu .menu-list button:focus-visible small, .scr-menu .menu-list .primary small { max-height:2em; opacity:1; margin-top:.2em; }
+.scr-menu .menu-list button:hover::after, .scr-menu .menu-list button:focus-visible::after { transform:scaleX(1); }
+.scr-menu .menu-list button:hover .node, .scr-menu .menu-list button:focus-visible .node { background:var(--amber); box-shadow:0 0 calc(var(--u) * .8) color-mix(in srgb, var(--amber) 55%, transparent); transform:scale(1.3); }
+.scr-menu .menu-list button:active { transform:translateX(calc(var(--u) * -.7)) scale(.98); }
+.scr-menu .menu-list .primary span { color:var(--amber); font-style:italic; font-size:calc(var(--u) * 2.5); }
+.scr-menu .menu-list .primary .node { background:var(--amber); animation:node-pulse 2.6s ease-in-out infinite; }
+@keyframes node-pulse { 50% { box-shadow:0 0 0 calc(var(--u) * .4) color-mix(in srgb, var(--amber) 18%, transparent); } }
+
+/* The host's observation log, hanging from the right rim: notes, not a card. */
+.scr-menu .menu-record { position:absolute; inset:0; pointer-events:none; }
+.scr-menu .note { position:absolute; left:calc(50% + var(--x) * var(--u)); top:calc(50% + var(--lc) + var(--y) * var(--u)); transform:translateY(-50%); pointer-events:auto; min-width:calc(var(--u) * 14); }
+.scr-menu .note h2 { margin:0; font-family:var(--display); font-style:italic; font-weight:500; font-size:calc(var(--u) * 1.6); color:var(--bone); letter-spacing:.02em; }
+.scr-menu .note p { margin:0; display:grid; grid-template-columns:1fr auto; align-items:baseline; gap:calc(var(--u) * 1.2); font-size:calc(var(--u) * .78); letter-spacing:.16em; text-transform:uppercase; color:var(--lab);
+  padding-bottom:calc(var(--u) * .25); border-bottom:1px solid color-mix(in srgb, var(--bone) 10%, transparent); }
+.scr-menu .note p b { font-family:var(--display); font-weight:600; font-size:1.9em; letter-spacing:.02em; text-transform:none; color:var(--bone); }
+.scr-menu .note p b.good { color:color-mix(in srgb, var(--acid) 70%, var(--bone)); } .scr-menu .note p b.bad { color:color-mix(in srgb, var(--danger) 80%, var(--bone)); } .scr-menu .note p b.dna { color:var(--path-dna); }
+.scr-menu .note p i { grid-column:1 / -1; height:2px; border-radius:99px; background:linear-gradient(90deg, color-mix(in srgb, var(--acid) 70%, var(--bone)) calc(var(--v) * 100%), color-mix(in srgb, var(--danger) 30%, transparent) 0); }
+.scr-menu .note p.last b { font-size:1.35em; } .scr-menu .note p.last.extracted b { color:color-mix(in srgb, var(--acid) 70%, var(--bone)); } .scr-menu .note p.last.lost b { color:var(--danger); }
+.scr-menu .note.loadout { font-size:calc(var(--u) * .78); letter-spacing:.16em; text-transform:uppercase; color:var(--lab); }
+.scr-menu .note.loadout em { font-style:normal; color:color-mix(in srgb, var(--danger) 80%, var(--bone)); margin-left:.6em; letter-spacing:.1em; }
+.scr-menu .note.loadout .tiles { display:flex; flex-wrap:wrap; gap:calc(var(--u) * .3); margin-top:calc(var(--u) * .4); align-items:center; max-width:calc(var(--u) * 20); }
+.scr-menu .note.loadout .tile { width:calc(var(--u) * 2.6); height:calc(var(--u) * 2.6); }
+.scr-menu .note.loadout .sep { font-size:.85em; color:var(--path-dna); letter-spacing:.12em; margin:0 .3em 0 .6em; }
+.scr-menu .note.loadout .none { font-style:normal; opacity:.6; text-transform:none; letter-spacing:.02em; }
+
+/* Release: a seed on the lower rim. It swells on hover and the arrow leans out of it. */
+.scr-menu .lens-go { position:absolute; left:calc(50% + var(--x) * var(--u)); top:calc(50% + var(--lc) + var(--y) * var(--u)); transform:translate(calc(var(--u) * -2.7), -50%); display:flex; align-items:center; gap:calc(var(--u) * 1.1);
+  background:none; border:none; padding:0; z-index:5; text-align:left; }
+.scr-menu .lens-go .seed { display:grid; place-items:center; width:calc(var(--u) * 5.4); height:calc(var(--u) * 5.4); border-radius:58% 42% 50% 50% / 50% 50% 50% 50%; color:var(--background);
+  background:radial-gradient(circle at 38% 32%, color-mix(in srgb, var(--amber) 55%, var(--bone)), var(--amber) 55%, color-mix(in srgb, var(--amber) 60%, var(--wetFleshDeep)));
+  box-shadow:0 0 calc(var(--u) * 2) color-mix(in srgb, var(--amber) 28%, transparent), inset 0 calc(var(--u) * -.4) calc(var(--u) * .8) color-mix(in srgb, var(--wetFleshDeep) 45%, transparent);
+  animation:seed 4.5s ease-in-out infinite; transition:transform .3s var(--ease), box-shadow .3s; }
+.scr-menu .lens-go .seed .glyph { width:38%; height:38%; fill:currentColor; transition:transform .3s var(--ease); }
+@keyframes seed { 50% { border-radius:46% 54% 48% 52% / 54% 46% 54% 46%; } }
+.scr-menu .lens-go > span { display:flex; flex-direction:column; font-family:var(--display); font-weight:600; font-size:calc(var(--u) * 2.1); color:var(--bone); white-space:nowrap; }
+.scr-menu .lens-go small { display:flex; align-items:center; gap:.5em; margin-top:.2em; font-family:var(--ui); font-size:calc(var(--u) * .66); font-weight:600; letter-spacing:.18em; text-transform:uppercase; color:color-mix(in srgb, var(--danger) 75%, var(--bone)); }
+.scr-menu .lens-go:hover .seed, .scr-menu .lens-go:focus-visible .seed { transform:scale(1.08); box-shadow:0 0 calc(var(--u) * 3) color-mix(in srgb, var(--amber) 45%, transparent); }
+.scr-menu .lens-go:hover .seed .glyph { transform:translateX(calc(var(--u) * .25)); }
+.scr-menu .lens-go:active .seed { transform:scale(.96); }
+.scr-menu .lens-go:focus-visible { outline:none; } .scr-menu .lens-go:focus-visible span { text-decoration:underline 1px var(--amber); text-underline-offset:.2em; }
+/* With the 3D lab live, the edges only need a light hand; the lens does the framing. */
+#hive.lab-live[data-tab=menu] .hv-backdrop { background:radial-gradient(ellipse 80% 90% at 50% 50%, transparent 55%, color-mix(in srgb, var(--background) 55%, transparent) 100%); }
 
 /* ---------------------------------------------------------------- HOST SELECT (reference 02) */
 .host-cards { position:absolute; left:calc(var(--u) * 5.5); right:calc(var(--u) * 5.5); top:calc(var(--u) * 12); height:calc(var(--u) * 33.5); display:grid; grid-template-columns:repeat(3, 1fr); gap:calc(var(--u) * 1.2); }
@@ -318,12 +372,6 @@
 .hv-notice.good { border-color:var(--path-dna); color:var(--path-dna); }
 
 /* Main menu: the loadout the host will carry (cavities, then the gut pouch). */
-.menu-record .loadout { margin-top:calc(var(--u) * 1); padding-top:calc(var(--u) * .8); border-top:1px solid color-mix(in srgb, var(--bone) 14%, transparent); font-size:calc(var(--u) * 1); }
-.menu-record .loadout em { font-style:normal; color:var(--danger); font-size:.8em; margin-left:.5em; opacity:.85; }
-.menu-record .loadout .tiles { display:flex; flex-wrap:wrap; gap:calc(var(--u) * .35); margin-top:calc(var(--u) * .5); align-items:center; }
-.menu-record .loadout .tile { width:calc(var(--u) * 2.9); height:calc(var(--u) * 2.9); }
-.menu-record .loadout .sep { font-size:.7em; color:var(--path-dna); letter-spacing:.12em; margin:0 .3em 0 .6em; }
-.menu-record .loadout .none { font-style:normal; opacity:.5; font-size:.9em; text-transform:none; }
 
 /* ---------------------------------------------------------------- FLESH MARKET (The Gullet Broker) */
 .scr-market .hv-panel { top:calc(var(--u) * 12.5); bottom:calc(var(--u) * 9); }
@@ -456,7 +504,7 @@
 .raid-info .threat b { font-family:var(--display); font-size:1.3em; }
 .raid-info .pips i { transform:none; border-radius:99px; height:calc(var(--u) * .35); }
 .raid-info .pips i.on { box-shadow:none; }
-.raidfacts div, .record div { border-left:none; }
+.raidfacts div { border-left:none; }
 .raidfacts div { background:none; border-bottom:1px solid var(--hair); padding:0 0 calc(var(--u) * .35); }
 .raidfacts dt { letter-spacing:.18em; font-weight:600; color:var(--lab); opacity:1; } .raidfacts dd { font-size:calc(var(--u) * 1.7); font-weight:600; }
 .raid-info .mods li { background:none; border-bottom:1px solid var(--hair); border-radius:0; padding-left:0; }
@@ -612,3 +660,25 @@
 .bd-recipe .bd-cost .tile { width:calc(var(--u) * 1.7); height:calc(var(--u) * 1.7); }
 .bd-recipe .hv-btn { padding:calc(var(--u) * .35) calc(var(--u) * .8); font-size:calc(var(--u) * .68); white-space:nowrap; }
 .bd-recipe.st-items, .bd-recipe.st-busy { opacity:.75; }
+
+/* Plain unlock words on host select, in bone rather than a glow. */
+.host-card .lock { color:var(--bone); } .host-card .lock span { font-family:var(--display); font-style:italic; font-size:1.5em; }
+.host-card .lock small { font-size:.8em; letter-spacing:.14em; text-transform:uppercase; color:var(--lab); }
+.host-card .lock .glyph { color:var(--lab); }
+.host-card .node em { font-style:italic; color:var(--lab); font-size:.95em; }
+/* The Hive-Mind pill sits on the main menu; elsewhere the HIVE-MIND tab unfolds it, so it never covers a screen. */
+body[data-hive-tab]:not([data-hive-tab=menu]) #hivemind.collapsed { display:none; }
+
+/* Fullscreen: a quiet corner control beside the wordmark. */
+.hv-full { position:absolute; right:calc(var(--u) * .6); top:calc(var(--u) * 1.5); z-index:5; width:calc(var(--u) * 2); height:calc(var(--u) * 2); display:grid; place-items:center; padding:0;
+  background:none; border:none; border-radius:50%; color:var(--lab); transition:color .2s, background .2s, transform .2s var(--ease); }
+.hv-full .glyph { width:60%; height:60%; }
+.hv-full:hover { color:var(--bone); background:color-mix(in srgb, var(--bone) 8%, transparent); transform:scale(1.08); }
+.hv-full.on { color:var(--amber); }
+.hv-settings .hv-btn.on { box-shadow:inset 0 0 0 1px var(--amber); color:var(--amber); }
+.hv-settings .hv-btn kbd { font:inherit; margin-left:.6em; padding:0 .4em; border-radius:4px; box-shadow:inset 0 0 0 1px var(--hair2); }
+
+/* The nav hangs from a vein that sags at the ends: each tab sits on the curve, the lit one with its seed on it. */
+.hv-nav .vein { position:absolute; left:calc(var(--u) * 1); right:calc(var(--u) * 1); top:calc(100% - var(--u) * .1); height:calc(var(--u) * .84); overflow:visible; pointer-events:none; }
+.hv-nav .vein path { fill:none; stroke:color-mix(in srgb, var(--bone) 16%, transparent); stroke-width:1; vector-effect:non-scaling-stroke; }
+.hv-nav .tab.locked em { color:color-mix(in srgb, var(--bone) 60%, transparent); }
