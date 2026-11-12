@@ -175,7 +175,7 @@ describe('The Expanse build', () => {
     const w = buildZone(new THREE.Scene(), 'expanse', 4);
     expect(w.zone).toBe('expanse');
     expect(w.layout.playableRadius).toBe(500);
-  });
+  }, 20000); // a full 1 km build: about 3-6 s on a CI runner
 });
 
 /** Walks a 0.4 m capsule through waypoints the way the Player does: push out of walls, then settle on floors. */
