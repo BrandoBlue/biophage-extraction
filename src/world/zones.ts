@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import { clearLife } from './life';
 import { ZONE7_SITES } from '../../data';
 import { CATALOGUE, zone7Layout } from './layout';
 import { buildZone7, setTerrain, type Zone7World } from './zone7';
@@ -36,6 +37,7 @@ export function glowmireLandmarks(): { id: string; x: number; z: number; radius:
 }
 
 export function buildZone(scene: THREE.Scene, zone: ZoneId, seed: number): ZoneWorld {
+  clearLife();
   if (zone === 'longSeedWreck') {
     setTerrain(null);
     const w = buildWreck(scene, seed);

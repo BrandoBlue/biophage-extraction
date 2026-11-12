@@ -15,6 +15,8 @@ import { Kit, hollowSpire, longSeedDebris, oldBone, rootSkirt, type BuiltStructu
 import { buildSites, clearings, type SiteDressing } from './sites';
 import type { ExtractSite, PodSite, Zone7Layout } from './layout';
 import { SOLIDS, fall, fungusMeshes, scatterFungi, setTerrain, type Fungus } from './zone7';
+import { LivingProps } from './life';
+import { casket, curtainHalf, growthTank, sacMesh, urnMesh, worldAt } from './buildings';
 import { buildOutpost, outpostFootprint, type OutpostSite } from './outposts';
 
 /**
@@ -636,9 +638,19 @@ export function buildExpanse(scene: THREE.Scene, seed: number): ExpanseWorld {
     // Cover and lockers.
     const lootIn = (id: string, u: number, v: number, y: number, container: string) => { const [x, z] = k.at(u, v); loot.push({ id: `hull-${id}`, x, y: floorY + y, z, container }); };
     const b0 = HULL_BULKHEADS[0] * len;
-    for (const [cu, cv, cs] of [[-len / 2 + 8, 6, 1.1], [-len / 2 + 14, -5, 0.9], [b0 - 6, 8, 1.2], [b0 + 7, -7, 1], [sb - 6, 6, 1.1]]) {
-      k.box(cu, cv, cs, cs, 0, cs * 1.6, ribMat, { tag: 'wreck-crate', organic: 0.6, flatTop: true });
+    // Grown caskets for cover; growth tanks in the crew hold; sacs hanging from the ribs; curtains in the doorways.
+    const life = new LivingProps(SOLIDS);
+    structures.add(life.group);
+    for (const [i, [cu, cv, cs]] of [[-len / 2 + 8, 6, 1.1], [-len / 2 + 14, -5, 0.9], [b0 - 6, 8, 1.2], [b0 + 7, -7, 1], [sb - 6, 6, 1.1]].entries()) {
+      casket(k, cu, cv, cs * 0.95, 40 + i, 'wreck-crate');
     }
+    for (const [i, u] of [b0 + 4, b0 + 7.5, sb - 4].entries()) growthTank(k, life, u, 9.5, 50 + i);
+    for (let i = 0; i < 9; i++) {
+      const u = -len / 2 + 6 + (i / 8) * (sb - 2 - (-len / 2 + 6)), v = (i % 2 ? 1 : -1) * (3 + rand() * 4), l = 3 + rand() * 4;
+      life.sway(sacMesh(l, 0.4 + rand() * 0.25, i), worldAt(k, u, R * 0.2 + Math.sqrt(R * R - v * v) - 0.4, v), l, 0.55);
+    }
+    for (const [i, [u, v]] of [[-len / 2 + 5, -8], [b0 - 3, -9], [b0 + 3, 10.5], [sb - 7, -9]].entries()) life.tip(urnMesh(60 + i), worldAt(k, u, 0, v), 0.32, 0.9);
+    for (const u of HULL_BULKHEADS.map((f) => f * len)) life.flap(curtainHalf(door * 0.95, 3.3, 1, u), curtainHalf(door * 0.95, 3.3, -1, -u), worldAt(k, u, 0.05, 0), k.yaw - Math.PI / 2, door * 1.9, 3.3);
     lootIn('hold-crate-0', -len / 2 + 10, 6, 0, 'cargoCrate');
     lootIn('hold-crate-1', b0 - 4, -8, 0, 'cargoCrate');
     lootIn('crew-locker', (b0 + sb) / 2, 10, 0, 'sealedLocker');

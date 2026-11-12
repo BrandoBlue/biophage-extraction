@@ -5,6 +5,8 @@ import { mulberry32 } from './rng';
 import { roughen } from './organic';
 import { Kit, oldBone, type LootSpot } from './structures';
 import type { CollisionWorld } from './collision';
+import { LivingProps } from './life';
+import { sacMesh, urnMesh, worldAt } from './buildings';
 
 /**
  * Waypoint outposts for the open ground between big landmarks (World & Level). Left by the seedship's survey crews,
@@ -57,7 +59,7 @@ function wallZ(k: Kit, v0: number, v1: number, u: number, gaps: [number, number]
   }
 }
 
-function camp(k: Kit, id: string, rand: () => number, loot: LootSpot[]): void {
+function camp(k: Kit, id: string, rand: () => number, loot: LootSpot[], life: LivingProps): void {
   const M = mats();
   const lootAt = (lid: string, u: number, y: number, v: number, container: string) => { const [x, z] = k.at(u, v); loot.push({ id: `${id}-${lid}`, x, y: k.base + y, z, container }); };
   // Floor and walls: 16 x 11 m, a partition with a doorway, doors north, south and east.
@@ -75,6 +77,9 @@ function camp(k: Kit, id: string, rand: () => number, loot: LootSpot[]): void {
   glow.position.set(-6.6, 2.4, -4.2);
   k.group.add(lamp, glow);
   lootAt('locker', -6.4, 0.12, 3.6, 'settlerLocker');
+  // Sacs grown down from the roof (they swing when brushed or shot), urns along the walls (they tip and break).
+  for (const [i, [u, v]] of [[-5.5, -2], [-2.5, 1.5], [-1.8, -3.5]].entries()) { const l = 1.3 + rand() * 0.4; life.sway(sacMesh(l, 0.28, i), worldAt(k, u, WALL_H, v), l, 0.4); }
+  for (const [i, [u, v]] of [[-7.1, 0.5], [0.4, -4.8], [7.1, 4.6]].entries()) life.tip(urnMesh(i + 3), worldAt(k, u, 0.12, v), 0.32, 0.9);
   // Lookout outside the east wall: a ramp up to a railed deck.
   k.box(13, 0, 4, 1.1, -0.2, LOOKOUT_Y, M.deck, { rise: LOOKOUT_Y + 0.2, tag: 'outpost-ramp' });
   k.box(18.6, 0, 1.6, 1.6, LOOKOUT_Y - 0.5, LOOKOUT_Y, M.deck, { flatTop: true, tag: 'outpost-lookout' });
@@ -90,7 +95,7 @@ function camp(k: Kit, id: string, rand: () => number, loot: LootSpot[]): void {
   }
 }
 
-function relay(k: Kit, id: string, rand: () => number, loot: LootSpot[]): void {
+function relay(k: Kit, id: string, rand: () => number, loot: LootSpot[], life: LivingProps): void {
   const M = mats();
   const lootAt = (lid: string, u: number, y: number, v: number, container: string) => { const [x, z] = k.at(u, v); loot.push({ id: `${id}-${lid}`, x, y: k.base + y, z, container }); };
   // Shelter: 7 x 5 m, roofed, doorway facing +X.
@@ -102,6 +107,8 @@ function relay(k: Kit, id: string, rand: () => number, loot: LootSpot[]): void {
   k.box(0, 0, 3.9, 2.9, 2.8, 3.1, M.deck, { flatTop: false, organic: 0.8, tag: 'outpost-roof' });
   lootAt('locker', -2.2, 0.12, -1.2, 'sealedLocker');
   lootAt('pod', 5, 0, 2.6, 'bioPod');
+  for (const [i, [u, v]] of [[-1, 1], [1.2, -1.1]].entries()) { const l = 1.1 + rand() * 0.3; life.sway(sacMesh(l, 0.25, i + 5), worldAt(k, u, 2.8, v), l, 0.38); }
+  life.tip(urnMesh(9), worldAt(k, 2.6, 0.12, -1.9), 0.32, 0.9);
   const inside = new THREE.PointLight(ORGANIC.amber, 7, 9, 2);
   inside.position.set(-1.5, 2.2, 0);
   k.group.add(inside);
@@ -136,9 +143,13 @@ export function buildOutpost(solids: CollisionWorld, site: OutpostSite, base: nu
   k.group.name = `outpost-${site.type}-${index}`;
   const loot: LootSpot[] = [];
   const rand = mulberry32(index * 97 + 13);
-  if (site.type === 'relay') relay(k, k.group.name, rand, loot);
-  else camp(k, k.group.name, rand, loot);
-  return { group: k.group, loot };
+  const life = new LivingProps(solids);
+  if (site.type === 'relay') relay(k, k.group.name, rand, loot, life);
+  else camp(k, k.group.name, rand, loot, life);
+  const group = new THREE.Group();
+  group.name = `${k.group.name}-site`;
+  group.add(k.group, life.group);
+  return { group, loot };
 }
 
 /** World centre of an outpost's flat footprint. */

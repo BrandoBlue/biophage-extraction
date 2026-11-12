@@ -47,6 +47,10 @@ const POSES = {
   bowl: { at: [52, 3], eye: 7, yaw: -1.5, pitch: -0.05 },
   bowlFloor: { at: [80, -6], eye: 1.7, yaw: -0.5, pitch: 0.12 },
   debris: { at: [-42, 66], eye: 2.2, yaw: 0.85, pitch: 0.05 },
+  // The Long Seed site's grown halls: from outside, inside the brood hall, into the nursery.
+  debrisHalls: { at: [-84.2, 46.9], eye: 2.6, yaw: -1.61, pitch: 0.06 },
+  debrisInside: { at: [-69.6, 51.3], eye: 1.7, yaw: -0.5, pitch: 0.1 },
+  debrisNursery: { at: [-53.7, 47], eye: 1.7, yaw: -1.99, pitch: 0.02 },
   // The Marrow Pit: run with ZONE=marrowPit (rim camp, from above, the Cable Bridge, the Warrens, the floor).
   pitRim: { at: [-141.6, 19.9], eye: 1.7, yaw: -1.43, pitch: -0.3 },
   pitAerial: { pos: [0, 30, -178], yaw: Math.PI, pitch: -0.5 },
