@@ -1,24 +1,12 @@
 import * as THREE from 'three';
-import { HIVE, ORGANIC, ZONE7 } from '../render/palette';
-import { mulberry32 } from '../world/zone7';
-import { alienEye, bioNode, chitin, livingFlesh, membrane } from '../render/materials';
+import { ARMOURY, HIVE, ORGANIC, ZONE7 } from '../render/palette';
+import { alienEye, chitin, livingFlesh } from '../render/materials';
 import { glowTexture } from '../render/shotfx';
 import type { ReloadStyle } from '../../data';
-import type { WeaponFrame, WeaponModel } from './weapon-view';
+import type { KickProfile, WeaponFrame, WeaponModel } from './weapon-view';
 
 const hex = (c: THREE.Color) => `#${c.getHexString()}`;
 
-const C = {
-  // Ethereal, not neon: the gun is wet, lit flesh (dusky mauve, bone ribs); glow stays in the chamber and eyes.
-  flesh: new THREE.Color(ORGANIC.wetFlesh),
-  fleshDeep: new THREE.Color(ORGANIC.wetFleshDeep),
-  bone: new THREE.Color(HIVE.bone),
-  acid: new THREE.Color(HIVE.acid),
-  cyan: new THREE.Color(ZONE7.cyan),
-  lime: new THREE.Color(ZONE7.lime),
-  void: new THREE.Color(ZONE7.void),
-  skin: new THREE.Color(ZONE7.void).lerp(new THREE.Color(ZONE7.violet), 0.25),
-};
 
 /** Lumpy organic displacement so nothing reads as a primitive. */
 export function organic(geo: THREE.BufferGeometry, amount: number, freq: number, seed: number): THREE.BufferGeometry {
@@ -37,9 +25,6 @@ export function organic(geo: THREE.BufferGeometry, amount: number, freq: number,
   return geo;
 }
 
-function glow(color: THREE.Color, intensity = 2.2): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color: C.void, emissive: color, emissiveIntensity: intensity, roughness: 0.2 });
-}
 
 /**
  * On-screen size of the gun. The breathing animation used to reset the scale to 1 every frame, so the gun filled a
@@ -48,11 +33,28 @@ function glow(color: THREE.Color, intensity = 2.2): THREE.MeshStandardMaterial {
 export const GUN_SCALE = 0.72;
 
 interface Eye { group: THREE.Group; base: THREE.Euler }
-interface Tentacle { root: THREE.Group; segs: THREE.Group[]; phase: number }
+interface Plate { mesh: THREE.Mesh; z: number }
+
+/** Smooth surfaces for the starter: a polished shell, a dark carapace, wet tissue only in the seams. */
+function polished(color: string, rough: number, coat: number, sheen?: string): THREE.MeshPhysicalMaterial {
+  return new THREE.MeshPhysicalMaterial({ color, roughness: rough, clearcoat: coat, clearcoatRoughness: 0.12, sheen: sheen ? 0.35 : 0, sheenColor: new THREE.Color(sheen ?? '#000000') });
+}
+
+/** A lathed solid along -Z from `z0` (back) to `z1` (front) with radius r(t), t 0 at the back. Smooth, no lumps. */
+function lathe(z0: number, z1: number, r: (t: number) => number, segs = 32, steps = 24): THREE.BufferGeometry {
+  const pts: THREE.Vector2[] = [];
+  for (let i = 0; i <= steps; i++) { const t = i / steps; pts.push(new THREE.Vector2(Math.max(0.0005, r(t)), z0 + (z1 - z0) * t)); }
+  const g = new THREE.LatheGeometry(pts, segs);
+  g.rotateX(Math.PI / 2); // lathe Y → Z
+  return g;
+}
 
 /**
- * The Synapse Burster: a living spore gun held by the host. Flesh body, bone ribs, tracking eyes,
- * a translucent spore chamber whose glow shows the magazine, crystal implants and swaying feeder tentacles.
+ * The Synapse Burster, the gun every host starts with (redesigned 2026-11-12 after Brandon found the old fleshy bulb
+ * "veiny and brown"). A sleek grown carbine: a dark slate carapace spine under three overlapping polished bone
+ * plates, a slim bone barrel ringed with soft sea-green nodes, a three-petal muzzle that flares on every shot, and a
+ * glass-clear spore chamber in the flank whose glow is the magazine. Living tissue only shows in the seams and the
+ * one watchful eye at the back. Every shot kicks hard: plates jolt, petals bloom, the chamber flashes.
  */
 export class SynapseBursterView implements WeaponModel {
   readonly root = new THREE.Group();
@@ -60,162 +62,158 @@ export class SynapseBursterView implements WeaponModel {
   readonly sight = new THREE.Object3D();
   /** Hand end of the wrist, +Y up the forearm: HostArm mounts here. */
   readonly grip = new THREE.Object3D();
-  readonly flashColour = HIVE.acid;
+  readonly flashColour = ARMOURY.accent;
   readonly muzzleFx = 'spore';
   /** The host's hand and forearm: Creature & Mutation grows the virus mutation on this group. */
   readonly arm = new THREE.Group();
   private gun = new THREE.Group();
-  private eyes: Eye[] = [];
-  private tentacles: Tentacle[] = [];
+  private eye: Eye;
+  private plates: Plate[] = [];
+  private petals: THREE.Group[] = [];
+  private nodes: THREE.MeshStandardMaterial;
   private chamberCore: THREE.Mesh;
   private chamberMat: THREE.MeshStandardMaterial;
   private egoMat: THREE.MeshStandardMaterial;
   private flash: THREE.Group;
   private flashLife = 0;
+  /** 1 on a shot, decays: drives the petal bloom, plate jolt and chamber flash. */
+  private shot = 0;
   private reloadT = 0;
   private reloadDur = 1;
   private time = 0;
 
   constructor() {
-    const rand = mulberry32(42);
     const g = this.gun;
+    const shell = polished(ARMOURY.shell, 0.32, 0.9, ARMOURY.shellShade);
+    const carapace = polished(ARMOURY.carapace, 0.42, 0.7, ARMOURY.carapaceEdge);
+    const edge = polished(ARMOURY.carapaceEdge, 0.38, 0.8);
+    const tissue = livingFlesh(ARMOURY.tissue, ORGANIC.vein, ARMOURY.shellShade, 22);
 
-    // Main flesh body: a lathed, lumpy bulb tapering to the muzzle (barrel points down -Z).
-    const profile: THREE.Vector2[] = [];
-    for (let i = 0; i <= 16; i++) {
-      const t = i / 16;
-      const r = 0.035 + Math.sin(Math.pow(t, 0.8) * Math.PI) * 0.085 + (t > 0.75 ? (t - 0.75) * 0.12 : 0);
-      profile.push(new THREE.Vector2(r, t * 0.62 - 0.31));
-    }
-    const bodyGeo = organic(new THREE.LatheGeometry(profile, 28), 0.008, 38, 3);
-    bodyGeo.rotateX(Math.PI / 2);
-    const fleshMat = livingFlesh(hex(C.flesh), ORGANIC.vein, HIVE.bone, 14); // coarser mottling reads at arm's length
-    const body = new THREE.Mesh(bodyGeo, fleshMat);
-    g.add(body);
+    // Spine: one smooth carapace body, full at the chamber, tapering into the barrel and rounding off at the back.
+    const spine = lathe(0.26, -0.2, (t) => {
+      const k = Math.pow(t, 1.4), body = 0.068 - 0.044 * k * k * (3 - 2 * k);
+      const cap = t < 0.14 ? Math.sqrt(1 - ((0.14 - t) / 0.14) ** 2) : 1; // rounded back end
+      return body * cap;
+    }, 40, 40);
+    spine.scale(1, 0.92, 1);
+    g.add(new THREE.Mesh(spine, carapace));
 
-    // Darker underbelly sac.
-    const belly = new THREE.Mesh(organic(new THREE.SphereGeometry(0.075, 24, 16), 0.006, 50, 5), livingFlesh(hex(C.fleshDeep.clone().multiplyScalar(1.4)), ORGANIC.vein, ORGANIC.mist));
-    belly.scale.set(1, 0.8, 1.9);
-    belly.position.set(0, -0.06, 0.03);
-    g.add(belly);
-
-    // Bone ribs wrapping the body.
-    const boneMat = chitin(HIVE.bone, ORGANIC.amber, 12);
-    for (let i = 0; i < 5; i++) {
-      const rib = new THREE.Mesh(new THREE.TorusGeometry(0.105 - Math.abs(i - 2) * 0.008, 0.009, 6, 20, Math.PI * 1.15), boneMat);
-      rib.position.z = -0.12 + i * 0.065;
-      rib.rotation.z = Math.PI * -0.075;
-      g.add(rib);
-    }
-    // Dorsal spines.
-    for (let i = 0; i < 6; i++) {
-      const sp = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.07 + rand() * 0.04, 6), boneMat);
-      sp.position.set(0, 0.1, -0.15 + i * 0.055);
-      sp.rotation.x = -0.6;
-      g.add(sp);
+    // Two overlapping bone plates over the top: a long shallow wing case and a shorter one over the throat.
+    const plateSpecs: [number, number, number][] = [[0.09, 0.17, 0.068], [-0.075, 0.085, 0.05]];
+    for (const [z, len, w] of plateSpecs) {
+      const geo = new THREE.SphereGeometry(1, 40, 16, 0, Math.PI * 2, 0, Math.PI * 0.45);
+      const m = new THREE.Mesh(geo, shell);
+      m.scale.set(w, w * 0.5, len);
+      m.position.set(0, 0.014, z);
+      m.rotation.x = -0.1;
+      g.add(m);
+      this.plates.push({ mesh: m, z });
     }
 
-    // Spore chamber: membrane sphere with a glowing core (brightness = ammo).
-    this.chamberMat = glow(C.acid, 1.1);
-    this.chamberCore = new THREE.Mesh(new THREE.IcosahedronGeometry(0.045, 2), this.chamberMat);
-    const sac = new THREE.Mesh(organic(new THREE.SphereGeometry(0.07, 24, 16), 0.004, 60, 9), membrane(HIVE.acid, 0.3));
-    (sac.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.12;
+    // Spore chamber: a clear capsule set into the left flank (the side the host sees), glowing with the magazine.
+    this.chamberMat = new THREE.MeshStandardMaterial({ color: ARMOURY.accentDeep, emissive: ARMOURY.accent, emissiveIntensity: 1.2, roughness: 0.25 });
+    this.chamberCore = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, 0.1, 8, 16), this.chamberMat);
+    this.chamberCore.rotation.x = Math.PI / 2;
+    const glass = new THREE.Mesh(new THREE.CapsuleGeometry(0.027, 0.11, 8, 20), new THREE.MeshPhysicalMaterial({ color: ARMOURY.shell, roughness: 0.05, transparent: true, opacity: 0.28, clearcoat: 1, depthWrite: false }));
+    glass.rotation.x = Math.PI / 2;
     const chamber = new THREE.Group();
-    chamber.add(this.chamberCore, sac);
-    chamber.position.set(0.0, 0.085, 0.09);
+    chamber.add(this.chamberCore, glass);
+    chamber.position.set(-0.066, 0.012, 0.04);
+    chamber.rotation.y = 0.04;
     g.add(chamber);
+    // Tissue lips holding the capsule: the only flesh on the gun.
+    for (const dz of [-0.075, 0.075]) {
+      const lip = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.0055, 10, 28), tissue);
+      lip.position.set(-0.062, 0.012, 0.04 + dz);
+      g.add(lip);
+    }
 
-    // Crystal implants.
-    this.egoMat = glow(C.cyan, 1.2);
+    // Ego Charge: two slim crystal fins behind the plates, dark until charged.
+    this.egoMat = new THREE.MeshStandardMaterial({ color: ARMOURY.carapace, emissive: ARMOURY.accent, emissiveIntensity: 0.15, roughness: 0.2, metalness: 0.1 });
+    for (const side of [-1, 1]) {
+      const fin = new THREE.Mesh(new THREE.ConeGeometry(0.007, 0.05, 4), this.egoMat);
+      fin.rotation.set(-1.35, 0, side * 0.45);
+      fin.position.set(side * 0.022, 0.05, 0.22);
+      g.add(fin);
+    }
+
+    // Barrel: a slim polished bone tube with dark bands and three soft accent nodes along the top.
+    const barrel = lathe(-0.18, -0.4, (t) => 0.024 - t * 0.006, 24, 8);
+    g.add(new THREE.Mesh(barrel, shell));
+    this.nodes = new THREE.MeshStandardMaterial({ color: ARMOURY.accentDeep, emissive: ARMOURY.accent, emissiveIntensity: 0.8, roughness: 0.3 });
     for (let i = 0; i < 3; i++) {
-      const cr = new THREE.Mesh(new THREE.OctahedronGeometry(0.022 + rand() * 0.012, 0), this.egoMat);
-      cr.scale.y = 2.2;
-      cr.position.set(-0.07 + i * 0.012, 0.07 - i * 0.015, -0.05 + i * 0.045);
-      cr.rotation.set(rand(), rand(), 0.6);
-      g.add(cr);
+      const z = -0.22 - i * 0.055;
+      const band = new THREE.Mesh(new THREE.TorusGeometry(0.0225 - i * 0.0016, 0.0032, 8, 32), edge);
+      band.position.z = z;
+      g.add(band);
+      const node = new THREE.Mesh(new THREE.SphereGeometry(0.0065, 12, 10), this.nodes);
+      node.position.set(0, 0.024 - i * 0.0015, z - 0.025);
+      g.add(node);
     }
 
-    // Tracking eyes: a cluster on the crown that looks back at the host, two smaller on the flank.
-    // Each eye's local -Z is its gaze; the base orientation faces the player's eye.
-    const toPlayer = new THREE.Vector3(-0.35, 0.55, 1).normalize();
-    const eyePositions: [number, number, number, number][] = [
-      [0.0, 0.122, -0.1, 0.036], [0.058, 0.104, -0.16, 0.027], [-0.055, 0.106, -0.14, 0.024], [0.1, 0.035, 0.0, 0.02], [-0.098, 0.03, 0.03, 0.017],
-    ];
-    const lidMat = livingFlesh(hex(C.fleshDeep.clone().multiplyScalar(1.5)), ORGANIC.vein, HIVE.bone);
-    for (const [k, [x, y, z, r]] of eyePositions.entries()) {
-      const eg = new THREE.Group();
-      const ball = new THREE.Mesh(new THREE.SphereGeometry(r, 28, 20), alienEye(k === 0 ? ZONE7.cyan : ORGANIC.amber, HIVE.bone));
-      eg.add(ball);
-      const socket = new THREE.Group();
-      socket.position.set(x, y, z);
-      const lid = new THREE.Mesh(new THREE.TorusGeometry(r * 1.0, r * 0.32, 10, 24), lidMat);
-      lid.position.copy(socket.position);
-      lid.lookAt(socket.position.clone().add(toPlayer));
-      socket.add(eg);
-      g.add(socket, lid);
-      eg.lookAt(socket.position.clone().sub(toPlayer)); // Object3D.lookAt aims +Z, so aim it away to put -Z on the player
-      this.eyes.push({ group: eg, base: eg.rotation.clone() });
-    }
-
-    // Feeder tentacles curling off the back and underside.
-    const tentMat = livingFlesh(hex(C.flesh.clone().multiplyScalar(1.2)), ORGANIC.vein, HIVE.bone);
-    const tipMat = bioNode(ORGANIC.amber, 1.4);
-    for (let t = 0; t < 5; t++) {
-      const root = new THREE.Group();
-      root.position.set(-0.06 + rand() * 0.12, -0.02 + rand() * 0.06, 0.2 + rand() * 0.08);
-      root.rotation.set(0.8 + rand() * 0.8, (rand() - 0.5) * 2.4, 0);
-      const segs: THREE.Group[] = [];
-      let parent: THREE.Object3D = root;
-      const n = 7;
-      for (let i = 0; i < n; i++) {
-        const seg = new THREE.Group();
-        const len = 0.04 - i * 0.003;
-        const rad = 0.012 * (1 - i / (n + 2));
-        const m = new THREE.Mesh(new THREE.CylinderGeometry(rad * 0.8, rad, len, 7), tentMat);
-        m.position.y = len / 2;
-        seg.add(m);
-        if (i === n - 1) { const tip = new THREE.Mesh(new THREE.SphereGeometry(rad * 1.4, 8, 6), tipMat); tip.position.y = len; seg.add(tip); }
-        if (parent !== root) seg.position.y = 0.04 - (i - 1) * 0.003;
-        parent.add(seg);
-        segs.push(seg);
-        parent = seg;
-      }
-      g.add(root);
-      this.tentacles.push({ root, segs, phase: rand() * 6 });
-    }
-
-    // Muzzle sphincter with inward teeth.
-    const lip = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.016, 10, 24), lidMat);
-    lip.position.z = -0.31;
-    g.add(lip);
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.006, 0.03, 5), boneMat);
-      tooth.position.set(Math.cos(a) * 0.04, Math.sin(a) * 0.04, -0.315);
-      tooth.rotation.set(0, 0, a - Math.PI / 2);
-      tooth.rotateX(-0.9);
-      g.add(tooth);
-    }
-    const throat = new THREE.Mesh(new THREE.CircleGeometry(0.03, 16), glow(C.acid, 2.5));
-    throat.position.z = -0.305;
+    // Muzzle: three carapace petals round the throat. They lie closed and bloom open on each shot.
+    const throat = new THREE.Mesh(new THREE.CircleGeometry(0.014, 20), new THREE.MeshBasicMaterial({ color: ARMOURY.accent }));
+    throat.position.z = -0.401;
     throat.rotation.y = Math.PI;
     g.add(throat);
-    this.muzzle.position.set(0, 0, -0.34);
+    for (let i = 0; i < 3; i++) {
+      const hinge = new THREE.Group();
+      hinge.position.z = -0.395;
+      hinge.rotation.z = (i / 3) * Math.PI * 2 + Math.PI / 2;
+      const petalGeo = new THREE.SphereGeometry(1, 16, 10, 0, Math.PI, 0, Math.PI / 2);
+      const petal = new THREE.Mesh(petalGeo, carapace);
+      petal.scale.set(0.012, 0.022, 0.05);
+      petal.position.set(0, 0.016, -0.025);
+      petal.rotation.set(0, 0, 0);
+      const holder = new THREE.Group();
+      holder.add(petal);
+      hinge.add(holder);
+      g.add(hinge);
+      this.petals.push(holder);
+    }
+    this.muzzle.position.set(0, 0, -0.42);
     g.add(this.muzzle);
 
-    // Muzzle burst: a small, soft exhale of glow at the throat (no star or streak: the round leaves as a spore spray,
-    // Rendering's MUZZLE_SPRAYS.spore, spawned by the raid). The rig owns the flash light.
+    // Underside: a dark grip stub and a small rounded feed gland (tissue), so it reads as grown, not machined.
+    const stub = new THREE.Mesh(new THREE.CapsuleGeometry(0.022, 0.07, 6, 14), carapace);
+    stub.position.set(0.0, -0.075, 0.12);
+    stub.rotation.x = 0.35;
+    g.add(stub);
+    const gland = new THREE.Mesh(new THREE.SphereGeometry(0.034, 24, 16), tissue);
+    gland.scale.set(0.9, 0.7, 1.5);
+    gland.position.set(0, -0.05, -0.04);
+    g.add(gland);
+
+    // One watchful eye in the back of the carapace, looking up at the host; it tracks threats.
+    const toPlayer = new THREE.Vector3(-0.35, 0.55, 1).normalize();
+    const socket = new THREE.Group();
+    socket.position.set(-0.052, 0.03, 0.19);
+    const eg = new THREE.Group();
+    eg.add(new THREE.Mesh(new THREE.SphereGeometry(0.012, 24, 18), alienEye(ARMOURY.accent, HIVE.bone)));
+    socket.add(eg);
+    const lid = new THREE.Mesh(new THREE.TorusGeometry(0.013, 0.0045, 10, 24), edge);
+    lid.position.copy(socket.position);
+    lid.lookAt(socket.position.clone().add(toPlayer));
+    g.add(socket, lid);
+    eg.lookAt(socket.position.clone().sub(toPlayer));
+    this.eye = { group: eg, base: eg.rotation.clone() };
+
+    // Muzzle burst: a bright core and a short forward flare, tinted to the accent (Rendering adds the spore spray).
     this.flash = new THREE.Group();
-    this.flash.position.z = -0.37;
+    this.flash.position.z = -0.44;
     const add = { blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false, transparent: true } as const;
-    const burst = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: C.acid.clone().lerp(new THREE.Color(HIVE.bone), 0.45).multiplyScalar(0.9), ...add }));
-    burst.scale.setScalar(0.16);
-    this.flash.add(burst);
+    const tint = new THREE.Color(ARMOURY.accent).lerp(new THREE.Color(HIVE.bone), 0.35);
+    const core = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: tint.clone().multiplyScalar(1.3), ...add }));
+    core.scale.setScalar(0.2);
+    const flare = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: tint.clone().multiplyScalar(0.9), ...add }));
+    flare.scale.set(0.12, 0.12, 1);
+    flare.position.z = -0.08;
+    this.flash.add(core, flare);
     this.flash.visible = false;
     g.add(this.flash);
 
     // Alien host hand: dark chitin fingers wrapped under the grip.
-    const handMat = chitin(hex(C.skin.clone().multiplyScalar(2.2)), ZONE7.lime, 14);
+    const handMat = chitin(hex(new THREE.Color(ZONE7.void).lerp(new THREE.Color(ZONE7.violet), 0.25).multiplyScalar(2.2)), ZONE7.lime, 14);
     const palm = new THREE.Mesh(organic(new THREE.SphereGeometry(0.05, 16, 12), 0.004, 60, 2), handMat);
     palm.scale.set(1.1, 0.6, 1.5);
     palm.position.set(0.02, -0.11, 0.1);
@@ -225,9 +223,6 @@ export class SynapseBursterView implements WeaponModel {
       finger.position.set(-0.035 + i * 0.006, -0.065 + i * 0.005, 0.04 + i * 0.04);
       finger.rotation.set(0, 0, 1.25);
       this.arm.add(finger);
-      const node = new THREE.Mesh(new THREE.SphereGeometry(0.007, 8, 6), glow(C.lime, 2));
-      node.position.set(0.035, -0.1, 0.05 + i * 0.04);
-      this.arm.add(node);
     }
     // HostArm (Creature) grows the forearm from here: the hand end of the old wrist, +Y up the forearm.
     this.grip.rotation.set(0.9, 0, -0.3);
@@ -237,11 +232,11 @@ export class SynapseBursterView implements WeaponModel {
     this.arm.name = 'host-arm';
     g.add(this.arm);
 
-    // Angled so the barrel points at the crosshair and the eye crown and flank face the host.
+    // Angled so the barrel points at the crosshair and the plates and chamber face the host.
     g.rotation.set(-0.12, 0.16, -0.1);
     g.scale.setScalar(GUN_SCALE);
-    // Eye line over the crown, toward the back of the gun: the rig lines it up with the crosshair when aiming.
-    this.sight.position.set(0, 0.24, 0.24);
+    // Eye line over the plates, toward the back of the gun: the rig lines it up with the crosshair when aiming.
+    this.sight.position.set(0, 0.2, 0.24);
     g.add(this.sight);
     this.root.add(g);
 
@@ -250,11 +245,10 @@ export class SynapseBursterView implements WeaponModel {
       // Arm's-length geometry never sits in fog.
       const m = (o as THREE.Mesh).material as THREE.Material | undefined;
       if (m && 'fog' in m) (m as THREE.Material & { fog: boolean }).fog = false;
-      // The baked environment is the violet-magenta nebula; at arm's length its clearcoat reflection turned the
-      // whole gun neon pink. Keep a hint of it so the flesh still reads wet.
+      // The baked environment is the violet nebula: keep only a hint of it so polished bone does not turn pink.
       // three.js ignores envMapIntensity for scene.environment, so bind the scene's map to these materials directly.
       if (m instanceof THREE.MeshStandardMaterial) {
-        m.envMapIntensity = 0.25;
+        m.envMapIntensity = 0.3;
         (o as THREE.Mesh).onBeforeRender = (_r, scene) => {
           if (scene.environment !== m.envMap && scene.environment?.isTexture) { m.envMap = scene.environment as THREE.Texture; m.needsUpdate = true; }
         };
@@ -262,7 +256,8 @@ export class SynapseBursterView implements WeaponModel {
     });
   }
 
-  fired(): void { this.flashLife = 0.06; }
+  /** A sharper kick than the default: a carbine that snaps back and climbs, with a little roll. */
+  fired(): KickProfile { this.flashLife = 0.07; this.shot = 1; return { pitch: 0.16, back: 0.085, roll: 0.025 }; }
 
   reload(_style: ReloadStyle, duration: number): void { this.reloadT = duration; this.reloadDur = duration; }
 
@@ -271,48 +266,46 @@ export class SynapseBursterView implements WeaponModel {
     this.time += dt;
     const t = this.time;
     let rx = -0.12, ry = 0.16, rz = -0.1;
+    this.shot = Math.max(0, this.shot - dt * 9);
+    const s = this.shot * this.shot;
 
-    // Reload: tip the gun, chamber deflates then swells.
-    let chamberScale = 1;
+    // Reload: roll the gun to show the flank; the chamber drains, the plates lift to let the new charge in, it refills.
+    let chamberScale = 1, lift = 0;
     if (this.reloadT > 0) {
       this.reloadT = Math.max(0, this.reloadT - dt);
       const k = 1 - this.reloadT / this.reloadDur;
       const arc = Math.sin(k * Math.PI);
-      rz += arc * 0.7; rx += arc * 0.35;
-      chamberScale = k < 0.5 ? 1 - k * 1.4 : 0.3 + (k - 0.5) * 1.4;
+      rz += arc * 0.6; rx += arc * 0.3;
+      chamberScale = k < 0.5 ? 1 - k * 1.6 : 0.2 + (k - 0.5) * 1.6;
+      lift = Math.sin(Math.min(1, k * 1.4) * Math.PI) * 0.25;
     }
     this.gun.rotation.set(rx, ry, rz);
 
-    // Living details.
-    const breath = 1 + Math.sin(t * 2.1) * 0.03;
-    this.chamberCore.scale.setScalar(chamberScale * breath * (0.6 + 0.4 * ammoFrac));
-    this.chamberMat.emissiveIntensity = 0.2 + 0.6 * ammoFrac * (this.reloadT > 0 ? 0.4 : 1) + Math.sin(t * 5) * 0.2;
-    this.egoMat.emissiveIntensity = 0.5 + ego * 4 + (ego >= 1 ? Math.sin(t * 12) * 1.5 : 0);
-    this.gun.scale.set(GUN_SCALE, GUN_SCALE * breath, GUN_SCALE);
-
-    for (let i = 0; i < this.tentacles.length; i++) {
-      const tn = this.tentacles[i];
-      tn.segs.forEach((s, j) => {
-        s.rotation.x = Math.sin(t * 2.3 + tn.phase + j * 0.6) * 0.32 + 0.12;
-        s.rotation.z = Math.cos(t * 1.7 + tn.phase + j * 0.5) * 0.25;
-      });
+    // Shot: plates jolt back, petals bloom open, the chamber and barrel nodes flash.
+    for (const [i, p] of this.plates.entries()) {
+      p.mesh.position.z = p.z + s * 0.012 * (i + 1);
+      p.mesh.rotation.x = -0.1 - lift * (1 - i * 0.3) - s * 0.08;
     }
-    for (const e of this.eyes) {
-      if (look) {
-        // Swivel off the resting gaze toward the threat.
-        const tx = e.base.x - THREE.MathUtils.clamp(look.y * 1.0, -0.6, 0.6);
-        const ty = e.base.y + THREE.MathUtils.clamp(-look.x * 1.0, -0.8, 0.8);
-        e.group.rotation.x = THREE.MathUtils.damp(e.group.rotation.x, tx, 10, dt);
-        e.group.rotation.y = THREE.MathUtils.damp(e.group.rotation.y, ty, 10, dt);
-      } else {
-        e.group.rotation.x = THREE.MathUtils.damp(e.group.rotation.x, e.base.x + Math.sin(t * 0.7 + e.base.y * 9) * 0.15, 3, dt);
-        e.group.rotation.y = THREE.MathUtils.damp(e.group.rotation.y, e.base.y + Math.sin(t * 0.43 + e.base.y * 5) * 0.25, 3, dt);
-      }
+    for (const h of this.petals) h.rotation.x = -(0.05 + s * 0.85);
+    const breath = 1 + Math.sin(t * 2.1) * 0.025;
+    this.chamberCore.scale.setScalar(Math.max(0.05, chamberScale * breath * (0.55 + 0.45 * ammoFrac)));
+    this.chamberMat.emissiveIntensity = 0.35 + 1.1 * ammoFrac * (this.reloadT > 0 ? 0.4 : 1) + s * 3 + Math.sin(t * 4) * 0.12;
+    this.nodes.emissiveIntensity = 0.6 + s * 4 + Math.sin(t * 3 + 1) * 0.1;
+    this.egoMat.emissiveIntensity = 0.15 + ego * 4 + (ego >= 1 ? Math.sin(t * 12) * 1.5 : 0);
+    this.gun.scale.setScalar(GUN_SCALE);
+
+    const e = this.eye;
+    if (look) {
+      e.group.rotation.x = THREE.MathUtils.damp(e.group.rotation.x, e.base.x - THREE.MathUtils.clamp(look.y, -0.6, 0.6), 10, dt);
+      e.group.rotation.y = THREE.MathUtils.damp(e.group.rotation.y, e.base.y + THREE.MathUtils.clamp(-look.x, -0.8, 0.8), 10, dt);
+    } else {
+      e.group.rotation.x = THREE.MathUtils.damp(e.group.rotation.x, e.base.x + Math.sin(t * 0.7) * 0.15, 3, dt);
+      e.group.rotation.y = THREE.MathUtils.damp(e.group.rotation.y, e.base.y + Math.sin(t * 0.43) * 0.25, 3, dt);
     }
 
     this.flashLife = Math.max(0, this.flashLife - dt);
     const on = this.flashLife > 0;
     this.flash.visible = on;
-    if (on) { this.flash.scale.setScalar(0.8 + Math.random() * 0.5); this.flash.rotation.z = Math.random() * Math.PI; }
+    if (on) { this.flash.scale.setScalar(0.85 + Math.random() * 0.45); this.flash.rotation.z = Math.random() * Math.PI; }
   }
 }
