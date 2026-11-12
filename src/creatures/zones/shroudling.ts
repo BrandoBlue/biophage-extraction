@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FAUNA, ORGANIC } from '../../render/palette';
 import { PlanBuilder, V, mix, mutate, tint } from '../builder';
 import { rng } from '../parts';
+import { organic, readable } from './organic';
 import type { BodyPlan, Palette } from '../plan';
 import type { Creature } from '../creature';
 import { damp } from './fx';
@@ -31,8 +32,10 @@ export function shroudling(seed: number, stage = 0): BodyPlan {
   };
   const s = 0.95 + r() * 0.1;
   const b = new PlanBuilder('shroudling', seed, stage, { locomotion: 'walker', bodyHeight: 0.95 * s, radius: 0.6 * s, skinNoise: { amp: 0.008, freq: 18 }, skinResolution: 64, fleshScale: 9, palette: pal });
+  organic(b, rng(seed * 17 + 3));
   // Dried host skin: leathery, sun-cured, cracked. The thing inside is dark and wet.
   b.plan.palette = { ...b.plan.palette, flesh: mix(FAUNA.dustPale, FAUNA.ochre, 0.42, 0.9), chitin: mix(FAUNA.soot, ORGANIC.wetFleshDeep, 0.4), bone: mix(FAUNA.dustPale, FAUNA.sand, 0.5) };
+  readable(b);
   const S = (x: number, y: number, z: number) => V(x * s, y * s, z * s);
   const body = b.bone('body', -1, S(0, 0.95, 0));
   const shell = b.bone('shell', body, S(0, 1.3, -0.02));

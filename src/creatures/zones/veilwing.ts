@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { FAUNA, ORGANIC } from '../../render/palette';
 import { PlanBuilder, V, mix, mutate, tint } from '../builder';
 import { aimBone } from '../ik';
+import { livingFlesh } from '../../render/materials';
 import { rng } from '../parts';
+import { organic, readable } from './organic';
 import type { BodyPlan, Palette } from '../plan';
 import type { Creature } from '../creature';
 import { damp } from './fx';
@@ -32,7 +34,9 @@ export function veilwing(seed: number, stage = 0): BodyPlan {
   const s = 0.92 + r() * 0.16;
   const h = 9;
   const b = new PlanBuilder('veilwing', seed, stage, { locomotion: 'flyer', bodyHeight: h, radius: SAIL_R * s, skinNoise: { amp: 0.008, freq: 14 }, skinResolution: 48, fleshScale: 8, palette: pal });
-  b.plan.palette = { ...b.plan.palette, flesh: mix(FAUNA.pearl, FAUNA.soot, 0.45), bone: mix(FAUNA.pearl, FAUNA.rope, 0.3), membrane: mix(FAUNA.rope, FAUNA.pearl, 0.3) };
+  organic(b, rng(seed * 17 + 3));
+  b.plan.palette = { ...b.plan.palette, flesh: mix(FAUNA.pearl, FAUNA.soot, 0.45), bone: mix(FAUNA.pearl, FAUNA.rope, 0.3), membrane: mix(FAUNA.rope, FAUNA.pearl, 0.6) };
+  readable(b);
   const S = (x: number, y: number, z: number) => V(x * s, h + y * s, z * s);
   const body = b.bone('body', -1, V(0, h, 0));
   // The core: a small knot of fused bone and grey flesh, ridged like a vertebra.
@@ -79,27 +83,38 @@ export function veilwing(seed: number, stage = 0): BodyPlan {
 function buildSail(seed: number, radius: number): { geo: THREE.BufferGeometry; rest: Float32Array; rr: Float32Array } {
   const rand = rng(seed * 13 + 5);
   const SPOKES = 56, RINGS = 9;
-  const notch = Array.from({ length: SPOKES }, () => (rand() < 0.22 ? 0.55 + rand() * 0.3 : 1));
-  const outline = (a: number, i: number) => {
-    // Wide to the sides, short fore and aft, a shallow point at the front, frayed.
+  // A ragged, scalloped edge from a few overlapping waves, plus some deep bites, not square notches.
+  const waves = [3, 5, 8, 13].map((f) => ({ f, ph: rand() * Math.PI * 2, amp: 0.05 + rand() * 0.06 }));
+  const bites = Array.from({ length: 4 }, () => ({ at: rand() * Math.PI * 2, w: 0.08 + rand() * 0.12, d: 0.2 + rand() * 0.25 }));
+  const outline = (a: number) => {
+    // Wide to the sides, short fore and aft, a shallow point at the front.
     const side = Math.pow(Math.abs(Math.sin(a)), 0.7);
-    return radius * (0.3 + 0.7 * side + 0.12 * Math.max(0, Math.cos(a))) * notch[i];
+    let k = 1 + waves.reduce((sum, w) => sum + Math.sin(a * w.f + w.ph) * w.amp, 0);
+    for (const b of bites) {
+      const da = Math.atan2(Math.sin(a - b.at), Math.cos(a - b.at));
+      k -= b.d * Math.exp(-(da * da) / (b.w * b.w));
+    }
+    return radius * (0.3 + 0.7 * side + 0.12 * Math.max(0, Math.cos(a))) * Math.max(0.45, k);
   };
   const pos: number[] = [], rr: number[] = [];
   for (let ring = 0; ring <= RINGS; ring++) {
     for (let i = 0; i < SPOKES; i++) {
-      const a = (i / SPOKES) * Math.PI * 2;
-      const k = 0.12 + (ring / RINGS) * 0.88;
-      const rad = outline(a, i) * k;
+      // Jitter the grid so no straight spokes or rings show through the shading.
+      const a = ((i + (ring > 0 && ring < RINGS ? (rand() - 0.5) * 0.5 : 0)) / SPOKES) * Math.PI * 2;
+      const k = 0.12 + ((ring + (ring > 0 && ring < RINGS ? (rand() - 0.5) * 0.4 : 0)) / RINGS) * 0.88;
+      const rad = outline(a) * k;
       pos.push(Math.sin(a) * rad, 0, Math.cos(a) * rad);
       rr.push(k);
     }
   }
+  const rips = Array.from({ length: 5 }, () => ({ ring: RINGS - 2 + Math.floor(rand() * 2), at: Math.floor(rand() * SPOKES), len: 1 + Math.floor(rand() * 3) }));
+  const tear = (ring: number, i: number) => rips.some((r) => r.ring === ring && ((i - r.at + SPOKES) % SPOKES) < r.len);
   const idx: number[] = [];
   for (let ring = 0; ring < RINGS; ring++) {
     for (let i = 0; i < SPOKES; i++) {
       // Tears: a few cells missing, more toward the edge.
-      if (ring > 3 && rand() < 0.035 * ring) continue;
+      // Tears: a few small holes near the edge, each a run of cells along one ring so it reads as a rip.
+      if (ring >= RINGS - 2 && tear(ring, i)) continue;
       const a = ring * SPOKES + i, b2 = ring * SPOKES + ((i + 1) % SPOKES), c = a + SPOKES, d = b2 + SPOKES;
       idx.push(a, c, b2, b2, c, d);
     }
@@ -119,8 +134,11 @@ export function veilwingMotion(c: Creature) {
   const rig = c.rig;
   const s = c.plan.radius / SAIL_R;
   const { geo, rest, rr } = buildSail(c.plan.seed, SAIL_R * s);
-  const mat = rig.materials.membrane as THREE.MeshStandardMaterial;
+  // An opaque, leathery sail in the body's own hide: a glassy membrane vanished against a dark shaft.
+  const pal = c.plan.palette;
+  const mat = livingFlesh(pal.membrane, pal.vein, pal.rim, 3);
   mat.side = THREE.DoubleSide;
+  mat.sheen = 0.6;
   const sail = new THREE.Mesh(geo, mat);
   sail.name = 'veil';
   sail.frustumCulled = false;

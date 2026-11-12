@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CLASSES, CONTRACTS, LOOT, VIRUSES } from '../data';
+import { CLASSES, CONTRACTS, LOOT, VIRUSES, ZONES } from '../data';
 import { objectiveText } from '../src/ui/hive/vendors';
 import { DRAWN_ITEMS, itemIcon } from '../src/ui/icons';
 import { ALL_COLOURS } from '../src/render/palette';
 import { hostPortrait } from '../src/ui/hosts';
-import { classTraits, LIVE_ZONE, raidPlan, zoneAccess, zoneRoster } from '../src/ui/hive/screens';
+import { classTraits, LIVE_ZONE, plainLock, raidPlan, zoneAccess, zoneRoster } from '../src/ui/hive/screens';
+import { zoneExtracts, zoneMap } from '../src/ui/hive/zonemap';
+import { BUILT_ZONES } from '../src/world/zones';
 import { firstFit, fits, virusText } from '../src/ui/hive/grid';
 import { gridSize, usage } from '../src/ui/hive/model';
 import { getSettings, DEFAULT_SETTINGS, SETTINGS_KEY } from '../src/ui/settings';
@@ -144,8 +146,32 @@ describe('Zone roster', () => {
     expect(r.map((z) => z.order)).toEqual([...r.map((z) => z.order)].sort((a, b) => a - b));
     expect(r.find((z) => z.id === LIVE_ZONE)?.open).toBe(true);
     for (const z of r.filter((x) => !x.open)) expect(z.access).not.toBe('OPEN');
-    expect(zoneAccess('contract signalInTheWreck (Archivist)')).toMatch(/^CONTRACT · /);
+    expect(zoneAccess('contract signalInTheWreck (Archivist)')).toMatch(/^UNLOCKS WHEN YOU FINISH THE CONTRACT /);
     expect(zoneAccess('open')).toBe('OPEN');
+  });
+  it('says why a zone is shut in plain words, never a milestone name', () => {
+    expect(plainLock('host level 4 or finish Lights in the Fen')).toBe('Unlocks at host level 4 or when you finish the contract Lights in the Fen');
+    expect(plainLock('arrives in Apex')).toMatch(/later update/);
+    expect(plainLock('its map is still growing')).toMatch(/still being built/);
+    for (const [id, z] of Object.entries(ZONES)) expect(zoneAccess(z.access), id).not.toMatch(/APEX|HOST MILESTONE|LARVA|SPORE/);
+  });
+});
+
+describe('Raid select map per zone', () => {
+  it('draws every built zone from its own layout: its own drop point and extracts, inside the disc', () => {
+    for (const id of BUILT_ZONES) {
+      const m = zoneMap(id);
+      expect(m.shape, id).not.toBe('uncharted');
+      const drop = m.marks.filter((x) => x.kind === 'drop');
+      expect(drop, id).toHaveLength(1);
+      expect(m.marks.filter((x) => x.kind === 'extract').length, id).toBeGreaterThan(0);
+      for (const x of m.marks) expect(Math.hypot(x.x, x.z), `${id} ${x.kind} ${x.label}`).toBeLessThanOrEqual(m.radius * 1.01);
+    }
+    // Different zones, different maps.
+    const drops = BUILT_ZONES.map((id) => JSON.stringify(zoneMap(id).marks.find((x) => x.kind === 'drop')));
+    expect(new Set(drops).size).toBe(BUILT_ZONES.length);
+    expect(zoneMap('hollowChoir').shape).toBe('uncharted');
+    expect(zoneExtracts('ochreReach').count).toBe(3);
   });
 });
 

@@ -196,7 +196,7 @@ export class HostBody {
     const key = `${classId}:${evo ?? ''}`;
     let geo = geoCache.get(key);
     if (!geo) {
-      geo = meshSdf([...bodyPrims(f), ...evolutionPrims(evo, f)], 1, { resolution: 112, noise: { amp: 0.003, freq: 45, seed: 5 } }).geometry;
+      geo = meshSdf([...bodyPrims(f), ...evolutionPrims(evo, f)], 1, { resolution: 112, noise: { amp: 0.005, freq: 32, seed: 5 } }).geometry;
       geoCache.set(key, geo);
     }
     // Restrained glow (Brandon, 2026-11-11: heavy neon reads as AI-made): faint veins, a soft rim.

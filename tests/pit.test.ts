@@ -198,4 +198,16 @@ describe('the Marrow Pit', () => {
     expect(wallPointAt(0, 5)).toBeNull();
     expect(wallPointAt(0, -300)).toBeNull();
   });
+
+  it('homes Design\'s pit creatures on their landmarks\' shelves, tougher the deeper they live', () => {
+    const sp = world.layout.spawns!;
+    expect(sp.length).toBeGreaterThan(8);
+    for (const s of sp) {
+      const y = pitHeight(s.x, s.z);
+      expect(pitLandmarkAt(s.x, s.z, y)).not.toBeNull();
+      expect(s.toughness).toBeGreaterThanOrEqual(1);
+    }
+    const deep = sp.find((s) => pitLandmarkAt(s.x, s.z) === 'undermouth')!, rim = sp.find((s) => pitLandmarkAt(s.x, s.z) === 'rimCamp')!;
+    expect(deep.toughness!).toBeGreaterThan(rim.toughness!);
+  });
 });
