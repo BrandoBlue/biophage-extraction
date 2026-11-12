@@ -1,8 +1,8 @@
 import * as THREE from 'three';
-import { groundHeight, mulberry32 } from '../world/zone7';
+import { climbBlocked, groundHeight, mulberry32 } from '../world/zone7';
 import { AI, type Abomination as AbominationData } from '../../data';
 import type { Noise } from './perception';
-import { createBrain, memoryFor, mindLevels, mindPulse, tokensFor, type Brain, type BrainWorld, type Vec3 } from '../ai';
+import { archetypeOf, createBrain, memoryFor, mindLevels, mindPulse, tokensFor, type Brain, type BrainWorld, type Vec3 } from '../ai';
 import { Creature } from '../creatures/creature';
 import { creatureGore } from '../creatures/gore';
 import type { SpeciesId } from '../creatures/plan';
@@ -109,8 +109,11 @@ export class Abomination {
   /** 0 = fully under, 1 = out. */
   private emerged = 1;
 
+  /** Flies or hovers: crosses cliffs that stop walkers. */
+  readonly flies: boolean;
   constructor(readonly kind: AbominationKind, readonly t: AbominationData, x: number, z: number, readonly seed: number) {
     this.biomass = t.biomass;
+    this.flies = ['flyer', 'grazer', 'weaver'].includes(archetypeOf(kind)) || (t as { hoverHeight?: unknown }).hoverHeight != null;
     this.rand = mulberry32(seed);
     this.home = new THREE.Vector3(x, 0, z);
     this.root.position.set(x, groundHeight(x, z), z);
@@ -271,10 +274,18 @@ export class Abomination {
       },
       noises: ctx.noises, allies: ctx.others, tokens, playableRadius: ctx.playableRadius, memory: AI.learning.enabled ? memoryFor(ctx.others) : undefined,
     };
+    const b = brain.body, prevX = b.x, prevZ = b.z, prevY = groundHeight(b.x, b.z);
     brain.step(dt, world);
+    // Walkers can't scale cliffs (terrains with a maxSlope, e.g. the Marrow Pit's shaft): slide along, or stop.
+    // Fliers (sky archetypes and hovering kinds) pass over.
+    if (!this.flies && climbBlocked(prevY, prevX, prevZ, b.x, b.z)) {
+      if (!climbBlocked(prevY, prevX, prevZ, b.x, prevZ)) { b.z = prevZ; b.vz = 0; }
+      else if (!climbBlocked(prevY, prevX, prevZ, prevX, b.z)) { b.x = prevX; b.vx = 0; }
+      else { b.x = prevX; b.z = prevZ; b.vx = 0; b.vz = 0; }
+    }
     this.handleEvents(ctx);
 
-    const b = brain.body, pos = this.root.position;
+    const pos = this.root.position;
     pos.set(b.x, groundHeight(b.x, b.z) - this.burrowSink(dt), b.z);
     this.yaw = b.yaw;
     this.velocity.set(b.vx, 0, b.vz);

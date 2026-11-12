@@ -36,7 +36,7 @@ interface PitData {
   cliff: number; maxSlope: number; playableRadius: number; outerRadius: number;
   layers: Layer[];
   ramps: Ramp[];
-  spawn: Polar;
+  spawn: Polar & { clearRadius: number };
   extracts: (Polar & { id: string; label: string; opensAt: number | null; opensOn?: string })[];
   bridge: { layer: string; bearing: number; width: number; sag: number; hubRadius: number };
   camp: { huts: (Polar & { yaw: number })[] };
@@ -181,26 +181,45 @@ export function pitLayout(seed: number): Zone7Layout {
  */
 export function pitSpawns(): SpawnPlacement[] {
   const marks = new Map(pitLandmarks().map((m) => [m.id, m]));
-  const out: SpawnPlacement[] = [];
-  let footing = 0;
+  const groups: { kind: string; roam: number; g: { count?: number; packed?: boolean; spread?: number }; id: string }[] = [];
   for (const [kind, h] of Object.entries(HABITATS.zones.marrowPit ?? {})) {
     if (!h) continue;
     for (const g of h.groups) {
       const id = 'landmark' in g.where ? g.where.landmark : undefined;
-      const m = id ? marks.get(id) : undefined;
-      if (!m) continue;
-      let x = m.x, z = m.z, y = m.y;
-      if (PIT.landmarks[m.id]?.bridge) {
-        const b = PIT.bridge.bearing + (footing++ % 2) * 180, k = layerIndex(m.layer);
-        [x, z] = polar(b, edgeRadius(k, b * D2R) + 4);
-        y = pitHeight(x, z);
-      }
-      out.push({
-        kind, x, z, count: g.count, packed: g.packed, roam: h.roam,
-        spread: Math.min(g.spread ?? 3, PIT.landmarks[m.id]?.from === undefined ? 15 : 5),
-        toughness: depthLayer('marrowPit', Math.max(0, -y))?.hpMultiplier ?? 1,
-      });
+      if (id && marks.has(id)) groups.push({ kind, roam: h.roam, g, id });
     }
+  }
+  // Groups that share a landmark spread out along its arc, one stretch each, instead of stacking on one point.
+  const total = new Map<string, number>(), seen = new Map<string, number>();
+  for (const q of groups) total.set(q.id, (total.get(q.id) ?? 0) + 1);
+  const [sx, sz] = polar(PIT.spawn.bearing, PIT.spawn.radius);
+  const out: SpawnPlacement[] = [];
+  let footing = 0;
+  for (const q of groups) {
+    const m = marks.get(q.id)!, site = PIT.landmarks[q.id];
+    const i = seen.get(q.id) ?? 0, n = total.get(q.id)!;
+    seen.set(q.id, i + 1);
+    const k = layerIndex(m.layer);
+    let x = m.x, z = m.z;
+    if (site?.bridge) {
+      const b = PIT.bridge.bearing + (footing++ % 2) * 180;
+      [x, z] = polar(b, edgeRadius(k, b * D2R) + 4);
+    } else if (site?.from !== undefined) {
+      const r = Math.hypot(m.x, m.z);
+      let b = site.from + ((site.to! - site.from) * (i + 0.5)) / n;
+      [x, z] = polar(b, r);
+      // Nothing waits on the drop-in: walk a rim home round the shelf, away from the spawn, until it is clear.
+      for (let step = 0; step < 90 && k === 0 && Math.hypot(x - sx, z - sz) < PIT.spawn.clearRadius; step++) {
+        b += b >= PIT.spawn.bearing ? 2 : -2;
+        [x, z] = polar(b, r);
+      }
+    }
+    const y = pitHeight(x, z);
+    out.push({
+      kind: q.kind, x, z, count: q.g.count, packed: q.g.packed, roam: q.roam,
+      spread: Math.min(q.g.spread ?? 3, site?.from === undefined ? 15 : 5),
+      toughness: depthLayer('marrowPit', Math.max(0, -y))?.hpMultiplier ?? 1,
+    });
   }
   return out;
 }
