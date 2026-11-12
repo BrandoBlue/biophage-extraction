@@ -112,6 +112,20 @@ describe('the Weeping Fen', () => {
     expect(near(q, t.x, t.z)).toBeGreaterThan(5);
   });
 
+  it('walks into every stilt hut through its doorway to the loot inside, and its grown wall stops you elsewhere', () => {
+    for (const v of [FEN.stiltVillage, ...FEN.hamlets.list]) for (const h of v.huts) {
+      const door = (h.yaw * Math.PI) / 180, at = (a: number, r: number) => ({ x: h.x + Math.cos(a) * r, y: v.deck, z: h.z + Math.sin(a) * r });
+      const doorstep = at(door, h.radius + 1.3);
+      const p = walk(doorstep, [[h.x, h.z], polar(h.x, h.z, door + Math.PI, h.radius - 1.6)]);
+      expect(near(p, ...polar(h.x, h.z, door + Math.PI, h.radius - 1.6)), h.id).toBeLessThan(0.6);
+      expect(p.y, h.id).toBeCloseTo(v.deck, 1);
+      expect(world.structures.loot.filter((l) => FEN.loot.find((e) => e.id === l.id)?.site === h.id).every((l) => Math.hypot(l.x - h.x, l.z - h.z) < h.radius - 0.5), h.id).toBe(true);
+      const back = at(door + Math.PI, h.radius + 1.3);
+      const q = walk(back, [[h.x, h.z]]);
+      expect(near(q, h.x, h.z), h.id).toBeGreaterThan(h.radius - 0.2);
+    }
+  });
+
   it('walks up a Stilt Village ramp onto the boardwalks and across to the far hut', () => {
     const v = FEN.stiltVillage, hut = (id: string) => v.huts.find((h) => h.id === id)!;
     const r = v.ramps[0], A = hut('stiltHutA'), B = hut('stiltHutB'), C = hut('stiltHutC');

@@ -30,6 +30,8 @@ export interface HallOptions {
   /** Doorway width (m). */
   doorWidth?: number;
   seed?: number;
+  /** A zone's own wall, dome and rib materials (default: buildingMats()). */
+  mats?: Partial<Pick<BuildingMats, 'wall' | 'shell' | 'bone'>>;
 }
 
 export interface Hall {
@@ -63,7 +65,7 @@ const segs = (ru: number, rv: number) => Math.max(14, Math.round((Math.PI * (ru 
 
 /** An oval grown hall in Kit `k`. Walls collide; the dome does not (nobody reaches it). */
 export function grownHall(k: Kit, o: HallOptions): Hall {
-  const M = buildingMats();
+  const M = { ...buildingMats(), ...o.mats };
   const H = o.height ?? 3.6, dome = o.dome ?? Math.min(o.ru, o.rv) * 0.55, dw = o.doorWidth ?? 2;
   const n = segs(o.ru, o.rv);
   const doors: Hall['doors'] = [];
