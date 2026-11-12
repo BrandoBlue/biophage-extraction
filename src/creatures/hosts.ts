@@ -103,6 +103,19 @@ const HOUND_FRAME: Frame = {
 
 const T = (a: [number, number, number], sx = 1) => V(a[0] * sx, a[1], a[2]);
 
+/**
+ * A plate's rotation: its convex side along `normal`, its lifted trailing edge (local +Z) pointing along `trail`
+ * (down the body, down the limb), so rows of plates overlap like scales.
+ */
+function scaleBasis(normal: THREE.Vector3, trail: THREE.Vector3 = V(0, -1, 0)): THREE.Quaternion {
+  const y = normal.clone().normalize();
+  let z = trail.clone().addScaledVector(y, -trail.dot(y));
+  if (z.lengthSq() < 1e-6) z = V(0, 0, 1).addScaledVector(y, -y.z);
+  z.normalize();
+  const x = new THREE.Vector3().crossVectors(y, z);
+  return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+}
+
 /** Flesh an evolution adds to the meshed body (the hound's snout, the grunt's swollen claw arm). */
 function evolutionPrims(evo: HostEvolution | null, f: Frame): SdfPrim[] {
   const hd = T(f.head);
@@ -364,9 +377,8 @@ export class HostBody {
         at(horn(0.16 + (i % 2) * 0.06, 0.05, 0.3, rand), p, V(0, 1, -1.2));
       }
       // Ivory armour plates: pauldrons, forearm guards and the hump (reference 02's bone shell).
-      const plateAt = (p: THREE.Vector3, normal: THREE.Vector3, w: number, l: number, h: number) => {
-        q.setFromUnitVectors(up, normal.clone().normalize());
-        bones.push(plate(w, l, h, rand, 0.5).applyMatrix4(m.compose(p, q, V(1, 1, 1))));
+      const plateAt = (p: THREE.Vector3, normal: THREE.Vector3, w: number, l: number, h: number, trail?: THREE.Vector3) => {
+        bones.push(plate(w, l, h, rand, 0.5).applyMatrix4(m.compose(p, scaleBasis(normal, trail), V(1, 1, 1))));
       };
       for (const s of [-1, 1]) {
         const sh = T(f.shoulder, s), el = T(f.elbow, s), wr = T(f.wrist, s);
@@ -483,15 +495,14 @@ export class HostBody {
       const hit = ray.intersectObject(this.chest, false)[0];
       return hit ? hit.point.addScaledVector(dir, lift) : p;
     };
-    const plateAt = (p: THREE.Vector3, normal: THREE.Vector3, w: number, l: number, h: number) => {
-      q.setFromUnitVectors(up, normal.clone().normalize());
-      shell.push(plate(w, l, h, rand, 0.2).applyMatrix4(m.compose(onSkin(p, normal, h * 0.25), q, V(1, 1, 1))));
+    const plateAt = (p: THREE.Vector3, normal: THREE.Vector3, w: number, l: number, h: number, trail?: THREE.Vector3) => {
+      shell.push(plate(w, l, h, rand, 0.2).applyMatrix4(m.compose(onSkin(p, normal, h * 0.25), scaleBasis(normal, trail), V(1, 1, 1))));
     };
     const ch = T(f.chest), ws = T(f.waist), hp = T(f.hips);
     // Overlapping belly segments, chest to hips, each tucked under the one above like a lobster's tail.
     for (let i = 0; i < 6; i++) {
       const t = i / 5, p = ch.clone().lerp(hp, t).add(V(0, 0.14 - t * 0.05, 0));
-      plateAt(p, V(0, 0.45 - t * 0.3, 1), 0.3 - t * 0.08, 0.13, 0.06);
+      plateAt(p, V(0, 0.45 - t * 0.3, 1), 0.3 - t * 0.08, 0.16, 0.06);
     }
     // Back and flank segments under the bone hump plates.
     for (const s of [-1, 1]) for (let i = 0; i < 4; i++) plateAt(ch.clone().lerp(ws, i / 3).add(V(s * 0.12, 0.05, 0)), V(s * 1, 0.25, -0.2), 0.16, 0.12, 0.055);
@@ -499,9 +510,9 @@ export class HostBody {
     for (const s of [-1, 1]) {
       const sh = T(f.shoulder, s), el = T(f.elbow, s), wr = T(f.wrist, s), hip = T(f.hip, s), kn = T(f.knee, s), hock = T(f.hock, s);
       // Ringed bands down the upper arm, the left forearm, thighs and shins.
-      for (let i = 0; i < 3; i++) plateAt(sh.clone().lerp(el, 0.25 + i * 0.25).add(V(s * f.r.arm * 0.95, 0, 0)), V(s, 0.25, 0.1), 0.12, 0.09, 0.045);
-      if (s < 0) for (let i = 0; i < 3; i++) plateAt(el.clone().lerp(wr, 0.15 + i * 0.25).add(V(s * f.r.fore * 0.9, 0, -0.02)), V(s, 0.1, -0.2), 0.11, 0.08, 0.04);
-      for (let i = 0; i < 2; i++) plateAt(hip.clone().lerp(kn, 0.3 + i * 0.35).add(V(s * 0.03, 0, f.r.thigh * 0.95)), V(s * 0.3, 0.1, 1), 0.13, 0.1, 0.045);
+      for (let i = 0; i < 3; i++) plateAt(sh.clone().lerp(el, 0.25 + i * 0.25).add(V(s * f.r.arm * 0.95, 0, 0)), V(s, 0.25, 0.1), 0.12, 0.11, 0.045, el.clone().sub(sh));
+      if (s < 0) for (let i = 0; i < 3; i++) plateAt(el.clone().lerp(wr, 0.15 + i * 0.25).add(V(s * f.r.fore * 0.9, 0, -0.02)), V(s, 0.1, -0.2), 0.11, 0.1, 0.04, wr.clone().sub(el));
+      for (let i = 0; i < 2; i++) plateAt(hip.clone().lerp(kn, 0.3 + i * 0.35).add(V(s * 0.03, 0, f.r.thigh * 0.95)), V(s * 0.3, 0.1, 1), 0.13, 0.12, 0.045, kn.clone().sub(hip));
       plateAt(kn.clone().lerp(hock, 0.4).add(V(0, 0, f.r.shin * 0.9)), V(0, 0.2, 1), 0.09, 0.12, 0.04);
     }
     // The crushing claw on the right: a heavy fixed jaw and a hinged dactyl, toothed on their inner edges.
