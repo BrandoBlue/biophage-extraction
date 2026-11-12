@@ -61,6 +61,7 @@ export class SynapseBursterView implements WeaponModel {
   /** Hand end of the wrist, +Y up the forearm: HostArm mounts here. */
   readonly grip = new THREE.Object3D();
   readonly flashColour = HIVE.acid;
+  readonly muzzleFx = 'spore';
   /** The host's hand and forearm: Creature & Mutation grows the virus mutation on this group. */
   readonly arm = new THREE.Group();
   private gun = new THREE.Group();
@@ -202,21 +203,14 @@ export class SynapseBursterView implements WeaponModel {
     this.muzzle.position.set(0, 0, -0.34);
     g.add(this.muzzle);
 
-    // Muzzle burst: a hot glow, a four-point star and a short beam streak down the barrel line, plus a light
-    // that throws acid green over the gun and the ground for a frame. The light always exists (intensity 0 at
-    // rest) so firing never changes the light count and never recompiles shaders.
+    // Muzzle burst: a small, soft exhale of glow at the throat (no star or streak: the round leaves as a spore spray,
+    // Rendering's MUZZLE_SPRAYS.spore, spawned by the raid). The rig owns the flash light.
     this.flash = new THREE.Group();
     this.flash.position.z = -0.37;
     const add = { blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false, transparent: true } as const;
-    const burst = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: C.acid.clone().lerp(new THREE.Color(1, 1, 1), 0.3).multiplyScalar(1.8), ...add }));
-    burst.scale.setScalar(0.22);
-    const star = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.05), new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.acid.clone().multiplyScalar(1.8), side: THREE.DoubleSide, ...add }));
-    const star2 = star.clone();
-    star2.rotation.z = Math.PI / 2;
-    const streak = new THREE.Mesh(new THREE.PlaneGeometry(0.035, 2.2).rotateX(-Math.PI / 2).translate(0, 0, -1.1), new THREE.MeshBasicMaterial({ map: glowTexture(), color: C.acid.clone().multiplyScalar(1.3), side: THREE.DoubleSide, ...add }));
-    const streak2 = streak.clone();
-    streak2.rotation.z = Math.PI / 2;
-    this.flash.add(burst, star, star2, streak, streak2);
+    const burst = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: C.acid.clone().lerp(new THREE.Color(HIVE.bone), 0.45).multiplyScalar(0.9), ...add }));
+    burst.scale.setScalar(0.16);
+    this.flash.add(burst);
     this.flash.visible = false;
     g.add(this.flash);
 

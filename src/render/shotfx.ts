@@ -151,3 +151,25 @@ export const SHOT_STYLES: Record<ShotStyle, ShotStyleLook> = {
 export function shotStyle(style: string | undefined): ShotStyleLook {
   return SHOT_STYLES[(style ?? 'spore') as ShotStyle] ?? SHOT_STYLES.spore;
 }
+
+/**
+ * Muzzle sprays: each living weapon exhales its round as an organic spray, never a star flash (Design, docs/gdd/09).
+ * Sizes are for the baseline carbine flash (WEAPON_FEEL.fire[class].flash = MUZZLE_BASE_FLASH); bigger feel values
+ * scale count and size up. `cone` is the half-angle spread in radians, `along` how much of the speed follows the
+ * barrel versus scattering, `flash` the size of the soft light bloom at the muzzle (0 = none).
+ *   spore: a slow, wide puff that drifts up     quill: thin hissing streaks straight out
+ *   spit:  bone dust that falls out of the jaw  bile: heavy globs that splatter down
+ *   beam:  a short liquid-light trail
+ */
+export interface MuzzleSprayLook extends ShotStyleLook { cone: number; along: number }
+export const MUZZLE_BASE_FLASH = 0.15;
+export const MUZZLE_SPRAYS: Record<ShotStyle, MuzzleSprayLook> = {
+  spore: { pool: 'sparks', n: 6, speed: 2.2, size: [0.004, 0.011], life: [0.25, 0.6], drag: 5, grav: -1.2, stretch: 0, flash: 0.3, bone: 0.4, cone: 0.7, along: 0.6 },
+  quill: { pool: 'sparks', n: 4, speed: 16, size: [0.005, 0.01], life: [0.06, 0.12], drag: 3, grav: 0, stretch: 0.9, flash: 0.15, bone: 0.6, cone: 0.08, along: 1 },
+  spit: { pool: 'chunks', n: 6, speed: 2.5, size: [0.006, 0.014], life: [0.35, 0.7], drag: 2, grav: 9, stretch: 0, flash: 0.2, bone: 0.85, cone: 0.5, along: 0.5 },
+  bile: { pool: 'droplets', n: 6, speed: 3.5, size: [0.015, 0.035], life: [0.35, 0.65], drag: 1.5, grav: 12, stretch: 0.15, flash: 0.3, bone: 0.1, cone: 0.45, along: 0.7 },
+  beam: { pool: 'sparks', n: 5, speed: 9, size: [0.006, 0.012], life: [0.08, 0.16], drag: 10, grav: 0, stretch: 0.6, flash: 0.45, bone: 0, cone: 0.05, along: 1 },
+};
+export function muzzleSpray(style: string | undefined): MuzzleSprayLook {
+  return MUZZLE_SPRAYS[(style ?? 'spore') as ShotStyle] ?? MUZZLE_SPRAYS.spore;
+}

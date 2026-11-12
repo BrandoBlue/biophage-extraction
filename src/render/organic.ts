@@ -110,6 +110,8 @@ export function organicGeometry(source: THREE.BufferGeometry, o: OrganicOptions 
 export function organicEligible(o: THREE.Object3D): boolean {
   const m = o as THREE.Mesh;
   if (!m.isMesh || (m as unknown as THREE.SkinnedMesh).isSkinnedMesh || o.userData.noOrganic) return false;
+  // Big instanced fields (particles, cover) multiply every added vertex by their count: leave them as they are.
+  if ((m as THREE.InstancedMesh).isInstancedMesh && (m as THREE.InstancedMesh).count > 64) return false;
   const g = m.geometry;
   if (!g?.attributes.position || g.userData.organic || !PRIMITIVE_TYPES.includes(g.type)) return false;
   // Texture-mapped and custom-shader materials read uv, which welding drops; procedural bio materials do not need it.
