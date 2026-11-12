@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { HIVE, ORGANIC, ZONE7, ZONE7_SHADE } from '../render/palette';
-import { bioNode, chitin, liquidLight, livingFlesh, zoneRock } from '../render/materials';
+import { bioNode, chitin, grownWall, liquidLight, livingFlesh, zoneRock } from '../render/materials';
 import { floatingIslandGeometry, ISLAND_TOP } from '../render/geometry';
 import { planet, sporeField, starField, zone7Sky } from '../render/sky';
 import { horizonLands } from '../render/horizon';
@@ -15,6 +15,9 @@ import { Kit, hollowSpire, longSeedDebris, oldBone, rootSkirt, type BuiltStructu
 import { buildSites, clearings, type SiteDressing } from './sites';
 import type { ExtractSite, PodSite, Zone7Layout } from './layout';
 import { SOLIDS, fall, fungusMeshes, scatterFungi, setTerrain, type Fungus } from './zone7';
+import { LivingProps } from './life';
+import { casket, curtainHalf, growthTank, sacMesh, urnMesh, worldAt } from './buildings';
+import { buildOutpost, outpostFootprint, type OutpostSite } from './outposts';
 
 /**
  * The Expanse (World & Level): the full 1 km of Zone 7, Design's Host raid (data/raid.json `host`, zones.json
@@ -171,6 +174,26 @@ function shaped(x: number, z: number): number {
   return h;
 }
 
+/** The Long Seed's hull: it lies along the furrow from 55% of the way to its end (local +X toward the stern). */
+export const HULL = (() => {
+  const ax = WR.from.x, az = WR.from.z, dx = WR.to.x - ax, dz = WR.to.z - az, L = Math.hypot(dx, dz);
+  const t0 = 0.55, len = L * (1 - t0) + WR.hullRadius * 0.3, tc = t0 + (1 - t0) / 2;
+  return { x: ax + dx * tc, z: az + dz * tc, ux: dx / L, uz: dz / L, yaw: Math.atan2(-dz / L, dx / L), len, r: WR.hullRadius, t0, floor: undefined as number | undefined };
+})();
+/** True inside the hull's walls. */
+export function inHull(x: number, z: number): boolean {
+  const du = (x - HULL.x) * HULL.ux + (z - HULL.z) * HULL.uz, dv = Math.abs((x - HULL.x) * HULL.uz - (z - HULL.z) * HULL.ux);
+  return Math.abs(du) < HULL.len / 2 + 1 && dv < HULL.r * 0.97;
+}
+
+/** Bulkheads across the hull, as fractions of its length from its centre; the reactor gallery's deck height. */
+export const HULL_BULKHEADS = [-0.05, 0.3];
+export const HULL_GALLERY_Y = 5;
+/** World x, z of a point in the hull's frame (u along the hull toward the stern, v across). */
+export function hullAt(u: number, v: number): [number, number] {
+  return [HULL.x + u * HULL.ux - v * HULL.uz, HULL.z + u * HULL.uz + v * HULL.ux]; // same frame as a Kit at the hull
+}
+
 /** Design's ring of squad spawns (raid.json host.spawns), kept level for rival hosts when they arrive. */
 export function rivalSpawns(): Pt[] {
   return Array.from({ length: H.spawns.count }, (_, i) => {
@@ -193,7 +216,17 @@ const FLAT_SPOTS: { x: number; z: number; r: number; blend: number; y?: number }
   ...D.pods.map((p) => ({ x: p.x, z: p.z, r: 2.5, blend: 5 })),
   ...SP.hollow.map((s) => ({ x: s.x, z: s.z, r: 10, blend: 10 })),
   ...WR.debris.map((d) => ({ x: d.x, z: d.z, r: 17, blend: 10 })),
+  ...D.outposts.sites.map((o) => ({ ...outpostFootprint(o), blend: 10 })),
+  ...D.blooms.at.map(([x, z]) => ({ x, z, r: 4, blend: 6 })),
 ];
+
+/** True within an outpost's level footprint (plus margin). */
+export function nearOutpost(x: number, z: number, margin = 0): boolean {
+  return OUTPOSTS.some((o) => { const f = outpostFootprint(o); return Math.hypot(x - f.x, z - f.z) < f.r + margin; });
+}
+
+/** The survey outposts on the routes between biomes (data/expanse.json `outposts`). */
+export const OUTPOSTS: OutpostSite[] = D.outposts.sites;
 
 /** Ground height of The Expanse at (x, z): what the mesh shows and every body stands on. */
 export function expanseGround(x: number, z: number): number {
@@ -202,6 +235,11 @@ export function expanseGround(x: number, z: number): number {
     const w = 1 - smooth(f.r, f.r + f.blend, Math.hypot(x - f.x, z - f.z));
     if (w > 0) { f.y ??= shaped(f.x, f.z); h += (f.y - h) * w; }
   }
+  // The hull's deck: level from the torn front to the stern, so its rooms and ramps stand true.
+  const du = (x - HULL.x) * HULL.ux + (z - HULL.z) * HULL.uz, dv = Math.abs((x - HULL.x) * HULL.uz - (z - HULL.z) * HULL.ux);
+  const out = Math.max(0, Math.abs(du) - HULL.len / 2 - 2);
+  const wh = (1 - smooth(HULL.r * 0.85, HULL.r * 1.15, Math.hypot(dv, out * 3)));
+  if (wh > 0) { HULL.floor ??= shaped(HULL.x, HULL.z); h += (HULL.floor - h) * wh; }
   return h;
 }
 
@@ -227,6 +265,8 @@ const EXTRACT_NAMES = ['North Rim', 'East Rim', 'South Rim', 'West Rim'];
 export function expanseLayout(seed: number): Zone7Layout {
   const rand = mulberry32(seed * 7919 + 13);
   const drop = DROP_POINTS[Math.floor(rand() * DROP_POINTS.length)];
+  // Gene Blooms: a seeded handful of the route candidates grow this raid.
+  const blooms = D.blooms.at.map(([x, z], i) => ({ id: `bloom-${i}`, x, z, k: rand() })).sort((a, b) => a.k - b.k).slice(0, D.blooms.perRaid);
   const pool = H.extracts.pool.filter((p) => p.radius > 0.5).map((p, i) => { const [x, z] = layoutPosition(p, EXPANSE_RADIUS); return { id: `rim-${i}`, label: `${EXTRACT_NAMES[i] ?? 'Rim'} Spire`, x, z }; });
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   const open = H.extracts.openAtStart, shift = H.extracts.shiftEvery;
@@ -243,7 +283,7 @@ export function expanseLayout(seed: number): Zone7Layout {
     dormantPads: [],
     pods: D.pods.map((p, i): PodSite => ({ id: `expanse-pod-${i}`, type: p.type, x: p.x, z: p.z })),
     nests: BR.craters.filter((c) => c.nest).map((c, i) => ({ id: `brood-heart-${i}`, type: 'broodHeart', x: c.x, z: c.z })),
-    nodes: [],
+    nodes: blooms.map(({ id, x, z }) => ({ id, x, z })),
     anomaly: { id: 'none', kind: 'none', x: 1e5, z: 1e5, radius: 1, gravityMultiplier: 1 },
     dropIn: D.dropIn,
     playableRadius: EXPANSE_RADIUS,
@@ -277,10 +317,39 @@ export function bridgeSpans(): BridgeSpan[] {
   });
 }
 
-/** Posts along both lips of the deep middle of the rift (gaps where the bridges land). */
+/** The rift's centre line at fraction s of its length: point and unit tangent. */
+function chasmLine(s: number): { cx: number; cz: number; tx: number; tz: number } {
+  let left = s * CH_LEN;
+  for (let i = 1; i < CH.points.length; i++) {
+    const a = CH.points[i - 1], b = CH.points[i], len = Math.hypot(b.x - a.x, b.z - a.z);
+    if (left <= len || i === CH.points.length - 1) {
+      const t = Math.min(1, left / len), tx = (b.x - a.x) / len, tz = (b.z - a.z) / len;
+      return { cx: a.x + (b.x - a.x) * t, cz: a.z + (b.z - a.z) * t, tx, tz };
+    }
+    left -= len;
+  }
+  return { cx: CH.points[0].x, cz: CH.points[0].z, tx: 0, tz: 1 };
+}
+
+export interface ReachIsland { x: number; z: number; r: number; top: number; span: BridgeSpan; container: string }
+
+/** The low island in the rift with a bone span out to it from the east bank (data/expanse.json chasm.reach). */
+export function reachIsland(): ReachIsland {
+  const R = CH.reach, c = chasmLine(R.s);
+  // The bank side with the larger x (east), square to the rift.
+  let nx = -c.tz, nz = c.tx;
+  if (nx < 0) { nx = -nx; nz = -nz; }
+  const half = CH.halfWidth * (0.5 + 0.5 * smooth(0, 0.5, Math.min(1, R.s / CH_RAMP, (1 - R.s) / CH_RAMP)));
+  const bx = c.cx + nx * (half + 5), bz = c.cz + nz * (half + 5), bank = expanseGround(bx, bz);
+  const top = bank - 0.3;
+  const ex = c.cx + nx * R.r * 0.55, ez = c.cz + nz * R.r * 0.55;
+  return { x: c.cx, z: c.cz, r: R.r, top, container: R.container, span: { x0: ex, z0: ez, x1: bx, z1: bz, y0: top, y1: bank, width: 3 } };
+}
+
+/** Posts along both lips of the deep middle of the rift (gaps where the bridges and the reach span land). */
 export function chasmLip(spacing = 5): { x: number; z: number; yaw: number }[] {
   const out: { x: number; z: number; yaw: number }[] = [];
-  const spans = bridgeSpans();
+  const spans = [...bridgeSpans(), reachIsland().span];
   let run = 0;
   for (let i = 1; i < CH.points.length; i++) {
     const a = CH.points[i - 1], b = CH.points[i], len = Math.hypot(b.x - a.x, b.z - a.z);
@@ -461,7 +530,7 @@ export function buildExpanse(scene: THREE.Scene, seed: number): ExpanseWorld {
   // A few stands on the open plain so the walk between biomes is never bare.
   for (let i = 0; i < 18; i++) {
     const a = rand() * Math.PI * 2, d = 160 + rand() * 260, x = Math.sin(a) * d, z = -Math.cos(a) * d;
-    if (expanseLandmarkAt(x, z) || chasmAt(x, z).d < CH.halfWidth + 10) continue;
+    if (expanseLandmarkAt(x, z) || chasmAt(x, z).d < CH.halfWidth + 10 || nearOutpost(x, z, 14)) continue;
     fungi.push(...scatterFungi(rand, { count: 4 + Math.floor(rand() * 5), minR: 0, maxR: 9, height: [2, 9], cap: [0.8, 3] }, G, new THREE.Vector3(x, 0, z)));
   }
   for (const f of fungi.filter((f) => f.height > 13).slice(0, 5)) {
@@ -549,6 +618,52 @@ export function buildExpanse(scene: THREE.Scene, seed: number): ExpanseWorld {
       }
     }
     { const [cx, cz] = k.at(len / 2 + R * 0.25, 0); SOLIDS.add({ cx, cz, hx: 1, hz: R, yaw, y0: floorY - 2, y1: floorY + wallH, tag: 'wreck-stern' }); }
+    // Inside: two bulkheads split the hull into the cargo hold, the crew hold and the stern, where a ramp climbs to
+    // the reactor gallery. Doorways down the middle; crates for cover; lockers worth the walk in.
+    const bulk = grownWall({ base: ZONE7_SHADE.stem, seam: ZONE7_SHADE.rockDeep, vein: ORGANIC.vein, plate: 2.2 });
+    const gal = zoneRock({ veinColour: ORGANIC.vein, mossColour: ZONE7_SHADE.moss, scale: 1.2 });
+    const half = R * 0.9, door = 1.7;
+    for (const u of HULL_BULKHEADS.map((f) => f * len)) {
+      k.box(u, -(half + door) / 2, 0.3, (half - door) / 2, -1, 9, bulk, { tag: 'wreck-bulkhead' });
+      k.box(u, (half + door) / 2, 0.3, (half - door) / 2, -1, 9, bulk, { tag: 'wreck-bulkhead' });
+      k.box(u, 0, 0.3, door, 3.4, 9, bulk, { tag: 'wreck-lintel', flatTop: false });
+    }
+    const sb = HULL_BULKHEADS[1] * len, se = len / 2 - 1;
+    // Reactor gallery: a ramp up the north side of the stern hold to a deck across the stern.
+    k.box(sb + 5, -9, 4, 1.2, -0.2, HULL_GALLERY_Y, gal, { rise: HULL_GALLERY_Y + 0.2, tag: 'wreck-gallery-ramp' });
+    const g0 = sb + 9;
+    k.box((g0 + se) / 2, -3.5, (se - g0) / 2, 6.8, HULL_GALLERY_Y - 0.5, HULL_GALLERY_Y, gal, { flatTop: true, tag: 'wreck-gallery' });
+    for (const [pu, pv] of [[g0 + 0.4, 2.9], [se - 0.4, 2.9], [g0 + 0.4, -6], [(g0 + se) / 2, 2.9]]) k.box(pu, pv, 0.25, 0.25, 0, HULL_GALLERY_Y - 0.5, ribMat, { tag: 'wreck-gallery-post' });
+    k.box((g0 + se) / 2, 3.2, (se - g0) / 2, 0.15, HULL_GALLERY_Y, HULL_GALLERY_Y + 1, ribMat, { tag: 'wreck-gallery-rail', organic: 0.4 });
+    // Cover and lockers.
+    const lootIn = (id: string, u: number, v: number, y: number, container: string) => { const [x, z] = k.at(u, v); loot.push({ id: `hull-${id}`, x, y: floorY + y, z, container }); };
+    const b0 = HULL_BULKHEADS[0] * len;
+    // Grown caskets for cover; growth tanks in the crew hold; sacs hanging from the ribs; curtains in the doorways.
+    const life = new LivingProps(SOLIDS);
+    structures.add(life.group);
+    for (const [i, [cu, cv, cs]] of [[-len / 2 + 8, 6, 1.1], [-len / 2 + 14, -5, 0.9], [b0 - 6, 8, 1.2], [b0 + 7, -7, 1], [sb - 6, 6, 1.1]].entries()) {
+      casket(k, cu, cv, cs * 0.95, 40 + i, 'wreck-crate');
+    }
+    for (const [i, u] of [b0 + 4, b0 + 7.5, sb - 4].entries()) growthTank(k, life, u, 9.5, 50 + i);
+    for (let i = 0; i < 9; i++) {
+      const u = -len / 2 + 6 + (i / 8) * (sb - 2 - (-len / 2 + 6)), v = (i % 2 ? 1 : -1) * (3 + rand() * 4), l = 3 + rand() * 4;
+      life.sway(sacMesh(l, 0.4 + rand() * 0.25, i), worldAt(k, u, R * 0.2 + Math.sqrt(R * R - v * v) - 0.4, v), l, 0.55);
+    }
+    for (const [i, [u, v]] of [[-len / 2 + 5, -8], [b0 - 3, -9], [b0 + 3, 10.5], [sb - 7, -9]].entries()) life.tip(urnMesh(60 + i), worldAt(k, u, 0, v), 0.32, 0.9);
+    for (const u of HULL_BULKHEADS.map((f) => f * len)) life.flap(curtainHalf(door * 0.95, 3.3, 1, u), curtainHalf(door * 0.95, 3.3, -1, -u), worldAt(k, u, 0.05, 0), k.yaw - Math.PI / 2, door * 1.9, 3.3);
+    lootIn('hold-crate-0', -len / 2 + 10, 6, 0, 'cargoCrate');
+    lootIn('hold-crate-1', b0 - 4, -8, 0, 'cargoCrate');
+    lootIn('crew-locker', (b0 + sb) / 2, 10, 0, 'sealedLocker');
+    lootIn('reactor-cache', se - 2, -6, HULL_GALLERY_Y, 'sealedLocker');
+    k.group.name = 'long-seed-hull';
+    structures.add(k.group);
+    // Dim lamps in each hold so the rooms read (the reactor's amber glow fills the stern).
+    for (const u of [-len / 2 + 12, (b0 + sb) / 2]) {
+      const [lx, lz] = k.at(u, 0);
+      const l = new THREE.PointLight(ORGANIC.mist, 24, 22, 2);
+      l.position.set(lx, floorY + 6, lz);
+      scene.add(l);
+    }
     // Inside: a light where the reactor bled out, so the hull reads from the furrow.
     const glow = new THREE.PointLight(ORGANIC.amber, 60, 40, 2);
     glow.position.set(hx + ux * len * 0.3, floorY + 4, hz + uz * len * 0.3);
@@ -590,6 +705,29 @@ export function buildExpanse(scene: THREE.Scene, seed: number): ExpanseWorld {
   }
   const deck = chitin(HIVE.bone, ORGANIC.mist, 0.6);
   for (const span of bridgeSpans()) structures.add(boneBridge(span, deck, ribMat));
+  // The reach: a low island in the rift, a grown platform on top, a span from the east bank and a Deep Cache.
+  {
+    const R = reachIsland();
+    const mesh = new THREE.Mesh(floatingIslandGeometry(seed + 99, 3.2), rockMat);
+    mesh.scale.setScalar(R.r);
+    mesh.position.set(R.x, R.top - ISLAND_TOP * R.r, R.z);
+    mesh.name = 'chasm-reach';
+    scene.add(mesh);
+    const k = new Kit(SOLIDS, R.x, R.z, 0, R.top);
+    k.box(0, 0, R.r * 0.62, R.r * 0.62, -1.2, 0, deck, { flatTop: true, tag: 'reach-deck' });
+    structures.add(k.group);
+    structures.add(boneBridge(R.span, deck, ribMat));
+    loot.push({ id: 'chasm-reach-cache', x: R.x, y: R.top, z: R.z, container: R.container });
+    const l = new THREE.PointLight(ORGANIC.mist, 30, 22, 2);
+    l.position.set(R.x, R.top + 3, R.z);
+    scene.add(l);
+  }
+  // ---- Survey outposts on the routes between biomes: cover, a lookout and lockers worth the detour.
+  for (const [i, o] of OUTPOSTS.entries()) {
+    const out = buildOutpost(SOLIDS, o, G(o.x, o.z), i);
+    structures.add(out.group);
+    loot.push(...out.loot);
+  }
   // The lip: chitin teeth along both edges of the deep rift; each is a collider, so nobody walks off.
   const lip = chasmLip();
   const spine = spineGeometry();
@@ -669,7 +807,7 @@ export function buildExpanse(scene: THREE.Scene, seed: number): ExpanseWorld {
   scene.add(groundCover({
     height: G, density,
     tints: [ORGANIC.mist, ORGANIC.amber, ORGANIC.vein, ZONE7_SHADE.moss],
-    exclude: (x, z) => wet(x, z, 0.6) || clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius) || chasmAt(x, z).d < chasmAt(x, z).halfWidth + 0.5 || towers.some((t) => Math.hypot(x - t.x, z - t.z) < t.r),
+    exclude: (x, z) => wet(x, z, 0.6) || nearOutpost(x, z, -2) || inHull(x, z) || clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.radius) || chasmAt(x, z).d < chasmAt(x, z).halfWidth + 0.5 || towers.some((t) => Math.hypot(x - t.x, z - t.z) < t.r),
   }).group);
 
   // ---- Gameplay sites: extract pads, pods and the Brood Hearts' craters.

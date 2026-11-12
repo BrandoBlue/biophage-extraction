@@ -13,6 +13,8 @@ import { noise3 } from '../render/geometry';
 import type { SiteDressing } from './sites';
 import type { ExtractSite, SpawnPlacement, Zone7Layout } from './layout';
 import { SOLIDS, setTerrain } from './zone7';
+import { casket, dressHall, growthTank, grownHall, hallLight, nestMesh, remainsMesh, worldAt, type Hall, type HallOptions } from './buildings';
+import { LivingProps } from './life';
 
 /**
  * Zone, the Marrow Pit (World & Level). Design's brief (data/zones.json marrowPit): a vertical shaft about 260 m
@@ -395,6 +397,27 @@ function sagSheet(w: number, t: number, d: number, sag: number, seed: number): T
   return shaped(geo);
 }
 
+/**
+ * A grown hall you can walk into (World's building kit), its doorway facing local +X (the shaft for the camp and the
+ * Warren), dressed with hanging sacs and urns, a membrane in the door and one warm light under the dome.
+ */
+function pitHall(life: LivingProps, x: number, z: number, yaw: number, base: number, o: { ru: number; rv: number; height?: number; seed: number; sacs?: number; urns?: number }): { k: Kit; hall: Hall; ho: HallOptions } {
+  const k = new Kit(SOLIDS, x, z, yaw, base);
+  const ho: HallOptions = { u: 0, v: 0, ru: o.ru, rv: o.rv, height: o.height ?? 3.4, doors: [0], seed: o.seed };
+  const hall = grownHall(k, ho);
+  dressHall(k, life, hall, ho, o.seed * 7 + 1, { sacs: o.sacs ?? 3, urns: o.urns ?? 2 });
+  hallLight(k, 0, 0, (ho.height ?? 3.4) - 0.6, 10, 11);
+  return { k, hall, ho };
+}
+
+/** One of the host's predecessors, slumped in a corner of a hall. */
+function remainsIn(k: Kit, u: number, v: number, yaw: number, seed: number): void {
+  const r = remainsMesh(seed);
+  r.position.set(u, 0.02, v);
+  r.rotation.y = yaw;
+  k.group.add(r);
+}
+
 /** A lantern: a dim amber bulb in a bone cage, optionally with a real light (keep those few). */
 function lantern(k: Kit, m: Mats, x: number, y: number, z: number, light = 0): void {
   const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), m.lamp);
@@ -494,6 +517,9 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
   for (let kk = 0; kk < L.length - 1; kk++) scene.add(cliffWall(kk, rockMat));
 
   const k = new Kit(SOLIDS, 0, 0, 0, 0);
+  // Moving pieces of the halls (sacs, urns, door membranes, tanks): ticked near the camera, shot and blasted from main.
+  const life = new LivingProps(SOLIDS);
+  k.group.add(life.group);
   k.group.name = 'marrow-pit';
   const mats: Mats = {
     wall: grownWall({ base: ZONE7_SHADE.stem, seam: ZONE7_SHADE.rockDeep, vein: ORGANIC.amber, plate: 0.8 }),
@@ -585,8 +611,13 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
     // Door faces the shaft, turned by the data yaw.
     const yaw = -(hspec.bearing * D2R) + Math.PI + hspec.yaw * D2R;
     const g = pitHeight(x, z);
-    const h = hut(k, mats, { x, z, yaw, w: 4.2, d: 5, h: 2.8, floorY: g + 0.6, groundY: g, tag: `camp-hut-${i}` });
-    if (i > 0) loot.push({ id: `rim-hut-${i}`, container: 'pitCrate', x: h.back[0], y: h.floorY, z: h.back[1] });
+    // The camp's halls: a bunk room with the last crew's remains, a store with two growth tanks, a brood room.
+    const { k: hk, ho } = pitHall(life, x, z, yaw, g, { ru: 4.2, rv: 3.4, seed: 40 + i * 3, sacs: 2 + i, urns: 2 });
+    k.group.add(hk.group);
+    if (i === 0) { remainsIn(hk, -2.2, 1.6, 0.6, 41); casket(hk, -2.6, -1.3, 0.55, 43, 'camp-casket'); }
+    if (i === 1) { growthTank(hk, life, -2.6, 1.5, 44); growthTank(hk, life, -2.6, -1.5, 45); }
+    if (i === 2) { const n = nestMesh(46, 1.2); n.position.set(-1.6, 0, 0.6); hk.group.add(n); remainsIn(hk, 0.6, -2.0, 2.2, 47); }
+    if (i > 0) { const p = worldAt(hk, -ho.ru + 1.4, 0, i === 1 ? 0 : -1.2); loot.push({ id: `rim-hut-${i}`, container: 'pitCrate', x: p.x, y: pitHeight(p.x, p.z), z: p.z }); }
   }
   {
     const lift = PIT.extracts.find((x) => x.id === 'rimLift') ?? PIT.extracts[0];
@@ -619,8 +650,9 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
     for (let i = 0; i < 8; i++) {
       const [x, z] = polar(150 + rand() * 50, 133 + rand() * 12);
       if (Math.hypot(x - PIT.spawn.radius * Math.cos(PIT.spawn.bearing * D2R), z - PIT.spawn.radius * Math.sin(PIT.spawn.bearing * D2R)) < 6) continue;
-      const sz = 1 + rand() * 0.8, g = pitHeight(x, z);
-      k.box(x, z, sz / 2, sz / 2, g - 0.1, g + sz * 0.9, mats.deck, { yaw: rand() * 3, tag: 'crate' });
+      const sz = 1 + rand() * 0.8, ck = new Kit(SOLIDS, x, z, rand() * 3, pitHeight(x, z));
+      casket(ck, 0, 0, sz * 0.36, i * 5 + 3, 'crate');
+      k.group.add(ck.group);
     }
   }
 
@@ -633,8 +665,11 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
     k.box(0, 0, hubR, hubR * 0.42, y0 - 0.5, y0, mats.deck, { yaw: 0, tag: 'bridge-hub' });
     k.box(0, 0, hubR, hubR * 0.42, y0 - 0.5, y0, mats.deck, { yaw: Math.PI / 2, tag: 'bridge-hub' });
     k.box(0, 0, hubR * 0.72, hubR * 0.72, y0 - 0.5, y0, mats.deck, { yaw: Math.PI / 4, tag: 'bridge-hub' });
-    const shack = hut(k, mats, { x: -dz * 3.2, z: dx * 3.2, yaw: -(b.bearing * D2R), w: 3.6, d: 4, h: 2.5, floorY: y0, groundY: y0, tag: 'hub-shack' });
-    loot.push({ id: 'cables-hub-0', container: 'pitCrate', x: shack.back[0], y: y0, z: shack.back[1] });
+    // The keeper's hall slung on the hub: door toward the deck's centre, a casket and the keeper inside.
+    const { k: sk, ho: so } = pitHall(life, -dz * 3.4, dx * 3.4, -(b.bearing * D2R) - Math.PI / 2, y0, { ru: 3.1, rv: 2.7, height: 3, seed: 61, sacs: 2, urns: 1 });
+    k.group.add(sk.group);
+    remainsIn(sk, -1.2, 1.1, 0.4, 62);
+    { const p = worldAt(sk, -so.ru + 1.2, 0, -0.6); loot.push({ id: 'cables-hub-0', container: 'pitCrate', x: p.x, y: y0, z: p.z }); }
     loot.push({ id: 'cables-hub-1', container: 'pitCrate', x: dz * 4.5, y: y0, z: -dx * 4.5 });
     lantern(k, mats, dz * 3, y0 + 3.4, -dx * 3, 30);
     // Hub hangs from four cables to the rim.
@@ -700,7 +735,19 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
       const [x, z] = polar(bearing, radius);
       const g = pitHeight(x, z);
       const lift = i % 3 === 1 ? 2.2 : 1.0;
-      const h = hut(k, mats, { x, z, yaw: -(bearing * D2R) + Math.PI + (rand() - 0.5) * 0.5, w: 4 + rand() * 1.2, d: 4.6 + rand(), h: 2.6, floorY: g + lift, groundY: g, tag: `warren-hut-${i}` });
+      const hy = -(bearing * D2R) + Math.PI + (rand() - 0.5) * 0.5, hw = 4 + rand() * 1.2, hd = 4.6 + rand();
+      if (i === 0 || i === 4) {
+        // Two of the Warren's dwellings are grown halls on the shelf: a nursery and a den, each with loot at the back.
+        const { k: wk, ho } = pitHall(life, x, z, hy, g, { ru: 3.8, rv: 3.2, seed: 80 + i, sacs: 4, urns: 2 });
+        k.group.add(wk.group);
+        if (i === 0) { growthTank(wk, life, -1.9, 1.6, 81); growthTank(wk, life, -1.9, -1.6, 82); }
+        else { const n = nestMesh(85, 1.3); n.position.set(-1.2, 0, 0.8); wk.group.add(n); remainsIn(wk, 0.4, -1.8, 1.9, 86); }
+        const p = worldAt(wk, -ho.ru + 1.2, 0, i === 0 ? 0 : -1.0);
+        huts.push(new THREE.Vector3(x, g + 4.6, z));
+        loot.push({ id: `warrens-hut-${i}`, container: 'pitCrate', x: p.x, y: pitHeight(p.x, p.z), z: p.z });
+        continue;
+      }
+      const h = hut(k, mats, { x, z, yaw: hy, w: hw, d: hd, h: 2.6, floorY: g + lift, groundY: g, tag: `warren-hut-${i}` });
       huts.push(new THREE.Vector3(x, g + lift + 3.2, z));
       if (i % 2 === 0) loot.push({ id: `warrens-hut-${i}`, container: 'pitCrate', x: h.back[0], y: h.floorY, z: h.back[1] });
     }
