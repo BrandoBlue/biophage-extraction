@@ -38,9 +38,17 @@
   },
   "footsteps": {
     "_note": "Stride is metres per step; sprint multiplies it. Level per class weight.",
-    "stride": { "light": 1.55, "medium": 1.4, "heavy": 1.25 },
+    "stride": {
+      "light": 1.55,
+      "medium": 1.4,
+      "heavy": 1.25
+    },
     "sprintStride": 1.3,
-    "level": { "light": 0.45, "medium": 0.65, "heavy": 1.0 },
+    "level": {
+      "light": 0.45,
+      "medium": 0.65,
+      "heavy": 1.0
+    },
     "crouchLevel": 0.4,
     "landMinFall": 1.2
   },
@@ -56,7 +64,7 @@
   "aliases": {
     "_note": "Zone ids (data/zones.json) that share a profile below.",
     "ochreReach": "desert",
-    "marrowPit": "pit",
+    "marrowPit": "pitRim",
     "weepingFen": "fen",
     "hollowChoir": "cave",
     "ossuaryReef": "desert",
@@ -65,75 +73,189 @@
   "zones": {
     "_note": "Ambience profile per zone id (data/zones.json) or alias. Unknown zones fall back by keyword (desert, sand, dune, pit, fen, swamp, cave, wreck) then to 'default'. Emitters: kind, calls per minute, level, [near, far] metres from the listener.",
     "glowmireIsle": {
-      "wind": 0.32, "windCutoff": 520, "hum": 0, "humFreq": 0, "bed": "marsh", "reverb": "open",
+      "wind": 0.32,
+      "windCutoff": 520,
+      "hum": 0,
+      "humFreq": 0,
+      "bed": "marsh",
+      "reverb": "open",
       "emitters": [
-        { "kind": "distantCall", "perMinute": 3, "level": 0.5, "range": [45, 90] },
-        { "kind": "insect", "perMinute": 9, "level": 0.18, "range": [6, 22] },
-        { "kind": "bubble", "perMinute": 14, "level": 0.28, "range": [4, 16] },
-        { "kind": "sporeSigh", "perMinute": 2, "level": 0.3, "range": [10, 30] },
-        { "kind": "chime", "perMinute": 2.5, "level": 0.16, "range": [12, 35] }
+        { "kind": "distantCall", "perMinute": 3, "level": 0.5, "range": [ 45, 90 ] },
+        { "kind": "insect", "perMinute": 9, "level": 0.18, "range": [ 6, 22 ] },
+        { "kind": "bubble", "perMinute": 14, "level": 0.28, "range": [ 4, 16 ] },
+        { "kind": "sporeSigh", "perMinute": 2, "level": 0.3, "range": [ 10, 30 ] },
+        { "kind": "chime", "perMinute": 2.5, "level": 0.16, "range": [ 12, 35 ] }
       ]
     },
     "cave": {
-      "wind": 0.1, "windCutoff": 260, "hum": 0.08, "humFreq": 41, "bed": "cave", "reverb": "enclosed",
+      "wind": 0.1,
+      "windCutoff": 260,
+      "hum": 0.08,
+      "humFreq": 41,
+      "bed": "cave",
+      "reverb": "enclosed",
       "emitters": [
-        { "kind": "drip", "perMinute": 26, "level": 0.32, "range": [3, 18] },
-        { "kind": "creak", "perMinute": 3, "level": 0.25, "range": [8, 25] },
-        { "kind": "whisper", "perMinute": 1.6, "level": 0.16, "range": [4, 12] },
-        { "kind": "distantCall", "perMinute": 1.2, "level": 0.35, "range": [25, 50] }
+        { "kind": "drip", "perMinute": 26, "level": 0.32, "range": [ 3, 18 ] },
+        { "kind": "creak", "perMinute": 3, "level": 0.25, "range": [ 8, 25 ] },
+        { "kind": "whisper", "perMinute": 1.6, "level": 0.16, "range": [ 4, 12 ] },
+        { "kind": "distantCall", "perMinute": 1.2, "level": 0.35, "range": [ 25, 50 ] }
       ]
     },
     "longSeedWreck": {
-      "wind": 0.16, "windCutoff": 900, "hum": 0.11, "humFreq": 49, "bed": "hull", "reverb": "enclosed",
+      "wind": 0.16,
+      "windCutoff": 900,
+      "hum": 0.11,
+      "humFreq": 49,
+      "bed": "hull",
+      "reverb": "enclosed",
       "emitters": [
-        { "kind": "creak", "perMinute": 6, "level": 0.4, "range": [8, 30] },
-        { "kind": "clank", "perMinute": 4, "level": 0.35, "range": [10, 40] },
-        { "kind": "drip", "perMinute": 10, "level": 0.22, "range": [3, 14] },
-        { "kind": "embryo", "perMinute": 3, "level": 0.22, "range": [5, 18] },
-        { "kind": "distantCall", "perMinute": 1.5, "level": 0.3, "range": [30, 60] }
+        { "kind": "creak", "perMinute": 6, "level": 0.4, "range": [ 8, 30 ] },
+        { "kind": "clank", "perMinute": 4, "level": 0.35, "range": [ 10, 40 ] },
+        { "kind": "drip", "perMinute": 10, "level": 0.22, "range": [ 3, 14 ] },
+        { "kind": "embryo", "perMinute": 3, "level": 0.22, "range": [ 5, 18 ] },
+        { "kind": "distantCall", "perMinute": 1.5, "level": 0.3, "range": [ 30, 60 ] }
       ]
     },
     "desert": {
-      "wind": 0.42, "windCutoff": 1400, "hum": 0, "humFreq": 0, "bed": "dunes", "reverb": "open",
+      "wind": 0.42,
+      "windCutoff": 1400,
+      "hum": 0,
+      "humFreq": 0,
+      "bed": "dunes",
+      "reverb": "open",
       "emitters": [
-        { "kind": "sandHiss", "perMinute": 7, "level": 0.32, "range": [4, 20] },
-        { "kind": "rumble", "perMinute": 2.5, "level": 0.5, "range": [15, 50] },
-        { "kind": "distantCall", "perMinute": 2.5, "level": 0.45, "range": [50, 100] },
-        { "kind": "chime", "perMinute": 1.5, "level": 0.12, "range": [15, 40] }
+        { "kind": "sandHiss", "perMinute": 7, "level": 0.32, "range": [ 4, 20 ] },
+        { "kind": "duneRace", "perMinute": 2.5, "level": 0.45, "range": [ 8, 30 ] },
+        { "kind": "herdHum", "perMinute": 1.6, "level": 0.4, "range": [ 40, 90 ] },
+        { "kind": "rumble", "perMinute": 2, "level": 0.45, "range": [ 15, 50 ] },
+        { "kind": "distantCall", "perMinute": 2, "level": 0.4, "range": [ 50, 100 ] },
+        { "kind": "heatShimmer", "perMinute": 1.2, "level": 0.12, "range": [ 10, 30 ] },
+        { "kind": "chime", "perMinute": 1, "level": 0.1, "range": [ 15, 40 ] }
       ]
     },
     "pit": {
-      "wind": 0.2, "windCutoff": 300, "hum": 0.12, "humFreq": 33, "bed": "cave", "reverb": "enclosed",
+      "wind": 0.08,
+      "windCutoff": 300,
+      "hum": 0.08,
+      "humFreq": 32,
+      "bed": "cave",
+      "reverb": "enclosed",
       "emitters": [
-        { "kind": "whisper", "perMinute": 3, "level": 0.2, "range": [4, 14] },
-        { "kind": "rumble", "perMinute": 3, "level": 0.5, "range": [20, 60] },
-        { "kind": "distantCall", "perMinute": 3, "level": 0.45, "range": [30, 70] },
-        { "kind": "drip", "perMinute": 12, "level": 0.25, "range": [4, 18] }
+        { "kind": "lanternHum", "perMinute": 4, "level": 0.2, "range": [ 3, 12 ] },
+        { "kind": "whisper", "perMinute": 3, "level": 0.18, "range": [ 3, 10 ], "dread": true },
+        { "kind": "drip", "perMinute": 14, "level": 0.25, "range": [ 3, 15 ] },
+        { "kind": "creak", "perMinute": 3, "level": 0.25, "range": [ 6, 20 ] },
+        { "kind": "pitBreath", "perMinute": 1.6, "level": 0.45, "range": [ 40, 80 ] },
+        { "kind": "distantCall", "perMinute": 1.5, "level": 0.35, "range": [ 20, 50 ], "dread": true }
       ]
     },
     "fen": {
-      "wind": 0.14, "windCutoff": 420, "hum": 0, "humFreq": 0, "bed": "marsh", "reverb": "open",
+      "wind": 0.12,
+      "windCutoff": 420,
+      "hum": 0,
+      "humFreq": 0,
+      "bed": "fen",
+      "reverb": "open",
       "emitters": [
-        { "kind": "bubble", "perMinute": 22, "level": 0.3, "range": [3, 14] },
-        { "kind": "croak", "perMinute": 5, "level": 0.35, "range": [12, 40] },
-        { "kind": "insect", "perMinute": 12, "level": 0.2, "range": [5, 20] },
-        { "kind": "splash", "perMinute": 4, "level": 0.3, "range": [8, 30] },
-        { "kind": "distantCall", "perMinute": 1.5, "level": 0.4, "range": [40, 80] }
+        { "kind": "bubble", "perMinute": 22, "level": 0.3, "range": [ 3, 14 ] },
+        { "kind": "croak", "perMinute": 5, "level": 0.35, "range": [ 12, 40 ] },
+        { "kind": "insect", "perMinute": 10, "level": 0.2, "range": [ 5, 20 ] },
+        { "kind": "splash", "perMinute": 4, "level": 0.3, "range": [ 8, 30 ] },
+        { "kind": "mistHum", "perMinute": 1.4, "level": 0.45, "range": [ 40, 90 ] },
+        { "kind": "swarm", "perMinute": 1.5, "level": 0.25, "range": [ 10, 28 ] },
+        { "kind": "drip", "perMinute": 8, "level": 0.18, "range": [ 3, 12 ] },
+        { "kind": "distantCall", "perMinute": 1.2, "level": 0.35, "range": [ 40, 80 ] }
       ]
     },
     "default": {
-      "wind": 0.28, "windCutoff": 600, "hum": 0, "humFreq": 0, "bed": "marsh", "reverb": "open",
+      "wind": 0.28,
+      "windCutoff": 600,
+      "hum": 0,
+      "humFreq": 0,
+      "bed": "marsh",
+      "reverb": "open",
       "emitters": [
-        { "kind": "distantCall", "perMinute": 2.5, "level": 0.45, "range": [40, 90] },
-        { "kind": "insect", "perMinute": 6, "level": 0.16, "range": [6, 22] }
+        { "kind": "distantCall", "perMinute": 2.5, "level": 0.45, "range": [ 40, 90 ] },
+        { "kind": "insect", "perMinute": 6, "level": 0.16, "range": [ 6, 22 ] }
       ]
     },
     "hive": {
-      "wind": 0.05, "windCutoff": 300, "hum": 0.035, "humFreq": 55, "bed": "hive", "reverb": "enclosed",
+      "wind": 0.05,
+      "windCutoff": 300,
+      "hum": 0.035,
+      "humFreq": 55,
+      "bed": "hive",
+      "reverb": "enclosed",
       "emitters": [
-        { "kind": "embryo", "perMinute": 4, "level": 0.15, "range": [3, 9] },
-        { "kind": "drip", "perMinute": 6, "level": 0.12, "range": [3, 9] }
+        { "kind": "embryo", "perMinute": 4, "level": 0.15, "range": [ 3, 9 ] },
+        { "kind": "drip", "perMinute": 6, "level": 0.12, "range": [ 3, 9 ] }
+      ]
+    },
+    "pitRim": {
+      "wind": 0.4,
+      "windCutoff": 800,
+      "hum": 0.04,
+      "humFreq": 36,
+      "bed": "cave",
+      "reverb": "open",
+      "emitters": [
+        { "kind": "rumble", "perMinute": 1.5, "level": 0.35, "range": [ 40, 90 ] },
+        { "kind": "pitBreath", "perMinute": 1, "level": 0.35, "range": [ 80, 140 ] },
+        { "kind": "ropeCreak", "perMinute": 2, "level": 0.25, "range": [ 10, 40 ] },
+        { "kind": "distantCall", "perMinute": 1.5, "level": 0.35, "range": [ 40, 90 ] }
+      ]
+    },
+    "pitCables": {
+      "wind": 0.22,
+      "windCutoff": 500,
+      "hum": 0.06,
+      "humFreq": 34,
+      "bed": "cave",
+      "reverb": "enclosed",
+      "emitters": [
+        { "kind": "ropeCreak", "perMinute": 7, "level": 0.45, "range": [ 3, 18 ] },
+        { "kind": "boneClack", "perMinute": 4, "level": 0.35, "range": [ 4, 20 ] },
+        { "kind": "pitBreath", "perMinute": 1.4, "level": 0.4, "range": [ 60, 110 ] },
+        { "kind": "whisper", "perMinute": 1.5, "level": 0.14, "range": [ 4, 12 ], "dread": true },
+        { "kind": "drip", "perMinute": 8, "level": 0.2, "range": [ 5, 20 ] }
+      ]
+    },
+    "pitWarrens": {
+      "wind": 0.08,
+      "windCutoff": 300,
+      "hum": 0.08,
+      "humFreq": 32,
+      "bed": "cave",
+      "reverb": "enclosed",
+      "emitters": [
+        { "kind": "lanternHum", "perMinute": 4, "level": 0.2, "range": [ 3, 12 ] },
+        { "kind": "whisper", "perMinute": 3, "level": 0.18, "range": [ 3, 10 ], "dread": true },
+        { "kind": "drip", "perMinute": 14, "level": 0.25, "range": [ 3, 15 ] },
+        { "kind": "creak", "perMinute": 3, "level": 0.25, "range": [ 6, 20 ] },
+        { "kind": "pitBreath", "perMinute": 1.6, "level": 0.45, "range": [ 40, 80 ] },
+        { "kind": "distantCall", "perMinute": 1.5, "level": 0.35, "range": [ 20, 50 ], "dread": true }
+      ]
+    },
+    "pitDeep": {
+      "wind": 0.04,
+      "windCutoff": 220,
+      "hum": 0.14,
+      "humFreq": 29,
+      "bed": "cave",
+      "reverb": "enclosed",
+      "emitters": [
+        { "kind": "pitBreath", "perMinute": 3, "level": 0.7, "range": [ 15, 45 ] },
+        { "kind": "whisper", "perMinute": 5, "level": 0.22, "range": [ 2, 8 ], "dread": true },
+        { "kind": "drip", "perMinute": 10, "level": 0.25, "range": [ 3, 14 ] },
+        { "kind": "rumble", "perMinute": 3, "level": 0.5, "range": [ 15, 40 ] }
       ]
     }
+  },
+  "pitDepth": {
+    "_note": "Marrow Pit dread by depth (0 at the rim, 1 at the floor y = -215). dread emitters call up to 1 + extra times as often; music intensity never drops below floor * depth; heartbeat below heartbeatFrom.",
+    "floorY": -215,
+    "extra": 2,
+    "intensityFloor": 0.38,
+    "heartbeatFrom": 0.8
   }
 }

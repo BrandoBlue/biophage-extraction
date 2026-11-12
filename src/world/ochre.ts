@@ -110,6 +110,28 @@ export function ochreGround(x: number, z: number): number {
   return ELEVATION + localGround(x, z);
 }
 
+/** The crater's ways in: 1 on the rim lip, falling to 0 inside a cut (so the lip opens onto the bowl there). */
+function craterCut(x: number, z: number): number {
+  const c = D.crater, a = Math.atan2(z - c.z, x - c.x);
+  let k = 1;
+  for (const e of c.entrances) {
+    const d = Math.abs(Math.atan2(Math.sin(a - deg(e.angle)), Math.cos(a - deg(e.angle)))) * c.radius;
+    k = Math.min(k, smooth(c.cutWidth * 0.5, c.cutWidth, d));
+  }
+  return k;
+}
+
+/** The Sandwidow's crater: fixed debris pillars to stand on and the cuts through the rim (PvE AI's WidowArena). */
+export function widowArena(): WidowArena {
+  const c = D.crater, G = ochreGround;
+  return {
+    id: 'skyfallCrater', x: c.x, z: c.z, radius: c.radius, floorY: G(c.x, c.z),
+    pillars: c.pillars.map((p) => ({ id: p.id, x: p.x, z: p.z, radius: p.s * 0.7, top: G(p.x, p.z) + p.s * 0.7 })),
+    entrances: c.entrances.map((e) => ({ id: e.id, x: c.x + Math.cos(deg(e.angle)) * c.radius, z: c.z + Math.sin(deg(e.angle)) * c.radius })),
+    bossSpawn: { x: c.x, z: c.z },
+  };
+}
+
 function localGround(x: number, z: number): number {
   let h = rawGround(x, z);
   for (const f of FLATS) {
@@ -120,7 +142,7 @@ function localGround(x: number, z: number): number {
   if (cd < 1.6) {
     const floor = rawGround(c.x, c.z) - c.depth;
     h += (floor - h) * (1 - smooth(0.3, 1, cd));
-    h += c.rim * Math.exp(-((cd - 1.05) ** 2) / 0.04);
+    h += c.rim * craterCut(x, z) * Math.exp(-((cd - 1.05) ** 2) / 0.04);
   }
   // Burrow mounds: a low hump of disturbed sand with a dimple, the tell that something lives underneath.
   for (const b of D.burrows) {
@@ -696,18 +718,20 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
   }
 
   // ---- The Skyfall Crater: fused debris from the ring, the biggest pieces solid.
-  // The six biggest rocks are the Sandwidow fight's pillars (PvE AI's fallback until the crater gets fixed spots).
-  const widowPillars: WidowArena['pillars'] = [];
+  // The six biggest rocks stand at fixed spots (data/ochre.json crater.pillars): the Sandwidow fight's pillars.
   {
     const c = D.crater, rock = skyfallRock();
     const geo = boulderGeometry(mulberry32(5), 1);
     const at: { x: number; y: number; z: number; s: number; yaw: number; tilt: number }[] = [];
     for (let i = 0; i < 46; i++) {
       const a = rand() * Math.PI * 2, d = (i < 12 ? 0.15 + rand() * 0.45 : 0.7 + rand() * 0.6) * c.radius;
-      const x = c.x + Math.cos(a) * d, z = c.z + Math.sin(a) * d, s = i < 6 ? 2.5 + rand() * 2.5 : 0.5 + rand() * 1.4;
-      at.push({ x, y: G(x, z) + s * 0.15, z, s, yaw: rand() * 6, tilt: (rand() - 0.5) * 0.6 });
-      if (s > 1.2) SOLIDS.add({ cx: x, cz: z, hx: s * 0.7, hz: s * 0.7, yaw: 0, y0: G(x, z) - 1, y1: G(x, z) + s * 0.7, tag: 'skyfall-rock' });
-      if (i < 6) widowPillars.push({ id: `skyfall-rock-${i}`, x, z, radius: s * 0.7, top: G(x, z) + s * 0.7 });
+      let x = c.x + Math.cos(a) * d, z = c.z + Math.sin(a) * d, s = i < 6 ? 2.5 + rand() * 2.5 : 0.5 + rand() * 1.4;
+      const yaw = rand() * 6, tilt = (rand() - 0.5) * 0.6, pillar = c.pillars[i];
+      if (pillar) ({ x, z, s } = pillar);
+      // Rubble stays out of the rim cuts so the ways in are clear.
+      else if (d > c.radius * 0.8 && craterCut(x, z) < 1) continue;
+      at.push({ x, y: G(x, z) + s * 0.15, z, s, yaw, tilt });
+      if (s > 1.2) SOLIDS.add({ cx: x, cz: z, hx: s * 0.7, hz: s * 0.7, yaw: 0, y0: G(x, z) - 1, y1: G(x, z) + s * 0.7, tag: pillar ? `skyfall-pillar-${pillar.id}` : 'skyfall-rock' });
     }
     scene.add(instances(geo, rock, at, 'skyfall-debris'));
     scene.add(hazeVolume({ centre: new THREE.Vector3(c.x, G(c.x, c.z) + 6, c.z), size: new THREE.Vector3(c.radius * 1.6, 14, c.radius * 1.6), colour: OCHRE.dust, density: 0.012 }));
@@ -849,7 +873,7 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
     sites: { group: sites, setExtractOpen(id, open) { const r = rings.get(id); if (r) r.visible = open; }, setNodeHarvested() { /* no harvest nodes here */ } },
     structures: {
       group: village, loot, arena: null, breakPillar() { /* no boss arena yet */ },
-      widow: { id: 'skyfallCrater', x: D.crater.x, z: D.crater.z, radius: D.crater.radius, floorY: G(D.crater.x, D.crater.z), pillars: widowPillars, entrances: [], bossSpawn: { x: D.crater.x, z: D.crater.z } },
+      widow: widowArena(),
     },
     landmarkAt: ochreLandmarkAt,
   };

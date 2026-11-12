@@ -13,6 +13,8 @@ import { installLookdev } from './render/lookdev';
 import { GameAudio } from './audio';
 import { getSettings } from './ui/settings';
 import { caveDistance } from './world/cave';
+import { layerAt } from './world/pit';
+import { AUDIO } from './audio';
 import pkg from '../package.json';
 import { Online } from './net';
 
@@ -99,6 +101,9 @@ function bootRaid(): void {
     menuVisible: () => menu.visible,
     enclosed: world.zone === 'longSeedWreck' || world.zone === 'marrowPit' ? () => true
       : world.zone === 'glowmireIsle' ? (x, z) => ZONE7_SITES.caves.some((c) => caveDistance(c, x, z) < 0) : () => false,
+    // Marrow Pit: each layer has its own ambience, and dread grows with depth.
+    region: world.zone === 'marrowPit' ? (x, y, z) => `pit${layerAt(x, z, y).replace(/^./, (c) => c.toUpperCase())}` : undefined,
+    depth: world.zone === 'marrowPit' ? (_x, y) => -y / -AUDIO.pitDepth.floorY : undefined,
     volume: () => getSettings().volume,
   });
 
