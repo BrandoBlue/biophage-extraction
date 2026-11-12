@@ -5,6 +5,7 @@ import { alienEye, bioNode, chitin, livingFlesh, membrane } from '../render/mate
 import { blade, horn, merge, plate, rng, roughen, spike, taperTube, vent, wing } from './parts';
 import { meshSdf, type SdfPrim } from './sdf';
 import { mutation } from '../render/dissolve';
+import { APEX_EVOLUTIONS, TITAN_SCALE, WARLOCK_FLOAT, apexDrops, apexFrame, apexPrims, apexSkin, growApex, scaleBasis, type ApexEvolution } from './apex';
 
 /**
  * Playable host bodies for the Hive menu, host select and results screens (Art Bible creature rule 1,
@@ -22,7 +23,8 @@ import { mutation } from '../render/dissolve';
  *                    nodes along the spine, the Burster grafted along the right forelimb
  *   crustaceanGrunt  Behemoth: segmented crab plate over the muscle, a crushing claw for a right hand, barnacle
  *                    crusts on the shoulders, eye stalks rising from the bone crown
- * Any other evolution id (the Apex ones, still to come) falls back to the class body.
+ * and the Apex evolutions (src/creatures/apex.ts): shadowStalker, xenoflyer, sporeCaster, psychWarlock, goreGorgon,
+ * juggernautTitan. An unknown id, or one from another class, falls back to the class body.
  */
 
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
@@ -30,7 +32,7 @@ const hex = (c: THREE.Color) => `#${c.getHexString()}`;
 const mix = (a: string, b: string, k: number) => hex(new THREE.Color(a).lerp(new THREE.Color(b), k));
 
 /** Joint layout for one side (x > 0); mirrored for the other. Metres, feet at y = 0, facing +Z. */
-interface Frame {
+export interface Frame {
   hips: [number, number, number]; waist: [number, number, number]; chest: [number, number, number]; neck: [number, number, number]; head: [number, number, number];
   shoulder: [number, number, number]; elbow: [number, number, number]; wrist: [number, number, number];
   hip: [number, number, number]; knee: [number, number, number]; hock: [number, number, number]; foot: [number, number, number];
@@ -88,6 +90,10 @@ const BUILDS: Record<ClassId, Build> = {
 /** Host-milestone evolutions that have their own body, and the class each grows from. */
 export const HOST_EVOLUTIONS = { acidParasite: 'venomWraith', neuroHound: 'neuroInfiltrator', crustaceanGrunt: 'goreBehemoth' } as const satisfies Record<string, ClassId>;
 export type HostEvolution = keyof typeof HOST_EVOLUTIONS;
+/** Every evolution with its own body (Host and Apex), and the class it grows from. */
+export const EVOLUTION_BODIES = { ...HOST_EVOLUTIONS, ...APEX_EVOLUTIONS } as const satisfies Record<string, ClassId>;
+export type BodyEvolution = keyof typeof EVOLUTION_BODIES;
+export { APEX_EVOLUTIONS, type ApexEvolution };
 
 /**
  * The Neuro-Hound on all fours, in the same Frame terms: the "arms" are forelimbs planted ahead of the chest, the
@@ -103,21 +109,9 @@ const HOUND_FRAME: Frame = {
 
 const T = (a: [number, number, number], sx = 1) => V(a[0] * sx, a[1], a[2]);
 
-/**
- * A plate's rotation: its convex side along `normal`, its lifted trailing edge (local +Z) pointing along `trail`
- * (down the body, down the limb), so rows of plates overlap like scales.
- */
-function scaleBasis(normal: THREE.Vector3, trail: THREE.Vector3 = V(0, -1, 0)): THREE.Quaternion {
-  const y = normal.clone().normalize();
-  let z = trail.clone().addScaledVector(y, -trail.dot(y));
-  if (z.lengthSq() < 1e-6) z = V(0, 0, 1).addScaledVector(y, -y.z);
-  z.normalize();
-  const x = new THREE.Vector3().crossVectors(y, z);
-  return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
-}
 
 /** Flesh an evolution adds to the meshed body (the hound's snout, the grunt's swollen claw arm). */
-function evolutionPrims(evo: HostEvolution | null, f: Frame): SdfPrim[] {
+function evolutionPrims(evo: BodyEvolution | null, f: Frame): SdfPrim[] {
   const hd = T(f.head);
   if (evo === 'neuroHound') {
     return [
@@ -137,7 +131,7 @@ function evolutionPrims(evo: HostEvolution | null, f: Frame): SdfPrim[] {
 }
 
 /** Bilateral SDF body from a Frame. */
-function bodyPrims(f: Frame): SdfPrim[] {
+function bodyPrims(f: Frame, drop: { legs: boolean; cranium: boolean } = { legs: false, cranium: false }): SdfPrim[] {
   const r = f.r, hump = r.chest[0] > 0.3;
   const prims: SdfPrim[] = [
     { shape: 'ellipsoid', a: T(f.hips), radii: V(r.pelvis, r.pelvis * 0.75, r.pelvis * 0.8), bone: 0 },
@@ -146,11 +140,13 @@ function bodyPrims(f: Frame): SdfPrim[] {
     { shape: 'ellipsoid', a: T(f.chest), radii: V(...r.chest), blend: 0.06, bone: 0, ...(hump ? {} : { ribs: { freq: 16, depth: 0.012 } }) },
     { shape: 'cone', a: T(f.chest).add(V(0, r.chest[1] * 0.6, 0)), b: T(f.neck), ra: r.chest[0] * 0.35, rb: r.arm * 1.2, blend: 0.05, bone: 0 },
     { shape: 'cone', a: T(f.neck), b: T(f.head), ra: r.arm * 1.1, rb: r.arm, blend: 0.04, bone: 0 },
-    // Cranium: bulbous, swept up and back from the face.
+  ];
+  // Cranium: bulbous, swept up and back from the face.
+  if (!drop.cranium) prims.push(
     { shape: 'ellipsoid', a: T(f.head).add(V(0, 0.07, -0.05)), radii: V(...f.cranium), blend: 0.04, bone: 0 },
     { shape: 'ellipsoid', a: T(f.head).add(V(0, 0.12, -0.17)), radii: V(f.cranium[0] * 0.9, f.cranium[1] * 0.85, f.cranium[2] * 0.75), blend: 0.05, bone: 0 },
     { shape: 'ellipsoid', a: T(f.head).add(V(0, -0.04, 0.06)), radii: V(f.cranium[0] * 0.42, f.cranium[1] * 0.35, f.cranium[2] * 0.4), blend: 0.04, bone: 0, tint: new THREE.Color(0.65, 0.65, 0.65) },
-  ];
+  );
   if (hump) {
     // Heavy build: a hunched trapezius yoke, pectorals, lats, a jaw and fists, so the mass reads as muscle.
     const ch = T(f.chest), hd = T(f.head);
@@ -175,11 +171,13 @@ function bodyPrims(f: Frame): SdfPrim[] {
       { shape: 'cone', a: el, b: wr, ra: r.fore, rb: r.fore * 0.7, blend: 0.02, bone: 0 },
       { shape: 'ellipsoid', a: el.clone().lerp(wr, 0.3), radii: V(r.fore * 1.2, r.fore * 2.6, r.fore * 1.2), blend: 0.02, bone: 0 },
       { shape: 'ellipsoid', a: wr.clone().add(V(0, -0.04, 0.03)), radii: V(r.fore * 0.9, r.fore * 1.6, r.fore * 1.2), blend: 0.02, bone: 0 },
+    );
+    if (!drop.legs) prims.push(
       { shape: 'cone', a: hip, b: kn, ra: r.thigh, rb: r.thigh * 0.62, blend: 0.05, bone: 0 },
       { shape: 'ellipsoid', a: hip.clone().lerp(kn, 0.4), radii: V(r.thigh * 1.15, r.thigh * 2.4, r.thigh * 1.15), blend: 0.04, bone: 0 },
       { shape: 'cone', a: kn, b: hock, ra: r.shin, rb: r.shin * 0.7, blend: 0.02, bone: 0 },
       { shape: 'cone', a: hock, b: ft, ra: r.shin * 0.7, rb: r.shin * 0.6, blend: 0.02, bone: 0 },
-      { shape: 'ellipsoid', a: V(ft.x, r.shin * 0.7, ft.z + 0.07), radii: V(r.shin * 1.1, r.shin * 0.7, r.shin * 2.6), blend: 0.03, bone: 0 },
+      { shape: 'ellipsoid', a: V(ft.x, ft.y > 0.2 ? ft.y : r.shin * 0.7, ft.z + 0.07), radii: V(r.shin * 1.1, r.shin * 0.7, r.shin * 2.6), blend: 0.03, bone: 0 },
     );
   }
   return prims;
@@ -196,20 +194,23 @@ export class HostBody {
   private sweeps: { obj: THREE.Object3D; amp: number; rate: number }[] = [];
   private slosh: { obj: THREE.Object3D; base: THREE.Vector3 } | null = null;
   private time = 0;
+  /** Per-frame life the Apex growers add (flutter, writhing, orbiting lobes, spores). */
+  private ticks: ((t: number, dt: number) => void)[] = [];
   /** The evolution this body has grown into, or null for the class body. */
-  readonly evolution: HostEvolution | null;
+  readonly evolution: BodyEvolution | null;
 
   constructor(readonly classId: ClassId, evolution?: string | null) {
-    const evo = evolution && evolution in HOST_EVOLUTIONS && HOST_EVOLUTIONS[evolution as HostEvolution] === classId ? (evolution as HostEvolution) : null;
+    const evo = evolution && evolution in EVOLUTION_BODIES && EVOLUTION_BODIES[evolution as BodyEvolution] === classId ? (evolution as BodyEvolution) : null;
     this.evolution = evo;
     const hound = evo === 'neuroHound', parasite = evo === 'acidParasite', grunt = evo === 'crustaceanGrunt';
-    const b = BUILDS[classId], f = hound ? HOUND_FRAME : b.frame;
+    const apex = evo && evo in APEX_EVOLUTIONS ? (evo as ApexEvolution) : null, drop = apexDrops(apex);
+    const b = BUILDS[classId], f = hound ? HOUND_FRAME : apex ? apexFrame(apex, b.frame) : b.frame;
     const rand = rng(classId.length * 17);
     this.root.name = evo ? `host:${classId}:${evo}` : `host:${classId}`;
     const key = `${classId}:${evo ?? ''}`;
     let geo = geoCache.get(key);
     if (!geo) {
-      geo = meshSdf([...bodyPrims(f), ...evolutionPrims(evo, f)], 1, { resolution: 112, noise: { amp: 0.005, freq: 32, seed: 5 } }).geometry;
+      geo = meshSdf([...bodyPrims(f, drop), ...evolutionPrims(evo, f), ...apexPrims(apex, f)], 1, { resolution: 112, noise: { amp: 0.005, freq: 32, seed: 5 } }).geometry;
       geoCache.set(key, geo);
     }
     // Restrained glow (Brandon, 2026-11-11: heavy neon reads as AI-made): faint veins, a soft rim.
@@ -221,20 +222,21 @@ export class HostBody {
     this.chest.name = 'body';
     this.root.add(this.chest);
     const bone = chitin(b.bone, hex(new THREE.Color(b.glow).multiplyScalar(0.4)), 8);
+    apexSkin(apex, skin, bone);
     const node = bioNode(b.glow, 1.6);
     this.glows.push(node);
     const head = T(f.head), big = f.r.chest[0] > 0.3;
 
     // Eyes: large glossy almonds on the Infiltrator, narrow slits on the others.
     const eyeMat = alienEye(hex(new THREE.Color(b.glow).multiplyScalar(0.6)), mix(HIVE.background, HIVE.panel, 0.6));
-    if (big) for (const s of [-1, 1]) for (let i = 0; i < 2; i++) {
+    if (big && !drop.eyes) for (const s of [-1, 1]) for (let i = 0; i < 2; i++) {
       const e = new THREE.Mesh(new THREE.SphereGeometry(0.018 - i * 0.004, 14, 10), eyeMat);
       e.scale.set(1.3, 0.6, 0.8);
       e.position.copy(head).add(V(s * (0.05 + i * 0.035), 0.03 + i * 0.025, f.cranium[2] * 0.82 - i * 0.03));
       e.rotation.set(0, Math.PI + s * 0.5, 0);
       this.root.add(e);
     }
-    if (!big && !hound) for (const s of [-1, 1]) {
+    if (!big && !hound && !drop.eyes) for (const s of [-1, 1]) {
       const e = new THREE.Mesh(new THREE.SphereGeometry(0.04, 20, 14), eyeMat);
       e.scale.set(1.35, classId === 'neuroInfiltrator' ? 0.85 : 0.4, 0.75);
       e.position.copy(head).add(V(0.062 * s, 0.03, f.cranium[2] * 0.42));
@@ -259,7 +261,7 @@ export class HostBody {
     // A few soft nodes: sternum and spine (accents, not a light show).
     const nodes: THREE.BufferGeometry[] = [];
     const ch = T(f.chest);
-    if (!hound) for (let i = 0; i < 3; i++) nodes.push(new THREE.SphereGeometry(0.012, 10, 8).translate(ch.x, ch.y - 0.06 + i * 0.06, ch.z + f.r.chest[2] * 0.95));
+    if (!hound && !drop.nodes) for (let i = 0; i < 3; i++) nodes.push(new THREE.SphereGeometry(0.012, 10, 8).translate(ch.x, ch.y - 0.06 + i * 0.06, ch.z + f.r.chest[2] * 0.95));
     this.root.add(new THREE.Mesh(merge(nodes), node));
 
     // Spine ridge of small bone plates down the back.
@@ -271,7 +273,7 @@ export class HostBody {
     if (spine.length) this.root.add(new THREE.Mesh(merge(spine), bone));
 
     if (hound) this.growHound(f, bone, node);
-    if (!hound && (classId === 'neuroInfiltrator' || classId === 'venomWraith')) {
+    if (!hound && !drop.antennae && (classId === 'neuroInfiltrator' || classId === 'venomWraith')) {
       // Antennae rising from the crown.
       const n = classId === 'neuroInfiltrator' ? 2 : 1;
       for (const s of [-1, 1]) for (let i = 0; i < n; i++) {
@@ -313,7 +315,7 @@ export class HostBody {
       const tip = new THREE.CatmullRomCurve3(pts).getTangentAt(1);
       abd.push(spike(0.16, 0.026, 0.15).applyMatrix4(new THREE.Matrix4().compose(pts[4], new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), tip), V(1, 1, 1))));
       for (const s of [-1, 1]) abd.push(spike(0.07, 0.012, 0.8).rotateX(Math.PI * 0.6).rotateZ(-s * 0.4).translate(head.x + s * 0.03, head.y - 0.07, head.z + f.cranium[2] * 0.55));
-      this.root.add(new THREE.Mesh(merge(abd), bone));
+      if (!drop.abdomen) this.root.add(new THREE.Mesh(merge(abd), bone));
       // Blade forearms and four insect wings (the parasite's blades corrode into hooks, its wings into stubs).
       const corroded = parasite ? chitin(mix(mix(b.bone, ORGANIC.wetFleshDeep, 0.35), HIVE.acid, 0.1), hex(new THREE.Color(HIVE.acid).multiplyScalar(0.12)), 9) : bone;
       if (parasite) corroded.roughness = 0.75;
@@ -331,7 +333,7 @@ export class HostBody {
           bl.rotation.set(Math.PI * 0.95, s * 0.15, s * 0.05);
           this.root.add(bl);
         }
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < (drop.wings ? 0 : 2); i++) {
           const lace = parasite ? membrane(hex(new THREE.Color(mix(ORGANIC.amber, HIVE.acid, 0.3)).multiplyScalar(0.55)), 0.5) : membrane(mix(HIVE.bone, ORGANIC.mist, 0.35), 0.4);
           const w = new THREE.Mesh(wing(parasite ? 0.3 - i * 0.08 : 1.05 - i * 0.25, parasite ? 0.16 : 0.32, rand, 1 + i), lace);
           const g = new THREE.Group();
@@ -353,7 +355,7 @@ export class HostBody {
         bones.push(g.applyMatrix4(m.compose(p, q, V(1, 1, 1))));
       };
       // A low crown of five swept horns on the slung head.
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < (drop.crown ? 0 : 5); i++) {
         const a = (i / 4 - 0.5) * 2.0;
         at(horn(0.28 + (i % 2 ? 0 : 0.1) + (i === 2 ? 0.08 : 0), 0.045, 0.5, rand), head.clone().add(V(Math.sin(a) * 0.08, 0.07, -0.02 + Math.cos(a) * 0.02)), V(Math.sin(a) * 0.8, 1, -0.8));
       }
@@ -392,11 +394,35 @@ export class HostBody {
       this.root.add(new THREE.Mesh(roughen(merge(bones), 0.006, 30, 4), chitin(b.bone, hex(new THREE.Color(ORGANIC.amber).multiplyScalar(0.08)), 6)));
       if (grunt) this.growCarapace(f, rand, eyeMat);
     }
+    if (apex) {
+      growApex(apex, {
+        root: this.root, f, rand, bone, skin, glow: b.glow,
+        sway: (obj, amp, rate, phase) => this.sway.push({ obj, base: obj.rotation.clone(), amp, rate, phase }),
+        tick: (fn) => this.ticks.push(fn),
+        onSkin: (p, n, lift) => this.onSkin(p, n, lift),
+      });
+    }
+    if (apex === 'juggernautTitan') {
+      // Twice the size: everything grown so far moves into one scaled group.
+      const big = new THREE.Group();
+      big.name = 'titan';
+      big.add(...this.root.children);
+      big.scale.setScalar(TITAN_SCALE);
+      this.root.add(big);
+    }
     this.root.traverse((o) => { (o as THREE.Mesh).castShadow = true; });
     // Stand exactly on y = 0 whatever the frame's feet do.
     this.root.updateMatrixWorld(true);
     const floor = new THREE.Box3().setFromObject(this.root).min.y;
-    for (const c of this.root.children) c.position.y -= floor;
+    for (const c of this.root.children) c.position.y -= floor - (apex === 'psychWarlock' ? WARLOCK_FLOAT : 0);
+  }
+
+  /** Seat a point on the meshed skin: cast in from outside along `n` and sit `lift` metres proud of the hit. */
+  private onSkin(p: THREE.Vector3, n: THREE.Vector3, lift: number): THREE.Vector3 {
+    const dir = n.clone().normalize(), ray = new THREE.Raycaster();
+    ray.set(p.clone().addScaledVector(dir, 0.8), dir.clone().negate());
+    const hit = ray.intersectObject(this.chest, false)[0];
+    return hit ? hit.point.addScaledVector(dir, lift) : p.clone();
   }
 
   update(dt: number): void {
@@ -409,6 +435,7 @@ export class HostBody {
     }
     for (const g of this.glows) g.emissiveIntensity = 0.45 + Math.pow(Math.max(0, Math.sin(t * 2.2)), 4) * 0.35;
     for (const s of this.sweeps) s.obj.rotation.z = Math.sin(t * s.rate) * s.amp;
+    for (const fn of this.ticks) fn(t, dt);
     if (this.slosh) {
       // The acid lags the body: it rocks and settles against the bladder wall.
       const o = this.slosh.obj, k = Math.sin(t * 1.3) * 0.6 + Math.sin(t * 2.9) * 0.4;

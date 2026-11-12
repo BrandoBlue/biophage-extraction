@@ -4,6 +4,7 @@
  * soft amber capsule with its warning set beneath it, and key hints. Screens compose these; colours come from
  * CSS variables set by src/ui/theme.ts.
  */
+import type { GraphicsLevel } from '../settings';
 import { ZONE7 } from '../../render/palette';
 import { glyph } from '../icons';
 
@@ -32,6 +33,7 @@ export const NAV: { id: string; label: string; sub?: string; locked?: string }[]
   { id: 'menu', label: 'MAIN MENU' },
   { id: 'host', label: 'HOST SELECT' },
   { id: 'stash', label: 'STASH & LOADOUT' },
+  { id: 'arms', label: 'WEAPONS', sub: 'Slots, grafts, armoury', locked: 'SOON' },
   { id: 'raid', label: 'RAID SELECT', sub: 'Exclusion Zone' },
   { id: 'synapse', label: 'SYNAPSE & SKILLS', locked: 'NEXT UPDATE' },
   { id: 'lab', label: 'VIRAL LAB', locked: 'NEXT UPDATE' },
@@ -95,3 +97,10 @@ export function meter(label: string, icon: string, value: number, word: string, 
 }
 
 export const ZONE_TONE = { lime: ZONE7.lime, cyan: ZONE7.cyan, magenta: ZONE7.magenta };
+
+/** The graphics levels in a player's words (what each one gives up); Rendering's settings.ts owns the levels. */
+export const GRAPHICS_WORDS: Record<GraphicsLevel, [string, string]> = {
+  high: ['High', 'Every effect'],
+  balanced: ['Balanced', 'No ambient shade'],
+  performance: ['Performance', 'No shade or sun shadows'],
+};

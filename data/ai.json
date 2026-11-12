@@ -216,6 +216,17 @@
       "rout": 0.6
     }
   },
+  "learning": {
+    "_note": "Learning within a raid (src/ai/memory.ts; docs/gdd/11-creature-minds.md rule 4). A trick is countered once the host has used it `after` times on creatures of that kind; nothing carries between raids. Camping: the host stays within campRadius m for campTime s while hunted (noted once per kind per campCooldown s); swarms that learned it stop entering and hold their ring at campRing x its radius until the host moves. Killing the lunger: swarms that learned it fake out with a wind-up of fakeoutTime s on all but every feintEvery-th approach. Dodging a charge to one side: a tank that learned the side aims cutAhead m to that side of the host.",
+    "after": 2,
+    "campRadius": 2.5,
+    "campTime": 4,
+    "campCooldown": 8,
+    "campRing": 1.7,
+    "feintEvery": 3,
+    "fakeoutTime": 0.35,
+    "cutAhead": 3.5
+  },
   "warden": {
     "_note": "The Warden of the Long Seed (src/ai/warden.ts); attack numbers stay in bosses.json `warden`. wake.trigger: 'approach' (a host enters the reactor chamber or comes within radius m) until Gameplay's ship-power objective exists, then 'power'. It crawls walls and ceiling at crawlSpeed in tend, re-perching every perchTime s; later phases hold holdDistance m on the floor at floorSpeed. The root spear reaches spearRange m and lands where the host was heading (velocity x spearLead s), hitting within spearRadius m. A vented valve opens its seam for seamOpenTime s. Tells for attacks bosses.json gives no wind-up: steamTell, birthTell. Enraged, the reactor pulses every enragePulseEvery s.",
     "wake": {

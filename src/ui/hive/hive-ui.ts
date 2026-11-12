@@ -5,7 +5,8 @@
  */
 import './hive.css';
 import { applyTheme } from '../theme';
-import { DEFAULT_SETTINGS, getSettings, saveSettings, SETTING_RANGES } from '../settings';
+import { DEFAULT_SETTINGS, getSettings, GRAPHICS_LEVELS, saveSettings, SETTING_RANGES, type GraphicsLevel } from '../settings';
+import { GRAPHICS_WORDS } from './kit';
 import type { Settings } from '../settings';
 import { frame, h, panel, cta, keyHints } from './kit';
 import { glyph } from '../icons';
@@ -14,19 +15,20 @@ import { drawOrbit, HOST_ORDER, hostSelect, mainMenu, raidSelect, results } from
 import type { ResultData } from './screens';
 import { stashScreen } from './stash';
 import { bodyScreen } from './body';
+import { arsenalScreen } from './arsenal';
 import { marketScreen } from './market';
 import { vendorRow, vendorScreen } from './vendors';
 import { CLASSES } from '../../../data';
 import { canFullscreen, isFullscreen, toggleFullscreen } from '../fullscreen';
 import type { ClassId } from '../../../data';
 
-export type Tab = 'menu' | 'host' | 'stash' | 'raid' | 'market' | 'vendors' | 'body' | 'settings' | 'results';
+export type Tab = 'menu' | 'host' | 'stash' | 'arms' | 'raid' | 'market' | 'vendors' | 'body' | 'settings' | 'results';
 
 const TITLES: Record<Tab, string> = {
   menu: 'THE HIVE', host: 'STARTER HOST SELECT & PROGRESSION', stash: 'STASH & INTERNAL CAVITIES',
-  raid: 'EXCLUSION ZONE SELECT', market: 'FLESH MARKET', vendors: 'HIVE VENDORS', body: 'THE HIVE BODY', settings: 'SETTINGS', results: 'RAID DEBRIEF',
+  arms: 'WEAPONS & GRAFTS', raid: 'EXCLUSION ZONE SELECT', market: 'FLESH MARKET', vendors: 'HIVE VENDORS', body: 'THE HIVE BODY', settings: 'SETTINGS', results: 'RAID DEBRIEF',
 };
-const NAV_TAB: Partial<Record<Tab, string>> = { menu: 'menu', host: 'host', stash: 'stash', raid: 'raid', market: 'vendors', vendors: 'vendors', body: 'body' };
+const NAV_TAB: Partial<Record<Tab, string>> = { menu: 'menu', host: 'host', stash: 'stash', arms: 'arms', raid: 'raid', market: 'vendors', vendors: 'vendors', body: 'body' };
 
 export interface HiveUIOptions {
   /** Called when the host changes (Gameplay stores it on the profile). */
@@ -57,7 +59,7 @@ export class HiveUI {
     const p = this.view();
     const f = frame({ title: TITLES[tab], tab: NAV_TAB[tab], callsign: p.callsign, dna: p.dna,
       extras: [{ label: 'HOST', value: CLASSES[p.host].label.replace('The ', '').toUpperCase(), tone: 'lime' }, { label: 'EXTRACTS', value: String(p.stats.extracts), tone: 'amber' }],
-      unlocked: [...(this.trades() ? ['vendors'] : []), ...(this.actions.hiveBody ? ['body'] : []), ...(this.hiveMind() ? ['hivemind'] : [])] });
+      unlocked: [...(this.trades() ? ['vendors'] : []), ...(this.actions.hiveBody ? ['body'] : []), ...(this.actions.arsenal ? ['arms'] : []), ...(this.hiveMind() ? ['hivemind'] : [])] });
     f.nav.addEventListener('click', (e) => {
       const t = (e.target as HTMLElement).closest<HTMLButtonElement>('.tab');
       if (!t || t.disabled) return;
@@ -70,9 +72,9 @@ export class HiveUI {
     full.addEventListener('click', () => void toggleFullscreen());
     let screen: HTMLElement & { dispose?: () => void };
     switch (tab) {
-      case 'menu': screen = mainMenu(p, { go: (t) => this.show(t === 'vendors' ? this.tradeTab() : t as Tab), deploy: () => this.show('host'), quit: () => this.quit(), market: this.trades() }); break;
+      case 'menu': screen = mainMenu(p, { go: (t) => this.show(t === 'vendors' ? this.tradeTab() : t as Tab), deploy: () => this.show('host'), quit: () => this.quit(), market: this.trades(), arms: !!this.actions.arsenal }); break;
       case 'host': screen = hostSelect(p, { pick: (id) => { this.opts.pickHost?.(id); this.show('host'); }, next: () => this.show('stash') }); break;
-      case 'stash': screen = stashScreen(p, { actions: this.actions, next: () => this.show('raid'), changed: () => this.show('stash'), notice: (m, t) => this.notice(m, t) }); break;
+      case 'stash': screen = stashScreen(p, { actions: this.actions, next: () => this.show(this.afterStash()), changed: () => this.show('stash'), notice: (m, t) => this.notice(m, t) }); break;
       case 'market': {
         screen = marketScreen(p, { actions: this.actions, changed: () => this.show('market'), notice: (m, t) => this.notice(m, t), next: () => this.show('stash') });
         const vs = this.actions.vendors?.() ?? [];
@@ -81,6 +83,7 @@ export class HiveUI {
       }
       case 'vendors': screen = vendorScreen(p, this.vendor, { actions: this.actions, changed: () => this.show('vendors'), notice: (m, t) => this.notice(m, t), next: () => this.show('stash'),
         market: () => this.show('market'), pick: (id) => { this.vendor = id; this.show('vendors'); } }); break;
+      case 'arms': screen = arsenalScreen(p, { actions: this.actions, changed: () => this.show('arms'), notice: (m, t) => this.notice(m, t), next: () => this.show('raid') }); break;
       case 'body': screen = bodyScreen(p, { actions: this.actions, changed: () => this.show('body'), notice: (m, t) => this.notice(m, t), next: () => this.show('stash') }); break;
       case 'raid': screen = raidSelect(p, { deploy: () => this.actions.deploy(), notice: (m, t) => this.notice(m, t), zones: this.actions.zones, selectZone: this.actions.selectZone, changed: () => this.show('raid') }); this.animateOrbit(screen); break;
       case 'results': screen = results(this.lastResult!, { again: () => (this.opts.afterResults ? this.opts.afterResults() : this.show('stash')) }); break;
@@ -117,6 +120,9 @@ export class HiveUI {
   private trades(): boolean { return !!(this.actions.vendors || this.actions.market); }
   /** VENDORS opens the Hive vendors when the economy is there, otherwise straight to the Flesh Market. */
   private tradeTab(): Tab { return this.actions.vendors ? 'vendors' : 'market'; }
+
+  /** Stash leads on to the guns when there is a WEAPONS screen, otherwise straight to raid select. */
+  private afterStash(): Tab { return this.actions.arsenal ? 'arms' : 'raid'; }
 
   showResults(r: ResultData): void { this.lastResult = r; this.show('results'); }
 
@@ -158,15 +164,25 @@ export class HiveUI {
       const [lo, hi, step] = SETTING_RANGES[k];
       return `<label>${label}<input type="range" data-k="${k}" min="${lo}" max="${hi}" step="${step}" value="${s[k]}"/><output>${fmt(s[k])}</output></label>`;
     };
-    pnl.insertAdjacentHTML('beforeend', row('sensitivity', 'MOUSE SENSITIVITY', (v) => `${v.toFixed(2)}×`) + row('fov', 'FIELD OF VIEW', (v) => `${v}°`) + row('volume', 'MASTER VOLUME', (v) => `${Math.round(v * 100)}%`)
-      + `<label>REDUCE MOTION<input type="checkbox" data-k="reduceMotion" ${s.reduceMotion ? 'checked' : ''}/><output></output></label>`
-      + `<label>EYE SCOPE ON LONG GUNS<input type="checkbox" data-k="eyeScope" ${s.eyeScope ? 'checked' : ''}/><output></output></label>`);
+    const pct = (v: number) => `${Math.round(v * 100)}%`;
+    const box = (k: 'reduceMotion' | 'eyeScope', label: string) => `<label>${label}<input type="checkbox" data-k="${k}" ${s[k] ? 'checked' : ''}/><output></output></label>`;
+    const quality = GRAPHICS_LEVELS.map((g) => `<button type="button" class="q${s.graphics === g ? ' on' : ''}" data-graphics="${g}"><b>${GRAPHICS_WORDS[g][0]}</b><small>${GRAPHICS_WORDS[g][1]}</small></button>`).join('');
+    pnl.insertAdjacentHTML('beforeend', `<div class="set-cols">
+      <section><h4>Controls & sound</h4>${row('sensitivity', 'MOUSE SENSITIVITY', (v) => `${v.toFixed(2)}×`)}${row('fov', 'FIELD OF VIEW', (v) => `${v}°`)}${row('volume', 'MASTER VOLUME', pct)}${box('reduceMotion', 'REDUCE MOTION')}${box('eyeScope', 'EYE SCOPE ON LONG GUNS')}</section>
+      <section><h4>Display</h4>${row('brightness', 'BRIGHTNESS', pct)}${row('renderScale', 'RENDER SCALE', pct)}
+        <div class="set-q"><span>GRAPHICS</span><div class="qs">${quality}</div></div>
+        <p class="set-note">The frame rate follows your display, up to 240 Hz and beyond. For high refresh rates pick Performance or lower the render scale.</p>
+        <div class="set-full"></div></section></div>`);
+    pnl.querySelectorAll<HTMLButtonElement>('[data-graphics]').forEach((b) => b.addEventListener('click', () => {
+      saveSettings({ ...getSettings(), graphics: b.dataset.graphics as GraphicsLevel });
+      pnl.querySelectorAll('[data-graphics]').forEach((o) => o.classList.toggle('on', o === b));
+    }));
     if (canFullscreen()) {
       const fs = h<HTMLButtonElement>('button', 'hv-btn', `${glyph('expand')}BORDERLESS FULLSCREEN <kbd>F</kbd>`);
       fs.dataset.full = '';
       fs.classList.toggle('on', isFullscreen());
       fs.addEventListener('click', () => void toggleFullscreen());
-      pnl.append(fs);
+      pnl.querySelector('.set-full')!.append(fs);
     }
     pnl.addEventListener('input', (e) => {
       const i = e.target as HTMLInputElement;
@@ -176,7 +192,7 @@ export class HiveUI {
       const out = i.parentElement!.querySelector('output')!;
       if (k === 'sensitivity') out.textContent = `${Number(i.value).toFixed(2)}×`;
       if (k === 'fov') out.textContent = `${i.value}°`;
-      if (k === 'volume') out.textContent = `${Math.round(Number(i.value) * 100)}%`;
+      if (k === 'volume' || k === 'brightness' || k === 'renderScale') out.textContent = `${Math.round(Number(i.value) * 100)}%`;
     });
     const reset = h<HTMLButtonElement>('button', 'hv-btn', 'RESTORE DEFAULTS');
     reset.addEventListener('click', () => { saveSettings({ ...DEFAULT_SETTINGS }); this.show('settings'); });
@@ -196,12 +212,13 @@ export class HiveUI {
   private onKey = (e: KeyboardEvent) => {
     if (!this.visible || (e.target as HTMLElement)?.tagName === 'INPUT') return;
     if (e.code === 'KeyF' && !e.repeat) { void toggleFullscreen(); return; }
-    const back: Partial<Record<Tab, Tab>> = { host: 'menu', stash: 'host', raid: 'stash', market: 'menu', vendors: 'menu', settings: 'menu' };
+    const back: Partial<Record<Tab, Tab>> = { host: 'menu', stash: 'host', arms: 'stash', raid: this.actions.arsenal ? 'arms' : 'stash', market: 'menu', vendors: 'menu', settings: 'menu' };
     if (e.code === 'Escape' && back[this.tab]) { this.show(back[this.tab]); return; }
     if (e.code === 'Enter') {
       if (this.tab === 'menu') this.show('host');
       else if (this.tab === 'host') this.show('stash');
-      else if (this.tab === 'stash') this.show('raid');
+      else if (this.tab === 'stash') this.show(this.afterStash());
+      else if (this.tab === 'arms') this.show('raid');
       else if (this.tab === 'raid') this.root.querySelector<HTMLButtonElement>('#deploy:not(:disabled)')?.click();
       else if (this.tab === 'results') this.root.querySelector<HTMLButtonElement>('#deploy-again')?.click();
       return;

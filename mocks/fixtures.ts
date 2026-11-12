@@ -7,6 +7,28 @@ import type { GridZone, HiveActions, HiveBodyView, ProfileView, VendorView } fro
 import { describeLevel } from '../src/ui/hive/body';
 import { objectiveText } from '../src/ui/hive/vendors';
 import { source } from '../src/ui/hive/stash';
+import { arsenalView } from '../src/ui/hive/arsenal-view';
+import { equipWeapon, unequipWeapon } from '../src/game/arsenal';
+import { fitMod, removeMod } from '../src/game/mods';
+import { growWeapon } from '../src/game/progression';
+import { newProfile, stashGrid, type Profile } from '../src/game/profile';
+
+/**
+ * A real Profile for the WEAPONS tab (Gameplay's rules run on it): a Cicadine in slot I with a Stalk Eye, a few guns
+ * and grafts in the stash, and enough class XP that the first signature guns are open in the Armoury.
+ */
+export function fixtureArsenal(): Profile {
+  const p = newProfile();
+  p.dna = 1240;
+  const g = stashGrid(p);
+  for (const [id, n] of [['cicadine', 1], ['quillet', 1], ['gulletScatter', 1], ['stalkEye', 1], ['acidStrain', 1], ['lampreyMouth', 1], ['tendonBrace', 1], ['quickGullet', 1]] as const) g.add(id, n);
+  p.stash = g.snapshot();
+  p.classXp = { neuroInfiltrator: 5200, goreBehemoth: 1700 };
+  equipWeapon(p, 0, 'cicadine');
+  fitMod(p, 1, 'stalkEye');
+  fitMod(p, 0, 'lampreyMouth');
+  return p;
+}
 
 export function fixtureProfile(): ProfileView {
   return {
@@ -45,7 +67,14 @@ export function fixtureProfile(): ProfileView {
 /** Simple rules good enough for look review; Gameplay's profile.ts is the real authority. */
 export function fixtureActions(p: ProfileView, deploy: () => void = () => {}): HiveActions {
   const bought = () => p.stashRows - PROFILE.stash.rowsBase;
+  const ap = fixtureArsenal();
   return {
+    arsenal: () => arsenalView(ap),
+    equipWeapon: (slot, w) => equipWeapon(ap, slot - 1, w),
+    unequipWeapon: (slot) => unequipWeapon(ap, slot - 1),
+    fitMod: (slot, mod) => fitMod(ap, slot, mod),
+    removeMod: (slot, socket) => removeMod(ap, slot, socket as never),
+    growWeapon: (w) => growWeapon(ap, w),
     move(from: GridZone, index: number, to: GridZone, x: number, y: number, rotated: boolean) {
       const list = itemsIn(from, p);
       const pl = list[index];

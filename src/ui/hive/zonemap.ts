@@ -6,6 +6,7 @@
 import { BOSSES, RAID, ZONES, ZONE_SITES, layoutPosition } from '../../../data';
 import OCHRE_MAP from '../../../data/ochre.json';
 import FEN_MAP from '../../../data/weepingfen.json';
+import EXPANSE_MAP from '../../../data/expanse.json';
 import { FAUNA, OCHRE, ORGANIC, ZONE7, ZONE7_SHADE } from '../../render/palette';
 
 export type MapShape = 'isle' | 'desert' | 'fen' | 'pit' | 'hull' | 'uncharted';
@@ -98,6 +99,22 @@ export function zoneMap(id: string): ZoneMap {
         ...bossMark(id, reactor ? { x: (reactor.x0 + reactor.x1) / 2, z: (reactor.z0 + reactor.z1) / 2 } : null),
         ...m.extracts.map((e): MapMark => ({ kind: 'extract', x: e.x, z: e.z, label: e.label, opensAt: e.opensAt })),
         { kind: 'drop', ...m.spawn, label: 'DROP' },
+      ],
+    };
+  }
+  if (id === 'expanse' && RAID.host) {
+    // World & Level: the biomes are Design's (raid.json host), the Brood Hearts sit in data/expanse.json's craters.
+    const H = RAID.host, R = H.playableRadius;
+    const at = (p: { radius: number; bearing: number }) => { const [x, z] = layoutPosition(p, R); return { x, z }; };
+    return {
+      id, shape: 'isle', radius: R, tone: [ZONE7_SHADE.moss, ZONE7_SHADE.rockDeep, ORGANIC.mist],
+      marks: [
+        ...H.biomes.map((b): MapMark => ({ kind: 'site', ...at(b), r: R * 0.22, label: b.label })),
+        ...EXPANSE_MAP.brood.craters.filter((c) => c.nest).map((c): MapMark => ({ kind: 'nest', x: c.x, z: c.z, label: 'BROOD HEART' })),
+        ...EXPANSE_MAP.pods.map((p): MapMark => ({ kind: 'pod', x: p.x, z: p.z, label: '' })),
+        // Which rim spires open first shifts from raid to raid, so the map shows them all as shifting.
+        ...H.extracts.pool.filter((e) => e.radius > 0.5).map((e, i): MapMark => ({ kind: 'extract', ...at(e), label: `${['North', 'East', 'South', 'West'][i] ?? ''} Rim Spire`.trim(), opensAt: null })),
+        { kind: 'drop', ...at(H.biomes.find((b) => b.id === 'glowmireFlats') ?? { radius: 0, bearing: 0 }), label: 'DROP' },
       ],
     };
   }

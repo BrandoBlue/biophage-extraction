@@ -219,7 +219,7 @@ export function upgradePouch(p: Profile): boolean {
 }
 
 // ------------------------------------------------------------------ raid transitions
-export interface Deployment { /** weapons.json ids in slot order, the starter first. */ weapons: string[]; /** Grafts on each of those weapons (parallel to `weapons`). */ mods: string[][]; loadout: Loadout; cavitySize: [number, number]; pouchSize: [number, number]; freeKit: number; /** Raid-select zone id (data/zones.json). */ zone: string }
+export interface Deployment { /** weapons.json ids in slot order, the starter first. */ weapons: string[]; /** Grafts on each of those weapons (parallel to `weapons`). */ mods: string[][]; /** Banked DNA at deploy (a paid extract can draw on it). */ bankedDna?: number; loadout: Loadout; cavitySize: [number, number]; pouchSize: [number, number]; freeKit: number; /** Raid-select zone id (data/zones.json). */ zone: string }
 
 /**
  * Hands the cavity loadout and gut pouch to the raid. The saved profile keeps the gut pouch (it is secure) but its
@@ -244,7 +244,7 @@ export function deploy(p: Profile): Deployment {
   p.weaponMods = [p.weaponMods[0] ?? [], ...p.weaponSlots.map(() => [])];
   p.cavity = [];
   p.stats.raids++;
-  return { weapons, mods, loadout, cavitySize: cavitySize(p), pouchSize: pouchSize(p.gutPouchLevel), freeKit, zone: p.economy.zone };
+  return { weapons, mods, bankedDna: p.dna, loadout, cavitySize: cavitySize(p), pouchSize: pouchSize(p.gutPouchLevel), freeKit, zone: p.economy.zone };
 }
 
 export interface Settlement { toStash: { item: string; count: number }[]; overflow: { item: string; count: number }[]; dnaBanked: number }
@@ -254,7 +254,8 @@ export interface Settlement { toStash: { item: string; count: number }[]; overfl
  * kill DNA is banked, the gut pouch returns as carried. Items the stash has no room for wait in the cavities
  * and become the next loadout.
  */
-export function extract(p: Profile, c: Pick<CarriedSnapshot, 'cavity' | 'pouch' | 'dna'> & { weapons?: string[]; mods?: string[][] }, kills: number): Settlement {
+export function extract(p: Profile, c: Pick<CarriedSnapshot, 'cavity' | 'pouch' | 'dna'> & { weapons?: string[]; mods?: string[][]; /** Banked DNA a paid extract took. */ bankToll?: number }, kills: number): Settlement {
+  p.dna = Math.max(0, p.dna - Math.max(0, c.bankToll ?? 0));
   // Weapons carried out go back into their slots with their grafts (the starter is innate).
   const out = (c.weapons ?? []).map((w, i) => ({ w, mods: c.mods?.[i] ?? [] }));
   const others = out.filter((o) => o.w !== STARTER_WEAPON);

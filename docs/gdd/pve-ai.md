@@ -43,6 +43,34 @@ Brandon's bar: creatures must feel smart and creepy, and the player must be able
 
 None of these interrupts a committed attack (a wind-up, lunge, burst or charge), so every attack stays punishable.
 
+### Body language (src/ai/tells.ts to Creature's `drive.mind`)
+
+`mindLevels` turns `Brain.intent` into eased body-language levels, and `mindPulse` turns events into pulses. The Abomination eases toward them every frame.
+
+| Thinking | Body |
+|---|---|
+| wary, search | head cocked (`tilt`) |
+| stare | head cocked and frozen (`tilt`, `still`) |
+| a stalker caught in the host's gaze | dead still |
+| about to commit (wind-up) | `brace` |
+| falter | `recoil` and `grieve` |
+| flee | `recoil`, glows dim |
+| idle Oculimoth | eyes half shut, open when hunting |
+| alert, alarm, screech, press, spring, rout | `call` pulse |
+| lure, adapt, evade, charge | `glint` pulse |
+
+### Learning within a raid (`ai.json` `learning`, src/ai/memory.ts)
+
+One `RaidMemory` per raid (keyed like the attack tokens) records the tricks the host uses on each kind. Once a trick has worked `learning.after` times, that kind counters it, and the switch shows as an `adapt` tactic. Nothing carries between raids.
+
+| Trick | Noted when | Counter |
+|---|---|---|
+| Digging into a corner or ledge (`camp`) | the host stays within `campRadius` m for `campTime` s while hunted, once per kind per `campCooldown` s | Swarms stop entering and hold their ring at `campRing` x until the host moves (Needlemaw: "they stop entering it and wait outside") |
+| Killing the lunger (`lungerKilled`) | a creature dies mid-attack | Swarms fake the coil (`fakeout`, `fakeoutTime` s) on all but every `feintEvery`-th approach ("they feint with two and lunge with a third") |
+| Dodging a charge to one side (`dodge+`/`dodge-`) | a Mournback's charge ends without goring | It lines up `cutAhead` m to that side of the host ("it cuts the angle") |
+
+The rest of the `mind.learns` lines in abominations.json are next, species by species.
+
 ## Archetypes
 | Kind | Archetype | Behaviour | Tell | Counter |
 | --- | --- | --- | --- | --- |

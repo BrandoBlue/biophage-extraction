@@ -6,6 +6,7 @@ import { buildWreck } from './wreck';
 import { buildOchre } from './ochre';
 import { buildPit } from './pit';
 import { buildWeepingFen } from './weepingfen';
+import { buildExpanse } from './expanse';
 
 /**
  * Zone registry (World & Level). Each raid map is built from its zone id (Design's data/zones.json ids; geometry in
@@ -21,7 +22,7 @@ export interface ZoneWorld extends Zone7World {
 }
 
 /** Zones whose maps exist. */
-export const BUILT_ZONES: ZoneId[] = ['glowmireIsle', 'longSeedWreck', 'ochreReach', 'marrowPit', 'weepingFen'];
+export const BUILT_ZONES: ZoneId[] = ['glowmireIsle', 'longSeedWreck', 'ochreReach', 'marrowPit', 'weepingFen', 'expanse'];
 
 /** Landmark areas of Glowmire Isle, resolved to world positions. */
 export function glowmireLandmarks(): { id: string; x: number; z: number; radius: number }[] {
@@ -50,6 +51,10 @@ export function buildZone(scene: THREE.Scene, zone: ZoneId, seed: number): ZoneW
   }
   if (zone === 'weepingFen') {
     const w = buildWeepingFen(scene, seed);
+    return { layout: w.layout, sites: w.sites, structures: w.structures, zone, landmarkAt: w.landmarkAt };
+  }
+  if (zone === 'expanse') {
+    const w = buildExpanse(scene, seed);
     return { layout: w.layout, sites: w.sites, structures: w.structures, zone, landmarkAt: w.landmarkAt };
   }
   if (!BUILT_ZONES.includes(zone)) console.warn(`zone ${zone} has no map yet; building glowmireIsle`);

@@ -113,7 +113,7 @@
   },
   "expanse": {
     "label": "The Expanse",
-    "milestone": "host",
+    "milestone": "larva",
     "order": 3,
     "pitch": "The full 1 km of Zone 7: five biomes, rival hosts, shifting extracts and anomalies.",
     "see": "raid.json host",
@@ -126,7 +126,7 @@
       1,
       4
     ],
-    "access": "host level 5 or contract theReliquary",
+    "access": "open",
     "creatures": [
       "needlemaw",
       "bilecantor",
@@ -142,7 +142,8 @@
     ],
     "boss": null,
     "lootFocus": "everything; the Lumen Grazer's lantern glands; rival hosts' loadouts",
-    "why": "the big PvPvE zone: long raids, rivals, the richest and riskiest loot"
+    "why": "the big PvPvE zone: long raids, rivals, the richest and riskiest loot",
+    "accessNote": "Opened now (coordinator, 2026-11-12: Brandon reviews by playing and wants the bigger map right away). Design's intended gate was 'host level 5 or contract theReliquary'; restore it when progression catches up."
   },
   "hollowChoir": {
     "label": "The Hollow Choir",

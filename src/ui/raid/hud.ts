@@ -10,7 +10,7 @@
 import { Reticle } from './reticle';
 import { def as itemOf } from '../items';
 import './hud.css';
-import { BOSSES, VIRUSES, VIRUS_RULES, bossPhase } from '../../../data';
+import { BOSSES, VIRUSES, VIRUS_RULES, WEAPONS, bossPhase } from '../../../data';
 import { HIVE, PATH, ZONE7 } from '../../render/palette';
 import { applyTheme } from '../theme';
 import { glyph, itemIcon, KIND_COLOUR } from '../icons';
@@ -105,9 +105,9 @@ export class OrganicHud {
       <div class="h-kit"><div class="h-banner" data-q="banner"></div><div class="row"><div class="cells" data-q="slots">
         ${[1, 2, 3, 4, 5].map((i) => `<div class="hslot locked"><div class="cd"></div><div class="ico"></div><span class="count"></span><kbd>${i}</kbd><span class="name"></span></div>`).join('')}</div><div class="h-gear" data-q="gear"></div></div></div>
       <div class="h-weapon">
-        <div class="wname">Synapse Burster</div>
+        <div class="wname" data-q="wname">Synapse Burster</div>
         <div class="wrow"><div class="ego" data-q="ego"><svg viewBox="0 0 100 100"><circle class="trk" cx="50" cy="50" r="40"/><circle class="val" cx="50" cy="50" r="40" data-q="egoRing"/></svg><span>F</span><small>EGO</small></div>
-          <div class="ammo" data-q="ammoBox"><b data-q="ammo">42</b><small>/ ∞ spores</small></div></div>
+          <div class="ammo" data-q="ammoBox"><b data-q="ammo">42</b><small data-q="reserve">/ ∞ spores</small></div></div>
         <div class="mag"><i data-q="mag"></i></div>
       </div>
       <div class="h-revive hidden" data-q="revive"><b>Heart Husk</b><span>THE HUSK SPLITS · REBIRTH IN <i data-q="reviveT">0.0</i></span></div>
@@ -180,6 +180,8 @@ export class OrganicHud {
     this.q.toast.className = `toast on ${tone}`;
     this.toastLeft = seconds;
   }
+
+  private lastWeapon = '-';
 
   update(dt: number, s: HudView): void {
     this.time += dt;
@@ -265,7 +267,17 @@ export class OrganicHud {
     q.banner.textContent = activeLabel || (this.bannerLeft > 0 ? s.slots[0]?.label ?? '' : '');
     q.banner.classList.toggle('lit', this.bannerLeft > 0 || !!activeLabel);
 
-    q.ammo.textContent = s.reloading > 0 ? 'regrowing' : String(s.ammo);
+    // The equipped gun: its name, which slot it sits in, and its reserve (the starter regrows without one).
+    const w = s.weapon;
+    const regrows = !w || w.reserve === undefined;
+    const wkey = w ? `${w.id}|${w.label}|${w.slot}|${w.slots}|${w.reserve}` : '';
+    if (wkey !== this.lastWeapon) {
+      this.lastWeapon = wkey;
+      q.wname.textContent = w ? (w.label ?? WEAPONS[w.id]?.label ?? w.id) : 'Synapse Burster';
+      q.wname.dataset.slot = w && (w.slots ?? 1) > 1 ? `${(w.slot ?? 0) + 1} / ${w.slots}` : '';
+      q.reserve.textContent = regrows ? '/ ∞ spores' : `/ ${w!.reserve}`;
+    }
+    q.ammo.textContent = s.reloading > 0 ? (regrows ? 'regrowing' : 'reloading') : String(s.ammo);
     q.ammoBox.classList.toggle('regrow', s.reloading > 0);
     q.ammoBox.classList.toggle('low', s.ammo < s.magazine * 0.2);
     if (s.ammo < this.lastAmmo && s.reloading <= 0) pulse(q.ammo, 'shot');

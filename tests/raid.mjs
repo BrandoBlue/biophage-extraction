@@ -431,6 +431,30 @@ try {
   await freezeAndScreenshot(page, 'tests/out/raid-market.png');
   log(`Flesh Market: ${cards} offers, sold one item for ${(await profile()).dna - before} DNA`);
 
+  // --- WEAPONS: grow a signature gun in the Armoury, equip it into slot I, and it is the loadout's gun.
+  await page.evaluate(() => { const p = window.__biophage.profile; p.classXp[p.host] = 1e6; p.dna += 20000; });
+  await tab('arms');
+  const grow = await page.$('#hive .ar-armoury li.open button:not(:disabled)');
+  if (!grow) await fail('the Armoury offers nothing to grow at a high class level');
+  const grown = await grow.evaluate((b) => b.closest('li').dataset.armoury);
+  await grow.click();
+  await page.click(`#hive .ar-stash li[data-gun="${grown}"] button[data-equip="1"]`);
+  const slots = await page.evaluate(() => window.__biophage.profile.weaponSlots);
+  if (slots[0] !== grown) await fail(`equipping ${grown} did not fill slot I: ${JSON.stringify(slots)}`);
+  if (!(await page.isVisible(`#hive .ar-slot[data-slot="1"] [data-stat="damage"]`))) await fail('the equipped gun shows no numbers');
+  await freezeAndScreenshot(page, 'tests/out/raid-weapons.png');
+  log(`weapons: grew ${grown} in the Armoury and equipped it into slot I`);
+
+  // --- Settings: the Display controls save Rendering's settings (graphics level, brightness), then restore.
+  await tab('menu');
+  await page.click('#hive [data-go="settings"]');
+  await page.click('#hive [data-graphics="performance"]');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('biophage.settings.v1') ?? '{}'));
+  if (saved.graphics !== 'performance') await fail(`picking Performance did not save it: ${JSON.stringify(saved)}`);
+  if (!(await page.isVisible('#hive input[data-k="brightness"]')) || !(await page.isVisible('#hive input[data-k="renderScale"]'))) await fail('Settings has no brightness or render scale control');
+  await page.click('#hive [data-graphics="high"]');
+  log('settings: graphics level, brightness and render scale controls save');
+
   // --- Raid select into another zone: deploying with a different built zone picked reloads into that map and deploys.
   // It goes through the real buttons: the zone card shows that zone's own map and details, and Deploy goes there.
   await page.evaluate(() => { window.__biophage.profile.economy.unlocks.push('zone:longSeedWreck'); });

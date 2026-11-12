@@ -9,7 +9,8 @@ import { mulberry32 } from './rng';
  */
 
 export interface Site { id: string; x: number; z: number }
-export interface ExtractSite extends Site { label: string; opensAt: number }
+/** `costDna`: a paid extract takes that much of the raid's DNA when the channel completes; `time` overrides the class's channel. */
+export interface ExtractSite extends Site { label: string; opensAt: number; costDna?: number; time?: number }
 export interface PodSite extends Site { type: string; guard?: string }
 export interface NestSite extends Site { type: string }
 export interface AnomalySite extends Site { kind: string; radius: number; gravityMultiplier: number }

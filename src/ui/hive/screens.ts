@@ -65,7 +65,7 @@ export function tile(item: string, count: number, rotated = false): string {
 }
 
 /* ------------------------------------------------------------------------------------------- MAIN MENU */
-export interface MenuCallbacks { go(tab: string): void; deploy(): void; quit(): void; /** Show the Flesh Market entry. */ market?: boolean }
+export interface MenuCallbacks { go(tab: string): void; deploy(): void; quit(): void; /** Show the Flesh Market entry. */ market?: boolean; /** Show the WEAPONS entry. */ arms?: boolean }
 
 /** The observation lens on the main menu: radius in --u, and the arcs the places and the log hang from (degrees). */
 export const LENS = { r: 19.5, left: [-32, 32], right: [-42, 16], loadout: 28, release: 47 };
@@ -116,6 +116,7 @@ export function mainMenu(p: ProfileView, cb: MenuCallbacks): HTMLElement {
   const places: [string, string, string][] = [
     ['deploy', 'Deploy', 'Choose host, loadout and drop zone'],
     ['stash', 'Stash & loadout', `${used}/${cap} cells · ${p.cavity.length} items in cavities`],
+    ...(cb.arms ? [['arms', 'Weapons', 'Loadout slots, grafts and the Armoury'] as [string, string, string]] : []),
     ...(cb.market ? [['vendors', 'Vendors', 'Mother Clot, the Archivist, the Gullet Broker'] as [string, string, string]] : []),
     ['host', 'Host', CLASSES[p.host].label],
     ['settings', 'Settings', 'Controls, video, audio, fullscreen'],
@@ -185,7 +186,7 @@ export function hostSelect(p: ProfileView, cb: { pick(id: ClassId): void; next()
       </div>
       <div class="evo"><h4>PROGRESSION & UNLOCKS</h4>
         <div class="evo-track">${evo.map((e) => `<div class="node">${glyph('lock')}<span>${esc(e.name)}<br/><em>Unlocks at level ${e.lvl}</em></span></div>`).join('<i class="vein"></i>')}</div>
-        <small>${open ? 'Host levels arrive in the next update.' : 'Evolves once this host can be played.'}</small>
+        <small>${open ? `This host is level ${p.classLevels?.[id] ?? 1}. Raids earn it experience and open its signature guns in the Armoury.` : 'Evolves once this host can be played.'}</small>
       </div>`;
     cards.append(card);
   }

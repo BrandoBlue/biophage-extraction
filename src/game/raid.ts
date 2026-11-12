@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ABILITIES, ABOMINATIONS, AI, BOSSES, CLASSES, HOST, KITS, LOOT, RAID, VIRUSES, VIRUS_RULES, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
+import { ABILITIES, ABOMINATIONS, AI, BOSSES, CLASSES, HOST, KITS, LOOT, RAID, VIRUSES, VIRUS_RULES, ZONES, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
 import { groundHeight, ISLAND_RADIUS, mulberry32 } from '../world/zone7';
 import { Abomination, type AbominationContext, type AbominationKind, type HitSphere } from './abominations';
 import { AbilitySystem } from './abilities';
@@ -75,7 +75,7 @@ export interface RaidNet {
 }
 
 /** One Seed Spire of the raid: the World layout says where and when it opens (src/world/layout.ts). */
-export interface SpireSite { id: string; label: string; opensAt: number; open: boolean; point: ExtractionPoint; spire: SeedSpire }
+export interface SpireSite { id: string; label: string; opensAt: number; open: boolean; point: ExtractionPoint; spire: SeedSpire; /** DNA a paid extract takes from the raid's haul. */ costDna: number }
 import { gore } from '../render/gore';
 import { simplifyForSoftware } from '../render/pipeline';
 import { creatureGore } from '../creatures/gore';
@@ -258,7 +258,11 @@ export class Raid {
   private collapseWarned = false;
   private spireSignal = 0;
   private sinceHit = 99;
-  private result: (CarriedSnapshot & { cause?: string; weapons: string[]; mods: string[][] }) | null = null;
+  private result: (CarriedSnapshot & { cause?: string; weapons: string[]; mods: string[][]; bankToll?: number }) | null = null;
+  /** The profile's banked DNA at deploy: a paid extract takes what carried DNA does not cover from here (Design's payFrom). */
+  private bankedDna = 0;
+  /** Banked DNA a paid extract took, settled into the profile on extraction. */
+  private bankToll = 0;
   private classId: ClassId = 'neuroInfiltrator';
   private spawnScale: number;
 
@@ -272,6 +276,7 @@ export class Raid {
     zone: string = layout.area ? 'longSeedWreck' : DEFAULT_ZONE,
   ) {
     this.zone = zone;
+    this.timeLeft = this.raidTime;
     this.arena = structures?.arena ?? null;
     const cls = CLASSES[this.classId];
     // Bigger zones give their own walkable radius; spawn distances keep Glowmire's scale.
@@ -299,12 +304,12 @@ export class Raid {
 
     // Sites from the World layout: Seed Spires (a late one opens mid-raid), Bio-Pods, Gene Blooms.
     for (const e of layout.extracts) {
-      const point = new ExtractionPoint(e.x, e.z, RAID.extract.zoneRadius, extractTimeFor(this.classId), RAID.extract.cancelOnLeave);
+      const point = new ExtractionPoint(e.x, e.z, RAID.extract.zoneRadius, e.time ?? extractTimeFor(this.classId), RAID.extract.cancelOnLeave);
       const spire = new SeedSpire(e.x, e.z, RAID.extract.zoneRadius);
       const open = e.opensAt <= 0;
       spire.root.visible = open;
       scene.add(spire.root);
-      this.spires.push({ id: e.id, label: e.label, opensAt: e.opensAt, open, point, spire });
+      this.spires.push({ id: e.id, label: e.label, opensAt: e.opensAt, open, point, spire, costDna: e.costDna ?? 0 });
     }
     const [ex, ez] = [this.spires[0].point.x, this.spires[0].point.z];
     for (const s of [...layout.pods, ...layout.nodes.map((n) => ({ ...n, type: 'geneBloom' }))]) {
@@ -381,6 +386,8 @@ export class Raid {
     return open.find((s) => s.point.inside)
       ?? open.reduce((a, b) => (Math.hypot(a.point.x - p.x, a.point.z - p.z) <= Math.hypot(b.point.x - p.x, b.point.z - p.z) ? a : b));
   }
+  /** Raid length for this zone (zones.json raidTime), else the default. */
+  get raidTime(): number { return ZONES[this.zone]?.raidTime ?? RAID.raidTime; }
   get extract(): ExtractionPoint { return this.currentSpire.point; }
   get spire(): SeedSpire { return this.currentSpire.spire; }
 
@@ -564,7 +571,12 @@ export class Raid {
     if (this.phase !== 'briefing') return;
     this.carried.load(d.loadout, d.cavitySize, d.pouchSize);
     if (d.weapons?.length) this.arm(d.weapons, d.mods);
+    // A gun packed into the cavities in the Hive (bought, or kept from a raid) is drawn into a free slot at once.
+    this.pickUpWeapons();
     this.zone = d.zone ?? DEFAULT_ZONE;
+    this.bankedDna = d.bankedDna ?? 0;
+    this.bankToll = 0;
+    this.timeLeft = this.raidTime;
     this.log = new RaidLog(this.zone);
     this.begin();
   }
@@ -581,7 +593,7 @@ export class Raid {
       this.player.grounded = false;
       this.dropping = drop.fallSpeed;
     }
-    this.bus.emit('raidStart', { raidTime: RAID.raidTime });
+    this.bus.emit('raidStart', { raidTime: this.raidTime });
   }
 
   // ------------------------------------------------------------------ actions
@@ -1027,7 +1039,7 @@ export class Raid {
   private win(): void {
     if (this.phase !== 'raid') return;
     this.phase = 'extracted';
-    this.result = { ...this.carried.snapshot(), weapons: this.weapons.map((w) => w.id), mods: this.weapons.map((w) => [...w.spec.mods]) };
+    this.result = { ...this.carried.snapshot(), weapons: this.weapons.map((w) => w.id), mods: this.weapons.map((w) => [...w.spec.mods]), bankToll: this.bankToll };
     this.player.enabled = false;
     this.trigger = false;
     this.spire.launch();
@@ -1068,7 +1080,7 @@ export class Raid {
     const dt = rawDt * this.timeScale;
     const p = this.player;
     const live = this.phase === 'raid';
-    if (live) { this.elapsed += dt; this.timeLeft = Math.max(0, RAID.raidTime - this.elapsed); }
+    if (live) { this.elapsed += dt; this.timeLeft = Math.max(0, this.raidTime - this.elapsed); }
     this.noises.length = 0;
     this.net?.heard(this.noises);
 
@@ -1293,10 +1305,14 @@ export class Raid {
         this.sites?.setExtractOpen(sp.id, true);
         this.bus.emit('extractOpened', { label: sp.label, x: sp.point.x, z: sp.point.z });
       }
-      if (live && sp.open) {
+      // A paid extract (Design: raid.json host.extracts.paidExtract) only channels while carried plus banked DNA covers
+      // its price. Nothing is taken unless the channel completes; then carried DNA pays first, the bank the rest.
+      const short = sp.costDna > 0 && this.carried.dna + this.bankedDna < sp.costDna;
+      if (live && sp.open && short && sp.point.contains(p.position.x, p.position.z)) this.interactText ??= { text: `${sp.label.toUpperCase()} · NEEDS ${sp.costDna} DNA`, progress: 0 };
+      if (live && sp.open && !(short && !sp.point.inside)) {
         const change = sp.point.update(p.position.x, p.position.z, dt);
         if (change === 'start') {
-          this.bus.emit('extractStart', { label: sp.label, time: sp.point.time });
+          this.bus.emit('extractStart', { label: sp.costDna ? `${sp.label} · ${sp.costDna} DNA` : sp.label, time: sp.point.time });
           this.noise(sp.spire.position, RAID.extract.signalNoise, 'extract');
           this.spireSignal = 0;
         }
@@ -1306,7 +1322,15 @@ export class Raid {
           this.bus.emit('extractProgress', { progress: sp.point.progress, timeLeft: sp.point.timeLeft });
         }
         if (change === 'cancel') this.bus.emit('extractCancel', {});
-        if (change === 'done') this.win();
+        if (change === 'done') {
+          if (short) { sp.point.done = false; sp.point.elapsed = 0; this.bus.emit('extractCancel', {}); }
+          else {
+            const fromCarried = Math.min(this.carried.dna, sp.costDna);
+            this.carried.dna -= fromCarried;
+            this.bankToll = sp.costDna - fromCarried;
+            this.win();
+          }
+        }
       }
       if (sp.open) sp.spire.update(dt, sp.point.progress, sp.point.inside);
     }
@@ -2421,8 +2445,9 @@ export class Raid {
       damage: (n: number) => this.hurt(n, 'torso', 'debug', null),
       extractNow: () => { const ex = this.extract; this.player.position.set(ex.x, groundHeight(ex.x, ex.z), ex.z); },
       setTimeScale: (k: number) => { this.timeScale = k; },
-      setTimeLeft: (t: number) => { this.elapsed = RAID.raidTime - t; },
+      setTimeLeft: (t: number) => { this.elapsed = this.raidTime - t; },
       give: (item: string, n = 1) => this.carried.add(item, n),
+      setDna: (n: number, banked?: number) => { this.carried.dna = n; if (banked !== undefined) this.bankedDna = banked; },
       melee: () => { this.meleeQueued = true; },
       grenade: () => this.throwGrenade(),
       mine: () => this.placeMine(),

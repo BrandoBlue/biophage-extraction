@@ -1,0 +1,93 @@
+{
+  "_note": "The Expanse (World & Level geometry). Design's numbers live in raid.json `host` (biomes, extract pool, spawn ring, raid time) and zones.json `expanse`; this file only shapes the ground and places the landmarks. Coordinates are metres (x east, z south), the map centre at the origin, playable radius 500.",
+  "terrain": {
+    "hills": 9,
+    "rimStart": 0.93,
+    "rimHeight": 70,
+    "maxSlope": 1.4
+  },
+  "flats": {
+    "basinRadius": 130,
+    "pools": [
+      { "x": -22, "z": -96, "r": 12 },
+      { "x": 34, "z": -128, "r": 9 },
+      { "x": 18, "z": -62, "r": 7 },
+      { "x": -54, "z": -140, "r": 10 },
+      { "x": 60, "z": -84, "r": 6 },
+      { "x": -70, "z": -70, "r": 8 }
+    ],
+    "giantFungi": 26,
+    "fungi": 140
+  },
+  "spires": {
+    "plateau": 9,
+    "plateauRadius": 125,
+    "towers": 34,
+    "towerHeight": [18, 46],
+    "towerRadius": [1.8, 4.6],
+    "hollow": [
+      { "x": 222, "z": -150, "yaw": 20 },
+      { "x": 268, "z": -102, "yaw": -40 },
+      { "x": 250, "z": -196, "yaw": 75 }
+    ]
+  },
+  "wreck": {
+    "from": { "x": -6, "z": 236 },
+    "to": { "x": 116, "z": 352 },
+    "furrowWidth": 26,
+    "furrowDepth": 5,
+    "hullRadius": 15,
+    "ribs": 9,
+    "debris": [
+      { "x": 24, "z": 268, "yaw": 40 },
+      { "x": 90, "z": 330, "yaw": -15 }
+    ]
+  },
+  "chasm": {
+    "points": [
+      { "x": -296, "z": -196 },
+      { "x": -334, "z": -104 },
+      { "x": -350, "z": -10 },
+      { "x": -336, "z": 82 },
+      { "x": -304, "z": 176 }
+    ],
+    "halfWidth": 22,
+    "depth": 90,
+    "bridges": [
+      { "x": -343, "z": -58, "width": 5 },
+      { "x": -345, "z": 46, "width": 4 }
+    ],
+    "islands": [
+      { "x": -340, "z": -140, "y": 26, "r": 11 },
+      { "x": -352, "z": -12, "y": 38, "r": 15 },
+      { "x": -338, "z": 120, "y": 22, "r": 9 },
+      { "x": -360, "z": 60, "y": 54, "r": 7 },
+      { "x": -326, "z": -90, "y": 48, "r": 6 }
+    ]
+  },
+  "brood": {
+    "craters": [
+      { "x": -200, "z": -346, "r": 26, "d": 7, "nest": true },
+      { "x": -146, "z": -384, "r": 20, "d": 6, "nest": true },
+      { "x": -252, "z": -298, "r": 18, "d": 5 },
+      { "x": -244, "z": -394, "r": 16, "d": 5 },
+      { "x": -160, "z": -316, "r": 13, "d": 4 }
+    ],
+    "stalk": { "x": -178, "z": -360, "height": 38 }
+  },
+  "pods": [
+    { "type": "bioPod", "x": 8, "z": -112 },
+    { "type": "bioPod", "x": -46, "z": -58 },
+    { "type": "bioPod", "x": 52, "z": -150 },
+    { "type": "sealedLocker", "x": 236, "z": -128 },
+    { "type": "bioPod", "x": 282, "z": -160 },
+    { "type": "cargoCrate", "x": 40, "z": 290 },
+    { "type": "cargoCrate", "x": 70, "z": 318 },
+    { "type": "cargoCrate", "x": 6, "z": 254 },
+    { "type": "bioPod", "x": -300, "z": -40 },
+    { "type": "bioPod", "x": -298, "z": 96 },
+    { "type": "bioPod", "x": -214, "z": -320 },
+    { "type": "bioPod", "x": -176, "z": -404 }
+  ],
+  "dropIn": { "height": 70, "fallSpeed": 14 }
+}

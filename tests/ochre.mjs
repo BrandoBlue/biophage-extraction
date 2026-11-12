@@ -3,7 +3,7 @@
 //   npm run smoke:ochre               -> smoke + the "spawn" capture (CI)
 //   node tests/ochre.mjs --all        -> every pose (look-dev)
 import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const PORT = 4178;
@@ -76,7 +76,9 @@ try {
   await page.waitForFunction((f) => window.__biophage.frames > f + 3, f0, { timeout: 60000 });
   const buried = await page.evaluate(([x, z]) => window.__biophage.state.enemies.filter((e) => Math.hypot(e.position[0] - x, e.position[2] - z) < 9), den);
   // The host is hidden for the raid's first seconds (raid.json spawn.safeTime): wait it out, then walk up.
-  await page.waitForFunction(() => window.__biophage.state.timeLeft < 600 - 9, null, { timeout: 240000 });
+  // The raid clock is the zone's own length (zones.json raidTime).
+  const raidTime = JSON.parse(readFileSync('data/zones.json', 'utf8')).ochreReach.raidTime;
+  await page.waitForFunction((t) => window.__biophage.state.timeLeft < t - 9, raidTime, { timeout: 240000 });
   await page.evaluate(([x, z]) => window.__biophage.debug.teleport(x, z + 3), den);
   const f1 = await page.evaluate(() => window.__biophage.frames);
   await page.waitForFunction((f) => window.__biophage.frames > f + 30, f1, { timeout: 120000 });

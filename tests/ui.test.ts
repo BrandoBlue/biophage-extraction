@@ -4,7 +4,8 @@ import { objectiveText } from '../src/ui/hive/vendors';
 import { DRAWN_ITEMS, itemIcon } from '../src/ui/icons';
 import { ALL_COLOURS } from '../src/render/palette';
 import { hostPortrait } from '../src/ui/hosts';
-import { NAV, sag } from '../src/ui/hive/kit';
+import { GRAPHICS_WORDS, NAV, sag } from '../src/ui/hive/kit';
+import { GRAPHICS_LEVELS } from '../src/ui/settings';
 import { classTraits, LENS, LIVE_ZONE, plainLock, rim, raidPlan, zoneAccess, zoneRoster } from '../src/ui/hive/screens';
 import { zoneExtracts, zoneMap } from '../src/ui/hive/zonemap';
 import { BUILT_ZONES } from '../src/world/zones';
@@ -222,5 +223,11 @@ describe('membrane HUD and Hive kit', () => {
     const { sentence } = await import('../src/ui/hive/kit');
     expect(sentence('ENTER EXCLUSION ZONE')).toBe('Enter exclusion zone');
     expect(sentence('RETURN TO HIVE')).toBe('Return to Hive');
+  });
+});
+
+describe('settings words', () => {
+  it('every graphics level has plain words', () => {
+    for (const g of GRAPHICS_LEVELS) expect(GRAPHICS_WORDS[g][0].length).toBeGreaterThan(0);
   });
 });

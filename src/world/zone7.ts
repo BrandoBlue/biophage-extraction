@@ -5,6 +5,7 @@ import { capGeometry, crystalClusterGeometry, floatingIslandGeometry, ISLAND_TOP
 import { cloudSea, planet, sporeField, starField, zone7Sky } from '../render/sky';
 import { horizonLands } from '../render/horizon';
 import { groundCover } from '../render/cover';
+import { terrainTiles } from './terrain';
 import { ZONE7_SITES } from '../../data';
 import { mulberry32 } from './rng';
 import { CATALOGUE, zone7Layout, type Zone7Layout } from './layout';
@@ -200,7 +201,7 @@ export function isReserved(x: number, z: number, margin = 0): boolean {
 /** Flora glow tints (Art Bible, "Grounded and eerie"): cold mist and bruised flesh, a little amber; no neon bodies. */
 const GLOWS = [ORGANIC.mist, ORGANIC.mist, ORGANIC.vein, ORGANIC.amber, ZONE7_SHADE.moss];
 
-interface Fungus { pos: THREE.Vector3; height: number; cap: number; yaw: number; tilt: number; colour: string }
+export interface Fungus { pos: THREE.Vector3; height: number; cap: number; yaw: number; tilt: number; colour: string }
 
 /** Fungus placement for a disc. Exported for tests: deterministic and clear of the spawn and pool. */
 export function scatterFungi(rand: () => number, opts: { count: number; minR: number; maxR: number; height: [number, number]; cap: [number, number] }, at: (x: number, z: number) => number, centre = new THREE.Vector3()): Fungus[] {
@@ -223,7 +224,7 @@ export function scatterFungi(rand: () => number, opts: { count: number; minR: nu
 
 const BEND = 0.22;
 
-function fungusMeshes(list: Fungus[]): THREE.Group {
+export function fungusMeshes(list: Fungus[]): THREE.Group {
   const g = new THREE.Group();
   g.name = 'fungi';
   const stems = new THREE.InstancedMesh(stemGeometry(BEND, 8), fungusStem(), list.length);
@@ -306,7 +307,7 @@ const FLOATING: IslandSpec[] = [
   { pos: new THREE.Vector3(218, 176, -644), radius: 51 },
 ];
 
-function fall(from: THREE.Vector3, outward: THREE.Vector3, drop: number, width: number): THREE.Mesh {
+export function fall(from: THREE.Vector3, outward: THREE.Vector3, drop: number, width: number): THREE.Mesh {
   const o = outward.clone().setY(0).normalize();
   const curve = new THREE.CatmullRomCurve3([
     from.clone(),
@@ -549,17 +550,11 @@ export function buildZone7(scene: THREE.Scene, layout: Zone7Layout = zone7Layout
   scene.add(key, rim);
 
   // Main island surface and the craggy spire hanging beneath it.
-  const ringGeo = new THREE.PlaneGeometry(ISLAND_RADIUS * 2.2, ISLAND_RADIUS * 2.2, 220, 220);
-  ringGeo.rotateX(-Math.PI / 2);
-  const pos = ringGeo.attributes.position;
-  // The fine inner grid stops at the mountains' foot; its corners tuck under the coarser mountain ring.
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), z = pos.getZ(i);
-    pos.setY(i, groundHeight(x, z) - (Math.hypot(x, z) > MOUNTAIN_SEAM ? 30 : 0));
-  }
-  ringGeo.computeVertexNormals();
-  const ground = new THREE.Mesh(ringGeo, zoneRock({ veinColour: ORGANIC.vein, mossColour: ORGANIC.mist }));
-  ground.name = 'ground';
+  // Chunked into 100 m tiles with distance detail (src/world/terrain.ts), the base for the larger map. The fine
+  // ground stops at the mountains' foot; beyond the seam it tucks under the coarser mountain ring.
+  const groundTiles = terrainTiles((x, z) => groundHeight(x, z) - (Math.hypot(x, z) > MOUNTAIN_SEAM ? 30 : 0),
+    zoneRock({ veinColour: ORGANIC.vein, mossColour: ORGANIC.mist }), { extent: ISLAND_RADIUS * 1.1, tile: 100, cells: 64, levels: 3, distances: [0, 140, 280], name: 'ground' });
+  const ground = groundTiles.group;
   scene.add(ground);
   const rockMat = zoneRock({ veinColour: ORGANIC.vein });
   // The mountains that wall the basin: a coarser ring from the seam out past the fog, so the island reads as a valley
