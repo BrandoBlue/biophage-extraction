@@ -5,7 +5,7 @@
  * rules); until then everything is skipped at no cost.
  */
 import * as THREE from 'three';
-import { BOSSES, WEAPONS, WEAPON_FEEL } from '../../data';
+import { BOSSES, MODS, WEAPONS, WEAPON_FEEL } from '../../data';
 import type { Raid } from '../game/raid';
 import { AUDIO, ambienceFor, type Weight } from './config';
 import { AudioEngine, volumeGain, type Bus, type V3 } from './engine';
@@ -14,7 +14,7 @@ import { EdgeMurk, edgeLevel } from './edge';
 import { Music, flavourFor } from './music';
 import { Intensity, Stride, behind, stepLevel, surfaceFor, threatLevel, weightOf } from './director';
 import * as S from './sfx';
-import { gunShot, weaponSwap } from './guns';
+import { graftTakesHold, gunShot, weaponSwap } from './guns';
 import { bossAttack, bossVoice, ribWind, speciesVoice, stalkWarn } from './voices';
 
 export interface GameAudioOptions {
@@ -135,6 +135,8 @@ export class GameAudio {
       if (this.reloadGain && this.engine) { this.reloadGain.gain.setTargetAtTime(0, this.engine.now, 0.02); this.reloadGain = null; }
     });
     bus.on('reload', (e) => this.reload(e.weapon, e.time));
+    // A graft found in the raid buds onto the gun (Gameplay #144).
+    bus.on('graftFitted', (e) => this.play(graftTakesHold(MODS[e.mod]?.slot ?? 'chamber'), null, { priority: 2 }));
     bus.on('weaponSwap', () => this.play(weaponSwap, null, { priority: 2 }));
     bus.on('hit', (e) => {
       if (!e.kill) this.play(e.weakPoint ? S.weakHit : S.fleshHit, e.position, { priority: 1 });
