@@ -91,7 +91,7 @@ export class HiveMenu {
     const p = this.profile;
     return { callsign: callsign(p), dna: p.dna, host: p.host, stash: p.stash, stashRows: p.stashRows, cavity: p.cavity,
       gutPouch: p.gutPouch, gutPouchLevel: p.gutPouchLevel, stats: p.stats, last: this.last, zone: p.economy.zone,
-      classLevels: Object.fromEntries((Object.keys(CLASSES) as ClassId[]).map((c) => [c, classLevel(p, c)])) };
+      classLevels: Object.fromEntries((Object.keys(CLASSES) as ClassId[]).map((c) => [c, classLevel(p, c)])), classXp: { ...p.classXp } };
   }
 
   /** The Hive Body as its screen reads it: organs with costs against the stash, the garden and the vat. */

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { awardXp, raidXp } from './game/progression';
-import { haulValue, weaponSpec, ZONE7_SITES } from '../data';
+import { haulValue, ZONE7_SITES } from '../data';
 import { Raid } from './game/raid';
 import { RaidHud } from './ui/raid-hud';
 import { HiveMenu } from './ui/hive-menu';
@@ -97,17 +97,21 @@ function bootRaid(): void {
     if (e.result === 'extracted') {
       const st = extract(profile, r, e.kills);
       const done = settleContracts(profile, raid.log, true).filter((c) => c.completed);
+      const xpBefore = profile.classXp[profile.host] ?? 0;
       const xp = awardXp(profile, raidXp(raid.log, true, st.dnaBanked));
       save();
-      const note = `${st.dnaBanked} DNA banked.${r.bankToll ? ` The tether took ${r.bankToll} DNA from your bank.` : ''} +${xp.xp} XP${xp.to > xp.from ? `, level ${xp.to}` : ''}.${xp.unlocked.length ? ` Armoury: ${xp.unlocked.map((w) => weaponSpec(w).label).join(', ')} unlocked.` : ''}${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}${done.length ? ` Contract complete: ${done.map((c) => c.title).join(', ')}.` : ''}`;
-      menu.showResults({ result: 'extracted', items: r.items, dna: r.dna, value: r.value, kills: e.kills, time: e.time, note });
+      const note = `${st.dnaBanked} DNA banked.${r.bankToll ? ` The tether took ${r.bankToll} DNA from your bank.` : ''}${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}${done.length ? ` Contract complete: ${done.map((c) => c.title).join(', ')}.` : ''}`;
+      menu.showResults({ result: 'extracted', items: r.items, dna: r.dna, value: r.value, kills: e.kills, time: e.time, note,
+        xp: { cls: xp.class, gained: xp.xp, before: xpBefore, after: profile.classXp[xp.class] ?? 0, unlocked: xp.unlocked } });
     } else {
       die(profile, r, e.kills);
       settleContracts(profile, raid.log, false);
-      awardXp(profile, raidXp(raid.log, false));
+      const xpBefore = profile.classXp[profile.host] ?? 0;
+      const xp = awardXp(profile, raidXp(raid.log, false));
       save();
       const lost = totals(r.cavity);
-      menu.showResults({ result: 'lost', items: lost, dna: r.dna, value: haulValue(lost, r.dna), kills: e.kills, time: e.time, cause: r.cause, kept: totals(r.pouch) });
+      menu.showResults({ result: 'lost', items: lost, dna: r.dna, value: haulValue(lost, r.dna), kills: e.kills, time: e.time, cause: r.cause, kept: totals(r.pouch),
+        xp: { cls: xp.class, gained: xp.xp, before: xpBefore, after: profile.classXp[xp.class] ?? 0, unlocked: xp.unlocked } });
     }
   });
 

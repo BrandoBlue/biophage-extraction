@@ -7,6 +7,13 @@ import './hive.css';
 import { applyTheme } from '../theme';
 import { DEFAULT_SETTINGS, getSettings, GRAPHICS_LEVELS, saveSettings, SETTING_RANGES, type GraphicsLevel } from '../settings';
 import { GRAPHICS_WORDS } from './kit';
+import { levelProgress, unlockLine, xpText } from './levels';
+
+/** The header's level readout for the current host, with the XP and next unlock as its tooltip. */
+const hostLevel = (p: ProfileView) => {
+  const lp = levelProgress(p.classXp?.[p.host] ?? 0);
+  return { level: lp.level, frac: lp.frac, title: `${xpText(lp)}. ${unlockLine(p.host, lp.level)}.` };
+};
 import type { Settings } from '../settings';
 import { frame, h, panel, cta, keyHints } from './kit';
 import { glyph } from '../icons';
@@ -60,6 +67,7 @@ export class HiveUI {
     const p = this.view();
     const f = frame({ title: TITLES[tab], tab: NAV_TAB[tab], callsign: p.callsign, dna: p.dna,
       extras: [{ label: 'HOST', value: CLASSES[p.host].label.replace('The ', '').toUpperCase(), tone: 'lime' }, { label: 'EXTRACTS', value: String(p.stats.extracts), tone: 'amber' }],
+      level: hostLevel(p),
       unlocked: [...(this.trades() ? ['vendors'] : []), ...(this.actions.hiveBody ? ['body'] : []), ...(this.actions.arsenal ? ['arms'] : []), ...(this.hiveMind() ? ['hivemind'] : [])] });
     f.nav.addEventListener('click', (e) => {
       const t = (e.target as HTMLElement).closest<HTMLButtonElement>('.tab');

@@ -24,7 +24,7 @@ try {
     await page.goto(`${BASE}${page_}${arg}`);
     await page.waitForFunction(() => window.__mock?.ready, null, { timeout: 60000 });
     await page.evaluate(() => document.fonts.ready);
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(Number(process.env.WAIT ?? 700));
     await page.screenshot({ path: `tests/out/ui/${s.replace(':', '-')}.png` });
     console.log(`captured ${s}`);
   }

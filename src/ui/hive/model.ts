@@ -26,6 +26,8 @@ export interface ProfileView {
   zone?: string;
   /** Each host class's level (progression.ts), for host select. */
   classLevels?: Partial<Record<ClassId, number>>;
+  /** Each host class's XP (progression.ts), for the level bars. */
+  classXp?: Partial<Record<ClassId, number>>;
 }
 
 export interface HiveActions {

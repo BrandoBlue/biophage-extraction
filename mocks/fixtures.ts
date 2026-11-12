@@ -61,6 +61,7 @@ export function fixtureProfile(): ProfileView {
     gutPouchLevel: 0,
     stats: { raids: 14, extracts: 9, deaths: 5, kills: 63 },
     last: { result: 'extracted', value: 640 },
+    classXp: { neuroInfiltrator: 2060, goreBehemoth: 700 },
   };
 }
 

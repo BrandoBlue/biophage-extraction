@@ -5,7 +5,7 @@
  * references in docs/reference/ set the mood only.
  */
 import { def as itemOf } from '../items';
-import { ABOMINATIONS, BOSSES, CLASSES, CONTRACTS, RAID, ZONES } from '../../../data';
+import { ABOMINATIONS, BOSSES, CLASSES, CONTRACTS, RAID, WEAPONS, ZONES } from '../../../data';
 import type { ClassId } from '../../../data';
 import { FAUNA, HIVE, ORGANIC, PATH, ZONE7, ZONE7_SHADE } from '../../render/palette';
 import { hostPortrait } from '../hosts';
@@ -14,6 +14,7 @@ import { cta, esc, h, keyHints, meter, panel, q } from './kit';
 import type { ProfileView, ZoneView } from './model';
 import { usage, valueOf } from './model';
 import { zoneExtracts, zoneMap } from './zonemap';
+import { levelBar, levelNote, levelProgress, unlockLine, xpText } from './levels';
 
 const BASE: ClassId = 'neuroInfiltrator';
 const pct = (x: number) => `${x > 0 ? '+' : ''}${Math.round(x * 100)}%`;
@@ -139,7 +140,7 @@ export function mainMenu(p: ProfileView, cb: MenuCallbacks): HTMLElement {
     ${lensSvg(`OBSERVATION CHAMBER · ${zone.toUpperCase()} · ${p.callsign}`, `ACTIVE BIOSPECIMEN · ${CLASSES[p.host].label.toUpperCase()}`)}
     <div class="specimen">${hostPortrait(p.host)}<div class="pedestal"></div></div>
     <ul class="menu-list">${places.map(([go, name, sub], i) => `<li style="${at(rim(spread(LENS.left, places.length, i), 'left', 1.2))}"><button data-go="${go}"${i === 0 ? ' class="primary"' : ''}><span>${esc(name)}</span><small>${esc(sub)}</small><i class="node"></i></button></li>`).join('')}</ul>
-    <div class="menu-record">${notes.map((n, i) => `<div class="note" style="${at(rim(spread(LENS.right, notes.length, i), 'right', 1.6))}">${n}</div>`).join('')}
+    <div class="menu-record"><div class="note lvl" style="${at(rim(spread(LENS.right, notes.length, 0), 'right', 1.6))}">${levelNote(p.host, p.classXp?.[p.host] ?? 0)}</div>${notes.map((n, i) => `<div class="note" style="${at(rim(spread(LENS.right, notes.length, i), 'right', 1.6))}">${n}</div>`).join('')}
       <div class="note loadout" style="${at(rim(LENS.loadout, 'right', 1.6))}"><span>Carrying <em>${valueOf(p.cavity).toLocaleString('en-US')} DNA at risk</em></span>
         <div class="tiles">${p.cavity.map((c) => tile(c.item, c.count)).join('') || '<i class="none">Cavities empty</i>'}${p.gutPouch.length ? `<b class="sep">POUCH</b>${p.gutPouch.map((c) => tile(c.item, c.count)).join('')}` : ''}</div></div>
     </div>`;
@@ -170,6 +171,7 @@ export function hostSelect(p: ProfileView, cb: { pick(id: ClassId): void; next()
     const card = h('article', `host-card ${CLASS_TONE[id]}${selected ? ' selected' : ''}${open ? '' : ' locked'}`);
     card.dataset.host = id;
     const evo = EVOLUTIONS[id];
+    const lp = levelProgress(p.classXp?.[id] ?? 0), lvl = lp.level;
     card.innerHTML = `
       <div class="cls-slot"><span>${slot}</span><em>${open ? (selected ? 'ACTIVE' : 'AVAILABLE') : 'GESTATING'}</em></div>
       <h3>${esc(c.label.toUpperCase())}</h3>
@@ -185,8 +187,8 @@ export function hostSelect(p: ProfileView, cb: { pick(id: ClassId): void; next()
         ${meter('STEALTH', 'stealth', (c.stealth + 0.5) / 1, c.stealth > 0 ? 'HIGH' : c.stealth < 0 ? 'NONE' : 'MID', c.stealth > 0 ? 'good' : c.stealth < 0 ? 'bad' : 'mid')}
       </div>
       <div class="evo"><h4>PROGRESSION & UNLOCKS</h4>
-        <div class="evo-track">${evo.map((e) => `<div class="node">${glyph('lock')}<span>${esc(e.name)}<br/><em>Unlocks at level ${e.lvl}</em></span></div>`).join('<i class="vein"></i>')}</div>
-        <small>${open ? `This host is level ${p.classLevels?.[id] ?? 1}. Raids earn it experience and open its signature guns in the Armoury.` : 'Evolves once this host can be played.'}</small>
+        <div class="evo-track">${evo.map((e) => { const got = open && lvl >= e.lvl; return `<div class="node${got ? ' reached' : ''}">${glyph(got ? 'check' : 'lock')}<span>${esc(e.name)}<br/><em>${got ? 'Reached · coming soon' : `Unlocks at level ${e.lvl}`}</em></span></div>`; }).join('<i class="vein"></i>')}</div>
+        ${open ? hostLevelRow(lp) : '<small>Evolves once this host can be played.</small>'}
       </div>`;
     cards.append(card);
   }
@@ -555,6 +557,24 @@ export interface ResultData {
   kept?: { item: string; count: number }[];
   /** One line from Gameplay's settlement (DNA banked, stash overflow, gut pouch kept). */
   note?: string;
+  /** XP this raid earned for the host class (progression.ts awardXp): totals before and after, guns it opened. */
+  xp?: { cls: ClassId; gained: number; before: number; after: number; unlocked: string[] };
+}
+
+/** Host select's level line under the evolution track: level, bar and XP to the next level. */
+const hostLevelRow = (lp: ReturnType<typeof levelProgress>) =>
+  `<div class="lv-row"><b>Level ${lp.level}</b>${levelBar(lp.frac)}<span>${esc(xpText(lp))}</span></div>`;
+
+/** The debrief's level panel: XP gained, the bar growing from where it was, a level-up mark, and what's next. */
+export function xpGain(x: NonNullable<ResultData['xp']>): string {
+  const a = levelProgress(x.before), b = levelProgress(x.after);
+  const up = b.level > a.level;
+  return `<section class="hv-panel res-level${up ? ' up' : ''}" data-level="${b.level}">
+    <div class="who"><span>${esc(CLASSES[x.cls].label.replace('The ', ''))}</span><b>${up ? `Level ${a.level} <i>→</i> ${b.level}` : `Level ${b.level}`}</b></div>
+    <div class="lv-track">${levelBar(b.frac, up ? 0 : a.frac)}<div class="lv-xp">${esc(xpText(b))}</div></div>
+    <div class="lv-gain"><em>+${x.gained.toLocaleString('en-US')} XP</em>${up ? '<span class="lv-up">Level up</span>' : ''}</div>
+    <div class="lv-next">${x.unlocked.length ? `<b>Now in the Armoury: ${x.unlocked.map((w) => esc(WEAPONS[w]?.label ?? w)).join(', ')}.</b> ` : ''}${esc(unlockLine(x.cls, b.level))}</div>
+  </section>`;
 }
 
 export function results(r: ResultData, cb: { again(): void }): HTMLElement {
@@ -571,7 +591,8 @@ export function results(r: ResultData, cb: { again(): void }): HTMLElement {
     <section class="hv-panel res-sum">
       <div class="big"><span>${won ? 'HAUL VALUE' : 'VALUE LOST'}</span><b>${won ? '+' : '−'}${r.value.toLocaleString('en-US')}</b></div>
       <dl><div><dt>KILL DNA</dt><dd>${won ? r.dna : `${r.dna} lost`}</dd></div><div><dt>KILLS</dt><dd>${r.kills}</dd></div><div><dt>RAID TIME</dt><dd>${fmt(r.time)}</dd></div></dl>
-    </section>`;
+    </section>
+    ${r.xp ? xpGain(r.xp) : ''}`;
   const go = cta('RETURN TO HIVE', won ? 'HAUL SECURED IN STASH' : 'DEATH LOST YOUR LOADOUT', 'deploy-again');
   el.append(go);
   go.addEventListener('click', () => cb.again());

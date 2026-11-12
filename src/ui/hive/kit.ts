@@ -24,6 +24,8 @@ export interface FrameOpts {
   callsign: string;
   dna: number;
   extras?: { label: string; value: string; tone?: string }[];
+  /** The host's level and how far through it (0..1), shown beside the host name on every Hive screen. */
+  level?: { level: number; frac: number; title: string };
   /** Nav tabs to open even though their milestone has not arrived (feature-detected screens). */
   unlocked?: string[];
 }
@@ -62,6 +64,7 @@ export function frame(o: FrameOpts): { root: HTMLElement; body: HTMLElement; nav
       <div class="hv-currency">
         <span class="cur dna">${glyph('dna')}DNA <b data-bind="dna">${o.dna.toLocaleString('en-US')}</b></span>
         ${(o.extras ?? []).map((x) => `<span class="cur ${x.tone ?? ''}">${esc(x.label)} <b>${esc(x.value)}</b></span>`).join('')}
+        ${o.level ? `<span class="cur lvl" title="${esc(o.level.title)}">LEVEL <b data-bind="level">${o.level.level}</b><span class="lv-bar" style="--v:${o.level.frac.toFixed(4)};--a:${o.level.frac.toFixed(4)}"><i class="old"></i><i class="gain"></i></span></span>` : ''}
       </div>
       <div class="hv-brand">Biophage <small>EXTRACTION</small></div>
     </header>
