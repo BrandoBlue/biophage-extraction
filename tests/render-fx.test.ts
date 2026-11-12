@@ -166,7 +166,7 @@ describe('built-space atmosphere and grown walls', () => {
   it('gives grown walls plates, bumped normals and restrained vein glow', async () => {
     const { grownWall } = await import('../src/render/materials');
     const s = compile(grownWall());
-    expect(s.fragmentShader).toContain('normal = normalize(abs(det) * normal - grad)');
+    expect(s.fragmentShader).toContain('normal = dot(bumped, bumped) > 1e-20 ? normalize(bumped) : normal');
     expect(s.fragmentShader).toContain('* bioGlow');
   });
 
@@ -323,5 +323,51 @@ describe('per-zone grade', () => {
     const cap = fungusCap();
     expect(cap.roughness).toBeGreaterThanOrEqual(0.5);
     expect(cap.clearcoat).toBeLessThanOrEqual(0.3);
+  });
+});
+
+describe('map edge murk and bad-pixel guards', () => {
+  it('stands curtains around the playable edge, one for the software tier', async () => {
+    const { edgeMurk, EDGE_MURK } = await import('../src/render/edgemurk');
+    const full = edgeMurk({ radius: 150, ground: () => 2, colour: '#3A3F46' });
+    expect(full.children.length).toBe(EDGE_MURK.rings.length);
+    const lite = edgeMurk({ radius: 150, ground: () => 2, colour: '#3A3F46', lite: true });
+    expect(lite.children.length).toBe(1);
+    const ring = full.children[0] as THREE.Mesh;
+    ring.geometry.computeBoundingBox();
+    const bb = ring.geometry.boundingBox!;
+    expect(bb.max.x).toBeCloseTo(150, 0);
+    expect(bb.min.y).toBeLessThan(2);
+    expect(bb.max.y).toBeGreaterThan(2 + 50);
+    expect((ring.material as THREE.ShaderMaterial).transparent).toBe(true);
+  });
+
+  it('bakes the edge into the fog only when a zone sets it', async () => {
+    const { heightFog, installHeightFog } = await import('../src/render/fog');
+    const { setEdgeFog } = await import('../src/render/edgemurk');
+    setEdgeFog(400);
+    expect(heightFog.edgeRadius.value).toBe(400);
+    installHeightFog();
+    expect(THREE.ShaderChunk.fog_fragment).toContain('edgeFar');
+    expect(THREE.ShaderChunk.fog_fragment).toContain((400 * 0.98).toFixed(3));
+  });
+
+  it('keeps NaN and infinite light out of the bloom chain', async () => {
+    const { guardBloom, BLOOM_INPUT_MAX } = await import('../src/render/pipeline');
+    const fake = { materialHighPassFilter: new THREE.ShaderMaterial({ fragmentShader: 'void main(){ vec4 texel = texture2D( tDiffuse, vUv ); }' }) };
+    guardBloom(fake as never);
+    const fs = fake.materialHighPassFilter.fragmentShader;
+    expect(fs).toContain('isnan');
+    expect(fs).toContain(BLOOM_INPUT_MAX.toFixed(1));
+  });
+
+  it('gives degenerate organic vertices a real normal', async () => {
+    const { fixZeroNormals } = await import('../src/render/organic');
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 0, NaN, 0, 0], 3));
+    expect(fixZeroNormals(g)).toBe(2);
+    const n = g.attributes.normal;
+    for (let i = 0; i < 3; i++) expect(Math.hypot(n.getX(i), n.getY(i), n.getZ(i))).toBeCloseTo(1, 5);
   });
 });

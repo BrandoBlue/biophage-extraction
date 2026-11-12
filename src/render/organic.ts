@@ -101,9 +101,33 @@ export function organicGeometry(source: THREE.BufferGeometry, o: OrganicOptions 
     pos.setXYZ(i, x + nrm.getX(i) * d, y + nrm.getY(i) * d, z + nrm.getZ(i) * d);
   }
   g.computeVertexNormals();
+  fixZeroNormals(g);
   g.computeBoundingBox();
   g.computeBoundingSphere();
   return g;
+}
+
+/**
+ * Degenerate triangles (collapsed by welding or smoothing) can leave a vertex with a zero normal, which shades as NaN
+ * on some GPUs and, through the bloom, blacks out part of the screen. Point those along the shape's outward direction.
+ */
+export function fixZeroNormals(g: THREE.BufferGeometry): number {
+  const nrm = g.attributes.normal as THREE.BufferAttribute, pos = g.attributes.position as THREE.BufferAttribute;
+  if (!nrm) return 0;
+  g.computeBoundingBox();
+  const c = g.boundingBox!.getCenter(new THREE.Vector3()), v = new THREE.Vector3();
+  let fixed = 0;
+  for (let i = 0; i < nrm.count; i++) {
+    const x = nrm.getX(i), y = nrm.getY(i), z = nrm.getZ(i);
+    if (x * x + y * y + z * z > 1e-12 && Number.isFinite(x + y + z)) continue;
+    v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).sub(c);
+    if (v.lengthSq() < 1e-12) v.set(0, 1, 0);
+    v.normalize();
+    nrm.setXYZ(i, v.x, v.y, v.z);
+    fixed++;
+  }
+  if (fixed) nrm.needsUpdate = true;
+  return fixed;
 }
 
 /** True for meshes worth growing: static, opaque, not skinned, not already organic, and opted in or not opted out. */
