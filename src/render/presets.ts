@@ -22,7 +22,7 @@ export interface GradePreset {
 export const GRADE_PRESETS = {
   /** Grounded and eerie (Brandon, 2026-11-11 evening), lifted for visibility (2026-11-12: "a bit too dark now"): a cold, low-saturation night where shapes stay readable, film grain, bloom only on true highlights. */
   zone7: {
-    exposure: 1.6,
+    exposure: 1.72,
     environment: 0.9,
     bloom: { strength: 0.26, radius: 0.45, threshold: 1.45 },
     aberration: 0.0007,
@@ -31,7 +31,7 @@ export const GRADE_PRESETS = {
     contrast: 1.06,
     grain: 0.05,
     split: 0.22,
-    lift: 0.022,
+    lift: 0.03,
     shadow: GRADE.zone7Shadow,
     highlight: GRADE.zone7Highlight,
     hit: ZONE7.magenta,
@@ -58,4 +58,4 @@ export const GRADE_PRESETS = {
  * Exposure scale per zone on top of the raid grade: the night zones use the grade as tuned, the Ochre Reach is a
  * daylight desert and would wash out at night exposure.
  */
-export const ZONE_EXPOSURE: Record<string, number> = { ochreReach: 0.92 };
+export const ZONE_EXPOSURE: Record<string, number> = { ochreReach: 0.86 };

@@ -29,7 +29,7 @@ export interface OrganicOptions {
 /** Primitive shapes that read as built or machined; organicize() grows these and leaves sculpted geometry alone. */
 export const PRIMITIVE_TYPES = ['BoxGeometry', 'CylinderGeometry', 'ConeGeometry', 'DodecahedronGeometry', 'IcosahedronGeometry', 'OctahedronGeometry', 'TetrahedronGeometry', 'ExtrudeGeometry'];
 
-export const ORGANIC_SHAPE = { ampFrac: 0.03, ampMax: 0.35, scaleFrac: 0.33, soften: 4, edgeFrac: 0.125, maxVerts: 6000 } as const;
+export const ORGANIC_SHAPE = { ampFrac: 0.03, ampMax: 0.35, scaleFrac: 0.33, soften: 4, edgeFrac: 0.125, maxVerts: 2500 } as const;
 
 const h3 = (x: number, y: number, z: number, s: number) => {
   let n = Math.imul(x | 0, 374761393) ^ Math.imul(y | 0, 668265263) ^ Math.imul(z | 0, 1274126177) ^ Math.imul(s | 0, 1442695041);
@@ -115,7 +115,7 @@ export function organicEligible(o: THREE.Object3D): boolean {
   // Texture-mapped and custom-shader materials read uv, which welding drops; procedural bio materials do not need it.
   const mats = Array.isArray(m.material) ? m.material : [m.material];
   if (mats.some((mat) => !mat || (mat as THREE.ShaderMaterial).isShaderMaterial || (mat as THREE.MeshStandardMaterial).map || (mat as THREE.MeshStandardMaterial).normalMap)) return false;
-  return g.attributes.position.count < ORGANIC_SHAPE.maxVerts; // dense meshes are already sculpted
+  return g.attributes.position.count < 6000; // dense meshes are already sculpted
 }
 
 /** Grow every eligible mesh under root. Geometry shared between meshes is converted once. Returns meshes changed. */
