@@ -254,4 +254,17 @@ describe('the Marrow Pit', () => {
     for (let i = 0; i < 20 * 60; i++) hunter.update(1 / 60, ctx);
     expect(hunter.position.y).toBeLessThan(layerY('warrens') - 20);
   });
+  it('walks into a Rim Camp hall through its doorway, and its walls keep you out elsewhere', () => {
+    const h = PIT.camp.huts[1];
+    const [x, z] = polar(h.bearing, h.radius);
+    const yaw = -(h.bearing * D2R) + Math.PI + h.yaw * D2R;
+    const at = (u: number): [number, number] => [x + u * Math.cos(yaw), z - u * Math.sin(yaw)];
+    const loot = world.structures.loot.find((l) => l.id === 'rim-hut-1')!;
+    const [ox, oz] = at(7);
+    const inThrough = walk({ x: ox, y: pitHeight(ox, oz), z: oz }, [at(0), [loot.x, loot.z]]);
+    expect(Math.hypot(inThrough.p.x - loot.x, inThrough.p.z - loot.z)).toBeLessThan(0.5);
+    const [bx, bz] = at(-8);
+    const fromBehind = walk({ x: bx, y: pitHeight(bx, bz), z: bz }, [[loot.x, loot.z]]);
+    expect(Math.hypot(fromBehind.p.x - loot.x, fromBehind.p.z - loot.z)).toBeGreaterThan(1.5);
+  });
 });

@@ -56,6 +56,8 @@ const POSES = {
   pitAerial: { pos: [0, 30, -178], yaw: Math.PI, pitch: -0.5 },
   pitBridge: { pos: [0, -68.3, -60], yaw: Math.PI, pitch: -0.08 },
   pitWarren: { at: [-71, 41], eye: 1.7, yaw: 1.26, pitch: 0.08 },
+  pitHall: { at: [-131.5, 4.5], eye: 1.7, yaw: 1.2, pitch: -0.02 },
+  pitHallIn: { at: [-137.8, -0.4], eye: 1.6, yaw: 1.5708, pitch: -0.05 },
   pitGallery: { at: [-7.7, -87.7], eye: 1.7, yaw: 1.6, pitch: 0.12 },
   pitFloor: { at: [-51.7, -18.8], eye: 1.7, yaw: -1.92, pitch: 0.05 },
   pitUp: { at: [10, -30], eye: 1.7, yaw: 0, pitch: 1.05 },
