@@ -222,15 +222,44 @@ const M4 = (x: number, y: number, z: number, yaw = 0, sx = 1, sy = sx, sz = sx) 
  */
 function solid(batch: Batch | null, mat: THREE.Material | null, cx: number, cz: number, hu: number, hv: number, dir: number, y0: number, y1: number, rise = 0, tag?: string): Collider {
   if (batch && mat) {
-    const geo = new THREE.BoxGeometry(hu * 2, y1 - y0, hv * 2, Math.max(1, Math.round(hu)), 1, Math.max(1, Math.round(hv)));
-    if (rise) {
-      const p = geo.attributes.position;
-      for (let i = 0; i < p.count; i++) if (p.getY(i) > 0) p.setY(i, p.getY(i) - rise * (0.5 - p.getX(i) / (2 * hu)));
-      geo.computeVertexNormals();
+    const H = y1 - y0;
+    const geo = new THREE.BoxGeometry(hu * 2, H, hv * 2, Math.max(2, Math.round(hu * 2)), Math.max(2, Math.round(H * 1.5)), Math.max(2, Math.round(hv * 2)));
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) {
+      let y = p.getY(i);
+      if (rise && y > 0) y -= rise * (0.5 - p.getX(i) / (2 * hu));
+      p.setY(i, y);
     }
+    roughen(geo, Math.min(0.12, Math.min(hu, hv) * 0.6 + 0.03), cx * 0.37 + cz * 0.11, hu, hv);
+    geo.computeVertexNormals();
     batch.add(mat, geo, M4(cx, (y0 + y1) / 2, cz, -dir));
   }
   return SOLIDS.add({ cx, cz, hx: hu, hz: hv, yaw: -dir, y0, y1, rise: rise || undefined, tag });
+}
+
+/**
+ * Organic shapes (Brandon 2026-11-12: grown, sagging, weathered, never clean boxes). Pushes a subdivided box out of
+ * true: edges round off, faces bulge and dip with noise, the bottom flares a little like a root. Walkable tops stay
+ * level (vertices on the top face only move sideways), so the collider underneath still matches what you stand on.
+ */
+function roughen(geo: THREE.BufferGeometry, amt: number, seed: number, hu: number, hv: number): void {
+  geo.computeBoundingBox();
+  const bb = geo.boundingBox!, top = bb.max.y, bot = bb.min.y;
+  const p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const n1 = noise3(x * 0.9 + seed, y * 0.9, z * 0.9) - 0.5, n2 = noise3(x * 2.3, y * 2.3 + seed, z * 2.3) - 0.5;
+    // Round the vertical edges: pull corners in toward the middle of each face.
+    const ex = Math.abs(x) / (hu + 1e-6), ez = Math.abs(z) / (hv + 1e-6);
+    const corner = Math.max(0, Math.min(ex, ez) - 0.6) * 2.5;
+    const flare = 1 + Math.max(0, 1 - (y - bot) / 0.8) * 0.12;
+    let nx = x * (1 - corner * amt / (hu + 0.5)) * flare + (n1 + n2 * 0.4) * amt * 1.6;
+    let nz = z * (1 - corner * amt / (hv + 0.5)) * flare + (noise3(z * 0.9 - seed, y * 0.9, x * 0.9) - 0.5) * amt * 1.6;
+    nx = Math.max(-hu - amt * 2, Math.min(hu + amt * 2, nx)); nz = Math.max(-hv - amt * 2, Math.min(hv + amt * 2, nz));
+    const onTop = Math.abs(y - top) < 1e-3 || y > top - 0.01;
+    const ny = onTop ? y : y + n2 * amt * 0.8 * (y > bot + 1e-3 ? 1 : 0);
+    p.setXYZ(i, nx, ny, nz);
+  }
 }
 
 /** Octagonal solid (two crossed boxes) for round trunks and platforms. */
@@ -270,8 +299,8 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   scene.add(sky);
   scene.background = new THREE.Color(ZONE7_SHADE.skyHorizon);
   scene.fog = new THREE.FogExp2(ZONE7_SHADE.skyHorizon, 0.0025); // the shared height fog thickens this ~13x at the waterline
-  scene.add(new THREE.HemisphereLight(ORGANIC.mist, ZONE7_SHADE.moss, 2.8));
-  const moon = new THREE.DirectionalLight(ORGANIC.mist, 6.0);
+  scene.add(new THREE.HemisphereLight(ORGANIC.mist, ZONE7_SHADE.moss, 4.0));
+  const moon = new THREE.DirectionalLight(ORGANIC.mist, 7.5);
   moon.position.set(50, 110, -70);
   scene.add(moon);
   // A faint cold back light so trunks separate from the mist behind them.
@@ -303,6 +332,10 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   // ---- Materials (three shader families of our own plus the zone's shared ones).
   const bark = fenBark({ base: ZONE7_SHADE.rock });
   const paleBark = fenBark({ base: HIVE.bone, deep: ZONE7_SHADE.stem, mossy: 0.5 });
+  // Drowned ribs: finer plated, stained bone, a shade darker than the hut bone so they read old, not plastic.
+  const ribBone = oldBone(ORGANIC.mist, 0.9);
+  ribBone.color.multiplyScalar(0.7);
+  ribBone.roughness = 0.75;
   const mossMass = fenBark({ base: ZONE7_SHADE.moss, deep: ZONE7_SHADE.rockDeep, scale: 1.6 });
   const plank = fenBark({ base: ZONE7_SHADE.stem, deep: ZONE7_SHADE.rockDeep, plank: true, mossy: 0.6, scale: 1.4 });
   const hide = fenBark({ base: ZONE7_SHADE.flesh, deep: ZONE7_SHADE.rockDeep, mossy: 0.8, scale: 2.2 });
@@ -514,7 +547,9 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
     const D = FEN.stiltVillage.deck;
     for (const h of FEN.stiltVillage.huts) {
       const pr = h.radius + 2.0, yaw = deg(h.yaw);
-      batch.add(plank, new THREE.CylinderGeometry(pr, pr, 0.35, 10), M4(h.x, D - 0.17, h.z, yaw));
+      const deck = new THREE.CylinderGeometry(pr, pr * 0.94, 0.35, 22, 1);
+      { const dp = deck.attributes.position; for (let i = 0; i < dp.count; i++) { const a = Math.atan2(dp.getZ(i), dp.getX(i)), r = Math.hypot(dp.getX(i), dp.getZ(i)); if (r < 0.01) continue; const k = 1 + (noise3(Math.cos(a) * 1.5 + h.x, Math.sin(a) * 1.5, 3) - 0.5) * 0.18; dp.setX(i, dp.getX(i) * k); dp.setZ(i, dp.getZ(i) * k); } deck.computeVertexNormals(); }
+      batch.add(plank, deck, M4(h.x, D - 0.17, h.z, yaw));
       octagon(h.x, h.z, pr * 0.93, D - 0.35, D, `${h.id}-deck`);
       for (let k = 0; k < 8; k++) {
         const a = (k / 8) * Math.PI * 2 + yaw, sx = h.x + Math.cos(a) * (pr - 0.4), sz = h.z + Math.sin(a) * (pr - 0.4);
@@ -531,7 +566,15 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
         for (const [y0, y1] of bands) solid(batch, plank, h.x + Math.cos(a) * h.radius, h.z + Math.sin(a) * h.radius, 0.14, h.radius * Math.tan(seg / 2) + 0.06, a, D + y0, D + y1, 0, `${h.id}-wall`);
       }
       // Hide-and-thatch roof, moss trailing from the eaves.
-      const roof = new THREE.ConeGeometry(h.radius + 1.1, 2.8, 14, 3);
+      // A sagging hide-and-thatch roof: the slope dips between its ribs, the eave droops unevenly, the tip leans.
+      const roof = new THREE.ConeGeometry(h.radius + 1.1, 2.8, 28, 7);
+      { const rp = roof.attributes.position, R0 = h.radius + 1.1; for (let i = 0; i < rp.count; i++) {
+        const x = rp.getX(i), y = rp.getY(i), z = rp.getZ(i), r = Math.hypot(x, z) / R0, a = Math.atan2(z, x);
+        const sag = Math.sin(Math.PI * r) * (0.35 + 0.25 * Math.cos(a * 6)) + (noise3(x * 0.8 + h.x, y, z * 0.8) - 0.5) * 0.35;
+        const droop = r > 0.95 ? (noise3(a * 2 + h.z, 1, 2) - 0.3) * 0.7 : 0;
+        const lean = (1.4 - y) / 2.8; // 1 at the eave, 0 at the tip
+        rp.setXYZ(i, x * (1 + (noise3(a * 3, h.x, 5) - 0.5) * 0.15) + (1 - lean) * 0.4, y - sag - droop, z * (1 + (noise3(a * 3, h.z, 6) - 0.5) * 0.15));
+      } roof.computeVertexNormals(); }
       batch.add(hide, roof, M4(h.x, D + wallH + 1.3, h.z, yaw));
       for (let k = 0; k < 7; k++) {
         const a = (k / 7) * Math.PI * 2 + yaw + 0.3;
@@ -688,12 +731,20 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
       const x = p.x + Math.cos(a) * p.radius, z = p.z + Math.sin(a) * p.radius;
       const g = fenHeight(x, z);
       const span = 2.6 + noise3(k, 1, 2) * 1.6, sink = 0.6 + noise3(k, 3, 4) * 1.6;
-      const arch = new THREE.TorusGeometry(span, 0.42, 8, 22, Math.PI).rotateY(-a + Math.PI / 2);
-      batch.add(bone, arch, M4(x, g - sink, z, 0, 1, 1.5, 1));
-      // Vertebra knuckles along the arch.
-      for (let j = 1; j < 6; j++) {
-        const t = (j / 6) * Math.PI, ox = Math.cos(t) * span, oy = Math.sin(t) * span * 1.5 - sink;
-        batch.add(bone, new THREE.SphereGeometry(0.6, 8, 6).scale(1, 0.6, 1), M4(x - Math.sin(a) * ox, g + oy, z + Math.cos(a) * ox));
+      // A drowned rib: a bent, tapering spine of bone, thicker at one root, sagging off true, knuckled along its back.
+      const tx = -Math.sin(a), tz = Math.cos(a), lean = (noise3(k, 5, 6) - 0.5) * 1.6;
+      const spine: THREE.Vector3[] = [];
+      for (let j = 0; j <= 8; j++) {
+        const t = (j / 8) * Math.PI, ox = Math.cos(t) * span * (1 + (noise3(k, j, 7) - 0.5) * 0.25);
+        const oy = Math.sin(t) * span * 1.5 * (1 + (noise3(j, k, 8) - 0.5) * 0.3) - sink;
+        const out = Math.sin(t) * lean + (noise3(j, k, 9) - 0.5) * 0.5;
+        spine.push(new THREE.Vector3(x + tx * ox + Math.cos(a) * out, g + oy, z + tz * ox + Math.sin(a) * out));
+      }
+      batch.add(ribBone, taperedTube(spine, 0.6 + noise3(k, 2, 2) * 0.2, 0.28, 30, 9));
+      const curve = new THREE.CatmullRomCurve3(spine);
+      for (let j = 1; j < 9; j++) {
+        const q = curve.getPointAt(j / 9), sz = 0.55 - j * 0.03;
+        batch.add(ribBone, new THREE.DodecahedronGeometry(sz, 1).scale(1, 0.55, 1.2), M4(q.x, q.y + sz * 0.3, q.z, a + j));
       }
       for (const side of [-1, 1]) {
         const fx = x - Math.sin(a) * side * span, fz = z + Math.cos(a) * side * span;

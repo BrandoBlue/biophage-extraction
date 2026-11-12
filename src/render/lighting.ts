@@ -24,7 +24,13 @@ export function keyLight(scene: THREE.Object3D): THREE.DirectionalLight | null {
   return best;
 }
 
-export interface SunShadows { update(scene: THREE.Scene, camera: THREE.Camera): void; readonly enabled: boolean }
+export interface SunShadows {
+  update(scene: THREE.Scene, camera: THREE.Camera): void;
+  readonly enabled: boolean;
+  /** Turn casting off or back on at runtime (graphics setting). Only possible where the tier enabled shadows. */
+  setActive(on: boolean): void;
+  readonly active: boolean;
+}
 
 export function sunShadows(renderer: THREE.WebGLRenderer, enabled: boolean): SunShadows {
   if (enabled) {
@@ -34,11 +40,19 @@ export function sunShadows(renderer: THREE.WebGLRenderer, enabled: boolean): Sun
   const seen = new WeakSet<THREE.Object3D>();
   const keys = new WeakMap<THREE.Scene, { light: THREE.DirectionalLight | null; dir: THREE.Vector3 }>();
   let frame = 0;
+  let active = enabled;
   const centre = new THREE.Vector3(), lightSpace = new THREE.Matrix4(), inv = new THREE.Matrix4(), tmp = new THREE.Vector3();
   return {
     enabled,
+    get active() { return active; },
+    setActive(on) {
+      if (!enabled || on === active) return;
+      active = on;
+      // Toggling the shadow map changes every lit program; three recompiles them once on the next frame.
+      renderer.shadowMap.enabled = on;
+    },
     update(scene, camera) {
-      if (!enabled) return;
+      if (!active) return;
       let k = keys.get(scene);
       if (!k) {
         const light = keyLight(scene);

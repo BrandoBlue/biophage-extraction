@@ -10,7 +10,15 @@ export interface GameEvents {
   collapseWarning: { timeLeft: number };
   shot: { weapon: string; ammo: number; position: Vec3Like; ego: boolean };
   reload: { weapon: string; time: number };
+  /** A reload reached one of its feel beats (weapon-feel.json reload[style].beats; perShell: per shell). */
+  reloadBeat: { weapon: string; style: string; beat: number; cue: string };
   reloaded: { weapon: string; ammo: number };
+  /** The held weapon changed (mouse wheel or Z). */
+  weaponSwap: { weapon: string; slot: number };
+  /** A weapon found in the raid went into a free weapon slot. */
+  weaponPickup: { weapon: string; label: string; slot: number };
+  /** A fed weapon took rounds from its ammo item in the cavities or pouch. */
+  ammoFed: { weapon: string; item: string; count: number };
   hit: { target: string; id: number; damage: number; weakPoint: boolean; kill: boolean; position: Vec3Like };
   damaged: { amount: number; biomass: number; zone: HitZone; source: string; direction: Vec3Like | null };
   healed: { amount: number; biomass: number };

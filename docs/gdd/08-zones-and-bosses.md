@@ -62,7 +62,7 @@ The seedship's gardener, a caretaker grown to tend the embryos the ship carried,
 | **Tend** | 100–60% | On walls and ceiling; plates take 30%; root spears (40); releases Oculimoth swarms from the embryo pods |
 | **Overheat** | 60–25% | Drops to the floor with seams glowing; steam bursts (30); catwalks start to collapse |
 | **Meltdown** | 25–0% | Reactor pulses (60 across the room, 3 s warning) that only shielded pillars block |
-Enrage at 9:00: pulses every 8 s. **Arena:** reactor chamber 30 m across and 24 m high, 2 catwalk levels, 4 coolant valves, an exit within 60 m. **Rewards:** 700 DNA, Warden Seed-Core (a top catalyst), 2–4 Embryo Pods, 1500 XP. It only wakes once someone restores the ship's power.
+Enrage at 9:00: pulses every 8 s. **Arena:** reactor chamber about 38 m across and 18 m high (the hull height), 2 catwalk levels, 4 coolant valves, an exit within 60 m. **Rewards:** 700 DNA, Warden Seed-Core (a top catalyst), 2–4 Embryo Pods, 1500 XP. It only wakes once someone restores the ship's power.
 
 ## Department asks
 | Department | Build |

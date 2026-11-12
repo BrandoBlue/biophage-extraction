@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { organicBox, roughen } from './organic';
 import { HIVE, ORGANIC, ZONE7_SHADE } from '../render/palette';
 import { bioNode, bioTime, chitin, liquidLight, membrane, zoneRock } from '../render/materials';
 import type { Collider, CollisionWorld } from './collision';
@@ -90,16 +91,22 @@ export class Kit {
   }
 
   /** A solid box (local centre u, v; half sizes; local yaw; heights relative to the structure base). */
-  box(u: number, v: number, hu: number, hv: number, y0: number, y1: number, mat: THREE.Material, o: { yaw?: number; rise?: number; tag?: string } = {}): { mesh: THREE.Mesh; collider: Collider } {
-    const geo = new THREE.BoxGeometry(hu * 2, y1 - y0, hv * 2, Math.max(1, Math.round(hu)), 1, Math.max(1, Math.round(hv)));
+  box(u: number, v: number, hu: number, hv: number, y0: number, y1: number, mat: THREE.Material, o: { yaw?: number; rise?: number; tag?: string; organic?: number; flatTop?: boolean } = {}): { mesh: THREE.Mesh; collider: Collider } {
+    const [wx, wz] = this.at(u, v);
+    // Grown, weathered shape around an exact box collider (organic: 0 keeps the clean box).
+    const hy = (y1 - y0) / 2;
+    const geo = organicBox(hu, hy, hv, { amount: o.organic ?? 1, seed: Math.round(wx * 7.1 + wz * 3.3 + y0) % 997, flatTop: o.flatTop ?? (o.rise ? true : undefined) });
     if (o.rise) {
       const p = geo.attributes.position;
       for (let i = 0; i < p.count; i++) {
-        if (p.getY(i) > 0) p.setY(i, p.getY(i) - o.rise * (0.5 - p.getX(i) / (2 * hu)));
+        // Shear by height so a subdivided side stays smooth (the top gets the full slope, the foot none).
+        const k = hy > 1e-6 ? THREE.MathUtils.clamp((p.getY(i) + hy) / (2 * hy), 0, 1) : 1;
+        p.setY(i, p.getY(i) - k * o.rise * (0.5 - THREE.MathUtils.clamp(p.getX(i) / (2 * hu), -0.5, 0.5)));
       }
       geo.computeVertexNormals();
     }
     const mesh = new THREE.Mesh(geo, mat);
+    mesh.userData.noOrganic = true; // already grown here; Rendering's scene-wide pass would lift walkable tops
     mesh.position.set(u, (y0 + y1) / 2, v);
     mesh.rotation.y = o.yaw ?? 0;
     this.group.add(mesh);
@@ -367,7 +374,7 @@ export function reliquaryBowl(solids: CollisionWorld, x: number, z: number, yaw:
   for (let i = 0; i < 9; i++) {
     const v = -radius * 0.9 + (i / 8) * radius * 1.8;
     const y = 26 + Math.cos((v / (radius * 0.85)) * 0.9) * 2 - 2;
-    const vert = new THREE.Mesh(new THREE.SphereGeometry(1.6, 14, 10), bone);
+    const vert = new THREE.Mesh(roughen(new THREE.SphereGeometry(1.6, 18, 14), 0.9, i + 3), bone);
     vert.scale.set(1.3, 0.9, 0.8);
     vert.position.set(0, y + 0.6, v);
     k.group.add(vert, rib([new THREE.Vector3(0, y + 1, v), new THREE.Vector3(0.3, y + 3.5, v - 0.8), new THREE.Vector3(0, y + 5, v - 2)], 0.3, bone, 10));
@@ -424,7 +431,7 @@ export function longSeedDebris(solids: CollisionWorld, x: number, z: number, yaw
     sec.rotation.y = syaw;
     k.group.add(sec);
     // The shell: an open cylinder lying along local Z, its arc over the top, sunk a little into the ground.
-    const shell = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 40, 6, true, Math.PI * (1 - arc), Math.PI * 2 * arc), hull);
+    const shell = new THREE.Mesh(roughen(new THREE.CylinderGeometry(r, r, len, 40, 14, true, Math.PI * (1 - arc), Math.PI * 2 * arc), 0.7, si + 1), hull);
     shell.geometry.rotateX(Math.PI / 2);
     shell.position.y = r * 0.55;
     sec.add(shell);
@@ -457,7 +464,7 @@ export function longSeedDebris(solids: CollisionWorld, x: number, z: number, yaw
     const s = 0.7 + rand() * 0.25;
     const box = k.box(u, v, s, s * 0.8, -0.1, s * 1.5, crateMat, { yaw: cy, tag: `debris-crate-${i}` });
     box.mesh.geometry.dispose();
-    box.mesh.geometry = new THREE.BoxGeometry(s * 2, s * 1.6, s * 1.6);
+    box.mesh.geometry = organicBox(s, s * 0.8, s * 0.8, { amount: 0.6, seed: i + 11 });
     if (i === 0 || i === 4) lootAt(`debris-crate-${i}`, u + Math.sin(cy + 1.57) * (s + 0.9), 0, v + Math.cos(cy + 1.57) * (s + 0.9));
   });
   // The black box: a pale capsule at the back of the largest section, its status light a single green point.

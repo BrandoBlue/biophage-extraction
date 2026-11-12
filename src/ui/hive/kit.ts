@@ -27,17 +27,28 @@ export interface FrameOpts {
   unlocked?: string[];
 }
 
+/** `locked` is what the player reads on a shut tab: plain words, never a milestone codename. */
 export const NAV: { id: string; label: string; sub?: string; locked?: string }[] = [
   { id: 'menu', label: 'MAIN MENU' },
   { id: 'host', label: 'HOST SELECT' },
   { id: 'stash', label: 'STASH & LOADOUT' },
   { id: 'raid', label: 'RAID SELECT', sub: 'Exclusion Zone' },
-  { id: 'synapse', label: 'SYNAPSE & SKILLS', locked: 'HOST' },
-  { id: 'lab', label: 'VIRAL LAB', locked: 'HOST' },
-  { id: 'vendors', label: 'VENDORS', sub: 'Trade & contracts', locked: 'LARVA' },
-  { id: 'body', label: 'HIVE BODY', sub: 'Organs & vat', locked: 'LARVA' },
-  { id: 'hivemind', label: 'HIVE-MIND', sub: 'Multiplayer', locked: 'HIVE' },
+  { id: 'synapse', label: 'SYNAPSE & SKILLS', locked: 'NEXT UPDATE' },
+  { id: 'lab', label: 'VIRAL LAB', locked: 'NEXT UPDATE' },
+  { id: 'vendors', label: 'VENDORS', sub: 'Trade & contracts', locked: 'SOON' },
+  { id: 'body', label: 'HIVE BODY', sub: 'Organs & vat', locked: 'SOON' },
+  { id: 'hivemind', label: 'HIVE-MIND', sub: 'Multiplayer', locked: 'ONLINE BUILD' },
 ];
+
+/** Tooltips for shut tabs. */
+const LOCK_WHY: Record<string, string> = {
+  synapse: 'The Synapse tree grows in the next update, with host levels',
+  lab: 'The Viral Lab opens in the next update',
+  hivemind: 'Online squads play on the online build',
+};
+
+/** The nav hangs along a soft vein: 0 at the middle tab, 1 at the ends (a parabola, like the vein's curve). */
+export const sag = (i: number, n: number) => { const t = n < 2 ? 0 : (i - (n - 1) / 2) / ((n - 1) / 2); return t * t; };
 
 /** The full-screen Hive frame. Returns the root and the content slot to fill. */
 export function frame(o: FrameOpts): { root: HTMLElement; body: HTMLElement; nav: HTMLElement } {
@@ -52,8 +63,9 @@ export function frame(o: FrameOpts): { root: HTMLElement; body: HTMLElement; nav
       </div>
       <div class="hv-brand">Biophage <small>EXTRACTION</small></div>
     </header>
-    <nav class="hv-nav">${NAV.map((n) => (o.unlocked?.includes(n.id) ? { ...n, locked: undefined } : n)).map((n) => `<button class="tab${n.id === o.tab ? ' on' : ''}${n.locked ? ' locked' : ''}" data-tab="${n.id}" ${n.locked ? 'disabled' : ''}>
+    <nav class="hv-nav"><svg class="vein" viewBox="0 -0.2 100 1.4" preserveAspectRatio="none" aria-hidden="true"><path d="M0 1 Q50 -1 100 1"/></svg>${NAV.map((n) => (o.unlocked?.includes(n.id) ? { ...n, locked: undefined } : n)).map((n, i) => `<button class="tab${n.id === o.tab ? ' on' : ''}${n.locked ? ' locked' : ''}" data-tab="${n.id}" style="--d:${sag(i, NAV.length).toFixed(3)}" ${n.locked ? `disabled title="${esc(LOCK_WHY[n.id] ?? n.locked)}"` : ''}>
       ${n.label}${n.sub ? `<small>${n.sub}</small>` : ''}${n.locked ? `<em>${glyph('lock')}${n.locked}</em>` : ''}</button>`).join('')}</nav>
+    <button class="hv-full" data-full title="Borderless fullscreen (F)">${glyph('expand')}</button>
     <h1 class="hv-title"><span>${esc(o.title)}</span></h1>
     <main class="hv-body"></main>`;
   return { root, body: q(root, '.hv-body'), nav: q(root, '.hv-nav') };
