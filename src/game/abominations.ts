@@ -365,6 +365,11 @@ export class Abomination {
         case 'reveal': ctx.onReveal?.(this, e.how); break;
         case 'web': ctx.onWeb?.(this, e.from, e.to); break;
         case 'volley': this.volley(ctx, e.target, e.count, e.damage, e.spread); break;
+        case 'rally':
+          // Another species called in: they come to where the caller is aiming.
+          for (const o of ctx.others) if (o !== this && o.alive && e.kinds.includes(o.kind) && o.position.distanceTo(pos) <= e.radius) o.alert({ x: e.at.x, z: e.at.z });
+          ctx.onTactic?.(this, 'rally');
+          break;
         case 'alarm':
           for (const o of ctx.others) if (o !== this && o.alive && o.kind === this.kind && o.position.distanceTo(pos) <= e.radius) o.alert({ x: p.x, z: p.z });
           break;

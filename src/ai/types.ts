@@ -60,11 +60,13 @@ export type AIEvent =
   /** Thinking out loud (ai.json tactics): calls the pack in on a reload, breaks out of a held aim, starts or springs a
    *  lure, falters when a packmate falls. The body, sound and HUD read these as tells. */
   | { type: 'tactic'; what: Tactic }
+  /** Calls creatures of other kinds within `radius` onto `at` (a Bile Cantor singing Needlemaws onto the host). */
+  | { type: 'rally'; kinds: readonly string[]; radius: number; at: Vec2 }
   /** Burst from its tank, dropped its disguise, or sprang the ambush it laid where it lost the host. */
   | { type: 'reveal'; how: 'hatch' | 'disguise' | 'ambush' };
 
 /** A tactical choice a hunter just made (see Brain.intent). */
-export type Tactic = 'press' | 'evade' | 'lure' | 'spring' | 'falter' | 'rout' | 'adapt';
+export type Tactic = 'press' | 'evade' | 'lure' | 'spring' | 'falter' | 'rout' | 'adapt' | 'rally';
 /** What a creature is thinking right now, readable by the body, sound and HUD. */
 export type Intent = 'idle' | 'wary' | 'stare' | 'hunt' | 'stalk' | 'attack' | 'search' | 'flee' | 'reel' | 'press' | 'evade' | 'lure' | 'falter' | 'dead';
 export type Mode = 'calm' | 'investigate' | 'hunt' | 'stagger' | 'dead';

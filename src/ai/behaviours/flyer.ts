@@ -41,6 +41,8 @@ export class FlyerBrain extends Brain {
         this.windup = Math.min(1, this.phaseTime / F.screechTell);
         if (this.phaseTime >= F.screechTell) {
           this.events.push({ type: 'screech', radius: scr.radius });
+          // The swarm's call pulls the hunters around it onto the intruder (ai.json teamwork.calls).
+          this.rally(host);
           this.screechCd = scr.cooldown;
           this.windup = 0;
           this.setPhase('orbit');

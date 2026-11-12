@@ -69,7 +69,16 @@ One `RaidMemory` per raid (keyed like the attack tokens) records the tricks the 
 | Killing the lunger (`lungerKilled`) | a creature dies mid-attack | Swarms fake the coil (`fakeout`, `fakeoutTime` s) on all but every `feintEvery`-th approach ("they feint with two and lunge with a third") |
 | Dodging a charge to one side (`dodge+`/`dodge-`) | a Mournback's charge ends without goring | It lines up `cutAhead` m to that side of the host ("it cuts the angle") |
 
-The rest of the `mind.learns` lines in abominations.json are next, species by species.
+| Turning to check on a Glasswalker (`checked`) | it is caught in the host's gaze while stalking close, once per `checkedCooldown` s | It stops closing in and waits for a noise of at least `coverNoise` m near the host, then comes in under it for `coverTime` s |
+| Shooting at a Mistwader (`shot`) | once is enough | It wades away (`shyDistance` m) from any host noise it hears |
+| Hurting a Lumen Grazer (`hurt`, a place) | the host's position when it was hurt | The herd keeps `avoidRadius` m from there for the rest of the raid |
+| Shooting at a Bristleback herd (`shot`) | the herd was alarmed by gunfire or a wound | Next time, the herd stampedes at first sight (within `sightFraction` of its sight) |
+
+### Species working together (`ai.json` `teamwork`)
+
+`teamwork.calls` lists who calls whom. When the caller commits (a Bile Cantor winds up, an Oculimoth screeches, a Mistwader rears), every creature of the listed kinds within the radius is sent to the host as a `rally`. Their bodies show it as a call.
+
+The remaining `mind.learns` and `mind.plans` lines are next: the Mournback shielding the wounded, Dunewake ringing a rock, Oculimoth after a flare, the Weaver rebuilding elsewhere, and the Mimic and Shroudling getting more convincing.
 
 ## Archetypes
 | Kind | Archetype | Behaviour | Tell | Counter |
