@@ -3,17 +3,29 @@
  * the host at `burrowSpeed`; inside `burrow.triggerRadius` a line of ripples races in for `rippleTell` s (the only
  * tell), then it bursts out in a lunge. It fights on the surface, where it can be shot, for `resurfaceAfter` s and
  * dives again. Calm, it idles just under the sand. Sprinting hosts are felt from further away, crouching ones barely.
+ * Lurkers (the Fenstalker, data `submerge` instead of `burrow`) lie under the water with only their eyes up: they creep
+ * in at `lurkCreep` x their speed rather than racing, and burst out inside `submerge.ambushRange` after `ripplesTell`.
  */
 import { AI, type Range } from '../../../data';
 import { Brain } from '../brain';
 import type { BrainWorld, Vec3 } from '../types';
 
 interface BurrowData { triggerRadius: number; rippleTell: number; resurfaceAfter: Range }
+interface SubmergeData { ambushRange: number; ripplesTell: number }
+
+function burrowData(t: Record<string, unknown>): BurrowData {
+  if (t.burrow) return t.burrow as BurrowData;
+  const s = t.submerge as SubmergeData | undefined;
+  if (s) return { triggerRadius: s.ambushRange, rippleTell: s.ripplesTell, resurfaceAfter: AI.burrower.lurkSurface };
+  return { triggerRadius: 9, rippleTell: 0.8, resurfaceAfter: [3, 6] };
+}
 
 export class BurrowerBrain extends Brain {
   protected readonly turnRate = AI.burrower.turnRate;
   protected readonly flees = false;
-  private readonly b = (this.data.burrow as BurrowData | undefined) ?? { triggerRadius: 9, rippleTell: 0.8, resurfaceAfter: [3, 6] as Range };
+  private readonly b = burrowData(this.data as unknown as Record<string, unknown>);
+  /** Lies in wait under water and creeps in, rather than racing under the sand. */
+  readonly lurker = !this.data.burrow && !!this.data.submerge;
   private up = 0;
   private bit = false;
 
@@ -87,8 +99,8 @@ export class BurrowerBrain extends Brain {
     this.action = 0;
     if (this.submerged < 0.95) { this.slow(dt, 3); return; }
     // Circle in from the side rather than a straight line, so the ripple comes from somewhere new.
-    const side = (this.id % 2 ? 1 : -1) * Math.min(1, dist / 20) * B.swimCurl;
-    this.moveToward(host.x - dz * side * dist * 0.3, host.z + dx * side * dist * 0.3, burrowSpeed, 3, dt);
+    const side = this.lurker ? 0 : (this.id % 2 ? 1 : -1) * Math.min(1, dist / 20) * B.swimCurl;
+    this.moveToward(host.x - dz * side * dist * 0.3, host.z + dx * side * dist * 0.3, this.lurker ? t.speed * B.lurkCreep : burrowSpeed, 3, dt);
     if (dist <= this.b.triggerRadius && this.cooldown === 0 && this.requestToken(w)) this.setPhase('ripple');
   }
 

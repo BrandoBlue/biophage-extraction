@@ -12,7 +12,12 @@
     "dunewake": "burrower",
     "bristleback": "herd",
     "shroudling": "spitter",
-    "mirebrood": "swarm"
+    "mirebrood": "swarm",
+    "fenstalker": "burrower",
+    "mistwader": "wader",
+    "cablecrawler": "stalker",
+    "veilwing": "flyer",
+    "hollowed": "spitter"
   },
   "awareness": {
     "_note": "Awareness fills 0..1. At suspicious the creature turns and investigates the stimulus; at 1 it hunts. Sight fill per second = sightRate * visibility * (1 - distance/range); peripheral (outer half of the field of view) fills at peripheralFactor. A noise adds noiseGain scaled by how far inside its radius the creature is. Awareness decays at decayRate while nothing is sensed.",
@@ -213,14 +218,19 @@
     ]
   },
   "burrower": {
-    "_note": "Burrower (Dunewake, src/ai/behaviours/burrower.ts). Sinks at diveRate and surfaces at surfaceRate (submerged per s); while rippling it closes at burrowSpeed x rippleFactor; the burst lunge lasts lungeTime s; swimCurl bends its approach so the ripple comes from the side.",
+    "_note": "Burrower (Dunewake, src/ai/behaviours/burrower.ts). Sinks at diveRate and surfaces at surfaceRate (submerged per s); while rippling it closes at burrowSpeed x rippleFactor; the burst lunge lasts lungeTime s; swimCurl bends its approach so the ripple comes from the side. Lurkers (data `submerge`, the Fenstalker) creep in at lurkCreep x speed and stay up lurkSurface s after an ambush.",
     "turnRate": 6,
     "diveRate": 1.6,
     "surfaceRate": 5,
     "rippleFactor": 0.8,
     "lungeTime": 0.45,
     "swimCurl": 0.6,
-    "knockback": 4
+    "knockback": 4,
+    "lurkCreep": 0.35,
+    "lurkSurface": [
+      4,
+      7
+    ]
   },
   "herd": {
     "_note": "Herd (Bristleback, src/ai/behaviours/herd.ts). Alarmed by a noise of at least gunfireNoise m within temperament.alarmedByGunfireWithin. Stampedes when the host is chargeRange m away, turning at most stampedeTurn rad/s; winded for wheelTime s after. Quill volleys aim volleyLead s ahead of the host, spread volleySpread m, never closer than volleyMin m.",
@@ -236,6 +246,14 @@
     "volleyLead": 0.4,
     "volleySpread": 2.5,
     "volleyMin": 6
+  },
+  "wader": {
+    "_note": "Wader (Mistwader, src/ai/behaviours/wader.ts). Passive until hurt; a host closer than underfoot x stomp.radius startles it into one warning stamp for startleTime s. Rears for its windup, stamps (abominations.json stomp), then stands recoverTime s. stompShow: seconds the stamp shows on the body.",
+    "turnRate": 0.5,
+    "underfoot": 0.6,
+    "startleTime": 8,
+    "recoverTime": 1.4,
+    "stompShow": 0.8
   },
   "widow": {
     "_note": "The Sandwidow (src/ai/widow.ts); attack numbers stay in bosses.json `sandwidow`. Wakes when a host is on the crater floor (within floorHeight m above it) and within wakeRadius. Swims circleRadius m from the host, leading by circleLead rad; keeps inside keepInside x the crater radius. surface rises at riseRate and sinks at sinkRate per s; below hittableAbove nothing reaches her. Bites rise to biteRise, brood calls to callRise; in drown she rides at drownRide. A breach tracks the host at breachTrack per s during its wind-up, then she stays up eruptUp s. Each severed petal takes petalBite off her bite. thrashReach adds to the thrash radius for choosing it. firstAttack: delay before attacks with no firstDelay. Drowning she closes to drownClose m.",
