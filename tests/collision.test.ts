@@ -126,20 +126,23 @@ describe('the Reliquary arena hooks', () => {
 });
 
 describe('the Long Seed debris field', () => {
-  it('has hull tunnels you can walk through end to end, and crates with loot', () => {
+  it('has two grown halls you walk into and through, joined by a passage, with loot inside', () => {
     const w = new CollisionWorld(flat);
     const d = longSeedDebris(w, 0, 0, 0, flat);
-    // The largest section lies along local v at u = -6 (yaw 0.15): walk its length.
-    const along = (f: number): [number, number] => [-6 + Math.sin(0.15) * f, -4 + Math.cos(0.15) * f];
-    const start = along(-10);
-    const p = walk(w, { x: start[0], y: 0, z: start[1] }, [along(10)]);
-    expect(Math.hypot(p.x - along(10)[0], p.z - along(10)[1])).toBeLessThan(0.5);
-    // Its sides block a body walking across it.
-    const side = walk(w, { x: -14, y: 0, z: -4 }, [[-6, -4]]);
-    expect(side.x).toBeLessThan(-9);
+    // In the west door of the brood hall, across it, through the passage, into the nursery and out its east door.
+    const p = walk(w, { x: -13, y: 0, z: -2 }, [[-8.5, -2], [-1, -1], [2.6, 0.2], [7.6, 3.7], [10.5, 6], [13.5, 7], [17, 8.2]]);
+    expect(Math.hypot(p.x - 17, p.z - 8.2)).toBeLessThan(0.5);
+    // The hall walls stop a body walking straight in through the side.
+    const side = walk(w, { x: -4, y: 0, z: -12 }, [[-4, -2]]);
+    expect(side.z).toBeLessThan(-7);
     expect(d.loot.some((l) => l.id === 'debris-blackbox')).toBe(true);
     // Design's placement (data/habitats.json loot): three cargo crates spilled from the wreck.
     expect(d.loot.map((l) => l.container)).toEqual(['cargoCrate', 'cargoCrate', 'cargoCrate']);
+    // The site has living props: sacs, doorway curtains, urns and tanks.
+    const life = d.group.getObjectByName('living-props');
+    expect(life).toBeTruthy();
+    expect(w.colliders.filter((c) => c.tag === 'growth-tank')).toHaveLength(5);
+    expect(w.colliders.filter((c) => c.tag?.startsWith('debris-crate-'))).toHaveLength(5);
   });
 });
 

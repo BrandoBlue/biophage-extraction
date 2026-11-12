@@ -20,6 +20,12 @@ const POSES = {
   chasm: { at: [-306, -10], eye: 2, yaw: 1.57, pitch: -0.12 },
   bridge: { at: [-318, -54], eye: 1.7, yaw: 1.4, pitch: -0.04 },
   brood: { at: [-140, -300], eye: 1.7, yaw: 0.43, pitch: 0.12 },
+  camp: { at: [-129.2, 106.3], eye: 1.7, yaw: -2.57, pitch: 0.05 },
+  campInside: { at: [-126.6, 122.4], eye: 1.7, yaw: -1.22, pitch: 0 },
+  relay: { at: [-167.2, -154.5], eye: 1.7, yaw: 1.4, pitch: 0.25 },
+  reach: { at: [-298, 88], eye: 1.8, yaw: 1.9, pitch: -0.1 },
+  hullHold: { at: [61, 302.4], eye: 1.7, yaw: -2.33, pitch: 0.05 },
+  hullStern: { at: [102.5, 347.5], eye: 1.7, yaw: -2.33, pitch: 0.2 },
 };
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort', ...(process.env.OUTDIR ? ['--outDir', process.env.OUTDIR] : [])], { stdio: 'ignore' });

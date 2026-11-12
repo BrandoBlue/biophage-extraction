@@ -9,6 +9,7 @@ import { ItemGrid } from './game/grid';
 import { browserStorage, deploy, die, extract, loadProfile, saveProfile } from './game/profile';
 import { settleContracts } from './game/economy';
 import { BUILT_ZONES, buildZone } from './world/zones';
+import { lifeBlast, lifeShot } from './world/life';
 import { createPipeline } from './render/pipeline';
 import { installLookdev } from './render/lookdev';
 import { GameAudio } from './audio';
@@ -63,6 +64,10 @@ function bootRaid(): void {
   if (openEdge) setEdgeFog(openEdge);
   const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures, world.zone);
   const hud = new RaidHud(raid.bus, raid);
+  // World's living props (src/world/life.ts): a shot or a blast reaches the sacs, urns and tanks in its path.
+  const lifeEye = new THREE.Vector3(), lifeAim = new THREE.Vector3();
+  raid.bus.on('shot', () => lifeShot(camera.getWorldPosition(lifeEye), camera.getWorldDirection(lifeAim)));
+  raid.bus.on('explosion', (e) => lifeBlast(lifeEye.set(e.position.x, e.position.y, e.position.z), 6));
   function deployNow(): void {
     if (raid.phase !== 'briefing') return;
     // Online squads (src/net): guests wait for the leader; the leader's Deploy drops everyone into the raid it built.

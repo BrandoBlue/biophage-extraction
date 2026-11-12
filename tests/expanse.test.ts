@@ -2,12 +2,14 @@ import * as THREE from 'three';
 import { afterAll, describe, expect, it } from 'vitest';
 import { STEP_HEIGHT } from '../src/world/collision';
 import {
-  BIOMES, EXPANSE, EXPANSE_RADIUS, POOL_LEVEL, bridgeSpans, buildExpanse, chasmAt, chasmLip, expanseGround, expanseLandmarkAt, expanseLayout, rivalSpawns,
+  BIOMES, EXPANSE, EXPANSE_RADIUS, POOL_LEVEL, bridgeSpans, buildExpanse, chasmAt, chasmLip, expanseGround, expanseLandmarkAt, expanseLayout, rivalSpawns, OUTPOSTS, reachIsland, HULL, HULL_BULKHEADS, HULL_GALLERY_Y, hullAt,
 } from '../src/world/expanse';
 import { SOLIDS, climbBlocked, groundHeight, setTerrain } from '../src/world/zone7';
 import { BUILT_ZONES, buildZone } from '../src/world/zones';
 import { planHabitats } from '../src/game/habitats';
 import { RAID } from '../data';
+import { LOOKOUT_Y } from '../src/world/outposts';
+import type { Vec3Like } from '../src/world/collision';
 
 const scene = new THREE.Scene();
 const t0 = performance.now();
@@ -173,5 +175,73 @@ describe('The Expanse build', () => {
     const w = buildZone(new THREE.Scene(), 'expanse', 4);
     expect(w.zone).toBe('expanse');
     expect(w.layout.playableRadius).toBe(500);
+  });
+});
+
+/** Walks a 0.4 m capsule through waypoints the way the Player does: push out of walls, then settle on floors. */
+function walk(start: Vec3Like, path: [number, number][], step = 0.15): Vec3Like {
+  const p = { ...start };
+  for (const [tx, tz] of path) {
+    for (let i = 0; i < 4000; i++) {
+      const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
+      if (d < 0.2) break;
+      p.x += (dx / d) * Math.min(step, d); p.z += (dz / d) * Math.min(step, d);
+      SOLIDS.collide(p, 0.4, 1.8);
+      p.y = SOLIDS.floorAt(p.x, p.z, p.y + STEP_HEIGHT);
+    }
+  }
+  return p;
+}
+
+describe('The Expanse between the biomes', () => {
+  it('leaves no stretch of the playable map far from something worth reaching', () => {
+    const l = world.layout;
+    const poi = [...world.structures.loot, ...l.pods, ...l.extracts, ...l.nests];
+    const allBlooms = EXPANSE.blooms.at.map(([x, z]) => ({ x, z }));
+    let worst = 0;
+    for (let x = -460; x <= 460; x += 20) for (let z = -460; z <= 460; z += 20) {
+      if (Math.hypot(x, z) > 450 || chasmAt(x, z).d < chasmAt(x, z).halfWidth) continue;
+      worst = Math.max(worst, Math.min(...[...poi, ...allBlooms].map((p) => Math.hypot(p.x - x, p.z - z))));
+    }
+    expect(worst).toBeLessThan(150);
+  });
+
+  it('grows a seeded handful of Gene Blooms on the routes', () => {
+    const a = expanseLayout(1).nodes, b = expanseLayout(2).nodes;
+    expect(a).toHaveLength(EXPANSE.blooms.perRaid);
+    expect(a.map((n) => n.id)).not.toEqual(b.map((n) => n.id));
+  });
+
+  it('lets a host walk into a survey camp\'s roofed room and up its lookout', () => {
+    const o = OUTPOSTS.find((s) => s.type === 'camp')!;
+    const yaw = (o.yaw * Math.PI) / 180, at = (u: number, v: number): [number, number] => [o.x + u * Math.cos(yaw) + v * Math.sin(yaw), o.z - u * Math.sin(yaw) + v * Math.cos(yaw)];
+    const base = groundHeight(o.x, o.z);
+    const [sx, sz] = at(0, -12);
+    // In through the north door to the roofed west room.
+    const inside = walk({ x: sx, y: base, z: sz }, [at(0, -7), at(0, -2), at(-5, -2)]);
+    expect(Math.hypot(inside.x - at(-5, -2)[0], inside.z - at(-5, -2)[1])).toBeLessThan(0.5);
+    expect(SOLIDS.ceilingAt(inside.x, inside.z, inside.y + 1)).toBeLessThan(base + 4);
+    // Through the partition doorway, out the east door and up the ramp to the lookout.
+    const up = walk(inside, [at(-3, 2.4), at(4, 2.4), at(4, 0), at(8.5, 0), at(18.5, 0)]);
+    expect(up.y).toBeCloseTo(base + LOOKOUT_Y, 0);
+  });
+
+  it('carries a host along the span to the island in the rift, and its cache sits there', () => {
+    const R = reachIsland();
+    const p = walk({ x: R.span.x1, y: R.span.y1, z: R.span.z1 }, [[R.span.x0, R.span.z0], [R.x, R.z]]);
+    expect(Math.hypot(p.x - R.x, p.z - R.z)).toBeLessThan(0.5);
+    expect(p.y).toBeGreaterThan(R.top - 0.3);
+    expect(world.structures.loot.find((l) => l.id === 'chasm-reach-cache')?.container).toBe(R.container);
+  });
+
+  it('lets a host walk into the Long Seed through its torn front, through both bulkheads and up to the reactor gallery', () => {
+    const L = HULL.len, sb = HULL_BULKHEADS[1] * L, floor = groundHeight(HULL.x, HULL.z);
+    const [fx, fz] = hullAt(-L / 2 - 6, 0);
+    const route: [number, number][] = [hullAt(-L / 2 + 2, 0), hullAt(HULL_BULKHEADS[0] * L + 2, 0), hullAt(sb + 0.5, 0), hullAt(sb + 0.5, -9), hullAt(sb + 10, -9), hullAt(L / 2 - 3, -6)];
+    const p = walk({ x: fx, y: groundHeight(fx, fz), z: fz }, route);
+    const [ex, ez] = route[route.length - 1];
+    expect(Math.hypot(p.x - ex, p.z - ez)).toBeLessThan(0.5);
+    expect(p.y).toBeCloseTo(floor + HULL_GALLERY_Y, 0);
+    expect(world.structures.loot.filter((l) => l.id.startsWith('hull-'))).toHaveLength(4);
   });
 });

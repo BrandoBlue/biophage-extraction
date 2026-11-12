@@ -7,6 +7,8 @@ import type { CaveLair } from './cave';
 import type { WardenArena } from './wreck';
 import { mulberry32 } from './rng';
 import { noise3 } from '../render/geometry';
+import { LivingProps } from './life';
+import { buildingMats, casket, dressHall, growthTank, grownHall, grownPassage, hallLight, nestMesh, remainsMesh, type HallOptions } from './buildings';
 
 /**
  * Enterable World structures for Zone 7: the Hollow Spire (a chitin hive tower with three floors) and the
@@ -410,74 +412,115 @@ export function reliquaryBowl(solids: CollisionWorld, x: number, z: number, yaw:
 }
 
 /**
- * The Long Seed Debris Field: torn hull sections of the crashed seedship lying on the island, each a half-buried
- * tunnel you can walk through, ribbed with bulkhead frames and overgrown with roots; cargo crates as cover and loot,
- * and the ship's black box in the largest section.
+ * The Long Seed Debris Field: where the crashed seedship's survivors grew shelter out of the wreck. Two grown halls
+ * joined by a short roofed passage, a torn hull section half-buried behind them.
+ *
+ *  - The brood hall (big, two doorways): a nest in the middle, growth tanks along the back wall, caskets as cover,
+ *    sacs hanging from the dome. A casket's worth of loot by the west door.
+ *  - The nursery (small, two doorways): more tanks, a host's remains slumped over the ship's black box.
+ *  - Outside: grown caskets as cover, one with loot.
+ *
+ * Membrane curtains part as you walk through a doorway, sacs swing when brushed or shot, urns topple, tanks burst
+ * (src/world/life.ts). Walls, caskets and tanks collide.
  */
 export function longSeedDebris(solids: CollisionWorld, x: number, z: number, yaw: number, height: Height, seed = 31): { group: THREE.Group; loot: LootSpot[] } {
   const rand = mulberry32(seed);
   const base = height(x, z);
   const k = new Kit(solids, x, z, yaw, base);
   k.group.name = 'long-seed-debris';
-  const hull = oldBone(ORGANIC.mist, 0.25);
-  const plate = chitin(ZONE7_SHADE.rock, ORGANIC.mist, 0.8);
-  const crateMat = chitin(ZONE7_SHADE.stem, HIVE.acid, 1.4);
-  const roots = chitin(ZONE7_SHADE.stem, ZONE7_SHADE.moss, 2);
+  const life = new LivingProps(solids);
+  const group = new THREE.Group();
+  group.name = 'long-seed-site';
+  group.add(k.group, life.group);
+  const M = buildingMats();
   const loot: LootSpot[] = [];
   const lootAt = (id: string, u: number, y: number, v: number, container = 'cargoCrate') => { const [lx, lz] = k.at(u, v); loot.push({ id, x: lx, y: base + y, z: lz, container }); };
-  // Each section: (u, v) centre, local yaw, length, radius, how much of the arc survives.
-  const sections: [number, number, number, number, number, number][] = [[-6, -4, 0.15, 16, 4.6, 0.62], [9, 6, -0.5, 11, 3.8, 0.55], [-3, 13, 1.25, 8, 3.4, 0.5]];
-  sections.forEach(([u, v, syaw, len, r, arc], si) => {
-    const sec = new THREE.Group();
-    sec.position.set(u, 0, v);
-    sec.rotation.y = syaw;
-    k.group.add(sec);
-    // The shell: an open cylinder lying along local Z, its arc over the top, sunk a little into the ground.
-    const shell = new THREE.Mesh(roughen(new THREE.CylinderGeometry(r, r, len, 40, 14, true, Math.PI * (1 - arc), Math.PI * 2 * arc), 0.7, si + 1), hull);
-    shell.geometry.rotateX(Math.PI / 2);
-    shell.position.y = r * 0.55;
-    sec.add(shell);
-    // Bulkhead frames every 2.5 m, some snapped.
-    for (let f = -len / 2 + 1; f < len / 2; f += 2.5) {
-      if (rand() < 0.25) continue;
-      const sweep = Math.PI * 2 * arc * (0.6 + rand() * 0.4);
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(r - 0.15, 0.22, 6, 40, sweep), plate);
-      ring.rotation.z = Math.PI / 2 - sweep / 2 + (rand() - 0.5) * 0.4;
-      ring.position.set(0, r * 0.55, f);
-      sec.add(ring);
-    }
-    // Side walls collide; the curved roof is out of reach. Colliders in the structure frame.
-    const co = Math.cos(syaw), sn = Math.sin(syaw);
-    for (const sideU of [-1, 1]) {
-      const wu = sideU * (r - 0.3);
-      const cu = u + wu * co, cv = v - wu * sn;
-      solids.add({ ...colliderFrom(k, cu, cv), hx: 0.35, hz: len / 2, yaw: yaw + syaw, y0: base - 1, y1: base + r * 0.9, tag: `debris-wall-${si}` });
-    }
-    // Roots breaking through the plating.
-    for (let i = 0; i < 6; i++) {
-      const f = (rand() - 0.5) * len, a = (rand() - 0.5) * 2.4;
-      const pts = [new THREE.Vector3(Math.sin(a) * (r + 2), -0.3, f + 1), new THREE.Vector3(Math.sin(a) * r, r * 0.55 + Math.cos(a) * r * 0.9, f), new THREE.Vector3(Math.sin(a) * (r - 1.5), r * 0.4, f - 1.5)];
-      sec.add(rib(pts, 0.08 + rand() * 0.1, roots, 14));
-    }
-  });
-  // Cargo crates: hard cover inside and around the sections (colliders), some of them lootable.
-  const crates: [number, number, number][] = [[-7.5, -7, 0.2], [-4.5, 1, -0.3], [-8, 3.5, 0.6], [6, 2, 0.1], [11, 9, -0.4], [2, 10, 0.8], [-1, -12, 0.3]];
-  crates.forEach(([u, v, cy], i) => {
-    const s = 0.7 + rand() * 0.25;
-    const box = k.box(u, v, s, s * 0.8, -0.1, s * 1.5, crateMat, { yaw: cy, tag: `debris-crate-${i}` });
-    box.mesh.geometry.dispose();
-    box.mesh.geometry = organicBox(s, s * 0.8, s * 0.8, { amount: 0.6, seed: i + 11 });
-    if (i === 0 || i === 4) lootAt(`debris-crate-${i}`, u + Math.sin(cy + 1.57) * (s + 0.9), 0, v + Math.cos(cy + 1.57) * (s + 0.9));
-  });
-  // The black box: a pale capsule at the back of the largest section, its status light a single green point.
-  const bb = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.6, 6, 12), plate);
-  bb.rotation.z = Math.PI / 2;
-  bb.position.set(-6 + Math.sin(0.15) * -6, 0.4, -4 + Math.cos(0.15) * -6);
+
+  // The halls and the passage between their facing doorways.
+  const main: HallOptions = { u: -3, v: -2, ru: 7, rv: 5.5, height: 3.8, doors: [Math.PI, 0.5], seed };
+  const ma = hallPoint(main, 0.5);
+  const nc = { u: 10.5, v: 6 };
+  const toMain = Math.atan2(ma[1] - nc.v, ma[0] - nc.u);
+  const nursery: HallOptions = { u: nc.u, v: nc.v, ru: 4.2, rv: 3.8, height: 3.4, doors: [toMain, 0.35], seed: seed + 1 };
+  const big = grownHall(k, main), small = grownHall(k, nursery);
+  const na = hallPoint(nursery, toMain);
+  // Run the passage walls a little into each hall so there is no gap to see daylight through.
+  const du = na[0] - ma[0], dv = na[1] - ma[1], dl = Math.hypot(du, dv);
+  grownPassage(k, [ma[0] - (du / dl) * 0.6, ma[1] - (dv / dl) * 0.6], [na[0] + (du / dl) * 0.6, na[1] + (dv / dl) * 0.6], 2.4, 3.1);
+  dressHall(k, life, big, main, seed * 7 + 1, { sacs: 5, urns: 3 });
+  dressHall(k, life, small, nursery, seed * 7 + 2, { sacs: 3, urns: 2 });
+  hallLight(k, -3, -2, 3.2, 16, 15);
+  hallLight(k, 10.5, 6, 2.8, 9, 9);
+
+  // Brood hall: the nest, tanks along the back (north) wall, caskets as cover, loot by the west door.
+  const nest = nestMesh(seed, 1.6);
+  nest.position.set(-2.2, 0, -1.4);
+  k.group.add(nest);
+  for (const [i, a] of [-2.0, -1.55, -1.1].entries()) { const [u, v] = hallPoint(main, a, 0.8); growthTank(k, life, u, v, seed + i); }
+  for (const [i, a] of [1.7, 2.5].entries()) { const [u, v] = hallPoint(main, a, 0.68); casket(k, u, v, 0.62, seed + 10 + i, `debris-casket-${i}`); }
+  { const [u, v] = hallPoint(main, Math.PI + 0.35, 0.82); lootAt('debris-crate-0', u, 0, v); }
+  const r1 = remainsMesh(seed);
+  r1.position.set(-6.5, 0.02, 1.8);
+  r1.rotation.y = 0.8;
+  k.group.add(r1);
+
+  // Nursery: two tanks, a host's remains slumped over the black box (its status light a single green point).
+  for (const [i, a] of [toMain + 2.3, toMain - 2.3].entries()) { const [u, v] = hallPoint(nursery, a, 0.72); growthTank(k, life, u, v, seed + 20 + i); }
+  const [bu, bv] = hallPoint(nursery, toMain + Math.PI + 1.3, 0.55);
+  const bb = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 0.6, 6, 12), M.shell);
+  bb.rotation.set(0, toMain, Math.PI / 2);
+  bb.position.set(bu, 0.38, bv);
   const led = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), bioNode(HIVE.acid, 4));
-  led.position.copy(bb.position).add(new THREE.Vector3(0, 0.36, 0));
-  k.group.add(bb, led);
-  lootAt('debris-blackbox', bb.position.x + 1, 0, bb.position.z, 'cargoCrate');
-  return { group: k.group, loot };
+  led.position.set(bu, 0.76, bv);
+  const r2 = remainsMesh(seed + 3);
+  r2.position.set(bu - 0.3, 0.3, bv + 0.6);
+  r2.rotation.set(0.15, -toMain, 0.1);
+  k.group.add(bb, led, r2);
+  { const [lu, lv] = hallPoint(nursery, toMain + Math.PI + 1.3, 0.15); lootAt('debris-blackbox', lu, 0, lv); }
+
+  // Outside: caskets spilled round the halls as cover, one with loot; a torn hull section half-buried behind.
+  const outside: [number, number][] = [[-12.5, -8], [6, -6.5], [14.5, 0], [2, 9.5], [-11, 6.5]];
+  outside.forEach(([u, v], i) => casket(k, u, v, 0.6 + rand() * 0.2, seed + 30 + i, `debris-crate-${i}`));
+  lootAt('debris-crate-4', -11 + 1.3, 0, 6.5 + 0.6);
+  hullSection(k, -3, 13, 1.25, 9, 3.4, 0.5, seed, rand);
+  return { group, loot };
+}
+
+/** A point on a hall's oval at angle `a` (Kit frame), `s` of the way out from the centre. */
+function hallPoint(o: HallOptions, a: number, s = 1): [number, number] {
+  return [o.u + Math.cos(a) * o.ru * s, o.v + Math.sin(a) * o.rv * s];
+}
+
+/** A torn seedship hull section lying in the ground: an open shell along local Z, frames, roots; sides collide. */
+function hullSection(k: Kit, u: number, v: number, syaw: number, len: number, r: number, arc: number, seed: number, rand: () => number): void {
+  const hull = oldBone(ORGANIC.mist, 0.25);
+  const plate = chitin(ZONE7_SHADE.rock, ORGANIC.mist, 0.8);
+  const roots = chitin(ZONE7_SHADE.stem, ZONE7_SHADE.moss, 2);
+  const sec = new THREE.Group();
+  sec.position.set(u, 0, v);
+  sec.rotation.y = syaw;
+  k.group.add(sec);
+  const shell = new THREE.Mesh(roughen(new THREE.CylinderGeometry(r, r, len, 40, 14, true, Math.PI * (1 - arc), Math.PI * 2 * arc), 0.7, seed), hull);
+  shell.geometry.rotateX(Math.PI / 2);
+  shell.position.y = r * 0.55;
+  sec.add(shell);
+  for (let f = -len / 2 + 1; f < len / 2; f += 2.5) {
+    const sweep = Math.PI * 2 * arc * (0.6 + rand() * 0.4);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(r - 0.15, 0.22, 6, 40, sweep), plate);
+    ring.rotation.z = Math.PI / 2 - sweep / 2 + (rand() - 0.5) * 0.4;
+    ring.position.set(0, r * 0.55, f);
+    sec.add(ring);
+  }
+  const co = Math.cos(syaw), sn = Math.sin(syaw);
+  for (const sideU of [-1, 1]) {
+    const wu = sideU * (r - 0.3);
+    k.solids.add({ ...colliderFrom(k, u + wu * co, v - wu * sn), hx: 0.35, hz: len / 2, yaw: k.yaw + syaw, y0: k.base - 1, y1: k.base + r * 0.9, tag: 'debris-wall' });
+  }
+  for (let i = 0; i < 6; i++) {
+    const f = (rand() - 0.5) * len, a = (rand() - 0.5) * 2.4;
+    const pts = [new THREE.Vector3(Math.sin(a) * (r + 2), -0.3, f + 1), new THREE.Vector3(Math.sin(a) * r, r * 0.55 + Math.cos(a) * r * 0.9, f), new THREE.Vector3(Math.sin(a) * (r - 1.5), r * 0.4, f - 1.5)];
+    sec.add(rib(pts, 0.08 + rand() * 0.1, roots, 14));
+  }
 }
 
 /** World centre of a structure-frame point, for colliders that live in a sub-frame. */
