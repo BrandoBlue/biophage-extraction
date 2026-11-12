@@ -24,6 +24,8 @@ export interface ProfileView {
   last?: { result: 'extracted' | 'lost'; value: number } | null;
   /** Zone picked on raid select (zones.json id). */
   zone?: string;
+  /** Each host class's level (progression.ts), for host select. */
+  classLevels?: Partial<Record<ClassId, number>>;
 }
 
 export interface HiveActions {
@@ -52,6 +54,16 @@ export interface HiveActions {
   /** Zone roster with access, and picking the raid-select zone. */
   zones?(): ZoneView[];
   selectZone?(id: string): boolean;
+  /** Weapons: loadout slots, grafts and the class Armoury (Gameplay's arsenal.ts, mods.ts, progression.ts). The WEAPONS tab unlocks with it. */
+  arsenal?(): ArsenalView;
+  /** `slot` counts loadout slots like the rest of this tab: 1 = Slot I (the starter, 0, cannot be swapped). */
+  equipWeapon?(slot: number, weapon: string): boolean;
+  unequipWeapon?(slot: number): boolean;
+  /** Graft a stash mod onto loadout gun `slot` (0 = starter). Returns Gameplay's FitResult. */
+  fitMod?(slot: number, mod: string): string;
+  removeMod?(slot: number, socket: string): boolean;
+  /** Grow a copy of an unlocked signature weapon. Returns Gameplay's GrowResult. */
+  growWeapon?(weapon: string): string;
   /** The Hive Body (Gameplay's src/game/hive.ts). The HIVE BODY tab unlocks with it. */
   hiveBody?(): HiveBodyView;
   growOrgan?(id: string): boolean;
@@ -138,4 +150,21 @@ export function usage(zone: GridZone, p: ProfileView): [number, number] {
   const [w, hh] = gridSize(zone, p);
   const used = itemsIn(zone, p).reduce((s, i) => { const [a, b] = footprint(i); return s + a * b; }, 0);
   return [used, w * hh];
+}
+
+/** One loadout gun (0 = the innate starter) with its grafts, base and modded spec. */
+export interface LoadoutSlotView {
+  index: number;
+  weapon: string | null;
+  starter: boolean;
+  sockets: { socket: string; mod: string | null }[];
+  base: import('../../../data').WeaponSpec | null;
+  spec: import('../../../data').WeaponSpec | null;
+}
+export interface ArsenalView {
+  slots: LoadoutSlotView[];
+  /** Guns and grafts sitting in the stash. `fits` lists the loadout slots a graft can go on right now. */
+  guns: { id: string; count: number }[];
+  mods: { id: string; count: number; socket: string; fits: number[] }[];
+  armoury: { weapon: string; cls: string; level: number; classLevel: number; unlocked: boolean; price: number; affordable: boolean }[];
 }
