@@ -229,7 +229,7 @@ function strut(a: THREE.Vector3, b: THREE.Vector3, r: number, seg = 6): THREE.Bu
  * leans the piece over with height and sags its crown. Vertices near y 0 stay put so walls still meet the ground.
  * Works on indexed geometry (call before plain()) so seams between pieces built round the same centre stay closed.
  */
-function weather(g: THREE.BufferGeometry, amp: number, seed: number, o: { lean?: number; leanYaw?: number; sag?: number; freq?: number; centre?: THREE.Vector3; height?: number; free?: boolean } = {}): THREE.BufferGeometry {
+function weather(g: THREE.BufferGeometry, amp: number, seed: number, o: { lean?: number; leanYaw?: number; sag?: number; freq?: number; centre?: THREE.Vector3; height?: number; free?: boolean; flare?: number } = {}): THREE.BufferGeometry {
   const p = g.attributes.position, c = o.centre ?? new THREE.Vector3(), f = o.freq ?? 0.55;
   g.computeBoundingBox();
   const H = o.height ?? Math.max(0.01, g.boundingBox!.max.y);
@@ -241,9 +241,11 @@ function weather(g: THREE.BufferGeometry, amp: number, seed: number, o: { lean?:
     // Two octaves of noise, skewed through height so it reads in all three axes.
     const n = (vnoise((x + seed * 7.1) * f + y * f * 0.7, (z - seed * 3.3) * f - y * f * 0.9) - 0.5) * 2
       + (vnoise((x - seed) * f * 2.7 - y * f * 1.9, (z + seed) * f * 2.7 + y * f * 1.3) - 0.5) * 0.6;
+    // A flared foot: the base spreads out into the ground it grows from.
+    const hr = Math.hypot(x - c.x, z - c.z), fl = (o.flare ?? 0) * Math.exp(-Math.max(0, y) / 0.7) / Math.max(hr, 1e-3);
     d.set(x - c.x, (y - c.y) * 0.35, z - c.z);
     if (d.lengthSq() > 1e-6) d.normalize();
-    p.setXYZ(i, x + d.x * n * amp * k + lx * t * t * H, y + d.y * n * amp * k - (o.sag ?? 0) * t * t * t * H, z + d.z * n * amp * k + lz * t * t * H);
+    p.setXYZ(i, x + d.x * n * amp * k + lx * t * t * H + (x - c.x) * fl, y + d.y * n * amp * k - (o.sag ?? 0) * t * t * t * H, z + d.z * n * amp * k + lz * t * t * H + (z - c.z) * fl);
   }
   g.computeVertexNormals();
   return g;
@@ -366,7 +368,7 @@ function domeHut(hut: Hut, yaw: number, base: number, rand: () => number, mats: 
   // Shell with the door slot round local +z (phi = pi/2), then the lintel above the door.
   // Hand-raised clay: each dome bulges, slumps and leans its own way (one seed per hut, shared by every piece).
   const seed = hut.x * 0.37 + hut.z * 0.61, amp = 0.1 + r * 0.035;
-  const wx = { lean: 0.035 + (hash2(Math.round(hut.x), Math.round(hut.z)) * 0.05), sag: 0.05, height: h, freq: 0.45 };
+  const wx = { lean: 0.02 + (hash2(Math.round(hut.x), Math.round(hut.z)) * 0.08), sag: 0.09, height: h, freq: 0.45, flare: 0.45 + r * 0.04 };
   const shell = new THREE.SphereGeometry(r, 40, 18, Math.PI / 2 + alpha, Math.PI * 2 - alpha * 2, 0, Math.PI / 2);
   shell.scale(1, h / r, 1);
   weather(shell, amp, seed, wx);
@@ -388,12 +390,8 @@ function domeHut(hut: Hut, yaw: number, base: number, rand: () => number, mats: 
   arch.rotateX(-Math.PI / 2);
   arch.translate(0, 1.5, zc);
   parts.push(arch);
-  // Plinth ring at the foot of the wall.
-  const plinth = new THREE.TorusGeometry(r + 0.05, 0.28, 6, 40);
-  plinth.rotateX(Math.PI / 2);
-  plinth.translate(0, 0.12, 0);
-  parts.push(plinth);
-  // The vestibule is daubed by hand too: softer lumps than the dome, no lean (it keeps the doorway clear).
+  // The vestibule is daubed by hand too: softer lumps than the dome, no lean (it keeps the doorway clear). The
+  // dome's own flared foot is the plinth.
   for (const q of parts) weather(q, 0.08, seed + 1, { freq: 1.1, height: h, centre: new THREE.Vector3(0, 0, zc - depth) });
   const extras = new THREE.Mesh(mergeGeometries(parts.map(plain)), mats.clay);
   g.add(extras);
@@ -488,14 +486,31 @@ function derrick(x: number, z: number, h: number, base: number, metal: THREE.Mat
     const s = s0 + (s1 - s0) * t, a = (i / 4) * Math.PI * 2 + Math.PI / 4, bow = Math.sin(t * Math.PI) * 0.18 * ((i % 2) * 2 - 1);
     return new THREE.Vector3(x + Math.cos(a) * (s * Math.SQRT2 + bow) + Math.cos(ly) * lean * t * t, base + t * h, z + Math.sin(a) * (s * Math.SQRT2 + bow) + Math.sin(ly) * lean * t * t);
   };
+  // Grown rather than bolted: each leg is a gnarled limb thinning as it climbs, swollen at the joints like
+  // knuckles of bone, the braces bowed like roots between them.
+  const kink = (leg: number, t: number) => {
+    const i = leg % 4;
+    const n = hash2(Math.round(x * 3) + i * 17, Math.round(t * 40));
+    return corner(i, t).add(new THREE.Vector3((n - 0.5) * 0.35, 0, (hash2(i * 5 + 1, Math.round(t * 40) + 9) - 0.5) * 0.35).multiplyScalar(Math.sin(t * Math.PI)));
+  };
+  const bowed = (a: THREE.Vector3, b: THREE.Vector3, r0: number, r1: number, bow: number) => {
+    const m = a.clone().lerp(b, 0.5).add(new THREE.Vector3(x, base + h * 0.5, z).sub(a.clone().lerp(b, 0.5)).setY(0).normalize().multiplyScalar(bow));
+    batch.add(metal, strut(a, m, (r0 + r1) / 2 * 1.1, 5));
+    batch.add(metal, strut(m, b, r1, 5));
+  };
+  const knuckle = new THREE.IcosahedronGeometry(1, 1);
   for (let i = 0; i < 4; i++) {
-    for (let k = 0; k < 4; k++) batch.add(metal, strut(corner(i, k / 4), corner(i, (k + 1) / 4), 0.14));
-    // X-bracing up each face.
+    const segs = 8;
+    for (let k = 0; k < segs; k++) {
+      const t0 = k / segs, t1 = (k + 1) / segs;
+      batch.add(metal, strut(kink(i, t0), kink(i, t1), 0.26 - t0 * 0.17, 6));
+      if (k % 2 === 0) { const j = kink(i, t0); batch.add(metal, knuckle, M4(j.x, j.y, j.z, k, 0.3 - t0 * 0.18)); }
+    }
     for (let k = 0; k < 5; k++) {
       const t0 = k / 5, t1 = (k + 1) / 5;
-      batch.add(metal, strut(corner(i, t0), corner(i + 1, t1), 0.05, 4));
-      batch.add(metal, strut(corner(i + 1, t0), corner(i, t1), 0.05, 4));
-      batch.add(metal, strut(corner(i, t1), corner(i + 1, t1), 0.06, 4));
+      bowed(kink(i, t0), kink(i + 1, t1), 0.07, 0.045, 0.35);
+      bowed(kink(i + 1, t0), kink(i, t1), 0.07, 0.045, 0.35);
+      bowed(kink(i, t1), kink(i + 1, t1), 0.08, 0.06, 0.25);
     }
     const c = corner(i, 0);
     SOLIDS.add({ cx: c.x, cz: c.z, hx: 0.25, hz: 0.25, yaw: 0, y0: base - 1, y1: base + h, tag: 'derrick-leg' });
