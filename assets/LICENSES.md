@@ -9,3 +9,5 @@ Every asset that is not code-generated or provided by Brandon is listed here wit
 | Manrope (latin 400, 600, 700) | [@fontsource/manrope](https://fontsource.org/fonts/manrope), by Mikhail Sharanda | SIL Open Font License 1.1 | Labels and body text in the Hive UI and HUD (`src/ui/theme.ts`) |
 
 Item icons, host specimen scans, vine frames and the orbital map are drawn in code (`src/ui/`).
+
+All sound and music is synthesised in code at runtime (`src/audio/`, tunables in `data/audio.json`): no samples, no third-party audio.
