@@ -7,7 +7,7 @@ Every sound is synthesised in the browser at runtime with Web Audio: shaped nois
 nothing added to the release size beyond the code.
 
 Listen without playing: `npm run sound-tour` renders an 85-second walk through the game's sound offline
-(`src/audio/tour.ts`) to `tests/out/sound-tour.wav`; `npm run sound-tour -- --zones` renders the desert, fen and pit; `npm run sound-tour -- --guns` plays every gun, then one rifle with different grafts fitted.
+(`src/audio/tour.ts`) to `tests/out/sound-tour.wav`; `npm run sound-tour -- --zones` renders the desert, fen and pit; `npm run sound-tour -- --guns` plays every gun, then one rifle with different grafts fitted; `--edge` walks out to the edge of the map and back.
 
 ## How it fits together
 
@@ -20,6 +20,7 @@ Listen without playing: `npm run sound-tour` renders an 85-second walk through t
 | `guns.ts` | A voice per gun (`GUNS`, keyed by `data/weapons.json` id; unknown guns fall back to the class sound in `sfx.ts` `FIRE`). `MOD_SOUNDS`: grafts from `data/mods.json` filter the shot and/or add a layer (Hush Gill muffles, Barb Crown rips, Acid sizzles, ...). Read from the held gun's `spec.mods` at every shot, so wherever a graft came from, it is heard. |
 | `voices.ts` | A vocabulary per creature species (idle, hunt, attack, death, heavy steps) and per boss (wake, phase, enrage, attacks, hurt, defeated). Ambience one-shots. |
 | `ambience.ts` | Zone beds (wind with gusts, hum, the zone's texture) and 3D one-shots around the listener. |
+| `edge.ts` | The edge of the map, matching Rendering's boundary murk: a breathing low drone, wet movement, something large shifting and the odd sourceless call, fading in from `edge.from` to `edge.to` times the zone's playable radius (`data/audio.json` `edge`); the music thins as it rises. No edge in the Wreck. |
 | `music.ts` | Adaptive score: drone, choir, bells (explore), heartbeat pulse (tension), 3-3-2 drums and gritty bass (combat), brass stabs (boss). |
 | `director.ts` | Pure logic (unit-tested): threat to intensity, stride counting, surface, what is behind you. |
 

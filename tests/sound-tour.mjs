@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const URL = 'http://localhost:5199/';
-const which = process.argv.includes('--zones') ? 'zones' : process.argv.includes('--guns') ? 'guns' : 'main';
+const which = process.argv.includes('--zones') ? 'zones' : process.argv.includes('--guns') ? 'guns' : process.argv.includes('--edge') ? 'edge' : 'main';
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--port', '5199', '--strictPort'], { stdio: 'ignore' });
 try {
   let up = false;
@@ -18,6 +18,7 @@ try {
     const tour = await import('/src/audio/tour.ts');
     let buf, script = null;
     if (which === 'guns') ({ buffer: buf, script } = await tour.renderGunTour(44100));
+    else if (which === 'edge') buf = await tour.renderEdgeTour(44100);
     else buf = await (which === 'zones' ? tour.renderZoneTour(44100) : tour.renderTour(44100));
     const L = buf.getChannelData(0), R = buf.getChannelData(1);
     let peak = 0, sum = 0, nan = 0;

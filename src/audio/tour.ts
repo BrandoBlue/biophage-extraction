@@ -6,7 +6,8 @@
 import { AudioEngine, type V3 } from './engine';
 import { Ambience } from './ambience';
 import { Music } from './music';
-import { ambienceFor } from './config';
+import { AUDIO, ambienceFor } from './config';
+import { EdgeMurk, edgeLevel } from './edge';
 import * as S from './sfx';
 import { WEAPONS } from '../../data';
 import { gunShot } from './guns';
@@ -175,4 +176,27 @@ export async function renderGunTour(sampleRate = 44100): Promise<{ buffer: Audio
   }
   for (let t = 0; t < seconds; t += 0.25) amb.update(t);
   return { buffer: await ctx.startRendering(), script };
+}
+
+/** Walking out of Glowmire toward the edge of the map: the island's sound gives way to the murk, then back. */
+export async function renderEdgeTour(sampleRate = 44100): Promise<AudioBuffer> {
+  const seconds = 50, R = 180;
+  const ctx = new OfflineAudioContext(2, Math.ceil(seconds * sampleRate), sampleRate);
+  const e = new AudioEngine(ctx);
+  const music = new Music(e), amb = new Ambience(e), murk = new EdgeMurk(e);
+  e.setListener({ x: 0, y: 1.7, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 });
+  music.start('raid', 0);
+  amb.set(ambienceFor('glowmireIsle'), 1, 0);
+  for (let t = 1; t < seconds - 1; t += 0.6) S.footstep(e.x, e.buses.sfx, t, 'moss', 'medium', 0.5);
+  for (let t = 0; t < seconds; t += 0.05) {
+    // Out from 0.55 R to the edge over 38 s, a moment at the edge, then a few steps back.
+    const r = R * (t < 38 ? 0.55 + (t / 38) * 0.45 : t < 44 ? 1 : 1 - ((t - 44) / 6) * 0.2);
+    const level = edgeLevel(r, 0, R);
+    e.setListener({ x: r, y: 1.7, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 });
+    e.duck('music', 1 - level * AUDIO.edge.musicDuck, 0.5, t);
+    music.update(t, 0.1, false);
+    amb.update(t);
+    murk.update(t, level, r, 0);
+  }
+  return ctx.startRendering();
 }
