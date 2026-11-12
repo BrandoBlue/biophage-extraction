@@ -20,12 +20,15 @@ import { layerAt } from './world/pit';
 import { AUDIO } from './audio';
 import pkg from '../package.json';
 import { Online } from './net';
+import { initInstall } from './ui/install';
 
 import { creatureViewerRequested, startCreatureViewer } from './creatures/viewer';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
 /** sessionStorage key: deploy right after the reload that built the newly picked zone. */
 const AUTO_DEPLOY = 'biophage.autoDeploy';
+
+initInstall();
 
 // `?creatures` opens the Creature & Mutation specimen viewer instead of a raid.
 if (creatureViewerRequested()) startCreatureViewer(canvas);
