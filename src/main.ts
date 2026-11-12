@@ -18,7 +18,6 @@ import { organicize } from './render/organic';
 import { edgeMurk, setEdgeFog } from './render/edgemurk';
 import { ZONE7_SHADE } from './render/palette';
 import { groundHeight } from './world/zone7';
-import { PLAYABLE } from './world/layout';
 import { caveDistance } from './world/cave';
 import { layerAt } from './world/pit';
 import { PLAYABLE } from './world/layout';
