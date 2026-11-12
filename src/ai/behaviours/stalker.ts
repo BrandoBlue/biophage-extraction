@@ -3,6 +3,8 @@
  * you look elsewhere; when your view swings onto it, it freezes and nearly vanishes (8% visible). Inside 25 m it
  * commits: a sprint at 11 m/s, the chest lens flaring through a half-second wind-up, a mantis strike, then it fades
  * back out to stalk again. Hits and Psych-Wave Pulse reveal it (the Abomination handles the pulse).
+ * It learns (ai.json learning): keep turning to check on it and it stops closing in, waiting for a noise (a shot, a
+ * loud sound near you) to cover its approach.
  */
 import { AI } from '../../../data';
 import { Brain, wrapAngle } from '../brain';
@@ -19,6 +21,10 @@ export class StalkerBrain extends Brain {
   /** True while the host is looking straight at it. */
   watched = false;
   get frozen(): boolean { return this.watched && this.mode === 'hunt' && this.phase === 'stalk'; }
+  /** Seconds of noise cover left (a shot or a loud sound near the host): a stalker that learned it gets checked creeps in under it. */
+  private coverFor = 0;
+  private wasWatched = false;
+  private waiting = false;
   private readonly camo = (this.data.camouflage as Camo | undefined) ?? { visibilityIdle: 0.08, visibilityMoving: 0.35, revealOnHit: 3 };
 
   step(dt: number, w: BrainWorld): void {
@@ -39,6 +45,14 @@ export class StalkerBrain extends Brain {
     // Angle between where the host looks and where we are.
     this.watched = !!hf && Math.abs(wrapAngle(Math.atan2(-dx, -dz) - Math.atan2(hf.x, hf.z))) < (S.freezeWhenWatched * Math.PI) / 180;
     this.look = { x: host.x, y: host.y + 1.4, z: host.z };
+    // Learning: the host keeps turning to check behind it. Noted once per checkedCooldown per kind.
+    if (this.watched && !this.wasWatched && this.phase === 'stalk' && dist <= S.stalkRange * 1.5 && this.memory && w.tokens.sharedReady(`checked:${this.kind}`, AI.learning.checkedCooldown)) {
+      w.tokens.useShared(`checked:${this.kind}`);
+      this.memory.note(this.kind, 'checked');
+    }
+    this.wasWatched = this.watched;
+    this.coverFor = Math.max(0, this.coverFor - dt);
+    if (w.noises.some((n) => n.radius >= AI.learning.coverNoise && Math.hypot(n.x - host.x, n.z - host.z) < 3)) this.coverFor = AI.learning.coverTime;
 
     switch (this.phase) {
       case 'charge': {
@@ -85,6 +99,13 @@ export class StalkerBrain extends Brain {
     this.setPhase('stalk');
     this.windup = 0;
     if (this.watched && dist > t.attackRange * 3) { this.slow(dt, 8); this.face(this.yawTo(host.x, host.z), 1, dt); return; }
+    // Learned the host checks behind it: it stops closing and waits for a noise to cover the last stretch.
+    if (this.learned('checked') && this.coverFor <= 0 && dist <= S.stalkRange * 1.2) {
+      if (!this.waiting) { this.waiting = true; this.adapt(); }
+      this.slow(dt, 6); this.face(this.yawTo(host.x, host.z), 1, dt);
+      return;
+    }
+    this.waiting = false;
     if (dist <= S.stalkRange && this.cooldown === 0 && (!this.watched || dist < 8) && this.requestToken(w)) {
       this.events.push({ type: 'charge' });
       this.setPhase('charge');

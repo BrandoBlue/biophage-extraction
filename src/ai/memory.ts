@@ -9,6 +9,7 @@ import { AI } from '../../data';
 export class RaidMemory {
   private readonly counts = new Map<string, number>();
   private readonly marks = new Map<string, number>();
+  private readonly places = new Map<string, { x: number; z: number }[]>();
 
   private key(kind: string, trick: string): string { return `${kind}:${trick}`; }
 
@@ -23,6 +24,15 @@ export class RaidMemory {
 
   /** True once the trick has been used enough times that the creatures counter it. */
   learned(kind: string, trick: string): boolean { return this.count(kind, trick) >= AI.learning.after; }
+
+  /** Remember a place (where the host hurt one of this kind, where it shot from...). */
+  mark(kind: string, place: string, at: { x: number; z: number }): void {
+    const k = this.key(kind, place), list = this.places.get(k) ?? [];
+    list.push({ x: at.x, z: at.z });
+    this.places.set(k, list);
+  }
+
+  spots(kind: string, place: string): readonly { x: number; z: number }[] { return this.places.get(this.key(kind, place)) ?? []; }
 
   /** A free running counter (whose turn it is to lunge, and so on). */
   tick(kind: string, mark: string): number {

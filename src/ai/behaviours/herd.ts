@@ -31,18 +31,25 @@ export class HerdBrain extends Brain {
   protected onHurt(): void { this.raise(); }
 
   private raise(): void {
+    this.memory?.note(this.kind, 'shot');
     if (!this.called) this.events.push({ type: 'alarm', radius: this.st.herdAlertRadius });
     this.called = true;
     this.alarmed = true;
   }
 
   step(dt: number, w: BrainWorld): void {
+    this.memory = w.memory ?? null;
     this.volleyCd = Math.max(0, this.volleyCd - dt);
     if (!this.alarmed && this.temper.passiveUntilDamaged !== false) {
       // Gunfire close to the herd sets it off; footsteps and the sight of a host do not.
       const near = this.temper.alarmedByGunfireWithin ?? 25;
       const shot = w.noises.some((n) => n.radius >= AI.herd.gunfireNoise && Math.hypot(n.x - this.body.x, n.z - this.body.z) <= near);
-      if (shot) { this.raise(); this.alert({ x: w.host.x, z: w.host.z }); }
+      // Learned: the herd was shot at this raid, so the first sight of a host sets the stampede off.
+      const h = w.host;
+      const remembers = (this.memory?.count(this.kind, 'shot') ?? 0) > 0 && h.alive && !h.hidden
+        && Math.hypot(h.x - this.body.x, h.z - this.body.z) <= this.data.perception.sight * AI.learning.sightFraction;
+      if (remembers && !shot) { this.raise(); this.alert({ x: h.x, z: h.z }); this.adapt(); }
+      else if (shot) { this.raise(); this.alert({ x: w.host.x, z: w.host.z }); }
       else {
         this.awareness.level = 0; this.awareness.lastKnown = null;
         if (this.mode === 'hunt' || this.mode === 'investigate') { this.mode = 'calm'; this.setPhase('idle'); }
