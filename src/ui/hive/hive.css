@@ -747,3 +747,55 @@ body[data-hive-tab]:not([data-hive-tab=menu]) #hivemind.collapsed { display:none
 .set-full .hv-btn { margin-top:0; }
 .hv-settings input[type=checkbox] { accent-color:var(--amber); width:calc(var(--u) * 1.1); height:calc(var(--u) * 1.1); justify-self:center; }
 .set-app { margin-top:calc(var(--u) * .5); }
+
+/* ---------------------------------------------------------------- HOST LEVEL (src/ui/hive/levels.ts)
+   A thin vein that fills through the level: bone for what you had, a warm amber bloom for what this raid added.
+   Header readout on every Hive screen, a level block on the menu's observation notes and host select, and the
+   debrief's level panel. */
+.lv-bar { position:relative; display:block; height:calc(var(--u) * .32); border-radius:99px; overflow:hidden;
+  background:color-mix(in srgb, var(--bone) 10%, transparent); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--bone) 8%, transparent); }
+.lv-bar i { position:absolute; top:0; bottom:0; left:0; border-radius:99px; }
+.lv-bar .old { width:calc(var(--a) * 100%); background:linear-gradient(90deg, color-mix(in srgb, var(--bone) 45%, transparent), color-mix(in srgb, var(--bone) 80%, var(--amber))); }
+.lv-bar .gain { left:calc(var(--a) * 100%); width:calc((var(--v) - var(--a)) * 100%); background:linear-gradient(90deg, color-mix(in srgb, var(--amber) 70%, var(--bone)), var(--amber));
+  box-shadow:0 0 calc(var(--u) * .6) color-mix(in srgb, var(--amber) 45%, transparent); transform-origin:left; animation:lv-grow 1.4s .5s var(--ease) both; }
+@keyframes lv-grow { from { transform:scaleX(0); } }
+.hv-currency .cur.lvl { align-items:center; }
+.hv-currency .cur.lvl b { color:var(--amber); }
+.hv-currency .cur.lvl .lv-bar { width:calc(var(--u) * 5); height:calc(var(--u) * .26); align-self:center; }
+
+.lv-block { display:grid; gap:calc(var(--u) * .35); min-width:calc(var(--u) * 15); }
+.lv-head { display:flex; align-items:baseline; gap:calc(var(--u) * .8); }
+.lv-head span { font-size:calc(var(--u) * .7); letter-spacing:.2em; text-transform:uppercase; color:var(--lab); font-weight:600; }
+.lv-head b { font-family:var(--display); font-style:italic; font-weight:500; font-size:calc(var(--u) * 1.6); color:var(--bone); letter-spacing:.02em; margin-left:auto; }
+.lv-head em { font-style:normal; font-family:var(--display); font-size:calc(var(--u) * 1.3); color:var(--amber); }
+.lv-xp { font-size:calc(var(--u) * .7); letter-spacing:.14em; text-transform:uppercase; color:var(--lab); }
+.lv-next { font-size:calc(var(--u) * .78); line-height:1.4; color:color-mix(in srgb, var(--bone) 70%, transparent); max-width:calc(var(--u) * 20); }
+.scr-menu .note .lv-block { margin-bottom:calc(var(--u) * .4); }
+
+.scr-results .res-level { left:50%; transform:translateX(-50%); top:calc(var(--u) * 21.2); width:calc(var(--u) * 64); display:grid; grid-template-columns:auto 1fr auto; align-items:center;
+  gap:calc(var(--u) * .5) calc(var(--u) * 2.2); padding:calc(var(--u) * 1) calc(var(--u) * 1.8); }
+.res-level .who { display:flex; flex-direction:column; }
+.res-level .who span { font-size:calc(var(--u) * .7); letter-spacing:.2em; text-transform:uppercase; color:var(--lab); font-weight:600; }
+.res-level .who b { font-family:var(--display); font-style:italic; font-weight:500; font-size:calc(var(--u) * 2); color:var(--bone); white-space:nowrap; }
+.res-level .who b i { font-style:normal; color:var(--amber); margin:0 .15em; }
+.res-level .lv-track { display:grid; gap:calc(var(--u) * .4); }
+.res-level .lv-bar { height:calc(var(--u) * .45); }
+.res-level .lv-gain { display:flex; flex-direction:column; align-items:flex-end; gap:calc(var(--u) * .3); }
+.res-level .lv-gain em { font-style:normal; font-family:var(--display); font-size:calc(var(--u) * 1.9); color:var(--amber); white-space:nowrap; }
+.res-level .lv-up { padding:.15em .8em; border-radius:99px; font-size:calc(var(--u) * .65); letter-spacing:.24em; text-transform:uppercase; font-weight:600;
+  color:var(--amber); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--amber) 60%, transparent); animation:lv-pop .8s 1.6s var(--ease) both; }
+@keyframes lv-pop { from { opacity:0; transform:scale(.8); } }
+.res-level .lv-next { grid-column:1 / -1; max-width:none; font-size:calc(var(--u) * .85); }
+.res-level .lv-next b { font-weight:600; color:var(--amber); }
+.scr-results:has(.res-level) .res-items, .scr-results:has(.res-level) .res-sum { top:calc(var(--u) * 29); }
+.scr-results:has(.res-level) .res-items { max-height:calc(var(--u) * 22); }
+.scr-host .lv-block { margin-top:calc(var(--u) * .6); }
+.scr-menu .note.lvl { transform:translateY(calc(-100% - var(--u) * 1.4)); }
+.lv-block.compact { gap:calc(var(--u) * .25); }
+.lv-block.compact .lv-head b { font-size:calc(var(--u) * 1.5); }
+.lv-block.compact .lv-next { color:var(--amber); font-size:calc(var(--u) * .78); }
+.scr-host .lv-row { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:calc(var(--u) * .9); margin-top:calc(var(--u) * .6); }
+.scr-host .lv-row b { font-family:var(--display); font-style:italic; font-weight:500; font-size:calc(var(--u) * 1.4); color:var(--amber); white-space:nowrap; }
+.scr-host .lv-row span { font-size:calc(var(--u) * .65); letter-spacing:.14em; text-transform:uppercase; color:var(--lab); white-space:nowrap; }
+.scr-host .evo-track .node.reached .glyph { color:var(--amber); }
+.scr-host .evo-track .node.reached em { color:color-mix(in srgb, var(--amber) 80%, var(--bone)); }

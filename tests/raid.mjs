@@ -213,10 +213,13 @@ try {
   await frames(3);
   const won = await page.evaluate(() => document.querySelector('.results h1')?.textContent);
   if (won !== 'EXTRACTED') await fail(`result screen says ${won}`);
+  // Host level (UI): the debrief shows the XP this raid earned against the level bar; the header carries the level.
+  const lvl = await page.evaluate(() => ({ gain: document.querySelector('.results .res-level .lv-gain em')?.textContent, xp: window.__biophage.profile.classXp[window.__biophage.profile.host] ?? 0, head: document.querySelector('#hive .cur.lvl b')?.textContent }));
+  if (!lvl.gain?.startsWith('+') || !(lvl.xp > 0) || !lvl.head) await fail(`debrief level panel missing or no XP: ${JSON.stringify(lvl)}`);
   const promptShown = await page.evaluate(() => getComputedStyle(document.querySelector('#prompt')).display !== 'none');
   if (promptShown) await fail('enter prompt shows behind the result screen (issue #7)');
   await freezeAndScreenshot(page, 'tests/out/raid-extracted.png', { resume: true });
-  log(`EXTRACTED with haul ${s.result.value}`);
+  log(`EXTRACTED with haul ${s.result.value}; debrief ${lvl.gain}, header level ${lvl.head}`);
   const haul = s.result.cavity.filter((e) => e.item !== 'dnaStrand');
   const strands = total(s.result.cavity, 'dnaStrand');
 
@@ -269,6 +272,7 @@ try {
   if (s.phase !== 'lost') await fail(`expected lost, got ${s.phase}`);
   const lost = await page.evaluate(() => document.querySelector('.results h1')?.textContent);
   if (lost !== 'HOST LOST') await fail(`result screen says ${lost}`);
+  if (!(await page.isVisible('.results .res-level'))) await fail('the death debrief shows no level panel');
   await freezeAndScreenshot(page, 'tests/out/raid-lost.png', { resume: true });
   log(`HOST LOST; lost value ${s.result.value}`);
   // The reload can take a while on software rendering; the next line waits for the fresh Hive.

@@ -210,6 +210,7 @@ const GLYPH: Record<string, string> = {
   quit: '<path d="M9 21H4V3h5M16 17l5-5-5-5M21 12H9"/>',
   play: '<path d="M6 4l14 8-14 8z"/>',
   warn: '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>',
+  check: '<path d="M5 12.5l4.2 4.2L19 7"/>',
   expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   eye: '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
 };
