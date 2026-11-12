@@ -30,7 +30,10 @@
     "loudNoiseGain": 1.2,
     "decayRate": 0.08,
     "investigateTime": 6,
-    "senseHz": 10
+    "senseHz": 10,
+    "verticalFree": 12,
+    "verticalWeight": 2.5,
+    "_verticalNote": "Height between creature eyes and host beyond verticalFree metres counts verticalWeight times in sight and hearing distance: a host on the Marrow Pit rim is not 'close' to things two layers down."
   },
   "light": {
     "_note": "Host visibility multiplies sight range and sight fill. Gunfire flashes the host for flashTime. Footprint glow (Plague-Stalker) multiplies on top via the virus cost.",

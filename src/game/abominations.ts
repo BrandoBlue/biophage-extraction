@@ -284,6 +284,7 @@ export class Abomination {
       noises: ctx.noises, allies: ctx.others, tokens, playableRadius: ctx.playableRadius, memory: AI.learning.enabled ? memoryFor(ctx.others) : undefined,
       walkways: ctx.walkways, dropZone: ctx.dropZone,
     };
+    brain.body.y = this.root.position.y;
     brain.step(dt, world);
     this.handleEvents(ctx);
     // A Veilwing carrying the host flies just above it (the raid lifts the host; the pit floor may be far below).

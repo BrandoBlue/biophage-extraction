@@ -415,7 +415,7 @@ export const ZONE7_SITES = ZONE_SITES.glowmireIsle;
 export type Archetype = 'swarm' | 'spitter' | 'stalker' | 'flyer' | 'tank' | 'mimic' | 'grazer' | 'weaver' | 'burrower' | 'herd' | 'wader' | 'crawler' | 'grabber' | 'gunner';
 export interface AiRules {
   archetypes: Record<string, Archetype>;
-  awareness: { suspicious: number; sightRate: number; closeSight: number; peripheralFactor: number; noiseGain: number; noiseImpulse: number; loudNoiseGain: number; decayRate: number; investigateTime: number; senseHz: number };
+  awareness: { suspicious: number; sightRate: number; closeSight: number; peripheralFactor: number; noiseGain: number; noiseImpulse: number; loudNoiseGain: number; decayRate: number; investigateTime: number; senseHz: number; verticalFree?: number; verticalWeight?: number };
   light: { base: number; still: number; crouched: number; sprinting: number; muzzleFlash: number; flashTime: number; minimum: number };
   tokens: { melee: number; ranged: number; holdTime: number };
   wander: { radius: number; speedFactor: number; pause: Range };

@@ -29,7 +29,8 @@ const COMMITTED = /windup|lunge|burst|ripple|charge|stampede|dive|strike|rack|sp
 
 export type LurkHow = 'hatch' | 'disguise' | 'ambush';
 
-export interface Body { x: number; z: number; yaw: number; vx: number; vz: number; altitude: number }
+/** `y` is the ground under it (the raid fills it each frame; 0 in flat tests); eyes are at y + altitude. */
+export interface Body { x: number; z: number; yaw: number; vx: number; vz: number; altitude: number; y?: number }
 
 export abstract class Brain {
   readonly body: Body;
@@ -223,7 +224,7 @@ export abstract class Brain {
     }
     this.phaseTime += dt;
     this.cooldown = Math.max(0, this.cooldown - dt);
-    this.awareness.update(dt, b.x, b.z, b.yaw, host, w.noises);
+    this.awareness.update(dt, b.x, b.z, b.yaw, host, w.noises, b.y === undefined ? host.y : b.y + b.altitude);
     if (this.pendingFix && host.alive && !host.hidden) { this.awareness.lastKnown = { x: host.x, z: host.z }; this.pendingFix = false; }
 
     const lostHost = !host.alive || host.hidden;

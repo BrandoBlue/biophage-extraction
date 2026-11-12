@@ -78,6 +78,18 @@ describe('perception', () => {
     expect(sightRate(p, 0, 0, 0, host({ z: 25, visibility: 1 }))).toBeGreaterThan(0);
     expect(sightRate(p, 0, 0, 0, host({ z: 10 }))).toBeGreaterThan(sightRate(p, 0, 0, 0, host({ z: 25 })));
   });
+  it('height counts: a host two pit layers up is out of sight and earshot, a slope is not', () => {
+    const A = AI.awareness;
+    expect(sightRate(p, 0, 0, 0, host({ z: 10, y: 6 }), A, 0)).toBeGreaterThan(0); // a hillside: free
+    expect(sightRate(p, 0, 0, 0, host({ z: 10, y: 70 }), A, 0)).toBe(0); // one layer up, right overhead
+    expect(sightRate(p, 0, 0, 0, host({ z: 2, y: 70 }), A, 0)).toBe(0); // no 'breathing on you' through a shelf
+    const a = new Awareness(p), shot: Noise = { x: 0, z: 30, radius: 60 };
+    for (let i = 0; i < 40; i++) a.update(0.1, 0, 0, 0, host({ z: 30, y: 135 }), [shot], 0);
+    expect(a.level).toBe(0); // the warrens do not hear a shot on the rim
+    const b = new Awareness(p);
+    for (let i = 0; i < 40; i++) b.update(0.1, 0, 0, 0, host({ z: 30, y: 0 }), [shot], 0);
+    expect(b.level).toBeGreaterThan(0);
+  });
   it('a gunshot makes a creature suspicious; repeated shots make it hunt; silence calms it', () => {
     const a = new Awareness(p);
     const h = host({ x: 0, z: -20 }); // behind and out of sight
