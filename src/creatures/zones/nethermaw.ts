@@ -91,10 +91,10 @@ export class Nethermaw {
     this.rand = rng(seed);
     this.root.name = 'nethermaw';
     // Dark, mineral coral: bone gone grey in the damp; matte, faintly wet in the grooves.
-    const coral = chitin(mix(FAUNA.pearl, FAUNA.soot, 0.62), FAUNA.sickGreen, 2);
+    const coral = chitin(mix(FAUNA.pearl, FAUNA.soot, 0.4), FAUNA.sickGreen, 2);
     coral.roughness = 0.82; coral.clearcoat = 0.12;
-    const flesh = livingFlesh(mix(ORGANIC.wetFleshDeep, FAUNA.soot, 0.4), mix(ORGANIC.vein, FAUNA.sickGreen, 0.3), FAUNA.pearl, 3);
-    const rootMat = livingFlesh(mix(FAUNA.soot, FAUNA.rope, 0.35), ORGANIC.vein, FAUNA.pearl, 4);
+    const flesh = livingFlesh(mix(ORGANIC.wetFleshDeep, FAUNA.rope, 0.3), mix(ORGANIC.vein, FAUNA.sickGreen, 0.3), FAUNA.pearl, 3);
+    const rootMat = livingFlesh(mix(FAUNA.soot, FAUNA.rope, 0.6), ORGANIC.vein, FAUNA.pearl, 4);
     this.throatGlow = bioNode(this.sick, 0.6);
     this.rootGlow = bioNode(mix(this.sick, FAUNA.soot, 0.5), 0.8);
     const ciliaMat = chitin(mix(FAUNA.pearl, FAUNA.rope, 0.4), FAUNA.sickGreen, 6);

@@ -132,8 +132,14 @@ export class Sandwidow {
       const g = new THREE.Group();
       g.name = `widowSeg${i}`;
       const scale = i < SEGMENTS - 6 ? 1 - i * 0.012 : 0.88 - (i - (SEGMENTS - 6)) * 0.13;
-      g.add(new THREE.Mesh(hideGeo, hide));
-      g.add(new THREE.Mesh(foldGeo, hide));
+      // No two segments alike: each swells, leans and twists a little, so the body reads as one animal, not a stack.
+      const lump = new THREE.Mesh(hideGeo, hide);
+      lump.scale.set(1 + (this.rand() - 0.5) * 0.16, 1 + (this.rand() - 0.5) * 0.22, 1 + (this.rand() - 0.5) * 0.2);
+      lump.rotation.set((this.rand() - 0.5) * 0.1, (this.rand() - 0.5) * 0.12, (this.rand() - 0.5) * 0.16);
+      g.add(lump);
+      const fold = new THREE.Mesh(foldGeo, hide);
+      fold.rotation.z = (this.rand() - 0.5) * 0.3;
+      g.add(fold);
       g.add(new THREE.Mesh(bellyGeo, belly));
       if (i % 2 === 0 || i < 4) g.add(new THREE.Mesh(saddleGeo, saddle));
       g.scale.setScalar(Math.max(0.2, scale));

@@ -5,12 +5,12 @@ import { hazeVolume, lightShaft } from '../render/atmos';
 import { sporeField, starField, zone7Sky } from '../render/sky';
 import { horizonLands } from '../render/horizon';
 import { heightFog } from '../render/fog';
-import { ZONE_SITES } from '../../data';
+import { HABITATS, ZONE_SITES, depthLayer } from '../../data';
 import { mulberry32 } from './rng';
 import { Kit, oldBone, type ArenaInfo, type BuiltStructures, type LootSpot, type Walkway } from './structures';
 import { noise3 } from '../render/geometry';
 import type { SiteDressing } from './sites';
-import type { ExtractSite, Zone7Layout } from './layout';
+import type { ExtractSite, SpawnPlacement, Zone7Layout } from './layout';
 import { SOLIDS, setTerrain } from './zone7';
 
 /**
@@ -145,7 +145,7 @@ export function pitLandmarkAt(x: number, z: number, y?: number): string | null {
       const along = x * dx + z * dz, across = Math.abs(-x * dz + z * dx);
       // The deck, the hub, and the footings where it lands on the shelf either side.
       const onDeck = (across < PIT.bridge.width + 1 || Math.hypot(x, z) < PIT.bridge.hubRadius + 1 || (across < 6 && Math.abs(along) > edgeRadius(layerIndex(m.layer), Math.atan2(z, x)) - 2)) && Math.abs(along) < edgeRadius(layerIndex(m.layer), Math.atan2(z, x)) + 8;
-      if (onDeck && (y === undefined || Math.abs(y - by) < 6)) return id;
+      if (onDeck && Math.abs((y ?? pitHeight(x, z)) - by) < 6) return id;
       continue;
     }
     if (m.layer !== layer) continue;
@@ -168,7 +168,40 @@ export function pitLayout(seed: number): Zone7Layout {
     nodes: [],
     // No anomaly in the pit: a zero-strength site far outside keeps gravityAt() at 1 everywhere.
     anomaly: { id: 'none', kind: 'none', x: 1e5, z: 1e5, radius: 1, gravityMultiplier: 1 },
+    playableRadius: PIT.playableRadius,
+    spawns: pitSpawns(),
   };
+}
+
+/**
+ * Creature homes from Design's habitats.json `zones.marrowPit`, placed on the shelf of each landmark and made tougher
+ * by depth (zones.json layers via depthLayer: hpMultiplier). The bridge's homes alternate between its two footings on
+ * the Cable Shelf (spawning over the void would drop them to the floor). Spread is held to the shelf's width.
+ */
+export function pitSpawns(): SpawnPlacement[] {
+  const marks = new Map(pitLandmarks().map((m) => [m.id, m]));
+  const out: SpawnPlacement[] = [];
+  let footing = 0;
+  for (const [kind, h] of Object.entries(HABITATS.zones.marrowPit ?? {})) {
+    if (!h) continue;
+    for (const g of h.groups) {
+      const id = 'landmark' in g.where ? g.where.landmark : undefined;
+      const m = id ? marks.get(id) : undefined;
+      if (!m) continue;
+      let x = m.x, z = m.z, y = m.y;
+      if (PIT.landmarks[m.id]?.bridge) {
+        const b = PIT.bridge.bearing + (footing++ % 2) * 180, k = layerIndex(m.layer);
+        [x, z] = polar(b, edgeRadius(k, b * D2R) + 4);
+        y = pitHeight(x, z);
+      }
+      out.push({
+        kind, x, z, count: g.count, packed: g.packed, roam: h.roam,
+        spread: Math.min(g.spread ?? 3, PIT.landmarks[m.id]?.from === undefined ? 15 : 5),
+        toughness: depthLayer('marrowPit', Math.max(0, -y))?.hpMultiplier ?? 1,
+      });
+    }
+  }
+  return out;
 }
 
 /**
@@ -242,7 +275,7 @@ function pitRock(): THREE.MeshStandardMaterial {
   m.onBeforeCompile = (shader, renderer) => {
     base(shader, renderer);
     shader.fragmentShader = shader.fragmentShader.replace('#include <lights_physical_fragment>',
-      `diffuseColor.rgb *= mix(0.5, 1.0, smoothstep(${bottom.toFixed(1)}, ${(top - 10).toFixed(1)}, vBioWorld.y));\n#include <lights_physical_fragment>`);
+      `diffuseColor.rgb *= mix(0.62, 1.0, smoothstep(${bottom.toFixed(1)}, ${(top - 10).toFixed(1)}, vBioWorld.y));\n#include <lights_physical_fragment>`);
   };
   const key = m.customProgramCacheKey();
   m.customProgramCacheKey = () => key + '|pitDepth';
@@ -383,12 +416,12 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
   // Height fog pools at the floor (values are baked when the pipeline installs its fog, which happens after this).
   heightFog.base.value = bottom;
   heightFog.falloff.value = 45;
-  heightFog.layer.value = 2.2;
-  const hemi = new THREE.HemisphereLight(ORGANIC.mist, ZONE7_SHADE.rockDeep, 1.4);
-  const moon = new THREE.DirectionalLight(ORGANIC.mist, 2.8);
+  heightFog.layer.value = 1.4;
+  const hemi = new THREE.HemisphereLight(ORGANIC.mist, ZONE7_SHADE.rock, 2.0);
+  const moon = new THREE.DirectionalLight(ORGANIC.mist, 3.4);
   moon.position.set(-30, 200, 40);
   // A low, cold side light raking across the far walls so the cliffs read as carved rock, not flat planes.
-  const rake = new THREE.DirectionalLight(ORGANIC.mist, 1.1);
+  const rake = new THREE.DirectionalLight(ORGANIC.mist, 1.5);
   rake.position.set(130, 55, -90);
   scene.add(hemi, moon, rake);
 
@@ -402,9 +435,9 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
     if (!(cam as THREE.PerspectiveCamera).isPerspectiveCamera) return;
     cam.getWorldPosition(camPos);
     const t = Math.min(1, Math.max(0, (top - camPos.y) / depth));
-    moon.intensity = 2.8 - 2.0 * t;
-    rake.intensity = 1.1 - 0.7 * t;
-    hemi.intensity = 1.4 - 1.0 * t;
+    moon.intensity = 3.4 - 2.0 * t;
+    rake.intensity = 1.5 - 0.8 * t;
+    hemi.intensity = 2.0 - 1.1 * t;
     fog.color.copy(fogTop).lerp(fogDeep, t);
   };
   scene.add(ground);
@@ -696,7 +729,7 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
       pore.position.set(Math.cos(a) * r, pitHeight(Math.cos(a) * r, Math.sin(a) * r) + 1.2 + rand(), Math.sin(a) * r);
       k.group.add(pore);
     }
-    const sick = new THREE.PointLight(ZONE7.lime, 60, 90, 1.6);
+    const sick = new THREE.PointLight(ZONE7.lime, 110, 110, 1.6);
     sick.position.set(0, y + 6, 0);
     k.group.add(sick);
     // Root columns: thick braided roots from the mouth up into the dark; each one breaks (boss phase 1).

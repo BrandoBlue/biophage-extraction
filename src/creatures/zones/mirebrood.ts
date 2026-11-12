@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FAUNA, ORGANIC } from '../../render/palette';
 import { PlanBuilder, V, mix, mutate, tint } from '../builder';
 import { rng } from '../parts';
+import { organic, readable } from './organic';
 import type { BodyPlan, Palette } from '../plan';
 import type { Creature } from '../creature';
 import { damp } from './fx';
@@ -29,8 +30,10 @@ export function mirebrood(seed: number, stage = 0): BodyPlan {
   const s = 0.85 + r() * 0.3;
   const h = 0.085 * s;
   const b = new PlanBuilder('mirebrood', seed, stage, { locomotion: 'walker', bodyHeight: h, radius: 0.16 * s, skinNoise: { amp: 0.002, freq: 60 }, skinResolution: 40, fleshScale: 40, palette: pal });
+  organic(b, rng(seed * 17 + 3));
   // Peat-dark body, the lantern a low, warm light: a candle behind wet skin, not neon.
   b.plan.palette = { ...b.plan.palette, flesh: mix(FAUNA.peat, FAUNA.fenMoss, 0.3), chitin: mix(FAUNA.soot, FAUNA.peat, 0.4), glow: mix(ORGANIC.amber, FAUNA.reed, 0.3), membrane: mix(FAUNA.pearl, FAUNA.water, 0.3) };
+  readable(b);
   const S = (x: number, y: number, z: number) => V(x * s, y * s, z * s);
   const body = b.bone('body', -1, S(0, 0.085, 0));
   const back = b.bone('back', body, S(0, 0.11, -0.04));

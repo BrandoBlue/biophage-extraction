@@ -11,7 +11,7 @@ import { mulberry32 } from './rng';
 import type { Collider } from './collision';
 import { oldBone, type BuiltStructures, type LootSpot } from './structures';
 import type { SiteDressing } from './sites';
-import type { ExtractSite, PodSite, Site, Zone7Layout } from './layout';
+import type { ExtractSite, PodSite, Site, SpawnPlacement, Zone7Layout } from './layout';
 import { SOLIDS, setTerrain } from './zone7';
 import { FEN_WATER_Y, fenBark, fenMud, fenWater } from './fenmaterials';
 
@@ -55,9 +55,12 @@ interface FenData {
   areas: Area[];
   logs: Log[];
   waders: { count: number; ring: [number, number]; height: [number, number] };
+  spawns: SpawnPlacement[];
 }
 
 export const FEN = FEN_JSON as unknown as FenData;
+/** Container type for a structure loot spot (data/weepingfen.json `loot`, matching Design's habitats.json). */
+const lootContainer = (id: string) => FEN.loot.find((l) => l.id === id)?.container ?? 'bioPod';
 const deg = (d: number) => (d * Math.PI) / 180;
 const smooth = (a: number, b: number, t: number) => { const k = Math.min(1, Math.max(0, (t - a) / (b - a))); return k * k * (3 - 2 * k); };
 
@@ -126,6 +129,9 @@ export function fenLayout(seed: number): Zone7Layout {
     nodes: FEN.blooms.map((b) => ({ id: b.id, x: b.x, z: b.z })),
     anomaly: { id: 'none', kind: 'none', x: 1e5, z: 1e5, radius: 1, gravityMultiplier: 1 },
     area: { x0: -R, x1: R, z0: -R, z1: R },
+    playableRadius: FEN.radius,
+    // Every creature has a home (Design's habitats.json weepingFen); fenstalkers wait under the water.
+    spawns: FEN.spawns.map((s) => ({ ...s })),
   };
 }
 
@@ -498,8 +504,8 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
     }
     // Things the dwellers left: a bone frame bed, a table of bark slabs, baskets.
     solid(batch, plank, ex - Math.cos(doorA) * 3.4, ez - Math.sin(doorA) * 3.4, 1.1, 0.6, doorA + Math.PI / 2, base, base + 0.9, 0, 'elder-table');
-    loot.push({ id: 'roothut-room', container: 'bioPod', x: ex + Math.cos(doorA + 1.6) * 3, y: base + 0.15, z: ez + Math.sin(doorA + 1.6) * 3 });
-    loot.push({ id: 'roothut-lookout', container: 'cargoCrate', x: ex + Math.cos(upperA + Math.PI) * 3, y: base + rh.deck, z: ez + Math.sin(upperA + Math.PI) * 3 });
+    loot.push({ id: 'roothut-room', container: lootContainer('roothut-room'), x: ex + Math.cos(doorA + 1.6) * 3, y: base + 0.15, z: ez + Math.sin(doorA + 1.6) * 3 });
+    loot.push({ id: 'roothut-lookout', container: lootContainer('roothut-lookout'), x: ex + Math.cos(upperA + Math.PI) * 3, y: base + rh.deck, z: ez + Math.sin(upperA + Math.PI) * 3 });
   }
 
   // ---- Stilt Village: huts on platforms over the water, boardwalks between, ramps down to the mud.
@@ -668,7 +674,9 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
     l.position.set(lx, 3, lz);
     root.add(l);
     const [ox, oz] = at(L * 0.45, -R * 0.55);
-    loot.push({ id: 'pod-hold', container: FEN.loot.find((x) => x.site === 'drownedPod')?.container ?? 'sealedLocker', x: ox, y: deckY, z: oz });
+    loot.push({ id: 'pod-hold', container: lootContainer('pod-hold'), x: ox, y: deckY, z: oz });
+    const [qx, qz] = at(-L * 0.45, -R * 0.55);
+    loot.push({ id: 'pod-bow', container: lootContainer('pod-bow'), x: qx, y: deckY, z: qz });
   }
 
   // ---- The Regent's Pool: black water ringed by drowned bone arches.

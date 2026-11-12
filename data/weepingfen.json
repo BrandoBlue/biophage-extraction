@@ -97,6 +97,20 @@
       "z": -38,
       "radius": 12,
       "height": 0.9
+    },
+    {
+      "id": "shallowsIsleA",
+      "x": 6,
+      "z": 34,
+      "radius": 7,
+      "height": 0.5
+    },
+    {
+      "id": "shallowsIsleB",
+      "x": 38,
+      "z": 20,
+      "radius": 7,
+      "height": 0.55
     }
   ],
   "channels": [
@@ -407,65 +421,95 @@
   "loot": [
     {
       "id": "roothut-room",
-      "container": "bioPod",
+      "container": "fenHollow",
       "site": "rootHut",
       "onFloorOf": "rootHutRoom"
     },
     {
       "id": "roothut-lookout",
-      "container": "cargoCrate",
+      "container": "fenHollow",
       "site": "rootHut",
       "onFloorOf": "rootHutLookout"
     },
     {
       "id": "stilt-a",
-      "container": "cargoCrate",
+      "container": "fenHollow",
       "site": "stiltHutA",
       "onFloorOf": "stiltHutA"
     },
     {
+      "id": "stilt-b",
+      "container": "fenHollow",
+      "site": "stiltHutB",
+      "onFloorOf": "stiltHutB"
+    },
+    {
       "id": "stilt-c",
-      "container": "bioPod",
+      "container": "fenHollow",
       "site": "stiltHutC",
       "onFloorOf": "stiltHutC"
     },
     {
       "id": "stilt-e",
-      "container": "cargoCrate",
+      "container": "fenHollow",
       "site": "stiltHutE",
       "onFloorOf": "stiltHutE"
     },
     {
       "id": "pod-hold",
-      "container": "sealedLocker",
+      "container": "drownedLocker",
+      "site": "drownedPod",
+      "onFloorOf": "drownedPod"
+    },
+    {
+      "id": "pod-bow",
+      "container": "drownedLocker",
       "site": "drownedPod",
       "onFloorOf": "drownedPod"
     }
   ],
   "pods": [
     {
-      "id": "camp-pod",
-      "type": "bioPod",
-      "x": -40,
+      "id": "hollow-nest-a",
+      "type": "fenHollow",
+      "x": -41,
       "z": 38
     },
     {
-      "id": "reed-pod",
+      "id": "hollow-nest-b",
+      "type": "fenHollow",
+      "x": -31,
+      "z": 29
+    },
+    {
+      "id": "cathedral-a",
+      "type": "fenHollow",
+      "x": -96,
+      "z": 50
+    },
+    {
+      "id": "cathedral-b",
+      "type": "fenHollow",
+      "x": -110,
+      "z": 63
+    },
+    {
+      "id": "shallows-a",
+      "type": "bioPod",
+      "x": 6,
+      "z": 34
+    },
+    {
+      "id": "shallows-b",
+      "type": "bioPod",
+      "x": 38,
+      "z": 20
+    },
+    {
+      "id": "shallows-c",
       "type": "bioPod",
       "x": 24,
       "z": 66
-    },
-    {
-      "id": "crown-crate",
-      "type": "cargoCrate",
-      "x": 86,
-      "z": -14
-    },
-    {
-      "id": "cathedral-pod",
-      "type": "bioPod",
-      "x": -96,
-      "z": 50
     }
   ],
   "blooms": [
@@ -650,6 +694,91 @@
       "x1": 96,
       "z1": -30,
       "radius": 1.1
+    }
+  ],
+  "spawns_note": "Creature homes, matching Design's data/habitats.json weepingFen. Fenstalkers wait under the water (buried: they surge up when the host comes within that many metres).",
+  "spawns": [
+    {
+      "kind": "fenstalker",
+      "x": 10,
+      "z": 44,
+      "count": 1,
+      "buried": 7,
+      "roam": 30
+    },
+    {
+      "kind": "fenstalker",
+      "x": 34,
+      "z": 32,
+      "count": 1,
+      "buried": 7,
+      "roam": 30
+    },
+    {
+      "kind": "fenstalker",
+      "x": 30,
+      "z": -50,
+      "count": 1,
+      "buried": 7,
+      "roam": 30
+    },
+    {
+      "kind": "fenstalker",
+      "x": 72,
+      "z": -66,
+      "count": 1,
+      "buried": 7,
+      "roam": 30
+    },
+    {
+      "kind": "fenstalker",
+      "x": 80,
+      "z": 50,
+      "count": 1,
+      "buried": 9,
+      "roam": 30
+    },
+    {
+      "kind": "mirebrood",
+      "x": -37,
+      "z": 36,
+      "count": 3,
+      "packed": true,
+      "spread": 10,
+      "roam": 15
+    },
+    {
+      "kind": "mirebrood",
+      "x": -45,
+      "z": -2,
+      "count": 1,
+      "packed": true,
+      "spread": 8,
+      "roam": 15
+    },
+    {
+      "kind": "mistwader",
+      "x": 20,
+      "z": 40,
+      "count": 2,
+      "spread": 40,
+      "roam": 70
+    },
+    {
+      "kind": "titheWeaver",
+      "x": -104,
+      "z": 56,
+      "count": 2,
+      "spread": 20,
+      "roam": 12
+    },
+    {
+      "kind": "glasswalker",
+      "x": -74,
+      "z": -72,
+      "count": 2,
+      "spread": 6,
+      "roam": 10
     }
   ]
 }

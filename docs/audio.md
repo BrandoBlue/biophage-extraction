@@ -7,7 +7,7 @@ Every sound is synthesised in the browser at runtime with Web Audio: shaped nois
 nothing added to the release size beyond the code.
 
 Listen without playing: `npm run sound-tour` renders an 85-second walk through the game's sound offline
-(`src/audio/tour.ts`) to `tests/out/sound-tour.wav`.
+(`src/audio/tour.ts`) to `tests/out/sound-tour.wav`; `npm run sound-tour -- --zones` renders the desert, fen and pit.
 
 ## How it fits together
 
@@ -30,6 +30,12 @@ Listen without playing: `npm run sound-tour` renders an 85-second walk through t
   that is left. Its shriek is the loudest thing in the game.
 - Music intensity rises fast and drains slowly. Thresholds, tempos and levels are in `data/audio.json`.
 - Below 30% Biomass the world muffles and the heartbeat takes over.
+- Each zone has its own musical flavour (`music.ts` `FLAVOURS`): Glowmire's D minor with an E♭ shadow, the Ochre Reach's
+  E Phrygian dominant with plucked strings, the Weeping Fen's slow drowned chords with water-drop bells, the Marrow Pit's
+  sliding clusters with no bells at all.
+- Marrow Pit: each layer (rim, cables, warrens, deep) has its own ambience; dread grows with depth (`pitDepth` in
+  `data/audio.json`): the wind dies, whispers and calls come more often, the music never relaxes, and near the floor
+  your heartbeat is always there.
 - Zone ambience: `data/audio.json` `zones` (profiles) and `aliases` (zone id to profile). A new zone with no entry
   falls back by keyword (desert, pit, fen, cave, wreck) then to `default`.
 

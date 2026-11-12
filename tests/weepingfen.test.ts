@@ -4,7 +4,7 @@ import { STEP_HEIGHT, type Vec3Like } from '../src/world/collision';
 import { FEN, buildWeepingFen, fenAreaAt, fenHeight, regentPool } from '../src/world/weepingfen';
 import { SOLIDS, groundHeight, setTerrain } from '../src/world/zone7';
 import { BUILT_ZONES } from '../src/world/zones';
-import { LOOT, ZONES } from '../data';
+import { HABITATS, LOOT, ZONES } from '../data';
 
 const scene = new THREE.Scene();
 const world = buildWeepingFen(scene, 3);
@@ -136,5 +136,22 @@ describe('the Weeping Fen', () => {
       const p = walk({ x: out[0], y: fenHeight(out[0], out[1]), z: out[1] }, [[c.x, c.z]]);
       expect(near(p, c.x, c.z)).toBeLessThan(1);
     }
+  });
+
+  it('gives every creature Design asked for a home in its landmark, and places Design\'s containers', () => {
+    const want = HABITATS.zones.weepingFen as Record<string, { groups: { where: { landmark?: string }; count: number }[] }>;
+    for (const [kind, h] of Object.entries(want)) {
+      const placed = world.layout.spawns!.filter((s) => s.kind === kind);
+      expect(placed.reduce((a, s) => a + (s.count ?? 1), 0), kind).toBe(h.groups.reduce((a, g) => a + g.count, 0));
+      for (const g of h.groups) {
+        const area = FEN.areas.find((a) => a.id === g.where.landmark)!;
+        expect(placed.some((s) => Math.hypot(s.x - area.x, s.z - area.z) <= area.radius), `${kind} in ${area.id}`).toBe(true);
+      }
+    }
+    // Homes stand clear (the Drowned Pod's glasswalkers stand on its deck).
+    for (const s of world.layout.spawns!) expect(SOLIDS.floorAt(s.x, s.z, 50) - fenHeight(s.x, s.z), `${s.kind} not inside a solid`).toBeLessThan(1.5);
+    const got: Record<string, number> = {};
+    for (const c of [...world.structures.loot.map((l) => l.container!), ...world.layout.pods.map((p) => p.type)]) got[c] = (got[c] ?? 0) + 1;
+    for (const l of (HABITATS.loot.weepingFen ?? []) as { container: string; count: number }[]) expect(got[l.container] ?? 0, l.container).toBeGreaterThanOrEqual(l.count);
   });
 });

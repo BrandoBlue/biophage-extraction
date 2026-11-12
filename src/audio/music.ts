@@ -33,6 +33,63 @@ const HIVE: Chord[] = [
   { root: 33, notes: [57, 61, 64, 71], vowel: 'u' },
 ];
 
+/** Ochre Reach: E Phrygian dominant, dry and sun-struck; the bells become plucked strings. */
+const DESERT: Chord[] = [
+  { root: 40, notes: [56, 59, 64, 65], vowel: 'a' },
+  { root: 41, notes: [57, 60, 65, 68], vowel: 'o' },
+  { root: 38, notes: [53, 57, 62, 65], vowel: 'a' },
+  { root: 40, notes: [56, 59, 62, 64], vowel: 'e' },
+];
+const DESERT_COMBAT: Chord[] = [
+  { root: 40, notes: [56, 59, 64, 65], vowel: 'a' },
+  { root: 41, notes: [56, 57, 60, 65], vowel: 'a' },
+  { root: 43, notes: [55, 59, 62, 65], vowel: 'o' },
+  { root: 41, notes: [56, 57, 62, 65], vowel: 'e' },
+];
+/** Weeping Fen: low, slow, drowned; a flat fifth in every chord like water in your lungs. */
+const FEN: Chord[] = [
+  { root: 33, notes: [52, 57, 60, 63], vowel: 'u' },
+  { root: 29, notes: [53, 56, 60, 63], vowel: 'o' },
+  { root: 31, notes: [50, 55, 58, 61], vowel: 'u' },
+  { root: 28, notes: [52, 55, 58, 62], vowel: 'o' },
+];
+const FEN_COMBAT: Chord[] = [
+  { root: 33, notes: [51, 52, 57, 63], vowel: 'o' },
+  { root: 34, notes: [52, 53, 58, 64], vowel: 'a' },
+  { root: 29, notes: [51, 53, 56, 59], vowel: 'o' },
+  { root: 32, notes: [50, 51, 56, 62], vowel: 'a' },
+];
+/** Marrow Pit: no key, only clusters that slide downward. */
+const PIT: Chord[] = [
+  { root: 36, notes: [55, 56, 61, 62], vowel: 'u' },
+  { root: 35, notes: [54, 55, 60, 61], vowel: 'u' },
+  { root: 34, notes: [53, 54, 59, 60], vowel: 'o' },
+  { root: 33, notes: [52, 53, 58, 59], vowel: 'u' },
+];
+const PIT_COMBAT: Chord[] = [
+  { root: 33, notes: [51, 52, 53, 58], vowel: 'a' },
+  { root: 32, notes: [50, 51, 52, 57], vowel: 'a' },
+  { root: 31, notes: [49, 50, 55, 56], vowel: 'o' },
+  { root: 32, notes: [50, 51, 56, 57], vowel: 'a' },
+];
+
+/** A zone's musical colour. */
+export type Flavour = 'default' | 'desert' | 'fen' | 'pit';
+export const FLAVOURS: Record<Flavour, { explore: Chord[]; combat: Chord[]; chordScale: number; bells: 'glass' | 'pluck' | 'drop' | 'none' }> = {
+  default: { explore: RAID, combat: COMBAT, chordScale: 1, bells: 'glass' },
+  desert: { explore: DESERT, combat: DESERT_COMBAT, chordScale: 0.9, bells: 'pluck' },
+  fen: { explore: FEN, combat: FEN_COMBAT, chordScale: 1.4, bells: 'drop' },
+  pit: { explore: PIT, combat: PIT_COMBAT, chordScale: 1.2, bells: 'none' },
+};
+/** Zone id to musical flavour (same keyword rules as ambience). */
+export function flavourFor(zone: string): Flavour {
+  const k = zone.toLowerCase();
+  if (/ochre|desert|sand|dune|savann?ah?|reef/.test(k)) return 'desert';
+  if (/fen$|fen[^a-z]|weeping|swamp|bog/.test(k)) return 'fen';
+  if (/pit|abyss|choir/.test(k)) return 'pit';
+  return 'default';
+}
+
 const smooth = (a: number, b: number, v: number) => { const k = Math.min(1, Math.max(0, (v - a) / (b - a))); return k * k * (3 - 2 * k); };
 
 /** Layer levels for an intensity: what plays, how loud. Pure (tests). */
@@ -60,6 +117,9 @@ export function tempo(intensity: number, boss: boolean): number {
 
 export class Music {
   mode: MusicMode = 'off';
+  flavour: Flavour = 'default';
+  /** 0..1 extra darkness (Marrow Pit depth): darker drone, fewer bells, slower chords. */
+  dread = 0;
   private out: GainNode;
   private layers: Record<'choir' | 'bells' | 'pulse' | 'drums' | 'brass' | 'drone', GainNode>;
   private drone: { oscs: OscillatorNode[]; filter: BiquadFilterNode } | null = null;
@@ -119,7 +179,8 @@ export class Music {
 
   private chords(intensity: number): Chord[] {
     if (this.mode === 'hive') return HIVE;
-    return intensity >= AUDIO.music.combat ? COMBAT : RAID;
+    const f = FLAVOURS[this.flavour];
+    return intensity >= AUDIO.music.combat ? f.combat : f.explore;
   }
 
   update(now: number, intensity: number, boss: boolean): void {
@@ -131,7 +192,8 @@ export class Music {
     }
     const x = this.e.x;
     const set = this.chords(intensity);
-    const chordLen = this.mode === 'hive' ? AUDIO.music.hiveChordSeconds : AUDIO.music.chordSeconds * (intensity >= AUDIO.music.combat ? 0.6 : 1);
+    const fl = FLAVOURS[this.mode === 'hive' ? 'default' : this.flavour];
+    const chordLen = this.mode === 'hive' ? AUDIO.music.hiveChordSeconds : AUDIO.music.chordSeconds * fl.chordScale * (1 + this.dread * 0.6) * (intensity >= AUDIO.music.combat ? 0.6 : 1);
     // Chord change: the drone glides to the new root and a new choir chord breathes in over the old one.
     if (now >= this.chordAt) {
       const c = set[this.chordIndex % set.length];
@@ -142,7 +204,7 @@ export class Music {
         a.frequency.setTargetAtTime(mtof(c.root), now, 1.2);
         b.frequency.setTargetAtTime(mtof(c.root + 7), now, 1.4);
         sub.frequency.setTargetAtTime(mtof(c.root - 12), now, 1.2);
-        this.drone.filter.frequency.setTargetAtTime(260 + intensity * 900, now, 2);
+        this.drone.filter.frequency.setTargetAtTime((260 + intensity * 900) * (1 - this.dread * 0.5), now, 2);
       }
       if (lv.choir > 0.02) {
         for (const n of c.notes) {
@@ -161,9 +223,17 @@ export class Music {
     const c = set[(this.chordIndex + set.length - 1) % set.length];
     while (this.stepAt < now + 0.2) {
       const t = this.stepAt, s = this.step % 16;
-      if (lv.bells > 0.02 && x.rand() < AUDIO.music.bellChance * (this.mode === 'hive' ? 0.22 : 0.12)) {
-        const n = c.notes[Math.floor(x.rand() * c.notes.length)] + (x.rand() < 0.5 ? 12 : 24);
-        fm(x, this.layers.bells, t, { freq: mtof(n), ratio: x.rand() < 0.3 ? 3.5 : 2.0, index: 0.9, gain: 0.11, a: 0.004, d: x.range(2.5, 5) });
+      const bells = this.mode === 'hive' ? 'glass' : fl.bells;
+      if (bells !== 'none' && lv.bells > 0.02 && x.rand() < AUDIO.music.bellChance * (this.mode === 'hive' ? 0.22 : 0.12) * (1 - this.dread)) {
+        const n = c.notes[Math.floor(x.rand() * c.notes.length)] + (bells === 'drop' ? 12 : x.rand() < 0.5 ? 12 : 24);
+        if (bells === 'pluck') {
+          // A dry plucked string, sometimes a quick grace note before it.
+          if (x.rand() < 0.3) fm(x, this.layers.bells, t, { freq: mtof(n + 1), ratio: 1, index: 2.5, gain: 0.06, d: 0.25 });
+          fm(x, this.layers.bells, t + (x.rand() < 0.3 ? 0.07 : 0), { freq: mtof(n), ratio: 1.0, index: 3, indexDecay: 0.15, gain: 0.12, d: x.range(0.8, 1.4) });
+        } else if (bells === 'drop') {
+          // Water drops in a flooded room: a falling sine blip into a long tail.
+          tone(x, this.layers.bells, t, { freq: mtof(n + 12), to: mtof(n), glide: 0.05, gain: 0.08, d: x.range(1.5, 3) });
+        } else fm(x, this.layers.bells, t, { freq: mtof(n), ratio: x.rand() < 0.3 ? 3.5 : 2.0, index: 0.9, gain: 0.11, a: 0.004, d: x.range(2.5, 5) });
         this.notes++;
       }
       if (lv.pulse > 0.02 && (s % 4 === 0)) {

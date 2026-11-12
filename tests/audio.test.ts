@@ -3,7 +3,7 @@ import { ABOMINATIONS, BOSSES, WEAPONS, WEAPON_FEEL, ZONES } from '../data';
 import { AUDIO, ambienceFor } from '../src/audio/config';
 import { AudioEngine, airCutoff, volumeGain } from '../src/audio/engine';
 import { Ambience } from '../src/audio/ambience';
-import { Music, layerLevels, tempo } from '../src/audio/music';
+import { FLAVOURS, Music, flavourFor, layerLevels, tempo } from '../src/audio/music';
 import { Intensity, Stride, behind, stepLevel, surfaceFor, threatLevel, weightOf } from '../src/audio/director';
 import * as S from '../src/audio/sfx';
 import { BOSSES as BOSS_VOICES, EMITTERS, SPECIES, bossVoice, speciesVoice, stalkWarn } from '../src/audio/voices';
@@ -24,7 +24,7 @@ describe('audio coverage', () => {
     for (const id of Object.keys(BOSSES)) expect(BOSS_VOICES[id], id).toBeDefined();
   });
   it('every zone, the caves and the Hive resolve to an ambience profile with known emitters', () => {
-    const ids = [...Object.keys(ZONES), 'cave', 'hive', 'sunbleachedDunes', 'theDeepPit', 'unknownZone'];
+    const ids = [...Object.keys(ZONES), 'cave', 'hive', 'sunbleachedDunes', 'theDeepPit', 'unknownZone', 'pitRim', 'pitCables', 'pitWarrens', 'pitDeep'];
     for (const id of ids) {
       const p = ambienceFor(id);
       expect(p, id).toBeDefined();
@@ -35,7 +35,7 @@ describe('audio coverage', () => {
     expect(ambienceFor('glowmireIsle')).toBe(AUDIO.zones.glowmireIsle);
     expect(ambienceFor('weepingFen')).toBe(AUDIO.zones.fen);
     expect(ambienceFor('ochreReach')).toBe(AUDIO.zones.desert);
-    expect(ambienceFor('marrowPit')).toBe(AUDIO.zones.pit);
+    expect(ambienceFor('marrowPit')).toBe(AUDIO.zones.pitRim);
   });
 });
 
@@ -85,6 +85,39 @@ describe('recipes render without Web Audio errors', () => {
     expect(ok).toBe(AUDIO.mix.maxVoices);
     expect(e.claim(5, 3)).toBe(true); // critical sounds still get through
     expect(e.at({ x: 10, y: 0, z: 0 }, 1)).toBeDefined();
+  });
+});
+
+describe('zones sound distinct', () => {
+  it('each built zone has its own music flavour and ambience', () => {
+    expect(flavourFor('ochreReach')).toBe('desert');
+    expect(flavourFor('weepingFen')).toBe('fen');
+    expect(flavourFor('marrowPit')).toBe('pit');
+    expect(flavourFor('glowmireIsle')).toBe('default');
+    const beds = new Set(['glowmireIsle', 'longSeedWreck', 'ochreReach', 'weepingFen', 'marrowPit'].map((z) => ambienceFor(z)));
+    expect(beds.size).toBe(5);
+    expect(surfaceFor('ochreReach', false)).toBe('sand');
+  });
+  it('every flavour plays in explore and combat', () => {
+    for (const f of Object.keys(FLAVOURS) as (keyof typeof FLAVOURS)[]) {
+      const { ctx, e } = rig();
+      const m = new Music(e);
+      m.flavour = f;
+      m.start('raid', 0);
+      for (let i = 0; i <= 60; i++) { ctx.currentTime += 0.5; m.update(ctx.currentTime, i < 30 ? 0.1 : 0.9, false); }
+      expect(m.notes, f).toBeGreaterThan(5);
+    }
+  });
+  it('the pit gets more dreadful with depth: dread emitters call more often', () => {
+    const count = (dread: number) => {
+      const { ctx, e } = rig();
+      const a = new Ambience(e);
+      a.dread = dread;
+      a.set(AUDIO.zones.pitDeep, 1, 0);
+      for (let i = 0; i < 600; i++) { ctx.currentTime += 1; a.update(ctx.currentTime); }
+      return a.calls;
+    };
+    expect(count(1)).toBeGreaterThan(count(0) * 1.15);
   });
 });
 
