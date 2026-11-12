@@ -318,5 +318,17 @@ export const EMITTERS: Record<string, Recipe> = {
   // Something huge moving under the ground.
   croak: (x, o, t) => croak(x, o, t, x.range(0.3, 0.6)),
   splash: (x, o, t) => splash(x, o, t, x.range(0.3, 0.6)),
+  // Ochre Reach: a Dunewake racing past under the sand, a Bristleback herd humming far off, heat singing in the air.
+  duneRace: (x, o, t) => max(noise(x, o, t, { gain: 0.5, a: 0.4, d: 1.2, filters: [{ type: 'bandpass', freq: 1800, to: 5000, q: 1.2, over: 0.8 }] }), noise(x, o, t + 0.2, { colour: 'brown', gain: 0.25, a: 0.3, d: 1, filters: [{ type: 'lowpass', freq: 220 }] }) + 0.2),
+  herdHum: (x, o, t) => SPECIES.bristleback.idle(x, o, t),
+  heatShimmer: (x, o, t) => max(...[0, 1.1].map((d, i) => tone(x, o, t + d, { freq: x.range(2800, 3400) * (i ? 1.5 : 1), gain: 0.03, a: 1.2, hold: 1, d: 1.6, vibrato: { rate: 0.6, depth: 35 } }) + d)),
+  // Weeping Fen: a Mistwader's hum through the mist, a Mirebrood clutch pouring over a log.
+  mistHum: (x, o, t) => SPECIES.mistwader.idle(x, o, t),
+  swarm: (x, o, t) => SPECIES.mirebrood.hunt(x, o, t),
+  // Marrow Pit: the Nethermaw breathing the updraft, rope and bone on the Cable Bridge, lantern hum in the warrens.
+  pitBreath: (x, o, t) => max(noise(x, o, t, { colour: 'brown', gain: 0.6, a: 2.2, d: 1.2, filters: [{ type: 'bandpass', freq: 130, to: 240, q: 1, over: 3 }] }), noise(x, o, t + 3.6, { colour: 'pink', gain: 0.25, a: 0.5, d: 2.6, filters: [{ type: 'bandpass', freq: 700, to: 300, q: 1.2, over: 3 }] }) + 3.6),
+  ropeCreak: (x, o, t) => { let l = 0; const f = x.range(500, 900); for (let i = 0; i < 9; i++) l = max(l, noise(x, o, t + i * 0.07, { colour: 'pink', gain: 0.2, d: 0.05, filters: [{ type: 'bandpass', freq: f * (1 - i * 0.02), q: 25 }] }) + i * 0.07); return l; },
+  boneClack: (x, o, t) => max(...[0, 0.13, 0.31].map((d) => fm(x, o, t + d * x.vary(1, 0.3), { freq: x.range(500, 900), ratio: 1.41, index: 2, gain: 0.15, d: 0.08 }) + d)),
+  lanternHum: (x, o, t) => tone(x, o, t, { type: 'triangle', freq: x.range(110, 130), gain: 0.06, a: 0.8, hold: 1.5, d: 1.2, vibrato: { rate: 9, depth: 15 } }),
   rumble: (x, o, t) => max(noise(x, o, t, { colour: 'brown', gain: 0.6, a: 0.8, d: 2.2, filters: [{ type: 'lowpass', freq: 180 }] }), chitter(x, o, t + 1, 8, 500, 0.15, 0.1) + 1),
 };

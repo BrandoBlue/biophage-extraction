@@ -3,7 +3,7 @@
  * around the listener (distant calls, drips, creaks, whispers, things moving under the sand). Profiles come from
  * data/audio.json; changing profile (walking into a cave, the Hive opening) crossfades over a few seconds.
  */
-import type { AmbienceProfile, BedKind } from './config';
+import { AUDIO, type AmbienceProfile, type BedKind } from './config';
 import type { AudioEngine } from './engine';
 import { EMITTERS } from './voices';
 
@@ -15,6 +15,8 @@ export class Ambience {
   private next: number[] = [];
   private gustAt = 0;
   private windGain: GainNode | null = null;
+  /** 0..1 depth dread (Marrow Pit): `dread` emitters call more often, the wind dies away. */
+  dread = 0;
   /** One-shots played (tests). */
   calls = 0;
 
@@ -51,13 +53,13 @@ export class Ambience {
     // Gusts: the wind breathes rather than hissing flat.
     if (this.windGain && now >= this.gustAt) {
       const x = this.e.x;
-      this.windGain.gain.setTargetAtTime(p.wind * x.range(0.45, 1.25), now, x.range(0.8, 2.5));
+      this.windGain.gain.setTargetAtTime(p.wind * (1 - this.dread * 0.8) * x.range(0.45, 1.25), now, x.range(0.8, 2.5));
       this.gustAt = now + x.range(2, 6);
     }
     const L = this.e.listener;
     p.emitters.forEach((em, i) => {
       if (now < this.next[i]) return;
-      this.next[i] = now + this.wait(em.perMinute);
+      this.next[i] = now + this.wait(em.perMinute * (em.dread ? 1 + this.dread * AUDIO.pitDepth.extra : 1));
       const recipe = EMITTERS[em.kind];
       if (!recipe || !this.e.claim(3, 0)) return;
       const x = this.e.x, a = x.range(0, Math.PI * 2), d = x.range(em.range[0], em.range[1]);
@@ -129,6 +131,16 @@ function bedTexture(kind: BedKind, k: BedKit): void {
       const g = k.gain(0.1);
       k.lfo(0.21, 0.06, g.gain);
       k.chain(k.loop('brown'), k.bq('bandpass', 160, 1.2), g, k.out);
+      break;
+    }
+    case 'fen': {
+      // Standing water lapping round your legs, and the hiss of mist.
+      const g = k.gain(0.12);
+      k.lfo(0.17, 0.07, g.gain);
+      k.chain(k.loop('brown'), k.bq('bandpass', 220, 1.5), g, k.out);
+      const m = k.gain(0.035);
+      k.lfo(0.05, 0.02, m.gain);
+      k.chain(k.loop('pink', 0.7), k.bq('bandpass', 2600, 0.6), m, k.out);
       break;
     }
     case 'cave': {
