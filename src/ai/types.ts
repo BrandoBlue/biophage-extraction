@@ -38,7 +38,14 @@ export interface BrainWorld {
   playableRadius: number;
   /** What this raid's creatures have learned about the host (src/ai/memory.ts). Optional: none, nothing is learned. */
   memory?: import('./memory').RaidMemory;
+  /** Walkway decks a Cablecrawler can cut (the Marrow Pit's bridges). */
+  walkways?: readonly WalkwayView[];
+  /** Where a carrier drops what it takes (the Marrow Pit's open shaft). */
+  dropZone?: Vec2;
 }
+
+/** A walkway deck as a brain sees it (src/world/structures.ts Walkway). */
+export interface WalkwayView { id: string; x: number; y: number; z: number; halfLength: number; halfWidth: number; yaw: number; readonly isCut: boolean }
 
 /** One-shot things a brain did this tick; the Abomination turns them into damage, projectiles, bus events and sound. */
 export type AIEvent =
@@ -60,6 +67,13 @@ export type AIEvent =
   /** Thinking out loud (ai.json tactics): calls the pack in on a reload, breaks out of a held aim, starts or springs a
    *  lure, falters when a packmate falls. The body, sound and HUD read these as tells. */
   | { type: 'tactic'; what: Tactic }
+  /** Cut walkway `id` (a Cablecrawler's shears): the raid drops its deck. */
+  | { type: 'cut'; id: string }
+  /** Grabbed the host (a Veilwing): the raid carries the host with it until `release`. */
+  | { type: 'grab'; damage: number }
+  | { type: 'release' }
+  /** One shot from a carried gun (the Hollowed) at `target`; it hits with chance `accuracy`. */
+  | { type: 'shot'; target: Vec3; damage: number; accuracy: number }
   /** Calls creatures of other kinds within `radius` onto `at` (a Bile Cantor singing Needlemaws onto the host). */
   | { type: 'rally'; kinds: readonly string[]; radius: number; at: Vec2 }
   /** Burst from its tank, dropped its disguise, or sprang the ambush it laid where it lost the host. */

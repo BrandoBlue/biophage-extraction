@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ABILITIES, ABOMINATIONS, AI, BOSSES, CLASSES, HOST, KITS, LOOT, RAID, VIRUSES, VIRUS_RULES, ZONES, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
+import { pickReinforcement } from '../ai/reinforce';
 import { groundHeight, ISLAND_RADIUS, mulberry32 } from '../world/zone7';
 import { Abomination, type AbominationContext, type AbominationKind, type HitSphere } from './abominations';
 import { AbilitySystem } from './abilities';
@@ -188,6 +189,11 @@ export class Raid {
   private widowSlow = 1;
   /** The Nethermaw at the bottom of the Marrow Pit (World's Undermouth). Null in other zones. */
   readonly maw: RaidNethermaw | null = null;
+  /** A Veilwing carrying the host (PvE AI grabber), and the host's height in its grip. */
+  private carriedBy: Abomination | null = null;
+  /** Walkway decks in this zone (the Marrow Pit's bridges) that Cablecrawlers can cut. */
+  private structureWalkways: import('../world/structures').Walkway[] = [];
+  private carryY = 0;
   /** The Nethermaw's false extract lights (the dream phase's lie). */
   private mawLights: SeedSpire[] = [];
   private mawPull = new THREE.Vector3();
@@ -345,6 +351,7 @@ export class Raid {
       this.widow = new RaidWidow(structures.widow, groundHeight, scene, Math.floor(this.rand() * 1e6));
       scene.add(this.widow.body.root);
     }
+    this.structureWalkways = structures?.walkways ?? [];
     if (this.arena?.id === 'undermouth' && BOSSES.nethermaw) {
       this.maw = new RaidNethermaw(this.arena, structures?.walkways ?? [], scene, Math.floor(this.rand() * 1e6));
       scene.add(this.maw.body.root);
@@ -497,9 +504,31 @@ export class Raid {
     return c;
   }
 
+  /** Zones that place their own life (the Marrow Pit): see src/ai/reinforce.ts. */
+  private reinforceFromSpawns(alive: number, min: number): void {
+    const p = this.player.position;
+    const fwd = { x: -Math.sin(this.player.yaw), z: -Math.cos(this.player.yaw) };
+    const spawns = (this.layout.spawns ?? []).filter((s) => ABOMINATIONS[s.kind as AbominationKind] && s.kind in SPECIES);
+    const s0 = pickReinforcement(spawns, p, fwd, min, groundHeight);
+    if (!s0) return;
+    const h = { s: s0 };
+    const kind = h.s.kind as AbominationKind, data = ABOMINATIONS[kind];
+    const size = h.s.packed ? data.packSize[0] + Math.floor(this.rand() * (data.packSize[1] - data.packSize[0] + 1)) : 1;
+    if (alive + size > RAID.reinforcements.maxAlive) return;
+    for (let k = 0; k < size; k++) {
+      const a = this.rand() * Math.PI * 2, d = (h.s.spread ?? 3) * Math.sqrt(this.rand());
+      const c = this.addCreature(kind, h.s.x + Math.cos(a) * d, h.s.z + Math.sin(a) * d);
+      c.setHome(h.s.x, h.s.z, { roam: h.s.roam });
+      if (h.s.toughness) c.biomass *= h.s.toughness;
+      // It heard the fighting: it comes looking where the host was, not straight to it.
+      c.alert({ x: p.x, z: p.z });
+    }
+  }
+
   private reinforce(): void {
     const alive = this.creatures.filter((c) => c.alive).length;
     const min = Math.max(15, RAID.reinforcements.spawnMinDistanceFromPlayer * this.spawnScale);
+    if (this.layout.spawns) { this.reinforceFromSpawns(alive, min); return; }
     if (this.homes.length) {
       // Reinforcements walk in from the nearest home of their species that the host cannot see.
       const p = this.player.position;
@@ -1099,6 +1128,17 @@ export class Raid {
     if (this.dropping) p.velocity.y = -this.dropping;
     p.carry.copy(this.mawPull);
     p.update(dt);
+    // Held by a Veilwing: lifted with it until it lets go (or dies), then the fall is the host's own.
+    if (this.carriedBy) {
+      const c = this.carriedBy;
+      if (!c.alive || !live) this.carriedBy = null;
+      else {
+        this.carryY += Number((ABOMINATIONS.veilwing?.grab as { liftSpeed?: number } | undefined)?.liftSpeed ?? 6) * dt;
+        p.position.set(c.position.x, this.carryY, c.position.z);
+        p.velocity.set(0, 0, 0);
+        p.grounded = false;
+      }
+    }
     if (live && p.sprinting) this.overload.add(HOST.neuralOverload.sprintFillPerSecond * dt);
     this.overload.update(dt);
     if (!wasOver && this.overload.overloaded) this.bus.emit('overload', { duration: HOST.neuralOverload.overloadedDuration });
@@ -1183,6 +1223,28 @@ export class Raid {
       playerVisibility: hostVisibility({ moving: p.moving, sprinting: p.sprinting, crouched: p.crouched, sinceShot: p.sinceFired, virus: p.footstepScale }),
       playerForward: { x: -Math.sin(p.yaw), z: -Math.cos(p.yaw) },
       playerReloading: this.weapon.state.isReloading, playerAiming: this.weapon.aim > 0.5,
+      walkways: this.structureWalkways, dropZone: this.zone === 'marrowPit' ? { x: 0, z: 0 } : undefined,
+      onCut: (c, id) => {
+        const w = this.structureWalkways.find((x) => x.id === id);
+        if (!w || w.isCut) return;
+        w.cut();
+        const at = new THREE.Vector3(w.x, w.y, w.z);
+        this.fx.burst(at, GORE.bone, 1.4);
+        this.noise(at, 30, 'creature');
+        this.bus.emit('creatureTactic', { id: c.id, type: c.kind, what: 'cut', position: { x: w.x, y: w.y, z: w.z } });
+      },
+      onGrab: (c, dmg) => {
+        if (!live) return;
+        this.hurt(dmg, 'torso', c.kind, c.position);
+        this.carriedBy = c; this.carryY = p.position.y;
+        this.bus.emit('creatureTactic', { id: c.id, type: c.kind, what: 'grab', position: { x: c.position.x, y: c.position.y, z: c.position.z } });
+      },
+      onRelease: (c) => { if (this.carriedBy === c) this.carriedBy = null; },
+      onShot: (c, from, to, hit) => {
+        this.noise(from, 35, 'creature');
+        this.fx.impact(hit ? to : to.clone().add(new THREE.Vector3((this.rand() - 0.5) * 3, (this.rand() - 0.5) * 2, (this.rand() - 0.5) * 3)), hit ? GORE.flesh : GORE.bone, 4, 5);
+        if (hit) this.bus.emit('attack', { id: c.id, type: c.kind, position: { x: c.position.x, y: c.position.y, z: c.position.z } });
+      },
       onTactic: (c, what) => this.bus.emit('creatureTactic', { id: c.id, type: c.kind, what, position: { x: c.position.x, y: c.position.y, z: c.position.z } }),
       onKnockback: (c, strength) => {
         const d = new THREE.Vector3(p.position.x - c.position.x, 0, p.position.z - c.position.z);
