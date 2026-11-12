@@ -123,6 +123,8 @@ export abstract class Brain {
   }
 
   get engaged(): boolean { return this.mode === 'hunt'; }
+  /** Holding dead still because the host is looking at it (stalkers): the body freezes too. */
+  get frozen(): boolean { return false; }
   get speed(): number { return Math.hypot(this.body.vx, this.body.vz); }
 
   // ------------------------------------------------------------------ external hooks

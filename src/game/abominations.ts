@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { groundHeight, mulberry32 } from '../world/zone7';
 import type { Abomination as AbominationData } from '../../data';
 import type { Noise } from './perception';
-import { createBrain, memoryFor, tokensFor, type Brain, type BrainWorld, type Vec3 } from '../ai';
+import { createBrain, memoryFor, mindLevels, mindPulse, tokensFor, type Brain, type BrainWorld, type Vec3 } from '../ai';
 import { Creature } from '../creatures/creature';
 import { creatureGore } from '../creatures/gore';
 import type { SpeciesId } from '../creatures/plan';
@@ -71,6 +71,9 @@ let nextId = 1;
 const UNDERGROUND = -1e4;
 /** Seconds a burrower takes to haul itself out of the sand. */
 const BURROW_EMERGE_TIME = 0.9;
+/** Per second: how fast body language follows the brain's intent. */
+const MIND_EASE = 5;
+const MIND_LEVELS = ['tilt', 'brace', 'still', 'dark', 'recoil', 'grieve', 'eyes'] as const;
 /** Bodies that dive and surface themselves (Creature's drive.burrow) rather than being sunk whole. */
 const NATIVE_BURROW = new Set<string>(['dunewake', 'fenstalker']);
 
@@ -337,6 +340,9 @@ export class Abomination {
   private handleEvents(ctx: AbominationContext): void {
     const p = ctx.player, pos = this.root.position;
     for (const e of this.brain.events) {
+      // Thinking made visible: calls and glints on the body (Creature's drive.mind).
+      const pulse = mindPulse(e);
+      if (pulse) this.creature.drive.mind[pulse] = 1;
       switch (e.type) {
         case 'alert': ctx.onAlert(this); break;
         case 'melee':
@@ -410,6 +416,9 @@ export class Abomination {
     const c = this.creature, d = c.drive, brain = this.brain;
     d.velocity.set(brain.body.vx, 0, brain.body.vz);
     d.excite = 0.25 + brain.excite * 0.75;
+    // Body language eases toward what the brain is thinking (tilt while deciding, brace before committing...).
+    const want = mindLevels(brain), mind = d.mind, k = Math.min(1, dt * MIND_EASE);
+    for (const key of MIND_LEVELS) mind[key] += (want[key] - mind[key]) * k;
     d.windup = brain.windup;
     d.action = brain.action;
     d.reveal = this.revealed > 0 ? 1.8 : 1;

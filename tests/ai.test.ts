@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ABOMINATIONS, AI, NESTS } from '../data';
 import {
-  AttackTokens, Awareness, RaidMemory, WaveDirector, WebField, archetypeOf, createBrain, hostVisibility, sightRate,
+  AttackTokens, Awareness, RaidMemory, mindLevels, mindPulse, WaveDirector, WebField, archetypeOf, createBrain, hostVisibility, sightRate,
   type AIEvent, type Brain, type BrainWorld, type HostView,
 } from '../src/ai';
 import type { Noise } from '../src/game/perception';
@@ -773,5 +773,28 @@ describe('learning within a raid (ai.json learning)', () => {
     const s = simulate([m2], 6, host({ forward: null }), { memory: mem, each: () => { if (m2.phase === 'chargeWindup' && m2.strike) off = Math.max(off, Math.abs(m2.strike.x)); } });
     expect(off).toBeGreaterThan(L.cutAhead * 0.8);
     expect(adapted(s)).toBe(true);
+  });
+});
+
+describe('body language: the brain\'s thinking on Creature\'s drive.mind', () => {
+  it('stares with a cocked head, braces before committing, recoils when a packmate falls, sleepy-eyed Oculimoth', () => {
+    const v = (o: Partial<Parameters<typeof mindLevels>[0]>) => mindLevels({ kind: 'needlemaw', intent: 'hunt', windup: 0, phase: 'ring', frozen: false, ...o });
+    expect(v({ intent: 'stare' })).toMatchObject({ tilt: expect.any(Number), still: expect.any(Number) });
+    expect(v({ intent: 'stare' }).tilt).toBeGreaterThan(0.5);
+    expect(v({ intent: 'attack', windup: 0.8 }).brace).toBeGreaterThan(0.9);
+    expect(v({ intent: 'falter' }).recoil).toBeGreaterThan(0.5);
+    expect(v({ kind: 'oculimoth', intent: 'idle' }).eyes).toBeLessThan(0.5);
+    expect(v({ kind: 'oculimoth', intent: 'hunt' }).eyes).toBe(1);
+    expect(v({ kind: 'glasswalker', frozen: true }).still).toBe(1);
+    expect(mindPulse({ type: 'tactic', what: 'press' })).toBe('call');
+    expect(mindPulse({ type: 'tactic', what: 'lure' })).toBe('glint');
+    expect(mindPulse({ type: 'alert' })).toBe('call');
+  });
+
+  it('a stalker in the host\'s gaze reads as frozen', () => {
+    const g = hunting(at('glasswalker', 99, 0, 14, 99));
+    simulate([g], 2, host({ forward: { x: 0, z: 1 } }));
+    expect(g.frozen).toBe(true);
+    expect(mindLevels(g).still).toBe(1);
   });
 });
