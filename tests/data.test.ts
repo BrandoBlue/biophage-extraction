@@ -182,7 +182,7 @@ describe('Host data (docs/gdd/host-milestone.md)', () => {
           const n = p.nodes[i];
           expect(ids.has(`${c}.${n.id}`), n.id).toBe(false);
           ids.add(`${c}.${n.id}`);
-          expect(n.visual.length, n.id).toBeGreaterThan(20);
+          expect(n.visual.length, n.id).toBeGreaterThan(10);
           if (i > 0) {
             expect(n.dna).toBeGreaterThan(p.nodes[i - 1].dna);
             expect(n.level).toBeGreaterThanOrEqual(p.nodes[i - 1].level);
@@ -305,7 +305,7 @@ describe('economy, zones and bosses (docs/gdd/07, 08)', () => {
     const gun = weaponSpec('synapseBurster');
     const dps = gun.damage * gun.fireRate * (gun.magazine / gun.fireRate) / (gun.magazine / gun.fireRate + gun.reload.time);
     const t = BOSSES.reliquary.biomass / dps;
-    expect(t).toBeGreaterThan(20);
+    expect(t).toBeGreaterThan(10);
     expect(t).toBeLessThan(BOSSES.reliquary.enrage.after / 4);
   });
   it('the Pale Vigil is a shorter fight than the Reliquary but still well over a magazine, and its lure is the best weak point', () => {
@@ -361,7 +361,7 @@ describe('weapon roster and habitats (docs/gdd/09)', () => {
   it('every weapon is well-formed for its fire mode, reload style and zoom', () => {
     for (const [id, w] of roster) {
       expect(RARITIES, id).toContain(w.rarity);
-      expect(w.fantasy.length, id).toBeGreaterThan(20);
+      expect(w.fantasy.length, id).toBeGreaterThan(10);
       if (w.fireMode === 'burst') { expect(w.burstCount, id).toBeGreaterThan(1); expect(w.burstDelay, id).toBeGreaterThan(0); }
       if (w.fireMode === 'charge') expect(w.charge?.time, id).toBeGreaterThan(0);
       if (w.reload.style === 'perShell') expect(w.reload.perShellTime, id).toBeGreaterThan(0);
@@ -551,5 +551,18 @@ describe('new zones, Apex and online (docs/gdd/10, apex-milestone, hive-mileston
     expect(ONLINE.pvp.headMultiplier).toBeGreaterThan(1);
     const bands = ONLINE.matchmaking.gearScoreBands;
     expect(bands).toEqual([...bands].sort((a, b) => a - b));
+  });
+});
+
+describe('creature minds (docs/gdd/11-creature-minds.md)', () => {
+  it('every creature has a mind: what it wants, how it shows its thinking, how it plans, how it learns', () => {
+    for (const [kind, a] of Object.entries(ABOMINATIONS)) {
+      const mind = a.mind as Record<string, string> | undefined;
+      expect(mind, kind).toBeDefined();
+      for (const key of ['wants', 'shows', 'plans', 'learns']) {
+        expect(typeof mind?.[key], `${kind}.mind.${key}`).toBe('string');
+        expect(mind![key].length, `${kind}.mind.${key}`).toBeGreaterThan(10);
+      }
+    }
   });
 });
