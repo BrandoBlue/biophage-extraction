@@ -11,7 +11,9 @@ const p = fixtureProfile();
 const ui = new HiveUI(document.querySelector<HTMLElement>('#hive')!, () => p, fixtureActions(p, () => ui.notice('DEPLOYING · (mock)')), {
   pickHost: (id) => { p.host = id; },
 });
-const screen = new URLSearchParams(location.search).get('screen') ?? 'menu';
+// `raid@ochreReach` opens raid select on that zone.
+const [screen, zoneArg] = (new URLSearchParams(location.search).get('screen') ?? 'menu').split('@');
+if (zoneArg) p.zone = zoneArg;
 if (screen === 'won') {
   ui.showResults({ result: 'extracted', items: [{ item: 'glitchingHeart', count: 1 }, { item: 'mournbackMarrow', count: 1 }, { item: 'plagueStalkerStrain', count: 1 }, { item: 'needlemawGland', count: 3 }, { item: 'clotGel', count: 1 }], dna: 85, value: 905, kills: 11, time: 412 });
 } else if (screen === 'lost') {

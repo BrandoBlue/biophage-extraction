@@ -174,7 +174,7 @@ export class HiveUI {
       if (this.tab === 'menu') this.show('host');
       else if (this.tab === 'host') this.show('stash');
       else if (this.tab === 'stash') this.show('raid');
-      else if (this.tab === 'raid') this.actions.deploy();
+      else if (this.tab === 'raid') this.root.querySelector<HTMLButtonElement>('#deploy:not(:disabled)')?.click();
       else if (this.tab === 'results') this.root.querySelector<HTMLButtonElement>('#deploy-again')?.click();
       return;
     }
