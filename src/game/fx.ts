@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { groundHeight, mulberry32 } from '../world/zone7';
 import { HIVE, ZONE7 } from '../render/palette';
-import { shotFx, shotStyle } from '../render/shotfx';
+import { MUZZLE_BASE_FLASH, muzzleSpray, shotFx, shotStyle } from '../render/shotfx';
 
 /** Colours derived from the Art Bible palette (never raw hex here). */
 export const GORE = {
@@ -111,6 +111,24 @@ export class Fx {
     for (let i = 0; i < count; i++) {
       tmpV.set(this.r(), this.rand() * 0.8 + 0.2, this.r()).normalize().multiplyScalar(v * (0.4 + this.rand()));
       this[s.pool].spawn(at, tmpV, c, s.size[0] + this.rand() * (s.size[1] - s.size[0]), s.life[0] + this.rand() * (s.life[1] - s.life[0]), { drag: s.drag, grav: s.grav, stretch: s.stretch });
+    }
+  }
+
+  /**
+   * The weapon exhaling its round at the muzzle (Rendering's MUZZLE_SPRAYS by the body's muzzleFx). `flash` is the
+   * class's WEAPON_FEEL flash, which scales the spray; `dir` is the barrel direction (unit).
+   */
+  muzzle(at: THREE.Vector3, dir: THREE.Vector3, style: string | undefined, colour: THREE.Color, flash = MUZZLE_BASE_FLASH): void {
+    const s = muzzleSpray(style);
+    const k = Math.max(0.6, flash / MUZZLE_BASE_FLASH), grow = Math.sqrt(k);
+    const c = colour.clone().lerp(BONE, s.bone);
+    if (s.flash > 0) shotFx.flash(this.scene, at, colour, s.flash * grow * 0.5);
+    const count = Math.round(s.n * grow);
+    for (let i = 0; i < count; i++) {
+      tmpV.set(this.r(), this.r(), this.r()).multiplyScalar(s.cone).add(dir).normalize();
+      tmpV.multiplyScalar(s.speed * (s.along + (1 - s.along) * this.rand()) * (0.6 + this.rand() * 0.8));
+      const size = (s.size[0] + this.rand() * (s.size[1] - s.size[0])) * grow;
+      this[s.pool].spawn(at, tmpV, c, size, s.life[0] + this.rand() * (s.life[1] - s.life[0]), { drag: s.drag, grav: s.grav, stretch: s.stretch });
     }
   }
 

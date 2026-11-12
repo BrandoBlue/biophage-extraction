@@ -135,6 +135,7 @@ export interface HudState {
 
 const tmp = new THREE.Vector3();
 const SAND_SPRAY = new THREE.Color(OCHRE.dust);
+const MUZZLE_AT = new THREE.Vector3(), MUZZLE_DIR = new THREE.Vector3(), MUZZLE_TINT = new THREE.Color();
 const CHEST = 1.2;
 const PLAYER_RADIUS = 0.55;
 
@@ -1095,6 +1096,10 @@ export class Raid {
       // Screen shake per class from Design's feel table, halved while aiming down the sight.
       p.addTrauma((WEAPON_FEEL.fire[w.spec.class]?.shake ?? 0.06) * (1 - w.aim * 0.5));
       for (let i = 0; i < fire.shots; i++) this.rig.fired(fire.kick);
+      // The body exhales each shot at its muzzle (spray look by its muzzleFx, size by the class's fire feel).
+      w.model.muzzle.getWorldPosition(MUZZLE_AT);
+      this.camera.getWorldDirection(MUZZLE_DIR);
+      this.fx.muzzle(MUZZLE_AT, MUZZLE_DIR, w.model.muzzleFx, MUZZLE_TINT.set(w.model.flashColour), WEAPON_FEEL.fire[w.spec.class]?.flash);
       if (w.spec.overloadPerShot) this.overload.add(w.spec.overloadPerShot * fire.shots); // charge weapons heat the host
       this.noise(p.position, HOST.noiseRadius.gunfire * w.spec.noise.gunfire, 'gunfire');
       this.bus.emit('shot', { weapon: w.id, ammo: w.state.ammo, position: { x: p.position.x, y: p.position.y, z: p.position.z }, ego: false });

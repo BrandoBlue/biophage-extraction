@@ -53,6 +53,8 @@ export interface WeaponModel {
   readonly scoped?: boolean;
   /** Muzzle flash tint for the rig's shared flash light. */
   readonly flashColour: string;
+  /** The muzzle spray this body exhales (Rendering's MUZZLE_SPRAYS: spore, quill, spit, bile, beam). Default spore. */
+  readonly muzzleFx?: string;
   /** Visible attachment points for mod grafts. */
   readonly sockets?: Partial<Record<ModSocket, THREE.Object3D>>;
   /** A round left. May return this weapon's kick; the rig uses DEFAULT_KICK otherwise. */
