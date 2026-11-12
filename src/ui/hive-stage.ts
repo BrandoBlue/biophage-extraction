@@ -11,11 +11,12 @@ import { HIVE } from '../render/palette';
 import type { Pipeline } from '../render/pipeline';
 
 /**
- * Menu framing: closer than the lab's default so the ~2 m host fills the specimen column. Turntable speed (rad/s) and
+ * Menu framing: close enough that the ~2 m host fills the main menu's observation lens (centred a little below the
+ * middle of the screen). Turntable speed (rad/s) and
  * starting yaw give a slow three-quarter view like the reference portrait. The fill is a soft bone light that follows
  * the camera, so the host's face never turns into the dark.
  */
-export const STAGE = { dist: 7, eyeY: 1.9, lookY: 1.55, spin: 0.12, yaw: 0.35, fill: 22, testFrameMs: 2500, testSettleMs: 5000 };
+export const STAGE = { dist: 6.3, eyeY: 1.75, lookY: 1.4, spin: 0.12, yaw: 0.35, fill: 22, testFrameMs: 2500, testSettleMs: 5000 };
 
 export class HiveStage {
   private lab: HiveLab | null = null;

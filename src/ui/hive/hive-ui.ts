@@ -8,6 +8,7 @@ import { applyTheme } from '../theme';
 import { DEFAULT_SETTINGS, getSettings, saveSettings, SETTING_RANGES } from '../settings';
 import type { Settings } from '../settings';
 import { frame, h, panel, cta, keyHints } from './kit';
+import { glyph } from '../icons';
 import type { HiveActions, ProfileView } from './model';
 import { drawOrbit, HOST_ORDER, hostSelect, mainMenu, raidSelect, results } from './screens';
 import type { ResultData } from './screens';
@@ -16,6 +17,7 @@ import { bodyScreen } from './body';
 import { marketScreen } from './market';
 import { vendorRow, vendorScreen } from './vendors';
 import { CLASSES } from '../../../data';
+import { canFullscreen, isFullscreen, toggleFullscreen } from '../fullscreen';
 import type { ClassId } from '../../../data';
 
 export type Tab = 'menu' | 'host' | 'stash' | 'raid' | 'market' | 'vendors' | 'body' | 'settings' | 'results';
@@ -45,6 +47,7 @@ export class HiveUI {
     applyTheme();
     root.id = 'hive';
     addEventListener('keydown', this.onKey);
+    document.addEventListener('fullscreenchange', this.onFull);
   }
 
   show(tab: Tab = this.tab): void {
@@ -54,11 +57,17 @@ export class HiveUI {
     const p = this.view();
     const f = frame({ title: TITLES[tab], tab: NAV_TAB[tab], callsign: p.callsign, dna: p.dna,
       extras: [{ label: 'HOST', value: CLASSES[p.host].label.replace('The ', '').toUpperCase(), tone: 'lime' }, { label: 'EXTRACTS', value: String(p.stats.extracts), tone: 'amber' }],
-      unlocked: [...(this.trades() ? ['vendors'] : []), ...(this.actions.hiveBody ? ['body'] : [])] });
+      unlocked: [...(this.trades() ? ['vendors'] : []), ...(this.actions.hiveBody ? ['body'] : []), ...(this.hiveMind() ? ['hivemind'] : [])] });
     f.nav.addEventListener('click', (e) => {
       const t = (e.target as HTMLElement).closest<HTMLButtonElement>('.tab');
-      if (t && !t.disabled) this.show(t.dataset.tab === 'vendors' ? this.tradeTab() : t.dataset.tab as Tab);
+      if (!t || t.disabled) return;
+      if (t.dataset.tab === 'hivemind') { this.openHiveMind(); return; }
+      this.show(t.dataset.tab === 'vendors' ? this.tradeTab() : t.dataset.tab as Tab);
     });
+    const full = f.root.querySelector<HTMLButtonElement>('[data-full]')!;
+    full.hidden = !canFullscreen();
+    full.classList.toggle('on', isFullscreen());
+    full.addEventListener('click', () => void toggleFullscreen());
     let screen: HTMLElement & { dispose?: () => void };
     switch (tab) {
       case 'menu': screen = mainMenu(p, { go: (t) => this.show(t === 'vendors' ? this.tradeTab() : t as Tab), deploy: () => this.show('host'), quit: () => this.quit(), market: this.trades() }); break;
@@ -86,12 +95,22 @@ export class HiveUI {
     this.root.classList.remove('hidden');
     this.cur = screen;
     this.root.dataset.tab = tab;
+    document.body.dataset.hiveTab = tab;
     // DNA ticks up or down when it changed since the last screen.
     if (this.lastDna !== null && p.dna !== this.lastDna) f.root.querySelector('.cur.dna b')?.classList.add(p.dna > this.lastDna ? 'up' : 'down');
     this.lastDna = p.dna;
   }
 
   private lastDna: number | null = null;
+
+  /** The online Hive-Mind panel (src/net/lobby.ts) lives beside the Hive; the HIVE-MIND tab unfolds it. */
+  private hiveMind(): HTMLElement | null { return document.querySelector<HTMLElement>('#hivemind'); }
+  private openHiveMind(): void {
+    const hm = this.hiveMind();
+    if (hm?.classList.contains('collapsed')) hm.querySelector<HTMLElement>('.hm-head')?.click();
+    hm?.querySelector<HTMLElement>('input, button')?.focus();
+  }
+  private onFull = () => this.root.querySelectorAll('[data-full]').forEach((b) => b.classList.toggle('on', isFullscreen()));
 
   /** Vendor shown on the VENDORS tab. */
   vendor = 'motherClot';
@@ -106,6 +125,7 @@ export class HiveUI {
     this.cur?.dispose?.();
     this.root.classList.add('hidden');
     this.root.replaceChildren();
+    delete document.body.dataset.hiveTab;
   }
 
   get visible(): boolean { return !this.root.classList.contains('hidden') && this.root.childElementCount > 0; }
@@ -141,6 +161,13 @@ export class HiveUI {
     pnl.insertAdjacentHTML('beforeend', row('sensitivity', 'MOUSE SENSITIVITY', (v) => `${v.toFixed(2)}×`) + row('fov', 'FIELD OF VIEW', (v) => `${v}°`) + row('volume', 'MASTER VOLUME', (v) => `${Math.round(v * 100)}%`)
       + `<label>REDUCE MOTION<input type="checkbox" data-k="reduceMotion" ${s.reduceMotion ? 'checked' : ''}/><output></output></label>`
       + `<label>EYE SCOPE ON LONG GUNS<input type="checkbox" data-k="eyeScope" ${s.eyeScope ? 'checked' : ''}/><output></output></label>`);
+    if (canFullscreen()) {
+      const fs = h<HTMLButtonElement>('button', 'hv-btn', `${glyph('expand')}BORDERLESS FULLSCREEN <kbd>F</kbd>`);
+      fs.dataset.full = '';
+      fs.classList.toggle('on', isFullscreen());
+      fs.addEventListener('click', () => void toggleFullscreen());
+      pnl.append(fs);
+    }
     pnl.addEventListener('input', (e) => {
       const i = e.target as HTMLInputElement;
       const k = i.dataset.k as keyof Settings;
@@ -168,6 +195,7 @@ export class HiveUI {
 
   private onKey = (e: KeyboardEvent) => {
     if (!this.visible || (e.target as HTMLElement)?.tagName === 'INPUT') return;
+    if (e.code === 'KeyF' && !e.repeat) { void toggleFullscreen(); return; }
     const back: Partial<Record<Tab, Tab>> = { host: 'menu', stash: 'host', raid: 'stash', market: 'menu', vendors: 'menu', settings: 'menu' };
     if (e.code === 'Escape' && back[this.tab]) { this.show(back[this.tab]); return; }
     if (e.code === 'Enter') {
@@ -197,5 +225,5 @@ export class HiveUI {
     }
   };
 
-  dispose(): void { removeEventListener('keydown', this.onKey); this.hide(); }
+  dispose(): void { removeEventListener('keydown', this.onKey); document.removeEventListener('fullscreenchange', this.onFull); this.hide(); }
 }
