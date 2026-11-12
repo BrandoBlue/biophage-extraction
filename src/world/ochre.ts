@@ -13,6 +13,8 @@ import { Kit, oldBone, type BuiltStructures, type LootSpot, type WidowArena } fr
 import type { SiteDressing } from './sites';
 import type { ExtractSite, SpawnPlacement, Zone7Layout } from './layout';
 import { SOLIDS, setTerrain } from './zone7';
+import { LivingProps } from './life';
+import { curtainHalf, sacMesh } from './buildings';
 
 /**
  * The Ochre Reach (World & Level): a sun-baked alien savannah about 800 m across. Design's landmarks
@@ -403,7 +405,7 @@ function domeHut(hut: Hut, yaw: number, base: number, rand: () => number, mats: 
     if (-Math.sin(a) > Math.cos(alpha + 0.35)) continue; // not over the door (local +z)
     const rr = r * Math.sin(th), y = h * Math.cos(th);
     const droop = rand() * 0.25, len = 0.5 + rand() * 0.45;
-    wood.push(strut(new THREE.Vector3(Math.cos(a) * rr * 0.8, y + 0.2, -Math.sin(a) * rr * 0.8), new THREE.Vector3(Math.cos(a + (rand() - 0.5) * 0.12) * (rr + len), y - 0.2 - droop, -Math.sin(a + (rand() - 0.5) * 0.12) * (rr + len)), 0.06 + rand() * 0.03, 5));
+    wood.push(strut(new THREE.Vector3(Math.cos(a) * rr * 1.02, y + 0.02, -Math.sin(a) * rr * 1.02), new THREE.Vector3(Math.cos(a + (rand() - 0.5) * 0.12) * (rr + len), y - 0.2 - droop, -Math.sin(a + (rand() - 0.5) * 0.12) * (rr + len)), 0.06 + rand() * 0.03, 5));
   }
   g.add(new THREE.Mesh(mergeGeometries(wood.map(plain)), mats.wood));
   if (rand() < 0.5) {
@@ -625,10 +627,40 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
   const V = D.village, plaza = V.plaza;
   const village = new THREE.Group();
   village.name = 'dome-village';
+  // Life in the huts (World's LivingProps): a cloth over each door that parts as you walk through, water gourds
+  // hanging from the roof that swing when brushed or shot, and clay pots inside that tip over and smash.
+  const life = new LivingProps(SOLIDS);
+  village.add(life.group);
+  const dress = mulberry32(seed + 101);
+  const doorCloth = [wovenCloth(OCHRE.rust), wovenCloth(OCHRE.sandShade)];
+  const potMesh = (s: number, mat: THREE.Material) => { const m = new THREE.Mesh(potGeometry(), mat); m.scale.setScalar(s); return m; };
   V.huts.forEach((h, i) => {
     const yaw = Math.atan2(plaza.x - h.x, plaza.z - h.z);
     const base = G(h.x, h.z) - 0.05;
     village.add(domeHut(h, yaw, base, rand, { ...mats, clay: i % 3 === 1 ? paleClay : mats.clay }));
+    {
+      // Door cloth across the mouth of the vestibule (the dome's door faces local +z).
+      const [cx, cz] = rot(h.x, h.z, yaw, 0, h.r + 0.45), cloth = doorCloth[i % 2];
+      const half = (dir: 1 | -1) => { const m = curtainHalf(0.95, 2.3, dir, i * 3 + dir); m.material = cloth; return m; };
+      life.flap(half(1), half(-1), new THREE.Vector3(cx, base + 0.05, cz), yaw, 1.9, 2.3);
+      // Gourds on cords from the roof, clear of the doorway.
+      const gourds = 1 + Math.floor(h.r / 3);
+      for (let k = 0; k < gourds; k++) {
+        const a = Math.PI + (k - (gourds - 1) / 2) * 0.9 + (dress() - 0.5) * 0.3, d = h.r * (0.3 + dress() * 0.25);
+        const [gx, gz] = rot(h.x, h.z, yaw, Math.sin(a) * d, Math.cos(a) * d);
+        const top = h.h * Math.sqrt(Math.max(0.1, 1 - (d / h.r) ** 2)) - 0.3, len = Math.min(top - 1.9, 0.8 + dress() * 0.9);
+        const g = sacMesh(len, 0.2 + dress() * 0.12, i * 7 + k);
+        (g.children[0] as THREE.Mesh).material = mats.wood;
+        (g.children[1] as THREE.Mesh).material = k % 2 ? paleClay : mats.clay;
+        life.sway(g, new THREE.Vector3(gx, base + top, gz), len, 0.3);
+      }
+      // Pots inside, against the back wall.
+      for (let k = 0; k < 2 + (h.r > 4.5 ? 1 : 0); k++) {
+        const a = Math.PI + (k - 1) * 0.55 + 0.4 + (dress() - 0.5) * 0.2, d = h.r - 0.9;
+        const [px, pz] = rot(h.x, h.z, yaw, Math.sin(a) * d, Math.cos(a) * d), s = 0.5 + dress() * 0.35;
+        life.tip(potMesh(s, k % 2 ? paleClay : mats.clay), new THREE.Vector3(px, G(px, pz), pz), 0.3 * s / 0.6, 1.25 * s);
+      }
+    }
     if (h.loot) loot.push({ id: `hut-${i}`, container: h.loot, x: h.x - Math.sin(yaw) * h.r * 0.4, y: base + 0.05, z: h.z - Math.cos(yaw) * h.r * 0.4 });
     // An awning beside every other door, angled off the entry.
     if (i % 2 === 0 && h.r < 8) {
@@ -673,6 +705,12 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
   const lamp = new THREE.PointLight(ORGANIC.amber, 30, 14, 2);
   lamp.position.set(elder.x, G(elder.x, elder.z) + 3, elder.z);
   village.add(lamp);
+  // Two more lived-in domes glow from inside (one light each), so the interiors read without washing out.
+  for (const h of [...V.huts].slice(1).sort((a, b) => b.r - a.r).slice(0, 2)) {
+    const l = new THREE.PointLight(ORGANIC.amber, 14, 11, 2);
+    l.position.set(h.x, G(h.x, h.z) + 2.6, h.z);
+    village.add(l);
+  }
   scene.add(village);
 
   // ---- The Rig Yard: derricks with turning vanes, a lookout on a ramp, tin sheds, tanks and nodding pump jacks.
@@ -846,7 +884,7 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
   // Grass: on flat ground that is neither dune nor clay yard; thickest on the flats, thin round the village.
   const grassAt: { x: number; y: number; z: number; s: number; yaw: number }[] = [];
   for (let i = 0; grassAt.length < 5200 && i < 26000; i++) {
-    const a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * (D.playableRadius - 5), x = Math.cos(a) * d, z = Math.sin(a) * d;
+    const a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * (D.playableRadius * 0.97), x = Math.cos(a) * d, z = Math.sin(a) * d;
     const flats = 1 - smooth(LM.acaciaFlats.radius * 0.6, LM.acaciaFlats.radius * 1.5, Math.hypot(x - LM.acaciaFlats.x, z - LM.acaciaFlats.z));
     const dune = 1 - smooth(LM.duneSea.radius * 0.7, LM.duneSea.radius * 1.2, Math.hypot(x - LM.duneSea.x, z - LM.duneSea.z));
     const yard = V.huts.some((h) => Math.hypot(x - h.x, z - h.z) < h.r + 2.5) || Math.hypot(x - plaza.x, z - plaza.z) < 14;

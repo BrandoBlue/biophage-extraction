@@ -148,3 +148,12 @@ describe('the Skyfall Crater (Sandwidow arena)', () => {
     expect(w.floorY).toBeLessThan(groundHeight(w.entrances[0].x, w.entrances[0].z) - 5);
   });
 });
+
+describe('life in the Dome Village', () => {
+  it('hangs a cloth in every doorway, gourds from the roofs and pots inside that can be knocked over', () => {
+    const life = world.structures.group.getObjectByName('living-props')!;
+    expect(life).toBeTruthy();
+    // One curtain, at least one gourd and two pots per hut, plus the ticker.
+    expect(life.children.length).toBeGreaterThanOrEqual(D.village.huts.length * 4 + 1);
+  });
+});
