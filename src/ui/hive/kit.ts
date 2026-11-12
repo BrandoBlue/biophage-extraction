@@ -4,6 +4,7 @@
  * soft amber capsule with its warning set beneath it, and key hints. Screens compose these; colours come from
  * CSS variables set by src/ui/theme.ts.
  */
+import type { GraphicsLevel } from '../settings';
 import { ZONE7 } from '../../render/palette';
 import { glyph } from '../icons';
 
@@ -96,3 +97,10 @@ export function meter(label: string, icon: string, value: number, word: string, 
 }
 
 export const ZONE_TONE = { lime: ZONE7.lime, cyan: ZONE7.cyan, magenta: ZONE7.magenta };
+
+/** The graphics levels in a player's words (what each one gives up); Rendering's settings.ts owns the levels. */
+export const GRAPHICS_WORDS: Record<GraphicsLevel, [string, string]> = {
+  high: ['High', 'Every effect'],
+  balanced: ['Balanced', 'No ambient shade'],
+  performance: ['Performance', 'No shade or sun shadows'],
+};

@@ -445,6 +445,16 @@ try {
   await freezeAndScreenshot(page, 'tests/out/raid-weapons.png');
   log(`weapons: grew ${grown} in the Armoury and equipped it into slot I`);
 
+  // --- Settings: the Display controls save Rendering's settings (graphics level, brightness), then restore.
+  await tab('menu');
+  await page.click('#hive [data-go="settings"]');
+  await page.click('#hive [data-graphics="performance"]');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('biophage.settings.v1') ?? '{}'));
+  if (saved.graphics !== 'performance') await fail(`picking Performance did not save it: ${JSON.stringify(saved)}`);
+  if (!(await page.isVisible('#hive input[data-k="brightness"]')) || !(await page.isVisible('#hive input[data-k="renderScale"]'))) await fail('Settings has no brightness or render scale control');
+  await page.click('#hive [data-graphics="high"]');
+  log('settings: graphics level, brightness and render scale controls save');
+
   // --- Raid select into another zone: deploying with a different built zone picked reloads into that map and deploys.
   // It goes through the real buttons: the zone card shows that zone's own map and details, and Deploy goes there.
   await page.evaluate(() => { window.__biophage.profile.economy.unlocks.push('zone:longSeedWreck'); });
