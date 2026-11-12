@@ -6,7 +6,7 @@ import { Ambience } from '../src/audio/ambience';
 import { FLAVOURS, Music, flavourFor, layerLevels, tempo } from '../src/audio/music';
 import { Intensity, Stride, behind, stepLevel, surfaceFor, threatLevel, weightOf } from '../src/audio/director';
 import * as S from '../src/audio/sfx';
-import { GUNS, MOD_SOUNDS, gunShot, weaponSwap } from '../src/audio/guns';
+import { GUNS, MOD_SOUNDS, graftTakesHold, gunShot, weaponSwap } from '../src/audio/guns';
 import { BOSSES as BOSS_VOICES, EMITTERS, SPECIES, bossVoice, speciesVoice, stalkWarn } from '../src/audio/voices';
 import { EdgeMurk, MURK, edgeLevel } from '../src/audio/edge';
 import { fakeContext } from './lib/fake-audio';
@@ -67,6 +67,7 @@ describe('recipes render without Web Audio errors', () => {
     for (const id of Object.keys(MOD_SOUNDS)) expect(gunShot('vertebraRifle', [id], S.FIRE.rifle)(x, out, 0.1, true), id).toBeGreaterThan(0);
     expect(gunShot('gulletScatter', Object.keys(MOD_SOUNDS), S.FIRE.shotgun)(x, out, 0.1, false)).toBeGreaterThan(0);
     expect(weaponSwap(x, out, 0.1)).toBeGreaterThan(0);
+    for (const slot of ['barrel', 'sight', 'under', 'chamber']) expect(graftTakesHold(slot)(x, out, 0.1), slot).toBeGreaterThan(0.5);
     for (const surface of ['moss', 'stone', 'metal', 'sand', 'flesh', 'water'] as const) for (const w of ['light', 'medium', 'heavy'] as const) {
       expect(S.footstep(x, out, 0, surface, w, 1)).toBeGreaterThan(0);
       expect(S.land(x, out, 0, surface, w, 6)).toBeGreaterThan(0);

@@ -198,3 +198,21 @@ export const weaponSwap = (x: Synth, o: AudioNode, t: number): number => max(
   noise(x, o, t, { colour: 'pink', gain: 0.18, a: 0.03, d: 0.15, filters: [{ type: 'bandpass', freq: 700, to: 1400, q: 3, over: 0.15 }] }),
   RELOAD_CUES['click of chitin'](x, o, t + 0.22) + 0.22,
 );
+
+/**
+ * A graft found in the raid buds onto the gun (Gameplay `graftFitted`): a wet press, tendrils latching on, then a
+ * touch of what the socket is: the barrel rings, a sight blinks, a grip creaks, the chamber swallows.
+ */
+export function graftTakesHold(slot: string): (x: Synth, o: AudioNode, t: number) => number {
+  return (x, o, t) => {
+    const press = noise(x, o, t, { colour: 'pink', gain: 0.3, a: 0.03, d: 0.25, filters: [{ type: 'bandpass', freq: 380, to: 900, q: 4, over: 0.25 }] });
+    const latch = ticks(x, o, t + 0.22, 5, 2600, 0.12, 0.03) + 0.22;
+    const settle = tone(x, o, t + 0.1, { freq: 150, to: 95, gain: 0.12, d: 0.35 }) + 0.1;
+    const t2 = t + 0.5;
+    const tail = slot === 'barrel' ? fm(x, o, t2, { freq: 620, ratio: 1.41, index: 2, gain: 0.08, d: 0.9 })
+      : slot === 'sight' ? voice(x, o, t2, { freq: 300, to: 420, vowel: 'i', toVowel: 'e', gain: 0.05, a: 0.04, r: 0.2, breath: 0.6 })
+      : slot === 'under' ? tone(x, o, t2, { type: 'triangle', freq: 110, gain: 0.07, d: 0.4, vibrato: { rate: 13, depth: 25 } })
+      : noise(x, o, t2, { colour: 'pink', gain: 0.18, a: 0.02, d: 0.12, filters: [{ type: 'bandpass', freq: 900, to: 380, q: 6, over: 0.12 }] });
+    return max(press, latch, settle, tail + 0.5);
+  };
+}
