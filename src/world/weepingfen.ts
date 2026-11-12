@@ -10,7 +10,9 @@ import FEN_JSON from '../../data/weepingfen.json';
 import { RAID } from '../../data';
 import { mulberry32 } from './rng';
 import type { Collider } from './collision';
-import { oldBone, type BuiltStructures, type LootSpot } from './structures';
+import { Kit, oldBone, type BuiltStructures, type LootSpot } from './structures';
+import { casket, dressHall, grownHall, hallLight, remainsMesh, sacMesh, urnMesh, worldAt, curtainHalf, type HallOptions } from './buildings';
+import { LivingProps } from './life';
 import type { SiteDressing } from './sites';
 import type { ExtractSite, PodSite, Site, SpawnPlacement, Zone7Layout } from './layout';
 import { SOLIDS, setTerrain } from './zone7';
@@ -374,6 +376,17 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   const mossMass = fenBark({ base: ZONE7_SHADE.moss, deep: ZONE7_SHADE.rockDeep, scale: 1.6 });
   const plank = fenBark({ base: ZONE7_SHADE.stem, deep: ZONE7_SHADE.rockDeep, plank: true, mossy: 0.6, scale: 1.4 });
   const hide = fenBark({ base: ZONE7_SHADE.flesh, deep: ZONE7_SHADE.rockDeep, mossy: 0.8, scale: 2.2 });
+  // Grown rooms (World's hall kit) in the fen's own skin: woven staves for walls, hide for the dome, old bone ribs.
+  // Seen from inside too, so their own two-sided copies.
+  const hallMats = {
+    wall: Object.assign(fenBark({ base: ZONE7_SHADE.stem, deep: ZONE7_SHADE.rockDeep, plank: true, mossy: 0.6, scale: 1.4 }), { side: THREE.DoubleSide }),
+    shell: Object.assign(fenBark({ base: ZONE7_SHADE.flesh, deep: ZONE7_SHADE.rockDeep, mossy: 0.8, scale: 2.2 }), { side: THREE.DoubleSide }),
+    bone: ribBone,
+  };
+  // Things that move inside the rooms: sacs swing, curtains part, urns topple (World's LivingProps).
+  const life = new LivingProps(SOLIDS);
+  root.add(life.group);
+  let hutCount = 0;
   const bone = oldBone(ZONE7.cyan, 0.12);
   const caps = fungusCap(ZONE7.cyan);
   const amber = bioNode(ORGANIC.amber, 0.7);
@@ -624,7 +637,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
       for (const [y0, y1] of bands) {
         batch.add(bark, trunkGeometry(Rout, elder.height, elder.roots, 13, { y0, y1, theta: [Math.PI / 2 - a0 - seg, seg + 0.01], flare: 0, radial: 3 }), M4(ex, base, ez));
         const inner = new THREE.CylinderGeometry(Rin, Rin, y1 - y0, 3, 2, true, Math.PI / 2 - a0 - seg, seg + 0.01);
-        batch.add(plank, inner, M4(ex, base + (y0 + y1) / 2, ez));
+        batch.add(hallMats.wall, inner, M4(ex, base + (y0 + y1) / 2, ez));
         const mid = (Rin + Rout) / 2;
         solid(null, null, ex + Math.cos(a) * mid, ez + Math.sin(a) * mid, (Rout - Rin) / 2 + 0.1, mid * Math.tan(seg / 2) + 0.15, a, base + y0, base + y1, 0, 'elder-wall');
       }
@@ -675,6 +688,24 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
     solid(batch, plank, ex - Math.cos(doorA) * 3.4, ez - Math.sin(doorA) * 3.4, 1.1, 0.6, doorA + Math.PI / 2, base, base + 0.9, 0, 'elder-table');
     loot.push({ id: 'roothut-room', container: lootContainer('roothut-room'), x: ex + Math.cos(doorA + 1.6) * 3, y: base + 0.15, z: ez + Math.sin(doorA + 1.6) * 3 });
     loot.push({ id: 'roothut-lookout', container: lootContainer('roothut-lookout'), x: ex + Math.cos(upperA + Math.PI) * 3, y: base + rh.deck, z: ez + Math.sin(upperA + Math.PI) * 3 });
+    // Lived in (World's kit): curtains in both doorways, sacs hung from each ceiling, urns along the wall, caskets,
+    // and what is left of a dweller slumped under the lookout's windows.
+    const k = new Kit(SOLIDS, ex, ez, 0, base);
+    root.add(k.group);
+    const midR = (Rin + Rout) / 2, gapW = 2 * midR * Math.sin(seg / 2) - 0.3;
+    for (const [sg, y, hgt] of [[doorSeg, 0.05, 3.0], [upperSeg, rh.deck + 0.05, 2.8]] as const) {
+      const a = sg * seg + seg / 2;
+      life.flap(curtainHalf(gapW / 2, hgt, 1, 7 + sg), curtainHalf(gapW / 2, hgt, -1, 9 + sg), worldAt(k, Math.cos(a) * midR, y, Math.sin(a) * midR), Math.PI / 2 - a, gapW, hgt);
+    }
+    const hangAt = (a: number, r: number, top: number, len: number, n: number) =>
+      life.sway(sacMesh(len, 0.3 + (n % 3) * 0.08, 60 + n), worldAt(k, Math.cos(a) * r, top, Math.sin(a) * r), len, 0.45);
+    [[0.9, 2.2, 1.8], [2.4, 3.6, 2.6], [3.6, 2.8, 2.0], [5.0, 3.9, 2.4]].forEach(([da, r, len], n) => hangAt(doorA + da, r, rh.deck - 0.4, len, n));
+    [[1.2, 2.6, 2.6], [2.9, 3.4, 3.2], [4.4, 2.2, 2.8]].forEach(([da, r, len], n) => hangAt(upperA + da, r, top - 0.5, len, n + 4));
+    [doorA + 0.75, doorA + 2.4, doorA - 0.8].forEach((a, n) => life.tip(urnMesh(70 + n), worldAt(k, Math.cos(a) * (Rin - 0.9), 0.15, Math.sin(a) * (Rin - 0.9)), 0.32, 0.9));
+    life.tip(urnMesh(74), worldAt(k, Math.cos(upperA + 2.2) * (Rin - 0.9), rh.deck, Math.sin(upperA + 2.2) * (Rin - 0.9)), 0.32, 0.9);
+    { const a = doorA + Math.PI + 0.95; casket(k, Math.cos(a) * 3.7, Math.sin(a) * 3.7, 0.55, 81, 'roothut-casket'); }
+    { const a = upperA + Math.PI + 1.0, ck = new Kit(SOLIDS, ex, ez, 0, base + rh.deck); root.add(ck.group); casket(ck, Math.cos(a) * 3.5, Math.sin(a) * 3.5, 0.5, 83, 'roothut-lookout-casket'); }
+    { const a = upperA + Math.PI - 1.25, r = remainsMesh(85); r.position.set(Math.cos(a) * 3.8, rh.deck + 0.02, Math.sin(a) * 3.8); r.rotation.y = -a; k.group.add(r); }
   }
 
   // ---- Stilt Village: huts on platforms over the water, boardwalks between, ramps down to the mud.
@@ -684,6 +715,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
     const hutOf = (id: string) => v.huts.find((h) => h.id === id)!;
     const D = v.deck;
     for (const h of v.huts) {
+      const hi = hutCount++;
       const pr = h.radius + 2.0, yaw = deg(h.yaw);
       const deck = new THREE.CylinderGeometry(pr, pr * 0.94, 0.35, 22, 1);
       { const dp = deck.attributes.position; for (let i = 0; i < dp.count; i++) { const a = Math.atan2(dp.getZ(i), dp.getX(i)), r = Math.hypot(dp.getX(i), dp.getZ(i)); if (r < 0.01) continue; const k = 1 + (noise3(Math.cos(a) * 1.5 + h.x, Math.sin(a) * 1.5, 3) - 0.5) * 0.18; dp.setX(i, dp.getX(i) * k); dp.setZ(i, dp.getZ(i) * k); } deck.computeVertexNormals(); }
@@ -695,34 +727,23 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
         batch.add(bark, new THREE.CylinderGeometry(0.16, 0.22, D - g, 6), M4(sx, (D + g) / 2, sz, k));
         SOLIDS.add({ cx: sx, cz: sz, hx: 0.22, hz: 0.22, yaw: 0, y0: g, y1: D - 0.36, tag: 'stilt' });
       }
-      // Walls: grown plank segments in a ring; the door faces the hut's yaw, one window opposite.
-      const N = 12, seg = (Math.PI * 2) / N, wallH = 3;
-      for (let i = 0; i < N; i++) {
-        const a = i * seg + seg / 2 + yaw;
-        const off = Math.abs(Math.atan2(Math.sin(a - yaw), Math.cos(a - yaw)));
-        const bands: [number, number][] = off < seg * 0.6 ? [[2.2, wallH]] : off > Math.PI - seg * 0.6 ? [[0, 1.1], [2.1, wallH]] : [[0, wallH]];
-        for (const [y0, y1] of bands) solid(batch, plank, h.x + Math.cos(a) * h.radius, h.z + Math.sin(a) * h.radius, 0.14, h.radius * Math.tan(seg / 2) + 0.06, a, D + y0, D + y1, 0, `${h.id}-wall`);
+      // A grown room on the deck (World's hall kit in the fen's own staves, hide and bone): the doorway faces the
+      // hut's yaw, sacs hang from the dome, a curtain in the door, urns, a casket and the hut's loot opposite the door.
+      // The Kit is turned so its local +u is the door direction.
+      const k = new Kit(SOLIDS, h.x, h.z, -yaw, D);
+      root.add(k.group);
+      const ho: HallOptions = { u: 0, v: 0, ru: h.radius, rv: h.radius * 0.9, height: 3, doors: [0], doorWidth: 1.9, seed: hi + 5, mats: hallMats };
+      const hall = grownHall(k, ho);
+      dressHall(k, life, hall, ho, 41 + hi * 13, { sacs: 2, urns: 0 });
+      for (const a of [1.9, -2.1]) life.tip(urnMesh(hi * 3 + (a > 0 ? 1 : 2)), worldAt(k, Math.cos(a) * (ho.ru - 1), 0, Math.sin(a) * (ho.rv - 1)), 0.32, 0.9);
+      casket(k, Math.cos(Math.PI - 0.95) * ho.ru * 0.62, Math.sin(Math.PI - 0.95) * ho.rv * 0.62, 0.5, hi + 7, `${h.id}-casket`);
+      if (hi % 2 === 1) { const r = remainsMesh(hi + 11); r.position.set(Math.cos(Math.PI + 1.1) * ho.ru * 0.5, 0.02, Math.sin(Math.PI + 1.1) * ho.rv * 0.5); r.rotation.y = 1.2 + hi; k.group.add(r); }
+      // Moss trailing from the dome's lip.
+      for (let m = 0; m < 7; m++) {
+        const a = (m / 7) * Math.PI * 2 + yaw + 0.3;
+        hanging.push(M4(h.x + Math.cos(a) * (h.radius + 0.7), D + 2.9, h.z + Math.sin(a) * (h.radius + 0.7), a, 0.25, 1 + noise3(m, h.x, 1) * 1.6, 0.25));
       }
-      // Hide-and-thatch roof, moss trailing from the eaves.
-      // A sagging hide-and-thatch roof: the slope dips between its ribs, the eave droops unevenly, the tip leans.
-      const roof = new THREE.ConeGeometry(h.radius + 1.1, 2.8, 28, 7);
-      { const rp = roof.attributes.position, R0 = h.radius + 1.1; for (let i = 0; i < rp.count; i++) {
-        const x = rp.getX(i), y = rp.getY(i), z = rp.getZ(i), r = Math.hypot(x, z) / R0, a = Math.atan2(z, x);
-        const sag = Math.sin(Math.PI * r) * (0.35 + 0.25 * Math.cos(a * 6)) + (noise3(x * 0.8 + h.x, y, z * 0.8) - 0.5) * 0.35;
-        const droop = r > 0.95 ? (noise3(a * 2 + h.z, 1, 2) - 0.3) * 0.7 : 0;
-        const lean = (1.4 - y) / 2.8; // 1 at the eave, 0 at the tip
-        rp.setXYZ(i, x * (1 + (noise3(a * 3, h.x, 5) - 0.5) * 0.15) + (1 - lean) * 0.4, y - sag - droop, z * (1 + (noise3(a * 3, h.z, 6) - 0.5) * 0.15));
-      } roof.computeVertexNormals(); }
-      batch.add(hide, roof, M4(h.x, D + wallH + 1.3, h.z, yaw));
-      for (let k = 0; k < 7; k++) {
-        const a = (k / 7) * Math.PI * 2 + yaw + 0.3;
-        hanging.push(M4(h.x + Math.cos(a) * (h.radius + 0.9), D + wallH - 0.1, h.z + Math.sin(a) * (h.radius + 0.9), a, 0.25, 1 + noise3(k, h.x, 1) * 1.6, 0.25));
-      }
-      if (lit) {
-        const l = new THREE.PointLight(ORGANIC.amber, 6, 9, 2);
-        l.position.set(h.x, D + 2.3, h.z);
-        root.add(l);
-      }
+      if (lit) hallLight(k, 0, 0, 2.4, 11, 10);
       batch.add(amber, new THREE.SphereGeometry(0.16, 8, 6), M4(h.x + Math.cos(yaw + 2.5) * (h.radius - 0.6), D + 2.4, h.z + Math.sin(yaw + 2.5) * (h.radius - 0.6)));
     }
     for (const [a, b] of v.walks) {

@@ -79,6 +79,8 @@ const POSES = {
   fenFerry: { at: [342, 100], eye: 2.2, yaw: 2.68, pitch: 0.0 },
   fenRootLift: { at: [-100, 63], eye: 1.8, yaw: 0.98, pitch: 0.4 },
   fenOutflow: { at: [211, 249], eye: 1.8, yaw: -2.47, pitch: 0.05 },
+  fenHutInside: { pos: [71.5, 4.1, -49.4], yaw: 0.52, pitch: 0.1 },
+  fenRootHutInside: { at: [-61.5, 11.0], eye: 1.7, yaw: -0.87, pitch: 0.22 },
 };
 // Map edge (any zone): stand at a fraction of the playable radius on the north side and look out.
 POSES.edgeMid = { edge: 0.6 };
