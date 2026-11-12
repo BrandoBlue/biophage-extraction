@@ -564,6 +564,8 @@ export class Raid {
     if (this.phase !== 'briefing') return;
     this.carried.load(d.loadout, d.cavitySize, d.pouchSize);
     if (d.weapons?.length) this.arm(d.weapons, d.mods);
+    // A gun packed into the cavities in the Hive (bought, or kept from a raid) is drawn into a free slot at once.
+    this.pickUpWeapons();
     this.zone = d.zone ?? DEFAULT_ZONE;
     this.log = new RaidLog(this.zone);
     this.begin();
