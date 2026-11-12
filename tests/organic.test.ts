@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { organicBox, organicGeometry } from '../src/world/organic';
+import { organicBox, roughen } from '../src/world/organic';
 
 function extent(geo: THREE.BufferGeometry) {
   geo.computeBoundingBox();
@@ -62,7 +62,7 @@ describe('organic shaping', () => {
   });
 
   it('roughens a column without leaving its footprint', () => {
-    const col = organicGeometry(new THREE.CylinderGeometry(1.1, 1.4, 18, 14, 10), 0.7, 3);
+    const col = roughen(new THREE.CylinderGeometry(1.1, 1.4, 18, 14, 10), 0.7, 3);
     const bb = extent(col);
     expect(bb.max.x).toBeLessThan(1.4 + 1.2);
     expect(bb.min.x).toBeGreaterThan(-1.4 - 1.2);

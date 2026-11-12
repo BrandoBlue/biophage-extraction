@@ -94,7 +94,7 @@ export function organicBox(hu: number, hy: number, hv: number, o: OrganicOptions
  * Roughen any primitive (cylinder, sphere, lathe, capsule) in place: lumps along the direction from its vertical
  * axis, plus a slight lean and a flared foot. Pure function of position, so seams stay closed.
  */
-export function organicGeometry<T extends THREE.BufferGeometry>(geo: T, amount = 1, seed = 0): T {
+export function roughen<T extends THREE.BufferGeometry>(geo: T, amount = 1, seed = 0): T {
   if (amount <= 0) return geo;
   geo.computeBoundingBox();
   const bb = geo.boundingBox!;

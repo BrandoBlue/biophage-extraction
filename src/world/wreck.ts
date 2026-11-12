@@ -11,7 +11,7 @@ import { Kit, oldBone, type BuiltStructures, type LootSpot } from './structures'
 import type { SiteDressing } from './sites';
 import type { ExtractSite, Zone7Layout } from './layout';
 import { SOLIDS, setTerrain } from './zone7';
-import { organicBox, organicGeometry } from './organic';
+import { organicBox, roughen } from './organic';
 
 /**
  * Zone 2, the Wreck of the Long Seed (World & Level): the crashed seedship as its own map. Design's brief
@@ -246,7 +246,7 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
   // ---- Reactor chamber: the cold core, a catwalk ring at deck height with four coolant valves, ramps up.
   const re = WRECK.reactor;
   const D2 = re.gantryHeight;
-  const core = new THREE.Mesh(organicGeometry(new THREE.CylinderGeometry(re.coreRadius, re.coreRadius * 1.2, H - 1, 28, 12, true), 0.8, 3), oldBone(ORGANIC.mist, 0.35));
+  const core = new THREE.Mesh(roughen(new THREE.CylinderGeometry(re.coreRadius, re.coreRadius * 1.2, H - 1, 28, 12, true), 0.8, 3), oldBone(ORGANIC.mist, 0.35));
   core.position.set(re.x, (H - 1) / 2, re.z);
   k.group.add(core);
   k.solids.add({ cx: re.x, cz: re.z, hx: re.coreRadius, hz: re.coreRadius, yaw: 0, y0: 0, y1: H, tag: 'reactor-core' });
@@ -315,7 +315,7 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
   const pillars: WardenArena['pillars'] = [30, 150, 210, 330].map((deg, i) => {
     const a = (deg * Math.PI) / 180, r = re.ringRadius + 4.2;
     const x = re.x + Math.cos(a) * r, z = re.z + Math.sin(a) * r;
-    const col = new THREE.Mesh(organicGeometry(new THREE.CylinderGeometry(1.1, 1.4, H, 14, 10), 0.7, i + 5), shield);
+    const col = new THREE.Mesh(roughen(new THREE.CylinderGeometry(1.1, 1.4, H, 14, 10), 0.7, i + 5), shield);
     col.position.set(x, H / 2, z);
     k.group.add(col);
     k.solids.add({ cx: x, cz: z, hx: 1.1, hz: 1.1, yaw: 0, y0: 0, y1: H, tag: `shield-pillar-${i}` });
@@ -339,7 +339,7 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
   // ---- Escape pod bay: pods in their cradles along the south wall of the reactor room.
   const bay = room('escapePodBay');
   for (let x = bay.x0 + 3; x < bay.x1 - 2; x += 5) {
-    const pod = new THREE.Mesh(organicGeometry(new THREE.CapsuleGeometry(1.2, 2.2, 6, 14), 0.6, x), oldBone(ORGANIC.mist, 0.25));
+    const pod = new THREE.Mesh(roughen(new THREE.CapsuleGeometry(1.2, 2.2, 6, 14), 0.6, x), oldBone(ORGANIC.mist, 0.25));
     pod.position.set(x, 1.8, bay.z0 + 2.4);
     pod.rotation.x = 0.25;
     k.group.add(pod);

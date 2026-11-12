@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { organicBox, organicGeometry } from './organic';
+import { organicBox, roughen } from './organic';
 import { HIVE, ORGANIC, ZONE7_SHADE } from '../render/palette';
 import { bioNode, bioTime, chitin, liquidLight, membrane, zoneRock } from '../render/materials';
 import type { Collider, CollisionWorld } from './collision';
@@ -106,6 +106,7 @@ export class Kit {
       geo.computeVertexNormals();
     }
     const mesh = new THREE.Mesh(geo, mat);
+    mesh.userData.noOrganic = true; // already grown here; Rendering's scene-wide pass would lift walkable tops
     mesh.position.set(u, (y0 + y1) / 2, v);
     mesh.rotation.y = o.yaw ?? 0;
     this.group.add(mesh);
@@ -373,7 +374,7 @@ export function reliquaryBowl(solids: CollisionWorld, x: number, z: number, yaw:
   for (let i = 0; i < 9; i++) {
     const v = -radius * 0.9 + (i / 8) * radius * 1.8;
     const y = 26 + Math.cos((v / (radius * 0.85)) * 0.9) * 2 - 2;
-    const vert = new THREE.Mesh(organicGeometry(new THREE.SphereGeometry(1.6, 18, 14), 0.9, i + 3), bone);
+    const vert = new THREE.Mesh(roughen(new THREE.SphereGeometry(1.6, 18, 14), 0.9, i + 3), bone);
     vert.scale.set(1.3, 0.9, 0.8);
     vert.position.set(0, y + 0.6, v);
     k.group.add(vert, rib([new THREE.Vector3(0, y + 1, v), new THREE.Vector3(0.3, y + 3.5, v - 0.8), new THREE.Vector3(0, y + 5, v - 2)], 0.3, bone, 10));
@@ -430,7 +431,7 @@ export function longSeedDebris(solids: CollisionWorld, x: number, z: number, yaw
     sec.rotation.y = syaw;
     k.group.add(sec);
     // The shell: an open cylinder lying along local Z, its arc over the top, sunk a little into the ground.
-    const shell = new THREE.Mesh(organicGeometry(new THREE.CylinderGeometry(r, r, len, 40, 14, true, Math.PI * (1 - arc), Math.PI * 2 * arc), 0.7, si + 1), hull);
+    const shell = new THREE.Mesh(roughen(new THREE.CylinderGeometry(r, r, len, 40, 14, true, Math.PI * (1 - arc), Math.PI * 2 * arc), 0.7, si + 1), hull);
     shell.geometry.rotateX(Math.PI / 2);
     shell.position.y = r * 0.55;
     sec.add(shell);
