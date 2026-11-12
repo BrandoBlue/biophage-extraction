@@ -440,6 +440,12 @@ export abstract class Brain {
   /** Has this raid's host used `trick` on this kind often enough that it counters it? */
   protected learned(trick: string): boolean { return this.memory?.learned(this.kind, trick) ?? false; }
 
+  /** Calls its allied species onto the host as it attacks (ai.json teamwork.calls), at most once per attack. */
+  protected rally(at: Vec2): void {
+    const c = AI.teamwork.calls[this.kind];
+    if (c) this.events.push({ type: 'rally', kinds: c.kinds, radius: c.radius, at: { x: at.x, z: at.z } });
+  }
+
   /** Shows the player it has changed its approach (a readable "it learned"). */
   protected adapt(): void { this.tactic('adapt'); }
 

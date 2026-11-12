@@ -21,9 +21,9 @@
     },
     {
       "id": "causewayEnd",
-      "label": "Causeway End",
-      "x": 334,
-      "z": 96,
+      "label": "Causeway Ferry",
+      "x": 329.6,
+      "z": 124.4,
       "opensAt": 240
     },
     {
@@ -32,6 +32,13 @@
       "x": 214,
       "z": 262,
       "opensAt": 360
+    },
+    {
+      "id": "rootLift",
+      "label": "Root Lift",
+      "x": -113.5,
+      "z": 52.9,
+      "opensAt": 300
     }
   ],
   "islets": [
@@ -834,6 +841,54 @@
       "container": "drownedLocker",
       "site": "mushroomCathedral",
       "onFloorOf": "cathedralChapel"
+    },
+    {
+      "id": "gate-hut",
+      "container": "fenHollow",
+      "site": "gateHut",
+      "onFloorOf": "gateHut"
+    },
+    {
+      "id": "tangle-a",
+      "container": "fenHollow",
+      "site": "tangleHutA",
+      "onFloorOf": "tangleHutA"
+    },
+    {
+      "id": "tangle-b",
+      "container": "fenHollow",
+      "site": "tangleHutB",
+      "onFloorOf": "tangleHutB"
+    },
+    {
+      "id": "hulk-hold",
+      "container": "drownedLocker",
+      "site": "paleHulk",
+      "onFloorOf": "paleHulk"
+    },
+    {
+      "id": "ossuary-cairn",
+      "container": "fenHollow",
+      "site": "ossuary",
+      "onFloorOf": "ossuary"
+    },
+    {
+      "id": "shrine-cairn",
+      "container": "drownedLocker",
+      "site": "sunkenShrine",
+      "onFloorOf": "sunkenShrine"
+    },
+    {
+      "id": "grazer-ribs",
+      "container": "fenHollow",
+      "site": "grazerBones",
+      "onFloorOf": "grazerBones"
+    },
+    {
+      "id": "ribcage-ribs",
+      "container": "fenHollow",
+      "site": "greyRibcage",
+      "onFloorOf": "greyRibcage"
     }
   ],
   "pods": [
@@ -1050,10 +1105,10 @@
     },
     {
       "id": "causewayEnd",
-      "label": "Causeway End",
-      "x": 334,
-      "z": 96,
-      "radius": 16
+      "label": "Causeway Ferry",
+      "x": 332,
+      "z": 112,
+      "radius": 22
     }
   ],
   "waders": {
@@ -1112,7 +1167,8 @@
     "z": -72,
     "yaw": 25,
     "length": 30,
-    "radius": 7
+    "radius": 7,
+    "id": "drownedPod"
   },
   "cathedral": {
     "_note": "Mushroom Cathedral climb: the Great Spire, a giant cap-tree whose shelf brackets spiral up to a gallery cap; a gill bridge slopes down to the Chapel cap on a second stalk. Webs between the caps are the Tithe Weavers' home. climb.endShort (radians) stops the bracket stair where it meets the gallery's edge.",
@@ -1203,12 +1259,12 @@
       "radius": 1.2
     },
     {
-      "id": "orchardLog",
-      "x0": -214,
-      "z0": -178,
-      "x1": -202,
-      "z1": -198,
-      "radius": 1.1
+      "id": "outflowWeir",
+      "x0": 224,
+      "z0": 302,
+      "x1": 250,
+      "z1": 294,
+      "radius": 1.4
     }
   ],
   "spawns_note": "Creature homes, matching Design's data/habitats.json weepingFen. Fenstalkers wait under the water (buried: they surge up when the host comes within that many metres).",
@@ -1393,6 +1449,14 @@
           [
             334,
             96
+          ],
+          [
+            331,
+            108
+          ],
+          [
+            329.6,
+            124.4
           ]
         ]
       },
@@ -1425,7 +1489,246 @@
             262
           ]
         ]
+      },
+      {
+        "id": "toRootLift",
+        "to": "rootLift",
+        "points": [
+          [
+            -6,
+            126
+          ],
+          [
+            -40,
+            120
+          ],
+          [
+            -60,
+            70
+          ],
+          [
+            -90,
+            62
+          ],
+          [
+            -113.5,
+            52.9
+          ]
+        ]
       }
     ]
+  },
+  "hamlets": {
+    "_note": "Smaller stilt settlements in the outer districts, built like the Stilt Village. No lamps of their own (point lights are costly): ember pots only.",
+    "list": [
+      {
+        "id": "gatehouse",
+        "area": "titanGate",
+        "deck": 2.2,
+        "huts": [
+          {
+            "id": "gateHut",
+            "x": -40,
+            "z": -226,
+            "radius": 3.6,
+            "yaw": 40
+          }
+        ],
+        "walks": [],
+        "ramps": [
+          {
+            "from": "gateHut",
+            "x": -30,
+            "z": -212
+          }
+        ]
+      },
+      {
+        "id": "tangleHuts",
+        "area": "eastTangle",
+        "deck": 2.6,
+        "huts": [
+          {
+            "id": "tangleHutA",
+            "x": 204,
+            "z": -126,
+            "radius": 3.8,
+            "yaw": -120
+          },
+          {
+            "id": "tangleHutB",
+            "x": 214,
+            "z": -106,
+            "radius": 3.4,
+            "yaw": 150
+          }
+        ],
+        "walks": [
+          [
+            "tangleHutA",
+            "tangleHutB"
+          ]
+        ],
+        "ramps": [
+          {
+            "from": "tangleHutB",
+            "x": 222,
+            "z": -92
+          }
+        ]
+      }
+    ]
+  },
+  "wrecks": {
+    "_note": "More seedship pods down in the fen, built like the Drowned Pod.",
+    "list": [
+      {
+        "id": "paleHulk",
+        "area": "ghostOrchard",
+        "x": -206,
+        "z": -196,
+        "yaw": -40,
+        "length": 22,
+        "radius": 5.5
+      }
+    ]
+  },
+  "boneRings": {
+    "_note": "Rings of drowned bone ribs round a cairn of old bone, like the Regent's Pool's arches but small: somebody piled the dead here.",
+    "list": [
+      {
+        "id": "ossuary",
+        "area": "bonewater",
+        "x": -250,
+        "z": 98,
+        "radius": 10,
+        "ribs": 7
+      },
+      {
+        "id": "sunkenShrine",
+        "area": "northDeep",
+        "x": -152,
+        "z": -262,
+        "radius": 8,
+        "ribs": 6
+      }
+    ]
+  },
+  "skeletons": {
+    "_note": "Something huge died here and sank: a spine, a skull and an arch of ribs half out of the water. Loot lies under the ribs.",
+    "list": [
+      {
+        "id": "grazerBones",
+        "area": "paleWallows",
+        "x": 10,
+        "z": 306,
+        "yaw": 20,
+        "length": 30
+      },
+      {
+        "id": "greyRibcage",
+        "area": "greyHummock",
+        "x": -146,
+        "z": 228,
+        "yaw": -60,
+        "length": 20
+      }
+    ]
+  },
+  "outerHomes": {
+    "_note": "Where creatures should live in the outer districts (suggestions for Design's habitats.json, Creature and PvE AI; not spawned from here).",
+    "list": [
+      {
+        "area": "titanGate",
+        "x": 20,
+        "z": -252,
+        "kind": "fenstalker",
+        "why": "waits under the channel between the two wardens: the way north to the Lantern Lift"
+      },
+      {
+        "area": "ghostOrchard",
+        "x": -206,
+        "z": -196,
+        "kind": "glasswalker",
+        "why": "a second wreck to haunt, like the Drowned Pod"
+      },
+      {
+        "area": "drownedCauseway",
+        "x": 233,
+        "z": 64,
+        "kind": "fenstalker",
+        "why": "under the gaps between the stepping-stone islets"
+      },
+      {
+        "area": "paleWallows",
+        "x": 30,
+        "z": 284,
+        "kind": "mistwader",
+        "why": "open shallows to graze, round the sunken grazer bones"
+      },
+      {
+        "area": "bonewater",
+        "x": -250,
+        "z": 98,
+        "kind": "mirebrood",
+        "why": "a pack nesting in the ossuary cairn"
+      },
+      {
+        "area": "theOutflow",
+        "x": 214,
+        "z": 262,
+        "kind": "fenstalker",
+        "why": "guards the swim-out where the water runs fast"
+      },
+      {
+        "area": "eastTangle",
+        "x": 210,
+        "z": -116,
+        "kind": "titheWeaver",
+        "why": "webs between the tangle huts and the elder's roots"
+      },
+      {
+        "area": "greyHummock",
+        "x": -146,
+        "z": 228,
+        "kind": "mirebrood",
+        "why": "in the ribcage"
+      },
+      {
+        "area": "northDeep",
+        "x": -152,
+        "z": -262,
+        "kind": "mistwader",
+        "why": "a lone old one at the sunken shrine"
+      }
+    ]
+  },
+  "ferry": {
+    "_note": "Design's stilt-village ferry: a plank jetty off the Causeway End islet to a moored log raft. The extract is on the raft.",
+    "jetty": [
+      [
+        332,
+        104
+      ],
+      [
+        330,
+        121
+      ]
+    ],
+    "deck": 0.95,
+    "raft": {
+      "x": 329.6,
+      "z": 124.4,
+      "yaw": 95,
+      "length": 7,
+      "width": 4.6,
+      "top": 0.4
+    }
+  },
+  "rootLift": {
+    "_note": "Design's root-lift in the cathedral: a woven root basket under the Great Spire's gallery, hung on root cables from the gallery cap. The extract is in the basket.",
+    "x": -113.5,
+    "z": 52.9,
+    "radius": 1.7
   }
 }

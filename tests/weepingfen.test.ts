@@ -42,7 +42,8 @@ describe('the Weeping Fen', () => {
     for (let x = -120; x <= 120; x += 6) for (let z = -120; z <= 120; z += 6) { if (Math.hypot(x, z) > 130) continue; n++; if (fenHeight(x, z) < 0) wet++; }
     expect(wet / n).toBeGreaterThan(0.55);
     expect(fenHeight(FEN.spawn.x, FEN.spawn.z)).toBeGreaterThan(0.3);
-    for (const e of FEN.extracts) expect(fenHeight(e.x, e.z), e.id).toBeGreaterThan(0.3);
+    // Extracts stand dry: on an islet, the ferry raft or the root-lift basket.
+    for (const e of FEN.extracts) expect(Math.max(fenHeight(e.x, e.z), SOLIDS.floorAt(e.x, e.z, fenHeight(e.x, e.z) + 3)), e.id).toBeGreaterThan(0.3);
     // Shallows never drown the host (eyes at 1.6 m stay above the surface everywhere inside the ring).
     for (let x = -370; x <= 370; x += 5) for (let z = -370; z <= 370; z += 5) if (Math.hypot(x, z) < FEN.radius - 8) expect(fenHeight(x, z)).toBeGreaterThan(-1.45);
     expect(regentPool!.floorY).toBeLessThan(-1);
@@ -70,7 +71,9 @@ describe('the Weeping Fen', () => {
 
   it('fills Design\'s 380 m ring: named districts out to the edge, extracts near the rim', () => {
     expect(FEN.radius).toBe((ZONES.weepingFen as { size?: { playableRadius?: number } })?.size?.playableRadius ?? 380);
-    for (const e of FEN.extracts) expect(Math.hypot(e.x, e.z), e.id).toBeGreaterThan(FEN.radius * 0.6);
+    // The ways out are at the edges, apart from the root-lift inside the Mushroom Cathedral.
+    for (const e of FEN.extracts.filter((x) => x.id !== 'rootLift')) expect(Math.hypot(e.x, e.z), e.id).toBeGreaterThan(FEN.radius * 0.6);
+    expect(fenAreaAt(FEN.rootLift.x, FEN.rootLift.z)?.id).toBe('mushroomCathedral');
     // Every compass quarter of the outer ring has a named district.
     for (let q = 0; q < 4; q++) {
       const hit = FEN.areas.some((a) => Math.hypot(a.x, a.z) > 180 && Math.floor(((Math.atan2(a.z, a.x) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 2)) === q);
@@ -141,6 +144,24 @@ describe('the Weeping Fen', () => {
     const q = walk(p, [land]);
     expect(near(q, land[0], land[1])).toBeLessThan(0.6);
     expect(q.y).toBeCloseTo(fenHeight(ch.x, ch.z) + ch.deck, 1);
+  });
+
+  it('gives every outer district a point of interest with loot, and the outer hamlets\' ramps reach their decks', () => {
+    const pois = [...FEN.hamlets.list, ...FEN.wrecks.list, ...FEN.boneRings.list, ...FEN.skeletons.list] as { id: string; area?: string }[];
+    const outer = ['titanGate', 'ghostOrchard', 'paleWallows', 'bonewater', 'eastTangle', 'greyHummock', 'northDeep'];
+    for (const a of outer) expect(pois.some((p) => p.area === a), a).toBe(true);
+    for (const p of pois) {
+      const sites = 'huts' in p ? (p as { huts: { id: string }[] }).huts.map((h) => h.id) : [p.id];
+      expect(world.structures.loot.some((l) => sites.includes(FEN.loot.find((e) => e.id === l.id)!.site)), p.id).toBe(true);
+    }
+    for (const v of FEN.hamlets.list) for (const r of v.ramps) {
+      const h = v.huts.find((x) => x.id === r.from)!;
+      const rim = polar(h.x, h.z, Math.atan2(r.z - h.z, r.x - h.x), h.radius + 1.3);
+      const out = polar(r.x, r.z, Math.atan2(r.z - h.z, r.x - h.x), 2);
+      const p = walk({ x: out[0], y: fenHeight(out[0], out[1]), z: out[1] }, [[r.x, r.z], rim]);
+      expect(near(p, rim[0], rim[1]), v.id).toBeLessThan(0.6);
+      expect(p.y, v.id).toBeCloseTo(v.deck, 1);
+    }
   });
 
   it('crosses the Fallen Span log from the landing', () => {

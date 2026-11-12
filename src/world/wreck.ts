@@ -101,11 +101,16 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
   sky.userData.bake = true;
   scene.add(sky, cloudSea(-240), starField(rand), horizonLands({ seed: 23 }));
   scene.background = new THREE.Color(ZONE7.void);
-  scene.fog = new THREE.FogExp2(ZONE7_SHADE.skyHorizon, 0.006);
+  scene.fog = new THREE.FogExp2(ZONE7_SHADE.skyHorizon, 0.0042); // thin enough that the prow keeps its form at mid range
   scene.add(new THREE.HemisphereLight(ORGANIC.mist, ORGANIC.wetFleshDeep, 1.2));
   const moon = new THREE.DirectionalLight(ORGANIC.mist, 2.0);
   moon.position.set(80, 120, 40);
   scene.add(moon);
+  // A low raking light from the north-east catches the splayed prow plates and the hull's ribs, so they read as shapes.
+  const rake = new THREE.DirectionalLight(ORGANIC.mist, 0.9);
+  rake.position.set(140, 30, -110);
+  rake.userData.noShadow = true;
+  scene.add(rake);
   const ground = new THREE.Mesh(new THREE.CircleGeometry(260, 64).rotateX(-Math.PI / 2), zoneRock({ veinColour: ORGANIC.vein, mossColour: ZONE7_SHADE.moss, scale: 1.2 }));
   ground.position.y = -0.02;
   ground.name = 'ground';
@@ -118,8 +123,9 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
   const bone = oldBone(ORGANIC.mist, 0.2);
   const crateMat = oldBone(ORGANIC.amber, 0.15);
   const strip = bioNode(ORGANIC.amber, 0.6);
-  const tankGlass = membrane(HIVE.acid, 0.22);
+  const tankGlass = membrane(ZONE7_SHADE.moss, 0.3); // murky, not neon
   const embryo = bioNode(HIVE.acid, 0.8);
+  embryo.emissiveIntensity *= 0.45;
 
   const floor = new THREE.Mesh(new THREE.BoxGeometry(L * 2, 0.1, W * 2), deckMat);
   floor.position.y = -0.04;
@@ -239,7 +245,7 @@ export function buildWreck(scene: THREE.Scene, seed: number): WreckWorld {
       k.group.add(glass, e);
     }
   }
-  const galleryLight = new THREE.PointLight(HIVE.acid, 30, 24, 2);
+  const galleryLight = new THREE.PointLight(HIVE.acid, 18, 24, 2);
   galleryLight.position.set((gallery.x0 + gallery.x1) / 2, 6, 0);
   k.group.add(galleryLight);
 

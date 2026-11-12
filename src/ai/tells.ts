@@ -47,7 +47,7 @@ export function mindLevels(b: ThinkingView): MindLevels {
 /** The pulse an event fires, if any: `call` (chirp, hum, the pack being called) or `glint` (eyes catch the light). */
 export function mindPulse(e: AIEvent): 'call' | 'glint' | null {
   switch (e.type) {
-    case 'alert': case 'alarm': case 'screech': return 'call';
+    case 'alert': case 'alarm': case 'screech': case 'rally': return 'call';
     case 'charge': return 'glint';
     case 'tactic':
       if (e.what === 'press' || e.what === 'spring' || e.what === 'rout') return 'call';

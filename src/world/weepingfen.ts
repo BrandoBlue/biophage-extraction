@@ -45,9 +45,9 @@ interface FenData {
   titans: Titan[];
   groves: Grove[];
   rootHut: { doorBearing: number; roomRadius: number; deck: number; lookout: number };
-  stiltVillage: { deck: number; huts: Hut[]; walks: [string, string][]; ramps: { from: string; x: number; z: number }[] };
+  stiltVillage: Hamlet;
   spiderHollow: { fire: XZ; shelters: (XZ & { yaw: number })[] };
-  drownedPod: XZ & { yaw: number; length: number; radius: number };
+  drownedPod: Wreck;
   cathedral: {
     spire: XZ & { radius: number; height: number; cap: number };
     climb: { turns: number; top: number; width: number; steps: number; endShort: number };
@@ -64,7 +64,15 @@ interface FenData {
   waders: { count: number; ring: [number, number]; height: [number, number] };
   spawns: SpawnPlacement[];
   trails: { list: { id: string; to: string; points: [number, number][] }[] };
+  hamlets: { list: Hamlet[] };
+  ferry: { jetty: [[number, number], [number, number]]; deck: number; raft: XZ & { yaw: number; length: number; width: number; top: number } };
+  rootLift: XZ & { radius: number };
+  wrecks: { list: Wreck[] };
+  boneRings: { list: (XZ & { id: string; area: string; radius: number; ribs: number })[] };
+  skeletons: { list: (XZ & { id: string; area: string; yaw: number; length: number })[] };
 }
+interface Hamlet { id: string; area?: string; deck: number; huts: Hut[]; walks: [string, string][]; ramps: { from: string; x: number; z: number }[] }
+interface Wreck extends XZ { id: string; yaw: number; length: number; radius: number }
 
 export const FEN = FEN_JSON as unknown as FenData;
 /** Container type for a structure loot spot (data/weepingfen.json `loot`, matching Design's habitats.json). */
@@ -365,6 +373,13 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   const amber = bioNode(ORGANIC.amber, 0.7);
 
   // Keep-outs: big trees never grow through a built place.
+  // The outer districts' outposts keep their ground clear (pushed with the cathedral's, before the last grove).
+  const outposts: (XZ & { r: number })[] = [
+    ...FEN.hamlets.list.flatMap((v) => [...v.huts.map((h) => ({ x: h.x, z: h.z, r: h.radius + 5 })), ...v.ramps.map((r) => ({ x: r.x, z: r.z, r: 3 }))]),
+    ...FEN.wrecks.list.map((w) => ({ x: w.x, z: w.z, r: w.length * 0.6 })),
+    ...FEN.boneRings.list.map((b) => ({ x: b.x, z: b.z, r: b.radius + 5 })),
+    ...FEN.skeletons.list.map((k) => ({ x: k.x, z: k.z, r: k.length * 0.6 })),
+  ];
   const keep: (XZ & { r: number })[] = [
     { ...FEN.spawn, r: 12 }, ...FEN.extracts.map((e) => ({ x: e.x, z: e.z, r: 12 })),
     ...FEN.stiltVillage.huts.map((h) => ({ x: h.x, z: h.z, r: h.radius + 5 })),
@@ -467,6 +482,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
     // The cathedral climb keeps its own ground clear (added here so the other groves keep their stands).
     if (g.caps) keep.push(
       { x: FEN.cathedral.spire.x, z: FEN.cathedral.spire.z, r: FEN.cathedral.gallery.out + FEN.cathedral.gallery.radius + 1 },
+      ...outposts,
       { x: FEN.cathedral.chapel.x, z: FEN.cathedral.chapel.z, r: FEN.cathedral.chapel.deckRadius + 1.5 },
       { x: (FEN.cathedral.spire.x + FEN.cathedral.chapel.x) / 2, z: (FEN.cathedral.spire.z + FEN.cathedral.chapel.z) / 2, r: 4 },
     );
@@ -654,9 +670,11 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
 
   // ---- Stilt Village: huts on platforms over the water, boardwalks between, ramps down to the mud.
   function hutById(id: string): Hut { return FEN.stiltVillage.huts.find((h) => h.id === id)!; }
-  {
-    const D = FEN.stiltVillage.deck;
-    for (const h of FEN.stiltVillage.huts) {
+  // The outer hamlets are built the same way; `lit` gives each hut a lamp (point lights cost, so only the village has them).
+  function hamlet(v: Hamlet, lit: boolean): void {
+    const hutOf = (id: string) => v.huts.find((h) => h.id === id)!;
+    const D = v.deck;
+    for (const h of v.huts) {
       const pr = h.radius + 2.0, yaw = deg(h.yaw);
       const deck = new THREE.CylinderGeometry(pr, pr * 0.94, 0.35, 22, 1);
       { const dp = deck.attributes.position; for (let i = 0; i < dp.count; i++) { const a = Math.atan2(dp.getZ(i), dp.getX(i)), r = Math.hypot(dp.getX(i), dp.getZ(i)); if (r < 0.01) continue; const k = 1 + (noise3(Math.cos(a) * 1.5 + h.x, Math.sin(a) * 1.5, 3) - 0.5) * 0.18; dp.setX(i, dp.getX(i) * k); dp.setZ(i, dp.getZ(i) * k); } deck.computeVertexNormals(); }
@@ -691,13 +709,15 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
         const a = (k / 7) * Math.PI * 2 + yaw + 0.3;
         hanging.push(M4(h.x + Math.cos(a) * (h.radius + 0.9), D + wallH - 0.1, h.z + Math.sin(a) * (h.radius + 0.9), a, 0.25, 1 + noise3(k, h.x, 1) * 1.6, 0.25));
       }
-      const l = new THREE.PointLight(ORGANIC.amber, 6, 9, 2);
-      l.position.set(h.x, D + 2.3, h.z);
-      root.add(l);
+      if (lit) {
+        const l = new THREE.PointLight(ORGANIC.amber, 6, 9, 2);
+        l.position.set(h.x, D + 2.3, h.z);
+        root.add(l);
+      }
       batch.add(amber, new THREE.SphereGeometry(0.16, 8, 6), M4(h.x + Math.cos(yaw + 2.5) * (h.radius - 0.6), D + 2.4, h.z + Math.sin(yaw + 2.5) * (h.radius - 0.6)));
     }
-    for (const [a, b] of FEN.stiltVillage.walks) {
-      const A = hutById(a), B = hutById(b);
+    for (const [a, b] of v.walks) {
+      const A = hutOf(a), B = hutOf(b);
       const dir = Math.atan2(B.z - A.z, B.x - A.x), dist = Math.hypot(B.x - A.x, B.z - A.z);
       const sA = A.radius + 0.9, sB = B.radius + 0.9, len = (dist - sA - sB) / 2;
       const cx = A.x + Math.cos(dir) * (sA + len), cz = A.z + Math.sin(dir) * (sA + len);
@@ -714,20 +734,23 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
         batch.add(bark, rail, M4(cx - Math.sin(dir) * side * 1.0, D + 0.9, cz + Math.cos(dir) * side * 1.0, -dir));
       }
     }
-    for (const r of FEN.stiltVillage.ramps) {
-      const h = hutById(r.from);
+    for (const r of v.ramps) {
+      const h = hutOf(r.from);
       const dir = Math.atan2(h.z - r.z, h.x - r.x), dist = Math.hypot(h.x - r.x, h.z - r.z) - (h.radius + 1.0);
       const g = fenHeight(r.x, r.z);
       const cx = r.x + Math.cos(dir) * dist / 2, cz = r.z + Math.sin(dir) * dist / 2;
       solid(batch, plank, cx, cz, dist / 2 + 0.2, 1.0, dir, g - 0.6, D, D - g, 'stilt-ramp');
     }
-    const hutLoot: Record<string, string> = Object.fromEntries(FEN.loot.filter((l) => l.site.startsWith('stiltHut')).map((l) => [l.site, l.container]));
-    for (const h of FEN.stiltVillage.huts) {
-      if (!hutLoot[h.id]) continue;
+    // Each hut's loot (data `loot` entries whose site is the hut) stands inside, opposite the door.
+    for (const h of v.huts) {
       const yaw = deg(h.yaw);
-      loot.push({ id: `stilt-${h.id.slice(-1).toLowerCase()}`, container: hutLoot[h.id], x: h.x - Math.cos(yaw) * (h.radius - 1.4), y: D, z: h.z - Math.sin(yaw) * (h.radius - 1.4) });
+      for (const l of FEN.loot.filter((e) => e.site === h.id)) {
+        loot.push({ id: l.id, container: l.container, x: h.x - Math.cos(yaw) * (h.radius - 1.4), y: D, z: h.z - Math.sin(yaw) * (h.radius - 1.4) });
+      }
     }
   }
+  hamlet(FEN.stiltVillage, true);
+  for (const v of FEN.hamlets.list) hamlet(v, false);
 
   // ---- Spider Hollow: an old campfire under the Elder, still smouldering, the shelters webbed over.
   let fireLight: THREE.PointLight;
@@ -791,9 +814,9 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
     for (let k = 0; k < 3; k++) batch.add(bone, new THREE.CylinderGeometry(0.05, 0.06, 1.8, 5).rotateZ(0.2 * (k - 1)), M4(f.x + 3.2, g + 0.9, f.z - 1 + k));
   }
 
-  // ---- The Drowned Pod: a seedship pod lying on its side in the fen, torn open toward the bank.
-  {
-    const p = FEN.drownedPod, yaw = deg(p.yaw), L = p.length / 2, R = p.radius;
+  // ---- The Drowned Pod: a seedship pod lying on its side in the fen, torn open toward the bank (and the outer wrecks).
+  function wreck(p: Wreck, light: boolean): void {
+    const yaw = deg(p.yaw), L = p.length / 2, R = p.radius;
     const g = fenHeight(p.x, p.z), cy = g - 1.6, deckY = Math.max(0.35, g + 0.3);
     const hull = grownWall({ base: ZONE7_SHADE.stem, seam: ZONE7_SHADE.rockDeep, vein: ZONE7.cyan, plate: 2.0 });
     hull.side = THREE.DoubleSide;
@@ -823,15 +846,20 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
       const [sx, sz] = at(u, -R * 0.7);
       batch.add(strip, new THREE.BoxGeometry(1.6 + rand(), 0.06, 0.06), M4(sx, 1.2, sz, yaw));
     }
-    const l = new THREE.PointLight(ZONE7.cyan, 10, 14, 2);
-    const [lx, lz] = at(0, -R * 0.4);
-    l.position.set(lx, 3, lz);
-    root.add(l);
-    const [ox, oz] = at(L * 0.45, -R * 0.55);
-    loot.push({ id: 'pod-hold', container: lootContainer('pod-hold'), x: ox, y: deckY, z: oz });
-    const [qx, qz] = at(-L * 0.45, -R * 0.55);
-    loot.push({ id: 'pod-bow', container: lootContainer('pod-bow'), x: qx, y: deckY, z: qz });
+    if (light) {
+      const l = new THREE.PointLight(ZONE7.cyan, 10, 14, 2);
+      const [lx, lz] = at(0, -R * 0.4);
+      l.position.set(lx, 3, lz);
+      root.add(l);
+    }
+    // Lockers stand on the deck, the first in the hold, the next at the bow.
+    FEN.loot.filter((e) => e.site === p.id).forEach((e, i) => {
+      const [ox, oz] = at((i % 2 ? -1 : 1) * L * 0.45, -R * 0.55);
+      loot.push({ id: e.id, container: e.container, x: ox, y: deckY, z: oz });
+    });
   }
+  wreck(FEN.drownedPod, true);
+  for (const w of FEN.wrecks.list) wreck(w, false);
 
   // ---- The Regent's Pool: black water ringed by drowned bone arches.
   {
@@ -840,8 +868,19 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
     for (let k = 0; k < p.arches; k++) {
       const a = (k / p.arches) * Math.PI * 2 + 0.2;
       const x = p.x + Math.cos(a) * p.radius, z = p.z + Math.sin(a) * p.radius;
+      ribArch(x, z, a, k, 1, 'regent-arch');
+      arches.push({ x, z });
+      const ea = a + Math.PI / p.arches;
+      entrances.push({ x: p.x + Math.cos(ea) * p.radius, z: p.z + Math.sin(ea) * p.radius });
+    }
+    regentPool = { x: p.x, z: p.z, radius: p.radius, floorY: fenHeight(p.x, p.z), waterY: FEN_WATER_Y, entrances, arches };
+  }
+
+  /** A drowned rib: a bent, tapering spine of bone, thicker at one root, sagging off true, knuckled along its back. */
+  function ribArch(x: number, z: number, a: number, k: number, size: number, tag: string): void {
+    {
       const g = fenHeight(x, z);
-      const span = 2.6 + noise3(k, 1, 2) * 1.6, sink = 0.6 + noise3(k, 3, 4) * 1.6;
+      const span = (2.6 + noise3(k, 1, 2) * 1.6) * size, sink = 0.6 + noise3(k, 3, 4) * 1.6;
       // A drowned rib: a bent, tapering spine of bone, thicker at one root, sagging off true, knuckled along its back.
       const tx = -Math.sin(a), tz = Math.cos(a), lean = (noise3(k, 5, 6) - 0.5) * 1.6;
       const spine: THREE.Vector3[] = [];
@@ -851,7 +890,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
         const out = Math.sin(t) * lean + (noise3(j, k, 9) - 0.5) * 0.5;
         spine.push(new THREE.Vector3(x + tx * ox + Math.cos(a) * out, g + oy, z + tz * ox + Math.sin(a) * out));
       }
-      batch.add(ribBone, taperedTube(spine, 0.6 + noise3(k, 2, 2) * 0.2, 0.28, 30, 9));
+      batch.add(ribBone, taperedTube(spine, (0.6 + noise3(k, 2, 2) * 0.2) * Math.sqrt(size), 0.28, 30, 9));
       const curve = new THREE.CatmullRomCurve3(spine);
       for (let j = 1; j < 9; j++) {
         const q = curve.getPointAt(j / 9), sz = 0.55 - j * 0.03;
@@ -859,13 +898,93 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
       }
       for (const side of [-1, 1]) {
         const fx = x - Math.sin(a) * side * span, fz = z + Math.cos(a) * side * span;
-        SOLIDS.add({ cx: fx, cz: fz, hx: 0.5, hz: 0.5, yaw: a, y0: g - 2, y1: g + span * 1.5 - sink, tag: 'regent-arch' });
+        SOLIDS.add({ cx: fx, cz: fz, hx: 0.5, hz: 0.5, yaw: a, y0: g - 2, y1: g + span * 1.5 - sink, tag });
       }
-      arches.push({ x, z });
-      const ea = a + Math.PI / p.arches;
-      entrances.push({ x: p.x + Math.cos(ea) * p.radius, z: p.z + Math.sin(ea) * p.radius });
     }
-    regentPool = { x: p.x, z: p.z, radius: p.radius, floorY: fenHeight(p.x, p.z), waterY: FEN_WATER_Y, entrances, arches };
+  }
+
+  /** A mound of old bone, walkable on top; returns its top. */
+  function cairn(x: number, z: number, r: number, seed: number): number {
+    const top = Math.max(fenHeight(x, z), FEN_WATER_Y) + 0.45;
+    const mound = new THREE.IcosahedronGeometry(1, 2);
+    const mp = mound.attributes.position;
+    for (let i = 0; i < mp.count; i++) {
+      const n = 0.8 + noise3(mp.getX(i) * 1.7 + seed, mp.getY(i) * 1.7, mp.getZ(i) * 1.7) * 0.4;
+      mp.setXYZ(i, mp.getX(i) * n, Math.max(-0.3, mp.getY(i)) * n, mp.getZ(i) * n);
+    }
+    mound.computeVertexNormals();
+    batch.add(ribBone, mound, M4(x, top - 0.35 * 0.6, z, seed, r * 1.05, 0.6, r * 1.05));
+    octagon(x, z, r * 0.8, top - 1.2, top, 'cairn');
+    // Skulls and long bones heaped on the mound.
+    for (let k = 0; k < 7; k++) {
+      const a = noise3(seed, k, 1) * Math.PI * 2, d = r * 0.7 * noise3(k, seed, 2);
+      batch.add(bone, new THREE.CylinderGeometry(0.06, 0.08, 1.2 + noise3(k, 1, seed) * 0.8, 5).rotateZ(1.2 + noise3(k, 2, seed)), M4(x + Math.cos(a) * d, top + 0.05, z + Math.sin(a) * d, a));
+    }
+    for (let k = 0; k < 3; k++) {
+      const a = (k / 3) * Math.PI * 2 + seed, sk = new THREE.IcosahedronGeometry(0.28, 1).scale(1, 0.85, 1.25);
+      batch.add(bone, sk, M4(x + Math.cos(a) * r * 0.35, top + 0.18, z + Math.sin(a) * r * 0.35, a));
+    }
+    return top;
+  }
+
+  // ---- Bone rings in the outer districts: a circle of drowned ribs round a cairn where somebody piled the dead.
+  for (const b of FEN.boneRings.list) {
+    const s0 = b.x * 0.13 + b.z * 0.07;
+    for (let k = 0; k < b.ribs; k++) {
+      const a = (k / b.ribs) * Math.PI * 2 + noise3(s0, k, 3) * 0.4;
+      ribArch(b.x + Math.cos(a) * b.radius, b.z + Math.sin(a) * b.radius, a, k + s0, 0.75 + noise3(k, s0, 4) * 0.3, `${b.id}-rib`);
+    }
+    const top = cairn(b.x, b.z, 2.4, s0);
+    FEN.loot.filter((e) => e.site === b.id).forEach((e, i) => loot.push({ id: e.id, container: e.container, x: b.x + (i ? -0.8 : 0.8), y: top, z: b.z }));
+  }
+
+  // ---- Sunken skeletons: a spine, a skull and an arch of ribs half out of the water; loot lies under the ribs.
+  for (const sk of FEN.skeletons.list) {
+    const yaw = deg(sk.yaw), L = sk.length, s0 = sk.x * 0.11 + sk.z * 0.05;
+    const fx = Math.cos(yaw), fz = Math.sin(yaw), sx = -fz, sz = fx;
+    const g = Math.max(fenHeight(sk.x, sk.z), FEN_WATER_Y);
+    const H = L * 0.2;
+    // The spine sags into the water at the tail and lifts toward the skull.
+    const spine: THREE.Vector3[] = [];
+    for (let j = 0; j <= 8; j++) {
+      const t = j / 8, u = (t - 0.5) * L;
+      spine.push(new THREE.Vector3(sk.x + fx * u + sx * (noise3(j, s0, 1) - 0.5) * 1.2, g - 1.2 + Math.sin(t * Math.PI * 0.85) * H + (noise3(s0, j, 2) - 0.5) * 0.5, sk.z + fz * u + sz * (noise3(j, s0, 1) - 0.5) * 1.2));
+    }
+    batch.add(ribBone, taperedTube(spine, L * 0.022, L * 0.03, 40, 9));
+    const curve = new THREE.CatmullRomCurve3(spine);
+    for (let j = 1; j < 16; j++) {
+      const q = curve.getPointAt(j / 16), r = L * (0.03 + 0.012 * Math.sin((j / 16) * Math.PI));
+      batch.add(ribBone, new THREE.DodecahedronGeometry(r, 1).scale(1.3, 0.8, 1), M4(q.x, q.y + r * 0.5, q.z, -yaw + j * 0.3));
+    }
+    // Ribs: pairs arching out and down from the middle of the spine, into the mud.
+    for (let j = 0; j < 7; j++) {
+      const t = 0.3 + j * 0.065, q = curve.getPointAt(t), reach = H * (0.9 + Math.sin(((j + 1) / 8) * Math.PI) * 0.5);
+      for (const side of [-1, 1]) {
+        if (noise3(j, side, s0) > 0.82) continue; // a few have broken away
+        const pts = [0, 0.3, 0.6, 0.85, 1].map((f) => {
+          const out = Math.sin(f * Math.PI * 0.6) * reach * 1.1, down = (1 - Math.cos(f * Math.PI * 0.55)) * (q.y - g + 1.6) * 1.15;
+          return new THREE.Vector3(q.x + sx * side * out + fx * f * 0.8, q.y - down + 0.3, q.z + sz * side * out + fz * f * 0.8);
+        });
+        batch.add(ribBone, taperedTube(pts, L * 0.012, L * 0.007, 14, 6));
+        const e = pts[4];
+        SOLIDS.add({ cx: e.x, cz: e.z, hx: 0.35, hz: 0.35, yaw: 0, y0: e.y - 1, y1: Math.max(e.y, g) + 1.2, tag: `${sk.id}-rib` });
+      }
+    }
+    // The skull: long, eyeless, jaw hanging open, half in the water.
+    const head = spine[8], skull = new THREE.IcosahedronGeometry(1, 2), kp = skull.attributes.position;
+    for (let i = 0; i < kp.count; i++) {
+      const x = kp.getX(i), y = kp.getY(i), z = kp.getZ(i), n = 0.85 + noise3(x * 2 + s0, y * 2, z * 2) * 0.3;
+      kp.setXYZ(i, x * n * (x > 0 ? 1.6 : 1), y * n * 0.75, z * n * 0.8);
+    }
+    skull.computeVertexNormals();
+    const sc = L * 0.07;
+    batch.add(ribBone, skull, M4(head.x + fx * sc, head.y - sc * 0.4, head.z + fz * sc, -yaw, sc, sc, sc));
+    const jaw = new THREE.CylinderGeometry(sc * 0.18, sc * 0.3, sc * 2.2, 6).rotateZ(Math.PI / 2 + 0.5);
+    batch.add(ribBone, jaw, M4(head.x + fx * sc * 1.4, head.y - sc * 1.3, head.z + fz * sc * 1.4, -yaw));
+    SOLIDS.add({ cx: head.x + fx * sc, cz: head.z + fz * sc, hx: sc * 1.4, hz: sc * 0.8, yaw: -yaw, y0: head.y - sc * 2, y1: head.y + sc * 0.5, tag: `${sk.id}-skull` });
+    // Under the ribs: a heap the thing died on, where the loot waits.
+    const mid = curve.getPointAt(0.5), top = cairn(mid.x, mid.z, 1.6, s0 + 3);
+    FEN.loot.filter((e) => e.site === sk.id).forEach((e) => loot.push({ id: e.id, container: e.container, x: mid.x, y: top, z: mid.z }));
   }
 
   // ---- Fallen logs: walkable bridges over the channels.
@@ -925,12 +1044,71 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   // ---- Mistwaders: tall grazers wading slowly through the mist beyond the ring (ambient only).
   root.add(mistwaders(fixed));
 
+  // ---- The Causeway Ferry (Design's stilt-village ferry): a plank jetty off the islet to a moored log raft.
+  {
+    const F = FEN.ferry, [[x0, z0], [x1, z1]] = F.jetty, dir = Math.atan2(z1 - z0, x1 - x0), len = Math.hypot(x1 - x0, z1 - z0);
+    solid(batch, plank, (x0 + x1) / 2, (z0 + z1) / 2, len / 2, 1.2, dir, F.deck - 0.3, F.deck, 0, 'ferry-jetty');
+    for (let s = 0; s <= len; s += 2.6) {
+      for (const side of [-1, 1]) {
+        const px = x0 + Math.cos(dir) * s - Math.sin(dir) * side * 1.25, pz = z0 + Math.sin(dir) * s + Math.cos(dir) * side * 1.25;
+        const g = fenHeight(px, pz) - 0.6, top = F.deck + (s > len - 3 ? 1.6 : 0.3);
+        batch.add(bark, new THREE.CylinderGeometry(0.11, 0.15, top - g, 6), M4(px, (top + g) / 2, pz, s));
+      }
+    }
+    // The raft: a lashed float of crooked logs, riding low and a little skewed on its mooring lines.
+    const R = F.raft, ry = deg(R.yaw), ux = Math.cos(ry), uz = Math.sin(ry);
+    const n = Math.round(R.width / 0.62);
+    for (let k = 0; k < n; k++) {
+      const off = (k / (n - 1) - 0.5) * (R.width - 0.6), cx = R.x - uz * off, cz = R.z + ux * off;
+      const l = R.length * (0.88 + noise3(k, 3, 9) * 0.2), bow = (noise3(k, 4, 9) - 0.5) * 0.5;
+      const pts = [-0.5, -0.1, 0.25, 0.5].map((t) => new THREE.Vector3(cx + ux * (t * l + bow), R.top - 0.28 + Math.sin((t + 0.5) * Math.PI) * 0.05, cz + uz * (t * l + bow)));
+      batch.add(bark, taperedTube(pts, 0.32, 0.26, 10, 7));
+    }
+    for (const t of [-0.32, 0.32]) {
+      const lash = new THREE.CylinderGeometry(0.07, 0.07, R.width + 0.3, 5).rotateX(Math.PI / 2);
+      batch.add(hide, lash, M4(R.x + ux * t * R.length, R.top + 0.03, R.z + uz * t * R.length, -ry));
+    }
+    solid(null, null, R.x, R.z, R.length / 2, R.width / 2, ry, R.top - 0.6, R.top, 0, 'ferry-raft');
+    // A pole lantern on the raft and a mooring line back to the jetty's end posts.
+    batch.add(bark, new THREE.CylinderGeometry(0.06, 0.08, 3.2, 5).rotateZ(0.12), M4(R.x - ux * R.length * 0.35, R.top + 1.6, R.z - uz * R.length * 0.35));
+    batch.add(amber, new THREE.SphereGeometry(0.2, 8, 6), M4(R.x - ux * R.length * 0.35 + 0.18, R.top + 3.1, R.z - uz * R.length * 0.35));
+    const moor = [new THREE.Vector3(x1, F.deck + 1.4, z1), new THREE.Vector3((x1 + R.x) / 2, R.top + 0.4, (z1 + R.z) / 2), new THREE.Vector3(R.x - ux * R.length * 0.45, R.top + 0.3, R.z - uz * R.length * 0.45)];
+    batch.add(hide, taperedTube(moor, 0.04, 0.04, 8, 4));
+  }
+
+  // ---- The Root Lift (Design's root-lift in the cathedral): a woven root basket hung from the gallery cap.
+  {
+    const L = FEN.rootLift, g = fenHeight(L.x, L.z), floor = Math.max(g, FEN_WATER_Y) + 0.3;
+    const sp = FEN.cathedral.spire, top = fenHeight(sp.x, sp.z) + FEN.cathedral.climb.top;
+    // Woven sides: crossing root withies round a low rim you can step over; a solid woven floor.
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * Math.PI * 2, b = a + 0.9 * (k % 2 ? 1 : -1);
+      const pts = [0, 0.5, 1].map((t) => { const q = a + (b - a) * t, r = L.radius * (1 + Math.sin(t * Math.PI) * 0.08); return new THREE.Vector3(L.x + Math.cos(q) * r, floor + t * 0.5, L.z + Math.sin(q) * r); });
+      batch.add(bark, taperedTube(pts, 0.07, 0.05, 6, 4));
+    }
+    batch.add(bark, new THREE.CylinderGeometry(L.radius, L.radius * 0.8, 0.3, 14), M4(L.x, floor - 0.15, L.z));
+    octagon(L.x, L.z, L.radius * 0.9, floor - 1, floor, 'root-lift-floor');
+    // Root cables up to the gallery cap, twisting round each other; a seed-bulb counterweight hangs beside them.
+    for (let k = 0; k < 4; k++) {
+      const a = (k / 4) * Math.PI * 2 + 0.4, pts: THREE.Vector3[] = [];
+      for (let j = 0; j <= 6; j++) {
+        const t = j / 6, tw = a + t * 2.2, r = L.radius * (0.95 - t * 0.6);
+        pts.push(new THREE.Vector3(L.x + Math.cos(tw) * r, floor + 0.5 + t * (top - floor - 1), L.z + Math.sin(tw) * r));
+      }
+      batch.add(bark, taperedTube(pts, 0.14, 0.2, 18, 5));
+    }
+    const bulb = new THREE.IcosahedronGeometry(0.9, 2).scale(1, 1.5, 1);
+    batch.add(paleBark, bulb, M4(L.x + L.radius + 1.2, floor + 5.5, L.z));
+    batch.add(bark, new THREE.CylinderGeometry(0.06, 0.06, top - floor - 7, 5), M4(L.x + L.radius + 1.2, (top + floor + 7) / 2 - 0.5, L.z));
+  }
+
   // ---- Extract markers: lantern posts round each extract; a ring when it is open.
   const sitesGroup = new THREE.Group();
   sitesGroup.name = 'fen-sites';
   const rings = new Map<string, THREE.Mesh>();
   for (const e of layout.extracts) {
-    const g = fenHeight(e.x, e.z);
+    // On the raft or in the basket, the markers stand on that floor (never on the mud under the water).
+    const g = Math.max(fenHeight(e.x, e.z), SOLIDS.floorAt(e.x, e.z, fenHeight(e.x, e.z) + 3));
     for (let k = 0; k < 4; k++) {
       const a = (k / 4) * Math.PI * 2 + 0.4, px = e.x + Math.cos(a) * 5, pz = e.z + Math.sin(a) * 5;
       batch.add(bark, new THREE.CylinderGeometry(0.1, 0.14, 2.6, 6), M4(px, g + 1.3, pz));

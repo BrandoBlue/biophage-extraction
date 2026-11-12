@@ -746,3 +746,4 @@ body[data-hive-tab]:not([data-hive-tab=menu]) #hivemind.collapsed { display:none
 .set-note { margin:0 0 calc(var(--u) * .6); font-size:calc(var(--u) * .78); line-height:1.45; color:var(--lab); }
 .set-full .hv-btn { margin-top:0; }
 .hv-settings input[type=checkbox] { accent-color:var(--amber); width:calc(var(--u) * 1.1); height:calc(var(--u) * 1.1); justify-self:center; }
+.set-app { margin-top:calc(var(--u) * .5); }

@@ -434,7 +434,8 @@ export interface AiRules {
   nethermaw: { wakeAbove: number; breathCycle: number; inhaleFrom: number; swellHold: number; flinchDamage: number; falseLightRadius: number; falseLightTrigger: number; falseLightBlast: number; rootRadius: number; rootMinRange: number; firstAttack: number; columnPulseCut: number; falseLightEvery: number };
   regent: { wakeRadius: number; wadeHeight: number; keepInside: number; stalkDistance: number; armReach: number; grabRadius: number; riseRate: number; rearEvery: number; rearFor: number; diveFor: number; tongueCone: number; lungeDistance: number; firstAttack: number; eyeBiomass: number; enrageDrain: number };
   herd: { turnRate: number; gunfireNoise: number; chargeRange: [number, number]; stampedeTurn: number; trampleKnockback: number; wheelTime: number; volleyLead: number; volleySpread: number; volleyMin: number };
-  learning: { after: number; campRadius: number; campTime: number; campCooldown: number; campRing: number; feintEvery: number; fakeoutTime: number; cutAhead: number };
+  learning: { enabled: boolean; after: number; campRadius: number; campTime: number; campCooldown: number; campRing: number; feintEvery: number; fakeoutTime: number; cutAhead: number; checkedCooldown: number; coverNoise: number; coverTime: number; shyDistance: number; avoidRadius: number; sightFraction: number };
+  teamwork: { calls: Record<string, { kinds: string[]; radius: number }> };
   tactics: {
     uses: Record<'press' | 'evade' | 'lure' | 'falter', Archetype[]>;
     reload: { range: number; extraTokens: number; callCooldown: number };

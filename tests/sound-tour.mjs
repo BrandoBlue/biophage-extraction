@@ -5,7 +5,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const URL = 'http://localhost:5199/';
-const which = process.argv.includes('--zones') ? 'zones' : 'main';
+const which = process.argv.includes('--zones') ? 'zones' : process.argv.includes('--guns') ? 'guns' : process.argv.includes('--edge') ? 'edge' : 'main';
 const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--port', '5199', '--strictPort'], { stdio: 'ignore' });
 try {
   let up = false;
@@ -16,7 +16,10 @@ try {
   await page.goto(`${URL}?creatures`);
   const out = await page.evaluate(async (which) => {
     const tour = await import('/src/audio/tour.ts');
-    const buf = await (which === 'zones' ? tour.renderZoneTour(44100) : tour.renderTour(44100));
+    let buf, script = null;
+    if (which === 'guns') ({ buffer: buf, script } = await tour.renderGunTour(44100));
+    else if (which === 'edge') buf = await tour.renderEdgeTour(44100);
+    else buf = await (which === 'zones' ? tour.renderZoneTour(44100) : tour.renderTour(44100));
     const L = buf.getChannelData(0), R = buf.getChannelData(1);
     let peak = 0, sum = 0, nan = 0;
     const seconds = [];
@@ -37,7 +40,7 @@ try {
     const bytes = new Uint8Array(pcm.buffer);
     let bin = '';
     for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    return { b64: btoa(bin), rate: buf.sampleRate, peak, rms: Math.sqrt(sum / (L.length * 2)), nan, seconds };
+    return { script, b64: btoa(bin), rate: buf.sampleRate, peak, rms: Math.sqrt(sum / (L.length * 2)), nan, seconds };
   }, which);
   const pcm = Buffer.from(out.b64, 'base64');
   const head = Buffer.alloc(44);
@@ -45,7 +48,8 @@ try {
   head.writeUInt32LE(16, 16); head.writeUInt16LE(1, 20); head.writeUInt16LE(2, 22); head.writeUInt32LE(out.rate, 24);
   head.writeUInt32LE(out.rate * 4, 28); head.writeUInt16LE(4, 32); head.writeUInt16LE(16, 34); head.write('data', 36); head.writeUInt32LE(pcm.length, 40);
   mkdirSync('tests/out', { recursive: true });
-  writeFileSync(which === 'zones' ? 'tests/out/sound-tour-zones.wav' : 'tests/out/sound-tour.wav', Buffer.concat([head, pcm]));
+  writeFileSync(which === 'main' ? 'tests/out/sound-tour.wav' : `tests/out/sound-tour-${which}.wav`, Buffer.concat([head, pcm]));
+  if (out.script) { let last = ''; for (const s of out.script) if (s.label !== last) { last = s.label; console.log(`${s.t.toFixed(1).padStart(5)} s  ${s.label}`); } }
   console.log(JSON.stringify({ peak: out.peak, rms: out.rms, nan: out.nan, perSecondPeak: out.seconds }));
   await browser.close();
 } finally { server.kill(); }

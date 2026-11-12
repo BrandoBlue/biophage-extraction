@@ -798,3 +798,61 @@ describe('body language: the brain\'s thinking on Creature\'s drive.mind', () =>
     expect(mindLevels(g).still).toBe(1);
   });
 });
+
+describe('species working together and more learning (ai.json teamwork, learning)', () => {
+  const L = AI.learning;
+  it('a Bile Cantor winding up sings the Needlemaws onto the host; an Oculimoth screech calls the hunters', () => {
+    const c = hunting(at('bilecantor', 1, 0, 25, 1));
+    const s = simulate([c], 6, host());
+    const r = s.events.find((e) => e.e.type === 'rally')?.e as { kinds: string[]; radius: number } | undefined;
+    expect(r?.kinds).toEqual(AI.teamwork.calls.bilecantor.kinds);
+    const o = hunting(at('oculimoth', 2, 0, 20, 2));
+    const so = simulate([o], 8, host());
+    if (so.events.some((e) => e.e.type === 'screech')) expect(so.events.some((e) => e.e.type === 'rally')).toBe(true);
+  });
+
+  it('a Glasswalker the host keeps checking on stops closing in and waits for a noise to cover it', () => {
+    const mem = new RaidMemory();
+    for (let i = 0; i < L.after; i++) mem.note('glasswalker', 'checked');
+    const g = hunting(at('glasswalker', 3, 0, 22, 3));
+    const h = host({ forward: { x: 1, z: 0 } });
+    const quiet = simulate([g], 6, h, { memory: mem });
+    expect(quiet.events.some((e) => e.e.type === 'charge')).toBe(false);
+    expect(quiet.events.some((e) => e.e.type === 'tactic' && (e.e as { what: string }).what === 'adapt')).toBe(true);
+    const loud = simulate([g], 3, h, { memory: mem, noises: [{ x: 0, z: 0, radius: 30 }] });
+    expect(loud.events.some((e) => e.e.type === 'charge')).toBe(true);
+  });
+
+  it('a Mistwader shot at once wades away whenever it hears a host', () => {
+    const mem = new RaidMemory();
+    mem.note('mistwader', 'shot');
+    const m = at('mistwader', 4, 0, 10, 4);
+    simulate([m], 4, host({ x: 0, z: 0 }), { memory: mem, noises: [{ x: 0, z: 0, radius: 12 }] });
+    expect(m.mode).toBe('calm');
+    expect(m.body.z).toBeGreaterThan(12);
+  });
+
+  it('a Lumen Grazer herd keeps away from where a host hurt one of them', () => {
+    const mem = new RaidMemory();
+    mem.mark('lumenGrazer', 'hurt', { x: 0, z: 0 });
+    const g = at('lumenGrazer', 5, 5, 0, 5);
+    simulate([g], 10, host({ x: 300, z: 300, alive: false }), { memory: mem });
+    expect(Math.hypot(g.body.x, g.body.z)).toBeGreaterThan(10);
+  });
+
+  it('a Bristleback herd shot at once stampedes at the first sight of a host', () => {
+    const mem = new RaidMemory();
+    const b = at('bristleback', 6, 0, 0, 6);
+    simulate([b], 0.2, host({ x: 0, z: 18 }), { memory: mem, noises: [{ x: 0, z: 18, radius: 25 }] });
+    expect(mem.count('bristleback', 'shot')).toBe(1);
+    const b2 = at('bristleback', 7, 0, 0, 7);
+    simulate([b2], 0.5, host({ x: 0, z: 15 }), { memory: mem });
+    expect(b2.engaged).toBe(true);
+  });
+});
+
+describe('learning switch', () => {
+  it('learning is off for now (Brandon, 2026-11-12): raids get no memory', () => {
+    expect(AI.learning.enabled).toBe(false);
+  });
+});

@@ -23,12 +23,18 @@ export class WaderBrain extends Brain {
 
   get panicking(): boolean { return this.panicFor > 0; }
 
+  /** Seconds left wading away from a host it heard (learned: it was shot at once this raid). */
+  private shyFor = 0;
+  private shyFrom: { x: number; z: number } | null = null;
+
   protected onHurt(): void {
+    this.memory?.note(this.kind, 'shot');
     if (this.panicFor <= 0 || this.stomps <= 0) this.stomps = this.temper.panicStomps;
     this.panicFor = this.temper.calmAfter;
   }
 
   step(dt: number, w: BrainWorld): void {
+    this.memory = w.memory ?? null;
     const h = w.host;
     // Underfoot: a host inside its stamp ring startles it into one warning stamp.
     if (this.panicFor <= 0 && this.mode !== 'dead' && h.alive && Math.hypot(h.x - this.body.x, h.z - this.body.z) < this.st.radius * AI.wader.underfoot) {
@@ -38,6 +44,20 @@ export class WaderBrain extends Brain {
     }
     const passive = this.panicFor <= 0;
     if (passive) this.forget();
+    // Shot at once this raid: whenever it hears a host it wades away, dragging the mist with it.
+    if (passive && (this.memory?.count(this.kind, 'shot') ?? 0) > 0) {
+      const heard = w.noises.find((n) => Math.hypot(n.x - this.body.x, n.z - this.body.z) <= n.radius + this.data.perception.hearing * 0.5);
+      if (heard) { this.shyFrom = { x: heard.x, z: heard.z }; this.shyFor = AI.learning.shyDistance / Math.max(0.1, this.data.speed); }
+    }
+    if (passive && this.shyFor > 0 && this.shyFrom) {
+      this.shyFor -= dt;
+      const ax = this.body.x - this.shyFrom.x, az = this.body.z - this.shyFrom.z, al = Math.hypot(ax, az) || 1;
+      super.step(dt, { ...w, noises: [] });
+      this.forget();
+      this.steer((ax / al) * this.data.speed, (az / al) * this.data.speed, 8, dt);
+      this.setPhase('shy');
+      return;
+    }
     this.panicFor = Math.max(0, this.panicFor - dt);
     if (this.panicFor > 0 && this.mode === 'calm') this.alert(null);
     super.step(dt, passive ? { ...w, noises: [] } : w);
@@ -79,6 +99,8 @@ export class WaderBrain extends Brain {
     this.moveToward(host.x, host.z, t.speed, 0.8, dt);
     if (this.cooldown === 0 && dist <= t.attackRange) {
       this.strike = { x: host.x, y: host.y, z: host.z };
+      // The fen's hunters gather round its feet.
+      this.rally({ x: this.body.x, z: this.body.z });
       this.setPhase('rear');
     }
   }

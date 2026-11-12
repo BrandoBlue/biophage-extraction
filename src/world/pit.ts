@@ -36,7 +36,7 @@ interface PitData {
   cliff: number; maxSlope: number; playableRadius: number; outerRadius: number;
   layers: Layer[];
   ramps: Ramp[];
-  spawn: Polar;
+  spawn: Polar & { clearRadius: number };
   extracts: (Polar & { id: string; label: string; opensAt: number | null; opensOn?: string })[];
   bridge: { layer: string; bearing: number; width: number; sag: number; hubRadius: number };
   camp: { huts: (Polar & { yaw: number })[] };
@@ -181,26 +181,45 @@ export function pitLayout(seed: number): Zone7Layout {
  */
 export function pitSpawns(): SpawnPlacement[] {
   const marks = new Map(pitLandmarks().map((m) => [m.id, m]));
-  const out: SpawnPlacement[] = [];
-  let footing = 0;
+  const groups: { kind: string; roam: number; g: { count?: number; packed?: boolean; spread?: number }; id: string }[] = [];
   for (const [kind, h] of Object.entries(HABITATS.zones.marrowPit ?? {})) {
     if (!h) continue;
     for (const g of h.groups) {
       const id = 'landmark' in g.where ? g.where.landmark : undefined;
-      const m = id ? marks.get(id) : undefined;
-      if (!m) continue;
-      let x = m.x, z = m.z, y = m.y;
-      if (PIT.landmarks[m.id]?.bridge) {
-        const b = PIT.bridge.bearing + (footing++ % 2) * 180, k = layerIndex(m.layer);
-        [x, z] = polar(b, edgeRadius(k, b * D2R) + 4);
-        y = pitHeight(x, z);
-      }
-      out.push({
-        kind, x, z, count: g.count, packed: g.packed, roam: h.roam,
-        spread: Math.min(g.spread ?? 3, PIT.landmarks[m.id]?.from === undefined ? 15 : 5),
-        toughness: depthLayer('marrowPit', Math.max(0, -y))?.hpMultiplier ?? 1,
-      });
+      if (id && marks.has(id)) groups.push({ kind, roam: h.roam, g, id });
     }
+  }
+  // Groups that share a landmark spread out along its arc, one stretch each, instead of stacking on one point.
+  const total = new Map<string, number>(), seen = new Map<string, number>();
+  for (const q of groups) total.set(q.id, (total.get(q.id) ?? 0) + 1);
+  const [sx, sz] = polar(PIT.spawn.bearing, PIT.spawn.radius);
+  const out: SpawnPlacement[] = [];
+  let footing = 0;
+  for (const q of groups) {
+    const m = marks.get(q.id)!, site = PIT.landmarks[q.id];
+    const i = seen.get(q.id) ?? 0, n = total.get(q.id)!;
+    seen.set(q.id, i + 1);
+    const k = layerIndex(m.layer);
+    let x = m.x, z = m.z;
+    if (site?.bridge) {
+      const b = PIT.bridge.bearing + (footing++ % 2) * 180;
+      [x, z] = polar(b, edgeRadius(k, b * D2R) + 4);
+    } else if (site?.from !== undefined) {
+      const r = Math.hypot(m.x, m.z);
+      let b = site.from + ((site.to! - site.from) * (i + 0.5)) / n;
+      [x, z] = polar(b, r);
+      // Nothing waits on the drop-in: walk a rim home round the shelf, away from the spawn, until it is clear.
+      for (let step = 0; step < 90 && k === 0 && Math.hypot(x - sx, z - sz) < PIT.spawn.clearRadius; step++) {
+        b += b >= PIT.spawn.bearing ? 2 : -2;
+        [x, z] = polar(b, r);
+      }
+    }
+    const y = pitHeight(x, z);
+    out.push({
+      kind: q.kind, x, z, count: q.g.count, packed: q.g.packed, roam: q.roam,
+      spread: Math.min(q.g.spread ?? 3, site?.from === undefined ? 15 : 5),
+      toughness: depthLayer('marrowPit', Math.max(0, -y))?.hpMultiplier ?? 1,
+    });
   }
   return out;
 }
@@ -275,8 +294,14 @@ function pitRock(): THREE.MeshStandardMaterial {
   const top = PIT.layers[0].y, bottom = PIT.layers[PIT.layers.length - 1].y;
   m.onBeforeCompile = (shader, renderer) => {
     base(shader, renderer);
+    // Rock, not cartoon: hairline cracks soft and faint instead of black outlines, flesh blotches muted toward the stone.
+    shader.fragmentShader = shader.fragmentShader
+      .replace('smoothstep(0.0, 0.035, abs(bioNoise(vBioWorld * 6.5', 'smoothstep(0.0, 0.11, abs(bioNoise(vBioWorld * 6.5')
+      .replace('col *= 1.0 - near * (crack * 0.35', 'col *= 1.0 - near * (crack * 0.1')
+      .replace('relief += near * (grit * 0.12 - crack * 0.18)', 'relief += near * (grit * 0.12 - crack * 0.05)')
+      .replace('col = mix(col, growth, growthMask);', 'col = mix(col, mix(rock, growth, 0.45), growthMask);');
     shader.fragmentShader = shader.fragmentShader.replace('#include <lights_physical_fragment>',
-      `diffuseColor.rgb *= mix(0.62, 1.0, smoothstep(${bottom.toFixed(1)}, ${(top - 10).toFixed(1)}, vBioWorld.y));\n#include <lights_physical_fragment>`);
+      `diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722))), diffuseColor.rgb, 0.6);\ndiffuseColor.rgb *= mix(0.62, 1.0, smoothstep(${bottom.toFixed(1)}, ${(top - 10).toFixed(1)}, vBioWorld.y));\n#include <lights_physical_fragment>`);
   };
   const key = m.customProgramCacheKey();
   m.customProgramCacheKey = () => key + '|pitDepth';
@@ -462,7 +487,7 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
     const t = Math.min(1, Math.max(0, (top - camPos.y) / depth));
     moon.intensity = 3.4 - 2.0 * t;
     rake.intensity = 1.5 - 0.8 * t;
-    hemi.intensity = 2.0 - 1.1 * t;
+    hemi.intensity = 2.0 - 1.1 * t * t; // sky fill holds through the middle layers, so the Warrens stay readable
     fog.color.copy(fogTop).lerp(fogDeep, t);
   };
   scene.add(ground);
@@ -684,6 +709,15 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
     }
     const [lx, lz] = polar((w.from + w.to) / 2, w.radius[0] - 3);
     lantern(k, mats, lx, y + 3.5, lz, 26);
+    // Lanterns at both ends of the row, and a soft high fill so the shelf is easy to read at eye height.
+    for (const b of [w.from + 8, w.to - 8]) {
+      const [ex, ez] = polar(b, w.radius[0] - 4);
+      lantern(k, mats, ex, pitHeight(ex, ez) + 3.2, ez, 14);
+    }
+    const [fx, fz] = polar((w.from + w.to) / 2, w.radius[0] - 12);
+    const fill = new THREE.PointLight(ORGANIC.mist, 60, 90, 1.1);
+    fill.position.set(fx, y + 22, fz);
+    k.group.add(fill);
   }
 
   // ---- The Bone Gallery: giant ribs curving out of the wall over the Warrens shelf, roofed with old plates.

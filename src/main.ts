@@ -21,15 +21,19 @@ import { groundHeight } from './world/zone7';
 import { PLAYABLE } from './world/layout';
 import { caveDistance } from './world/cave';
 import { layerAt } from './world/pit';
+import { PLAYABLE } from './world/layout';
 import { AUDIO } from './audio';
 import pkg from '../package.json';
 import { Online } from './net';
+import { initInstall } from './ui/install';
 
 import { creatureViewerRequested, startCreatureViewer } from './creatures/viewer';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game')!;
 /** sessionStorage key: deploy right after the reload that built the newly picked zone. */
 const AUTO_DEPLOY = 'biophage.autoDeploy';
+
+initInstall();
 
 // `?creatures` opens the Creature & Mutation specimen viewer instead of a raid.
 if (creatureViewerRequested()) startCreatureViewer(canvas);
@@ -119,6 +123,8 @@ function bootRaid(): void {
     // Marrow Pit: each layer has its own ambience, and dread grows with depth.
     region: world.zone === 'marrowPit' ? (x, y, z) => `pit${layerAt(x, z, y).replace(/^./, (c) => c.toUpperCase())}` : undefined,
     depth: world.zone === 'marrowPit' ? (_x, y) => -y / -AUDIO.pitDepth.floorY : undefined,
+    // The edge of the map (Rendering's murk): its own unsettling ambience. The Wreck is an interior with no edge.
+    edgeRadius: world.zone === 'longSeedWreck' ? 0 : world.layout.playableRadius ?? PLAYABLE,
     volume: () => getSettings().volume,
   });
 
