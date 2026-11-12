@@ -23,10 +23,15 @@ describe('The Expanse layout', () => {
       expect(expanseLandmarkAt(l.spawn.x, l.spawn.z)).toBe('glowmireFlats');
       for (const p of EXPANSE.flats.pools) expect(Math.hypot(l.spawn.x - p.x, l.spawn.z - p.z)).toBeGreaterThan(p.r + 8);
       spawns.add(`${l.spawn.x.toFixed(1)},${l.spawn.z.toFixed(1)}`);
-      expect(l.extracts).toHaveLength(4);
-      expect(l.extracts.filter((e) => e.opensAt === 0)).toHaveLength(RAID.host.extracts.openAtStart);
-      expect(l.extracts.map((e) => e.opensAt)).toEqual([0, 0, 300, 600]);
-      for (const e of l.extracts) expect(Math.hypot(e.x, e.z)).toBeGreaterThan(400);
+      const rim = l.extracts.filter((e) => !e.costDna), paid = l.extracts.filter((e) => e.costDna);
+      expect(rim).toHaveLength(4);
+      expect(rim.filter((e) => e.opensAt === 0)).toHaveLength(RAID.host.extracts.openAtStart);
+      expect(rim.map((e) => e.opensAt)).toEqual([0, 0, 300, 600]);
+      for (const e of rim) expect(Math.hypot(e.x, e.z)).toBeGreaterThan(400);
+      // Design's paid tether: open from the start, inside the map at bearing 140, with its own price and channel.
+      expect(paid).toHaveLength(1);
+      expect(paid[0]).toMatchObject({ opensAt: 0, costDna: RAID.host.extracts.paidExtract.costDna, time: RAID.host.extracts.paidExtract.extractTime });
+      expect(Math.hypot(paid[0].x, paid[0].z)).toBeCloseTo(EXPANSE_RADIUS * 0.3, 0);
       expect(l.playableRadius).toBe(500);
       expect(l.nests.map((n) => n.type)).toEqual(['broodHeart', 'broodHeart']);
       expect(l.spawns).toBeUndefined(); // creatures come from the biome habitats

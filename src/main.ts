@@ -88,7 +88,7 @@ function bootRaid(): void {
       const done = settleContracts(profile, raid.log, true).filter((c) => c.completed);
       const xp = awardXp(profile, raidXp(raid.log, true, st.dnaBanked));
       save();
-      const note = `${st.dnaBanked} DNA banked. +${xp.xp} XP${xp.to > xp.from ? `, level ${xp.to}` : ''}.${xp.unlocked.length ? ` Armoury: ${xp.unlocked.map((w) => weaponSpec(w).label).join(', ')} unlocked.` : ''}${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}${done.length ? ` Contract complete: ${done.map((c) => c.title).join(', ')}.` : ''}`;
+      const note = `${st.dnaBanked} DNA banked.${r.bankToll ? ` The tether took ${r.bankToll} DNA from your bank.` : ''} +${xp.xp} XP${xp.to > xp.from ? `, level ${xp.to}` : ''}.${xp.unlocked.length ? ` Armoury: ${xp.unlocked.map((w) => weaponSpec(w).label).join(', ')} unlocked.` : ''}${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}${done.length ? ` Contract complete: ${done.map((c) => c.title).join(', ')}.` : ''}`;
       menu.showResults({ result: 'extracted', items: r.items, dna: r.dna, value: r.value, kills: e.kills, time: e.time, note });
     } else {
       die(profile, r, e.kills);
