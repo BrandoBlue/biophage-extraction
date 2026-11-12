@@ -4,7 +4,7 @@ import {
   itemDef, levelForXp, marketPrice, nodeMutagenCost,
   BOSSES, CONTRACTS, HIVE_ORGANS, RECIPES, VENDORS, VENDOR_REP_THRESHOLDS, ZONES, bossPhase, vendorBuyPrice, vendorRepLevel,
   HABITATS, MODS, ONLINE, depthLayer, WEAPON_FEEL, RARITIES, modFits, weaponSources, ZONE_SITES, habitatGroups, sustainedDps, type HabitatWhere, type WeaponDef,
-  extractTimeFor, haulValue, layoutPosition, stashRowCost, projectileDamage, rollContainer,
+  extractTimeFor, haulValue, layoutPosition, stashRowCost, projectileDamage, rollContainer, weaponSpec,
 } from '../data';
 import { mulberry32 } from '../src/world/zone7';
 import { PATH } from '../src/render/palette';
@@ -302,15 +302,15 @@ describe('economy, zones and bosses (docs/gdd/07, 08)', () => {
     }
   });
   it('the Reliquary takes a solo Infiltrator well over a magazine but under its enrage timer of sustained fire', () => {
-    const gun = WEAPONS.synapseBurster;
-    const dps = gun.damage * gun.fireRate * (gun.magazine / gun.fireRate) / (gun.magazine / gun.fireRate + gun.reloadTime);
+    const gun = weaponSpec('synapseBurster');
+    const dps = gun.damage * gun.fireRate * (gun.magazine / gun.fireRate) / (gun.magazine / gun.fireRate + gun.reload.time);
     const t = BOSSES.reliquary.biomass / dps;
     expect(t).toBeGreaterThan(20);
     expect(t).toBeLessThan(BOSSES.reliquary.enrage.after / 4);
   });
   it('the Pale Vigil is a shorter fight than the Reliquary but still well over a magazine, and its lure is the best weak point', () => {
-    const gun = WEAPONS.synapseBurster;
-    const dps = gun.damage * gun.fireRate * (gun.magazine / gun.fireRate) / (gun.magazine / gun.fireRate + gun.reloadTime);
+    const gun = weaponSpec('synapseBurster');
+    const dps = gun.damage * gun.fireRate * (gun.magazine / gun.fireRate) / (gun.magazine / gun.fireRate + gun.reload.time);
     const v = BOSSES.paleVigil;
     const t = v.biomass / dps;
     expect(t).toBeGreaterThan(15);

@@ -105,7 +105,8 @@ try {
   const [, seen] = await until('the guest to see the leader and the leader to see the guest where it stands', async (a, b) => {
     const g = await pos(guest);
     const rg = a.raid.remotes[0], rl = b.raid.remotes[0];
-    return rg && rl && rg.present && rl.present && Math.hypot(rg.position[0] - g[0], rg.position[2] - g[2]) < 0.5;
+    // The guest's own frame must show the teleport too: before it does, both pages still agree on the spawn point.
+    return rg && rl && rg.present && rl.present && Math.hypot(g[0] - lp[0] - 6, g[2] - lp[2] + 6) < 0.5 && Math.hypot(rg.position[0] - g[0], rg.position[2] - g[2]) < 0.5;
   });
   log(`bodies: leader sees guest, guest sees leader (${seen.raid.remotes[0].name})`);
 

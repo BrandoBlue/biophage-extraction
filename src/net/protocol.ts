@@ -6,6 +6,7 @@
  * everyone where it is, what it fired and whom it hit. A message addressed to one host is relayed by the leader.
  * Pure data and helpers only, so it is unit-tested without a browser.
  */
+import type { ProjectileKind } from '../game/projectiles';
 
 /** Bumped when messages change shape; hosts on different protocol versions refuse to join each other. */
 export const PROTOCOL = 1;
@@ -76,7 +77,7 @@ export type NetMsg =
   | { t: 'start'; roster: RosterRow[] }
   | { t: 'host'; s: HostSnap }
   /** A projectile someone fired (any owner), to replay as a harmless copy. */
-  | { t: 'fire'; k: 'spore' | 'ego' | 'bile'; o: 'player' | 'enemy'; p: V3; v: V3; d: number; g: number; l: number; seek?: [number, number] }
+  | { t: 'fire'; k: ProjectileKind; o: 'player' | 'enemy'; p: V3; v: V3; d: number; g: number; l: number; seek?: [number, number] }
   /** Shooter → victim: you were hit by a host. */
   | { t: 'hit'; dmg: number; zone: 'head' | 'torso' | 'limb'; from: V3 }
   /** Leader → victim: a creature hurt you. */
