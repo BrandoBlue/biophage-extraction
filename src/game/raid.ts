@@ -86,6 +86,8 @@ import { LivingWeapon, STARTER_WEAPON, projectileLooks } from './weapon';
 import { isWeapon, weaponSlots } from './arsenal';
 import { WeaponRig } from './weapon-rig';
 import { createWeaponModel } from './weapon-view';
+// Creature & Mutation's living weapon bodies register themselves with the weapon view registry.
+import '../creatures/weapons/view';
 import { weaponSpec, WEAPONS as WEAPON_DATA, WEAPON_FEEL, type WeaponSpec } from '../../data';
 import { applyMods } from './mods';
 import { planHabitats, usesHabitats, type HabitatMap, type PlannedGroup } from './habitats';
