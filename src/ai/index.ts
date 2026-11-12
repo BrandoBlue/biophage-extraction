@@ -19,6 +19,7 @@ import { HerdBrain } from './behaviours/herd';
 
 export { Brain, type Body } from './brain';
 export { AttackTokens, tokensFor } from './tokens';
+export { RaidMemory, memoryFor } from './memory';
 export { Awareness, sightRate, noiseGain } from './senses';
 export { hostVisibility, type VisibilityInput } from './light';
 export { WaveDirector, type NestSpawn, type NestState } from './nest';

@@ -3,6 +3,7 @@
  * 15%). It turns slowly, so circling it works, and its dorsal vents are the weak point. At range, once lined up, it
  * paws and lowers its horns for a full second, then charges in a near-straight line: sidestep and it thunders past,
  * then stands winded with its back exposed. Get close and it rears for a ground slam that throws you.
+ * It learns (ai.json learning): sidestep its charge to the same side twice and it aims that side next time.
  */
 import { AI } from '../../../data';
 import { Brain } from '../brain';
@@ -14,6 +15,8 @@ export class TankBrain extends Brain {
   protected readonly turnRate = AI.tank.turnRate;
   protected readonly flees = false;
   private travelled = 0;
+  /** Side of the charge line it aims at, having learned which way the host dodges (0: straight at the host). */
+  private cut = 0;
   private gored = false;
   private readonly slam = (this.data.slam as Slam | undefined) ?? { radius: 5, damage: 30, knockback: 8 };
 
@@ -27,9 +30,11 @@ export class TankBrain extends Brain {
         // Still tracks you while it paws the ground: the commit happens at launch.
         this.keepToken(w);
         this.slow(dt, 6);
-        this.face(this.yawTo(host.x, host.z), T.turnRate, dt);
+        // Having learned the host's dodge, it lines up on where the host will step, not where it stands.
+        const ax = host.x - dz * this.cut * AI.learning.cutAhead, az = host.z + dx * this.cut * AI.learning.cutAhead;
+        this.face(this.yawTo(ax, az), T.turnRate, dt);
         this.windup = Math.min(1, this.phaseTime / t.windup);
-        this.strike = { x: host.x, y: host.y + 1, z: host.z };
+        this.strike = { x: ax, y: host.y + 1, z: az };
         if (this.phaseTime >= t.windup) {
           this.travelled = 0;
           this.gored = false;
@@ -54,7 +59,10 @@ export class TankBrain extends Brain {
         }
         // Stop once it has run its course or thundered past you.
         const past = fx * dx + fz * dz < -0.2 && dist > t.attackRange * 1.5;
-        if (this.travelled >= T.chargeDistance || past || this.gored && this.phaseTime > 0.4) this.winded(w);
+        const done = this.travelled >= T.chargeDistance || past || this.gored && this.phaseTime > 0.4;
+        // Dodged: remember which side of the line the host stepped to.
+        if (done && !this.gored) this.memory?.note(this.kind, fx * dz - fz * dx >= 0 ? 'dodge+' : 'dodge-');
+        if (done) this.winded(w);
         return;
       }
       case 'slamWindup':
@@ -81,7 +89,13 @@ export class TankBrain extends Brain {
     const aligned = Math.abs(off) < T.chargeAimCone * deg;
     if (this.cooldown === 0 && dist <= T.slamTrigger) { this.setPhase('slamWindup'); return; }
     const [cmin, cmax] = T.chargeRange;
-    if (this.cooldown === 0 && aligned && dist >= cmin && dist <= cmax && this.requestToken(w)) { this.setPhase('chargeWindup'); return; }
+    if (this.cooldown === 0 && aligned && dist >= cmin && dist <= cmax && this.requestToken(w)) {
+      const m = this.memory, pos = m?.count(this.kind, 'dodge+') ?? 0, neg = m?.count(this.kind, 'dodge-') ?? 0;
+      this.cut = this.learned('dodge+') && pos > neg ? 1 : this.learned('dodge-') && neg > pos ? -1 : 0;
+      if (this.cut !== 0) this.adapt();
+      this.setPhase('chargeWindup');
+      return;
+    }
     // Plod forward when roughly facing you; otherwise swing round on the spot.
     const ahead = Math.max(0, Math.cos(off));
     const fx = Math.sin(this.body.yaw), fz = Math.cos(this.body.yaw);

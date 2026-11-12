@@ -432,6 +432,7 @@ export interface AiRules {
   burrower: { turnRate: number; diveRate: number; surfaceRate: number; rippleFactor: number; lungeTime: number; swimCurl: number; knockback: number; lurkCreep: number; lurkSurface: [number, number] };
   widow: { floorHeight: number; circleRadius: number; circleLead: number; keepInside: number; riseRate: number; sinkRate: number; hittableAbove: number; biteRise: number; callRise: number; drownRide: number; breachTrack: number; eruptUp: number; petalBite: number; thrashReach: number; firstAttack: number; drownClose: number };
   herd: { turnRate: number; gunfireNoise: number; chargeRange: [number, number]; stampedeTurn: number; trampleKnockback: number; wheelTime: number; volleyLead: number; volleySpread: number; volleyMin: number };
+  learning: { after: number; campRadius: number; campTime: number; campCooldown: number; campRing: number; feintEvery: number; fakeoutTime: number; cutAhead: number };
   tactics: {
     uses: Record<'press' | 'evade' | 'lure' | 'falter', Archetype[]>;
     reload: { range: number; extraTokens: number; callCooldown: number };

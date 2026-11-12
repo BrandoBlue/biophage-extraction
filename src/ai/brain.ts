@@ -12,6 +12,7 @@ import { AI, type Abomination as AbominationData } from '../../data';
 import { mulberry32 } from '../world/zone7';
 import { Awareness } from './senses';
 import type { TokenKind } from './tokens';
+import type { RaidMemory } from './memory';
 import type { AIEvent, BrainWorld, Intent, Mode, Tactic, Vec2, Vec3 } from './types';
 
 export const wrapAngle = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
@@ -22,6 +23,7 @@ const TRACK_GRACE = 1.5;
 /** Tuning that makes hunters frightening: the stare, the fanned-out search, the ambush, the wounded retreat. */
 const M = AI.menace;
 const T = AI.tactics;
+const L = AI.learning;
 /** Phases where an archetype has committed to an attack: no tactic interrupts these. */
 const COMMITTED = /windup|lunge|burst|ripple|charge|stampede|dive|strike|rack|spit|tell|rear/;
 
@@ -98,6 +100,10 @@ export abstract class Brain {
   private routed = false;
   private wasReloading = false;
   private pressing = false;
+  // Learning (ai.json learning): where the host has dug in, and this raid's memory of its tricks.
+  private anchor: Vec2 | null = null;
+  private anchorFor = 0;
+  protected memory: RaidMemory | null = null;
   protected phaseTime = 0;
   protected cooldown = 0;
   private staggerFor = 0;
@@ -186,6 +192,8 @@ export abstract class Brain {
   }
 
   kill(): void {
+    // Killed mid-lunge: the pack remembers the host shoots whoever commits.
+    if (this.mode !== 'dead' && this.committed && this.phase !== 'fakeout') this.memory?.note(this.kind, 'lungerKilled');
     this.mode = 'dead';
     this.windup = 0; this.strike = null; this.look = null; this.excite = 0;
     this.body.vx = 0; this.body.vz = 0;
@@ -198,6 +206,7 @@ export abstract class Brain {
 
   step(dt: number, w: BrainWorld): void {
     if (this.mode === 'dead') return;
+    this.memory = w.memory ?? null;
     const b = this.body, host = w.host;
     if (this.lurk) {
       // Lying in wait: no senses, no movement, until the host walks into reach.
@@ -279,6 +288,7 @@ export abstract class Brain {
           this.searchTo = null; this.searchPts = 0;
           const dx = tgt.x - b.x, dz = tgt.z - b.z;
           const dist = Math.hypot(dx, dz) || 1e-6;
+          this.watchCamp(dt, w);
           if (!this.tactics(dt, w, tgt, dist, dx / dist, dz / dist)) {
             this.hunt(dt, w, tgt, dist, dx / dist, dz / dist);
             this.dodge(dt, w, dist);
@@ -303,7 +313,7 @@ export abstract class Brain {
     return n;
   }
 
-  private tactic(what: Tactic): void { this.events.push({ type: 'tactic', what }); }
+  protected tactic(what: Tactic): void { this.events.push({ type: 'tactic', what }); }
 
   /** Mid-attack: wind-up, lunge, burst... nothing breaks that, so committed attacks stay punishable. */
   protected get committed(): boolean {
@@ -408,6 +418,28 @@ export abstract class Brain {
     }
     return false;
   }
+
+  /** The host has stayed put (a corner, a ledge) for learning.campTime s while hunted. */
+  protected get hostCamping(): boolean { return this.anchorFor >= L.campTime; }
+  protected get campSpot(): Vec2 | null { return this.hostCamping ? this.anchor : null; }
+
+  private watchCamp(dt: number, w: BrainWorld): void {
+    const h = w.host;
+    if (!this.anchor || Math.hypot(h.x - this.anchor.x, h.z - this.anchor.z) > L.campRadius) { this.anchor = { x: h.x, z: h.z }; this.anchorFor = 0; return; }
+    const was = this.hostCamping;
+    this.anchorFor += dt;
+    // Noted once per kind per camp, not once per creature.
+    if (!was && this.hostCamping && this.memory && w.tokens.sharedReady(`camp:${this.kind}`, L.campCooldown)) {
+      w.tokens.useShared(`camp:${this.kind}`);
+      this.memory.note(this.kind, 'camp');
+    }
+  }
+
+  /** Has this raid's host used `trick` on this kind often enough that it counters it? */
+  protected learned(trick: string): boolean { return this.memory?.learned(this.kind, trick) ?? false; }
+
+  /** Shows the player it has changed its approach (a readable "it learned"). */
+  protected adapt(): void { this.tactic('adapt'); }
 
   /** The lure is sprung: the whole pack comes at once. */
   private spring(w: BrainWorld): void {
@@ -563,7 +595,7 @@ export abstract class Brain {
   private calmDown(w: BrainWorld): void {
     this.mode = 'calm';
     this.chased = false; this.spotFor = 0; this.fleeFor = 0; this.searchTo = null;
-    this.lureFor = 0; this.falterFor = 0; this.evadeFor = 0; this.packStart = -1; this.pack.clear(); this.packLost = 0; this.routed = false; this.pressing = false;
+    this.lureFor = 0; this.falterFor = 0; this.evadeFor = 0; this.packStart = -1; this.pack.clear(); this.packLost = 0; this.routed = false; this.anchor = null; this.anchorFor = 0; this.pressing = false;
     this.awareness.level = 0;
     this.releaseToken(w);
     this.onInterrupted();
