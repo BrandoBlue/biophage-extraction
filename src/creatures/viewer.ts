@@ -7,7 +7,7 @@ import { ZONE_BOSSES, showZoneBoss, type ZoneBossId, type ZoneBossShow } from '.
 import { MOD_SLOTS, WEAPON_BODIES, createWeaponBody, type ModSlot, type WeaponBody } from './weapons/bodies';
 import { HostArm, VIRUS_LOOKS, type VirusLook } from './hostarm';
 import { organMesh } from './organs';
-import { EvolutionStage, HOST_EVOLUTIONS, type HostBody } from './hosts';
+import { EVOLUTION_BODIES, EvolutionStage, type HostBody } from './hosts';
 import type { ClassId } from '../../data';
 import { HIVE, ORGANIC, PATH, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { bioSurface, bioNode } from '../render/materials';
@@ -208,8 +208,8 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
   $('#v-vigil').onclick = () => { if (extra === 'vigil') api.vigilPhase(); else api.vigil(); };
   ui.querySelectorAll<HTMLButtonElement>('[data-zone-boss]').forEach((b) => { b.onclick = () => { const id = b.dataset.zoneBoss as ZoneBossId; if (zoneBoss?.id === id) api.zoneBossPhase(); else api.zoneBoss(id); }; });
   $('#v-organs').onclick = () => api.organs();
-  // Each class, then its first evolution: Infiltrator, Neuro-Hound, Wraith, Acid Parasite, ...
-  const HOST_LOOKS = HOSTS.flatMap((c) => [[c, undefined], [c, Object.entries(HOST_EVOLUTIONS).find(([, k]) => k === c)?.[0]]] as [ClassId, string | undefined][]);
+  // Each class, then its evolutions: Infiltrator, Neuro-Hound, Spore-Caster, Psych-Warlock, Wraith, Acid Parasite, ...
+  const HOST_LOOKS = HOSTS.flatMap((c) => [[c, undefined], ...Object.entries(EVOLUTION_BODIES).filter(([, k]) => k === c).map(([e]) => [c, e])] as [ClassId, string | undefined][]);
   $('#v-host').onclick = () => {
     const i = HOST_LOOKS.findIndex(([c, e]) => c === host?.classId && (e ?? null) === host?.evolution);
     api.host(...HOST_LOOKS[(i + 1) % HOST_LOOKS.length]);
