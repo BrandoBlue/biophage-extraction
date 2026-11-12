@@ -10,11 +10,14 @@
 import { Reticle } from './reticle';
 import { def as itemOf } from '../items';
 import './hud.css';
-import { BOSSES, VIRUSES, VIRUS_RULES, WEAPONS, bossPhase } from '../../../data';
+import { BOSSES, MODS, VIRUSES, VIRUS_RULES, WEAPONS, bossPhase } from '../../../data';
 import { HIVE, PATH, ZONE7 } from '../../render/palette';
 import { applyTheme } from '../theme';
 import { glyph, itemIcon, KIND_COLOUR } from '../icons';
 import type { HudView } from './model';
+
+/** The toast when a picked-up graft buds onto a gun: "HUSH GILL TAKES HOLD · SYNAPSE BURSTER". */
+export const graftToast = (mod: string, gun: string): string => `${mod} TAKES HOLD · ${gun}`.toUpperCase();
 
 type Bus = { on(type: string, fn: (e: never) => void): () => void };
 
@@ -136,6 +139,12 @@ export class OrganicHud {
     on<{ weakPoint: boolean; kill: boolean }>('hit', (e) => { this.hitLeft = 0.18; this.q.hit.className = `hitmarker on${e.weakPoint ? ' weak' : ''}${e.kill ? ' kill' : ''}`;  this.reticle.hit(e.weakPoint, e.kill); });
     on<{ weapon?: string; ego?: boolean }>('shot', (e) => { if (!e.ego) this.reticle.shot(e.weapon); });
     on<{ weapon?: string }>('reload', () => this.reticle.reload());
+    // A graft picked up in the raid buds straight onto a carried gun (Gameplay #144).
+    on<{ weapon?: string; label?: string; mod?: string; modLabel?: string }>('graftFitted', (e) => {
+      const mod = e.modLabel ?? (e.mod ? MODS[e.mod]?.label : undefined) ?? 'A graft';
+      const gun = e.label ?? (e.weapon ? WEAPONS[e.weapon]?.label : undefined) ?? 'your gun';
+      this.say(graftToast(mod, gun), 'violet', 2.6);
+    });
     on<{ direction: { x: number; z: number } | null }>('damaged', (e) => {
       pulse(this.q.vitals, 'jolt');
       if (!e.direction) { for (const k of ['n', 's', 'e', 'w'] as const) this.veinLeft[k] = 0.6; return; }
