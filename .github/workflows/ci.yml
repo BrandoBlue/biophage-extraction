@@ -33,15 +33,16 @@ jobs:
           weapons='{"name":"weapons","run":"npm run smoke:weapons","timeout":35}'
           creatures='{"name":"creatures","run":"npm run smoke:creatures"}'
           zones='{"name":"zones","run":"npm run smoke:ochre && npm run smoke:bosses","timeout":45}'
+          expanse='{"name":"expanse","run":"npm run smoke:expanse","timeout":30}'
           # Online squads: two pages, one raid, against the single-file build that GitHub Pages serves.
           online='{"name":"online","run":"npm run smoke:online:release","timeout":50}'
           if [ "${{ github.event_name }}" != "pull_request" ]; then
-            suites="[$smoke,$raid,$raidrel,$raidhive,$raidhiverel,$creatures,$online,$zones,$weapons]"
+            suites="[$smoke,$raid,$raidrel,$raidhive,$raidhiverel,$creatures,$online,$zones,$expanse,$weapons]"
           else
             changed=$(git diff --name-only HEAD^1 HEAD)
             echo "$changed"
             if echo "$changed" | grep -qvE '^(docs/|README\.md$|CLAUDE\.md$|assets/LICENSES\.md$)'; then
-              suites="[$smoke,$raid,$raidhive,$creatures,$online,$zones,$weapons]"
+              suites="[$smoke,$raid,$raidhive,$creatures,$online,$zones,$expanse,$weapons]"
             else
               suites="[$smoke]"
             fi
