@@ -110,6 +110,28 @@ export function ochreGround(x: number, z: number): number {
   return ELEVATION + localGround(x, z);
 }
 
+/** The crater's ways in: 1 on the rim lip, falling to 0 inside a cut (so the lip opens onto the bowl there). */
+function craterCut(x: number, z: number): number {
+  const c = D.crater, a = Math.atan2(z - c.z, x - c.x);
+  let k = 1;
+  for (const e of c.entrances) {
+    const d = Math.abs(Math.atan2(Math.sin(a - deg(e.angle)), Math.cos(a - deg(e.angle)))) * c.radius;
+    k = Math.min(k, smooth(c.cutWidth * 0.5, c.cutWidth, d));
+  }
+  return k;
+}
+
+/** The Sandwidow's crater: fixed debris pillars to stand on and the cuts through the rim (PvE AI's WidowArena). */
+export function widowArena(): WidowArena {
+  const c = D.crater, G = ochreGround;
+  return {
+    id: 'skyfallCrater', x: c.x, z: c.z, radius: c.radius, floorY: G(c.x, c.z),
+    pillars: c.pillars.map((p) => ({ id: p.id, x: p.x, z: p.z, radius: p.s * 0.7, top: G(p.x, p.z) + p.s * 0.7 })),
+    entrances: c.entrances.map((e) => ({ id: e.id, x: c.x + Math.cos(deg(e.angle)) * c.radius, z: c.z + Math.sin(deg(e.angle)) * c.radius })),
+    bossSpawn: { x: c.x, z: c.z },
+  };
+}
+
 function localGround(x: number, z: number): number {
   let h = rawGround(x, z);
   for (const f of FLATS) {
@@ -120,7 +142,7 @@ function localGround(x: number, z: number): number {
   if (cd < 1.6) {
     const floor = rawGround(c.x, c.z) - c.depth;
     h += (floor - h) * (1 - smooth(0.3, 1, cd));
-    h += c.rim * Math.exp(-((cd - 1.05) ** 2) / 0.04);
+    h += c.rim * craterCut(x, z) * Math.exp(-((cd - 1.05) ** 2) / 0.04);
   }
   // Burrow mounds: a low hump of disturbed sand with a dimple, the tell that something lives underneath.
   for (const b of D.burrows) {
@@ -199,6 +221,33 @@ function strut(a: THREE.Vector3, b: THREE.Vector3, r: number, seg = 6): THREE.Bu
   const g = new THREE.CylinderGeometry(r, r, len, seg, 1, true);
   const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
   g.applyMatrix4(new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(0.5), q, new THREE.Vector3(1, 1, 1)));
+  return g;
+}
+
+/**
+ * Hand-built and weathered, not machined: pushes each vertex away from `centre` by smooth noise (lumps and slumps),
+ * leans the piece over with height and sags its crown. Vertices near y 0 stay put so walls still meet the ground.
+ * Works on indexed geometry (call before plain()) so seams between pieces built round the same centre stay closed.
+ */
+function weather(g: THREE.BufferGeometry, amp: number, seed: number, o: { lean?: number; leanYaw?: number; sag?: number; freq?: number; centre?: THREE.Vector3; height?: number; free?: boolean; flare?: number } = {}): THREE.BufferGeometry {
+  const p = g.attributes.position, c = o.centre ?? new THREE.Vector3(), f = o.freq ?? 0.55;
+  g.computeBoundingBox();
+  const H = o.height ?? Math.max(0.01, g.boundingBox!.max.y);
+  const lx = Math.cos(o.leanYaw ?? seed) * (o.lean ?? 0), lz = Math.sin(o.leanYaw ?? seed) * (o.lean ?? 0);
+  const d = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    const k = o.free ? 1 : smooth(0, 0.5, y), t = Math.max(0, y) / H;
+    // Two octaves of noise, skewed through height so it reads in all three axes.
+    const n = (vnoise((x + seed * 7.1) * f + y * f * 0.7, (z - seed * 3.3) * f - y * f * 0.9) - 0.5) * 2
+      + (vnoise((x - seed) * f * 2.7 - y * f * 1.9, (z + seed) * f * 2.7 + y * f * 1.3) - 0.5) * 0.6;
+    // A flared foot: the base spreads out into the ground it grows from.
+    const hr = Math.hypot(x - c.x, z - c.z), fl = (o.flare ?? 0) * Math.exp(-Math.max(0, y) / 0.7) / Math.max(hr, 1e-3);
+    d.set(x - c.x, (y - c.y) * 0.35, z - c.z);
+    if (d.lengthSq() > 1e-6) d.normalize();
+    p.setXYZ(i, x + d.x * n * amp * k + lx * t * t * H + (x - c.x) * fl, y + d.y * n * amp * k - (o.sag ?? 0) * t * t * t * H, z + d.z * n * amp * k + lz * t * t * H + (z - c.z) * fl);
+  }
+  g.computeVertexNormals();
   return g;
 }
 
@@ -317,31 +366,33 @@ function domeHut(hut: Hut, yaw: number, base: number, rand: () => number, mats: 
   const doorHalf = 0.95, doorTop = 2.35;
   const alpha = Math.asin(Math.min(0.9, doorHalf / r));
   // Shell with the door slot round local +z (phi = pi/2), then the lintel above the door.
-  const shell = new THREE.SphereGeometry(r, 36, 16, Math.PI / 2 + alpha, Math.PI * 2 - alpha * 2, 0, Math.PI / 2);
+  // Hand-raised clay: each dome bulges, slumps and leans its own way (one seed per hut, shared by every piece).
+  const seed = hut.x * 0.37 + hut.z * 0.61, amp = 0.1 + r * 0.035;
+  const wx = { lean: 0.02 + (hash2(Math.round(hut.x), Math.round(hut.z)) * 0.08), sag: 0.09, height: h, freq: 0.45, flare: 0.45 + r * 0.04 };
+  const shell = new THREE.SphereGeometry(r, 40, 18, Math.PI / 2 + alpha, Math.PI * 2 - alpha * 2, 0, Math.PI / 2);
   shell.scale(1, h / r, 1);
+  weather(shell, amp, seed, wx);
   const lintelTheta = Math.acos(Math.min(0.97, doorTop / h));
   const lintel = new THREE.SphereGeometry(r, 6, 10, Math.PI / 2 - alpha, alpha * 2, 0, lintelTheta);
   lintel.scale(1, h / r, 1);
+  weather(lintel, amp, seed, wx);
   const dome = new THREE.Mesh(mergeGeometries([plain(shell), plain(lintel)]), mats.clay);
   g.add(dome);
   // Entry vestibule: two cheeks and a barrel arch reaching out from the door.
   const parts: THREE.BufferGeometry[] = [];
   const depth = 1.5, zc = r - 0.2 + depth / 2;
   for (const side of [-1, 1]) {
-    const cheek = new THREE.BoxGeometry(0.35, 1.5, depth, 1, 2, 2);
+    const cheek = new THREE.BoxGeometry(0.35, 1.5, depth, 2, 4, 4);
     cheek.translate(side * (doorHalf + 0.17), 0.75, zc);
     parts.push(cheek);
   }
-  const arch = new THREE.CylinderGeometry(doorHalf + 0.35, doorHalf + 0.35, depth, 14, 1, true, -Math.PI / 2, Math.PI);
+  const arch = new THREE.CylinderGeometry(doorHalf + 0.35, doorHalf + 0.35, depth, 14, 4, true, -Math.PI / 2, Math.PI);
   arch.rotateX(-Math.PI / 2);
   arch.translate(0, 1.5, zc);
   parts.push(arch);
-  // Plinth ring at the foot of the wall.
-  const plinth = new THREE.TorusGeometry(r + 0.05, 0.28, 6, 40);
-  plinth.rotateX(Math.PI / 2);
-  plinth.scale(1, 1, 1);
-  plinth.translate(0, 0.12, 0);
-  parts.push(plinth);
+  // The vestibule is daubed by hand too: softer lumps than the dome, no lean (it keeps the doorway clear). The
+  // dome's own flared foot is the plinth.
+  for (const q of parts) weather(q, 0.08, seed + 1, { freq: 1.1, height: h, centre: new THREE.Vector3(0, 0, zc - depth) });
   const extras = new THREE.Mesh(mergeGeometries(parts.map(plain)), mats.clay);
   g.add(extras);
   // Roof poles (vigas) poking out of the shell, and a chimney or a metal patch on some huts.
@@ -351,11 +402,12 @@ function domeHut(hut: Hut, yaw: number, base: number, rand: () => number, mats: 
     const a = (i / poles) * Math.PI * 2 + 0.3, th = 0.9;
     if (-Math.sin(a) > Math.cos(alpha + 0.35)) continue; // not over the door (local +z)
     const rr = r * Math.sin(th), y = h * Math.cos(th);
-    wood.push(strut(new THREE.Vector3(Math.cos(a) * rr * 0.8, y + 0.2, -Math.sin(a) * rr * 0.8), new THREE.Vector3(Math.cos(a) * (rr + 0.7), y - 0.25, -Math.sin(a) * (rr + 0.7)), 0.07));
+    const droop = rand() * 0.25, len = 0.5 + rand() * 0.45;
+    wood.push(strut(new THREE.Vector3(Math.cos(a) * rr * 0.8, y + 0.2, -Math.sin(a) * rr * 0.8), new THREE.Vector3(Math.cos(a + (rand() - 0.5) * 0.12) * (rr + len), y - 0.2 - droop, -Math.sin(a + (rand() - 0.5) * 0.12) * (rr + len)), 0.06 + rand() * 0.03, 5));
   }
   g.add(new THREE.Mesh(mergeGeometries(wood.map(plain)), mats.wood));
   if (rand() < 0.5) {
-    const ch = new THREE.CylinderGeometry(0.28, 0.36, 1.2, 10);
+    const ch = weather(new THREE.CylinderGeometry(0.22, 0.4, 1.2, 10, 4).translate(0, 0.6, 0), 0.07, seed + 2, { lean: 0.12, freq: 1.4 }).translate(0, -0.6, 0);
     const a = rand() * Math.PI * 2;
     ch.translate(Math.cos(a) * r * 0.35, h * 0.93 + 0.4, Math.sin(a) * r * 0.35);
     g.add(new THREE.Mesh(ch, mats.clay));
@@ -428,27 +480,47 @@ function awning(x: number, z: number, yaw: number, base: number, w: number, d: n
 
 function derrick(x: number, z: number, h: number, base: number, metal: THREE.Material, batch: Batch): THREE.Object3D {
   const s0 = 3, s1 = 0.8;
+  // Decades of wind have pushed each tower a little out of true; legs bow slightly.
+  const lean = 0.03 * h, ly = hash2(Math.round(x), Math.round(z)) * Math.PI * 2;
   const corner = (i: number, t: number) => {
-    const s = s0 + (s1 - s0) * t, a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-    return new THREE.Vector3(x + Math.cos(a) * s * Math.SQRT2, base + t * h, z + Math.sin(a) * s * Math.SQRT2);
+    const s = s0 + (s1 - s0) * t, a = (i / 4) * Math.PI * 2 + Math.PI / 4, bow = Math.sin(t * Math.PI) * 0.18 * ((i % 2) * 2 - 1);
+    return new THREE.Vector3(x + Math.cos(a) * (s * Math.SQRT2 + bow) + Math.cos(ly) * lean * t * t, base + t * h, z + Math.sin(a) * (s * Math.SQRT2 + bow) + Math.sin(ly) * lean * t * t);
   };
+  // Grown rather than bolted: each leg is a gnarled limb thinning as it climbs, swollen at the joints like
+  // knuckles of bone, the braces bowed like roots between them.
+  const kink = (leg: number, t: number) => {
+    const i = leg % 4;
+    const n = hash2(Math.round(x * 3) + i * 17, Math.round(t * 40));
+    return corner(i, t).add(new THREE.Vector3((n - 0.5) * 0.35, 0, (hash2(i * 5 + 1, Math.round(t * 40) + 9) - 0.5) * 0.35).multiplyScalar(Math.sin(t * Math.PI)));
+  };
+  const bowed = (a: THREE.Vector3, b: THREE.Vector3, r0: number, r1: number, bow: number) => {
+    const m = a.clone().lerp(b, 0.5).add(new THREE.Vector3(x, base + h * 0.5, z).sub(a.clone().lerp(b, 0.5)).setY(0).normalize().multiplyScalar(bow));
+    batch.add(metal, strut(a, m, (r0 + r1) / 2 * 1.1, 5));
+    batch.add(metal, strut(m, b, r1, 5));
+  };
+  const knuckle = new THREE.IcosahedronGeometry(1, 1);
   for (let i = 0; i < 4; i++) {
-    batch.add(metal, strut(corner(i, 0), corner(i, 1), 0.14));
-    // X-bracing up each face.
+    const segs = 8;
+    for (let k = 0; k < segs; k++) {
+      const t0 = k / segs, t1 = (k + 1) / segs;
+      batch.add(metal, strut(kink(i, t0), kink(i, t1), 0.26 - t0 * 0.17, 6));
+      if (k % 2 === 0) { const j = kink(i, t0); batch.add(metal, knuckle, M4(j.x, j.y, j.z, k, 0.3 - t0 * 0.18)); }
+    }
     for (let k = 0; k < 5; k++) {
       const t0 = k / 5, t1 = (k + 1) / 5;
-      batch.add(metal, strut(corner(i, t0), corner(i + 1, t1), 0.05, 4));
-      batch.add(metal, strut(corner(i + 1, t0), corner(i, t1), 0.05, 4));
-      batch.add(metal, strut(corner(i, t1), corner(i + 1, t1), 0.06, 4));
+      bowed(kink(i, t0), kink(i + 1, t1), 0.07, 0.045, 0.35);
+      bowed(kink(i + 1, t0), kink(i, t1), 0.07, 0.045, 0.35);
+      bowed(kink(i, t1), kink(i + 1, t1), 0.08, 0.06, 0.25);
     }
     const c = corner(i, 0);
     SOLIDS.add({ cx: c.x, cz: c.z, hx: 0.25, hz: 0.25, yaw: 0, y0: base - 1, y1: base + h, tag: 'derrick-leg' });
   }
-  batch.add(metal, new THREE.BoxGeometry(2.2, 1.2, 2.2), M4(x, base + h + 0.6, z));
-  batch.add(metal, new THREE.BoxGeometry(7, 0.4, 7), M4(x, base + 0.2, z));
+  const top = corner(0, 1).add(corner(2, 1)).multiplyScalar(0.5);
+  batch.add(metal, weather(new THREE.BoxGeometry(2.2, 1.2, 2.2, 3, 2, 3), 0.12, x, { freq: 1.2, centre: new THREE.Vector3(0, -0.6, 0), free: true }), M4(top.x, top.y + 0.6, top.z));
+  batch.add(metal, weather(new THREE.BoxGeometry(7, 0.4, 7, 6, 1, 6), 0.1, x + 1, { freq: 0.9, centre: new THREE.Vector3(0, -2, 0), free: true }), M4(x, base + 0.2, z));
   // A wind vane on the crown, still turning.
   const vane = new THREE.Group();
-  vane.position.set(x, base + h + 1.6, z);
+  vane.position.set(top.x, top.y + 1.6, top.z);
   const blades: THREE.BufferGeometry[] = [];
   for (let i = 0; i < 6; i++) { const b = new THREE.BoxGeometry(0.25, 1.8, 0.04); b.translate(0, 0.9, 0); b.rotateZ((i / 6) * Math.PI * 2); blades.push(b); }
   const rotor = new THREE.Mesh(mergeGeometries(blades.map(plain)), metal);
@@ -572,8 +644,8 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
   });
   // The well: a stone ring, a timber frame and a bucket.
   const W = V.well, wy = G(W.x, W.z);
-  batch.add(paleClay, new THREE.CylinderGeometry(W.r, W.r + 0.15, 0.9, 20, 1, true), M4(W.x, wy + 0.45, W.z));
-  batch.add(paleClay, new THREE.TorusGeometry(W.r, 0.18, 6, 24).rotateX(Math.PI / 2), M4(W.x, wy + 0.9, W.z));
+  batch.add(paleClay, weather(new THREE.CylinderGeometry(W.r, W.r + 0.25, 0.9, 20, 3, true).translate(0, 0.45, 0), 0.06, 11, { freq: 1.6 }), M4(W.x, wy, W.z));
+  batch.add(paleClay, weather(new THREE.TorusGeometry(W.r, 0.2, 6, 24).rotateX(Math.PI / 2).translate(0, 0.9, 0), 0.05, 11, { freq: 1.6 }), M4(W.x, wy, W.z));
   batch.add(mats.wood, strut(new THREE.Vector3(W.x - W.r, wy, W.z), new THREE.Vector3(W.x - W.r * 0.7, wy + 3, W.z), 0.08));
   batch.add(mats.wood, strut(new THREE.Vector3(W.x + W.r, wy, W.z), new THREE.Vector3(W.x + W.r * 0.7, wy + 3, W.z), 0.08));
   batch.add(mats.wood, strut(new THREE.Vector3(W.x - W.r, wy + 2.9, W.z), new THREE.Vector3(W.x + W.r, wy + 2.9, W.z), 0.07));
@@ -581,7 +653,7 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
   SOLIDS.add({ cx: W.x, cz: W.z, hx: W.r, hz: W.r, yaw: 0, y0: wy, y1: wy + 0.9, tag: 'well' });
   // The cistern: a squat clay tank fed by a pipe from the rig road.
   const C = V.cistern, cy = G(C.x, C.z);
-  const tank = new THREE.Mesh(new THREE.SphereGeometry(C.r, 24, 10, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.6, 1), paleClay);
+  const tank = new THREE.Mesh(weather(new THREE.SphereGeometry(C.r, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.6, 1), 0.18, 13, { sag: 0.04, freq: 0.7 }), paleClay);
   tank.position.set(C.x, cy, C.z);
   village.add(tank);
   batch.add(mats.metal, strut(new THREE.Vector3(C.x - C.r, cy + 1, C.z), new THREE.Vector3(C.x - C.r - 30, cy + 0.6, C.z - 18), 0.22, 8));
@@ -617,7 +689,7 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
     k.box(-2.6 - 8, 0, 8, 1.1, -0.5, dk, mats.metal, { rise: dk + 0.5, tag: 'lookout-ramp' });
     // Rails and a tin roof on posts (no collision on the roof: nobody reaches it).
     for (const v of [-2.5, 2.5]) k.box(0, v, 2.6, 0.05, dk, dk + 1, mats.metal, { tag: 'lookout-rail' });
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(6, 0.08, 6), mats.metal);
+    const roof = new THREE.Mesh(weather(new THREE.BoxGeometry(6, 0.08, 6, 8, 1, 8), 0.12, 21, { freq: 0.9, centre: new THREE.Vector3(0, -3, 0), free: true }), mats.metal);
     roof.position.set(0, dk + 3, 0);
     roof.rotation.z = 0.08;
     k.group.add(roof);
@@ -650,10 +722,12 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
   });
   for (const t of R.tanks) {
     const base = G(t.x, t.z) - 0.2;
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(t.r, t.r, t.h, 24), mats.metal);
-    m.position.set(t.x, base + t.h / 2, t.z);
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(t.r, 24, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.25, 1), mats.metal);
-    cap.position.set(t.x, base + t.h, t.z);
+    // Old riveted tanks: dented, bellied and settled a little off true.
+    const tw = { lean: 0.02, freq: 0.8, height: t.h * 1.25 };
+    const m = new THREE.Mesh(weather(new THREE.CylinderGeometry(t.r, t.r * 1.04, t.h, 28, 6).translate(0, t.h / 2, 0), 0.1, t.x, tw), mats.metal);
+    m.position.set(t.x, base, t.z);
+    const cap = new THREE.Mesh(weather(new THREE.SphereGeometry(t.r, 28, 6, 0, Math.PI * 2, 0, Math.PI / 2).scale(1, 0.25, 1).translate(0, t.h, 0), 0.1, t.x, tw), mats.metal);
+    cap.position.set(t.x, base, t.z);
     rig.add(m, cap);
     SOLIDS.add({ cx: t.x, cz: t.z, hx: t.r * 0.85, hz: t.r * 0.85, yaw: 0, y0: base, y1: base + t.h, tag: 'tank' });
   }
@@ -696,18 +770,20 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
   }
 
   // ---- The Skyfall Crater: fused debris from the ring, the biggest pieces solid.
-  // The six biggest rocks are the Sandwidow fight's pillars (PvE AI's fallback until the crater gets fixed spots).
-  const widowPillars: WidowArena['pillars'] = [];
+  // The six biggest rocks stand at fixed spots (data/ochre.json crater.pillars): the Sandwidow fight's pillars.
   {
     const c = D.crater, rock = skyfallRock();
     const geo = boulderGeometry(mulberry32(5), 1);
     const at: { x: number; y: number; z: number; s: number; yaw: number; tilt: number }[] = [];
     for (let i = 0; i < 46; i++) {
       const a = rand() * Math.PI * 2, d = (i < 12 ? 0.15 + rand() * 0.45 : 0.7 + rand() * 0.6) * c.radius;
-      const x = c.x + Math.cos(a) * d, z = c.z + Math.sin(a) * d, s = i < 6 ? 2.5 + rand() * 2.5 : 0.5 + rand() * 1.4;
-      at.push({ x, y: G(x, z) + s * 0.15, z, s, yaw: rand() * 6, tilt: (rand() - 0.5) * 0.6 });
-      if (s > 1.2) SOLIDS.add({ cx: x, cz: z, hx: s * 0.7, hz: s * 0.7, yaw: 0, y0: G(x, z) - 1, y1: G(x, z) + s * 0.7, tag: 'skyfall-rock' });
-      if (i < 6) widowPillars.push({ id: `skyfall-rock-${i}`, x, z, radius: s * 0.7, top: G(x, z) + s * 0.7 });
+      let x = c.x + Math.cos(a) * d, z = c.z + Math.sin(a) * d, s = i < 6 ? 2.5 + rand() * 2.5 : 0.5 + rand() * 1.4;
+      const yaw = rand() * 6, tilt = (rand() - 0.5) * 0.6, pillar = c.pillars[i];
+      if (pillar) ({ x, z, s } = pillar);
+      // Rubble stays out of the rim cuts so the ways in are clear.
+      else if (d > c.radius * 0.8 && craterCut(x, z) < 1) continue;
+      at.push({ x, y: G(x, z) + s * 0.15, z, s, yaw, tilt });
+      if (s > 1.2) SOLIDS.add({ cx: x, cz: z, hx: s * 0.7, hz: s * 0.7, yaw: 0, y0: G(x, z) - 1, y1: G(x, z) + s * 0.7, tag: pillar ? `skyfall-pillar-${pillar.id}` : 'skyfall-rock' });
     }
     scene.add(instances(geo, rock, at, 'skyfall-debris'));
     scene.add(hazeVolume({ centre: new THREE.Vector3(c.x, G(c.x, c.z) + 6, c.z), size: new THREE.Vector3(c.radius * 1.6, 14, c.radius * 1.6), colour: OCHRE.dust, density: 0.012 }));
@@ -849,7 +925,7 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
     sites: { group: sites, setExtractOpen(id, open) { const r = rings.get(id); if (r) r.visible = open; }, setNodeHarvested() { /* no harvest nodes here */ } },
     structures: {
       group: village, loot, arena: null, breakPillar() { /* no boss arena yet */ },
-      widow: { id: 'skyfallCrater', x: D.crater.x, z: D.crater.z, radius: D.crater.radius, floorY: G(D.crater.x, D.crater.z), pillars: widowPillars, entrances: [], bossSpawn: { x: D.crater.x, z: D.crater.z } },
+      widow: widowArena(),
     },
     landmarkAt: ochreLandmarkAt,
   };

@@ -45,7 +45,7 @@ describe('archetypes', () => {
       expect(ABOMINATIONS[k], k).toBeDefined();
       expect(AI.archetypes[k], k).toBeDefined();
     }
-    expect(new Set(Object.values(AI.archetypes))).toEqual(new Set(['swarm', 'spitter', 'stalker', 'flyer', 'tank', 'mimic', 'grazer', 'weaver', 'burrower', 'herd']));
+    expect(new Set(Object.values(AI.archetypes))).toEqual(new Set(['swarm', 'spitter', 'stalker', 'flyer', 'tank', 'mimic', 'grazer', 'weaver', 'burrower', 'herd', 'wader']));
     for (const k of Object.keys(AI.archetypes)) expect(ABOMINATIONS[k], k).toBeDefined();
     expect(archetypeOf('glasswalker')).toBe('stalker');
   });
@@ -605,5 +605,43 @@ describe('desert creatures: Dunewake and Bristleback', () => {
     expect(s.events.some((e) => e.e.type === 'melee' && (e.e as { damage: number }).damage === st.trampleDamage)).toBe(true);
     const volley = s.events.find((e) => e.e.type === 'volley');
     expect(volley?.e).toMatchObject({ count: v.count, damage: v.damage });
+  });
+});
+
+describe('swamp creatures: Fenstalker and Mistwader', () => {
+  it('a Fenstalker lies under the water, creeps in, and bursts out to bite only inside its ambush range', () => {
+    const f = hunting(at('fenstalker', 1, 0, 25));
+    const S = ABOMINATIONS.fenstalker.submerge as { ambushRange: number; ripplesTell: number };
+    let rippleAt = -1, burstAt = -1, rippleDist = 0, maxSpeed = 0;
+    const s = simulate([f], 20, host(), { each: (sim) => {
+      if (f.phase === 'swim' && f.submerged >= 1) maxSpeed = Math.max(maxSpeed, f.speed);
+      if (f.phase === 'ripple' && rippleAt < 0) { rippleAt = sim.t; rippleDist = Math.hypot(f.body.x, f.body.z); }
+      if (f.phase === 'burst' && burstAt < 0) burstAt = sim.t;
+    } });
+    expect(maxSpeed).toBeLessThanOrEqual(ABOMINATIONS.fenstalker.speed * AI.burrower.lurkCreep + 0.01);
+    expect(rippleDist).toBeLessThanOrEqual(S.ambushRange + 0.5);
+    expect(burstAt - rippleAt).toBeCloseTo(S.ripplesTell, 1);
+    expect(s.events.find((e) => e.e.type === 'melee')?.e).toMatchObject({ damage: ABOMINATIONS.fenstalker.damage });
+  });
+
+  it('a Mistwader ignores hosts and gunfire, but hurt it and it wades in, rears and stamps, then calms', () => {
+    const m = at('mistwader', 2, 0, 0);
+    const st = ABOMINATIONS.mistwader.stomp as { radius: number; damage: number; knockback: number };
+    const calm = simulate([m], 5, host({ x: 0, z: 14 }), { noises: [{ x: 0, z: 14, radius: 40 }] });
+    expect(m.mode).toBe('calm');
+    expect(calm.events.some((e) => e.e.type === 'slam')).toBe(false);
+    m.hurt();
+    let reared = 0;
+    const s = simulate([m], 40, host({ x: 0, z: 10 }), { each: () => { if (m.phase === 'rear') reared = Math.max(reared, m.windup); } });
+    const stamps = s.events.filter((e) => e.e.type === 'slam');
+    expect(reared).toBeGreaterThan(0.95);
+    expect(stamps[0].e).toMatchObject({ radius: st.radius, damage: st.damage, knockback: st.knockback });
+    expect(stamps.length).toBe((ABOMINATIONS.mistwader.temperament as { panicStomps: number }).panicStomps);
+  });
+
+  it('a host underfoot gets one warning stamp', () => {
+    const m = at('mistwader', 3, 0, 0);
+    const s = simulate([m], 6, host({ x: 0, z: 1.5 }));
+    expect(s.events.filter((e) => e.e.type === 'slam').length).toBe(1);
   });
 });

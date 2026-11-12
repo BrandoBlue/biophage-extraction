@@ -67,7 +67,7 @@ const UNDERGROUND = -1e4;
 /** Seconds a burrower takes to haul itself out of the sand. */
 const BURROW_EMERGE_TIME = 0.9;
 /** Bodies that dive and surface themselves (Creature's drive.burrow) rather than being sunk whole. */
-const NATIVE_BURROW = new Set<string>(['dunewake']);
+const NATIVE_BURROW = new Set<string>(['dunewake', 'fenstalker']);
 
 interface Pustule { mesh: THREE.Mesh; mat: THREE.MeshStandardMaterial; hp: number; popped: boolean }
 
