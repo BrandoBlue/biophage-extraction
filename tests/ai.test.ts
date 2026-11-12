@@ -45,7 +45,7 @@ describe('archetypes', () => {
       expect(ABOMINATIONS[k], k).toBeDefined();
       expect(AI.archetypes[k], k).toBeDefined();
     }
-    expect(new Set(Object.values(AI.archetypes))).toEqual(new Set(['swarm', 'spitter', 'stalker', 'flyer', 'tank', 'mimic', 'grazer', 'weaver', 'burrower', 'herd', 'wader']));
+    expect(new Set(Object.values(AI.archetypes))).toEqual(new Set(['swarm', 'spitter', 'stalker', 'flyer', 'tank', 'mimic', 'grazer', 'weaver', 'burrower', 'herd', 'wader', 'crawler', 'grabber', 'gunner']));
     for (const k of Object.keys(AI.archetypes)) expect(ABOMINATIONS[k], k).toBeDefined();
     expect(archetypeOf('glasswalker')).toBe('stalker');
   });
@@ -854,5 +854,76 @@ describe('species working together and more learning (ai.json teamwork, learning
 describe('learning switch', () => {
   it('learning is off for now (Brandon, 2026-11-12): raids get no memory', () => {
     expect(AI.learning.enabled).toBe(false);
+  });
+});
+
+describe('Marrow Pit creatures: Cablecrawler, Veilwing, the Hollowed', () => {
+  /** Four decks of a bridge running north along x = 0 at y 0, each 4 m long. */
+  const bridge = () => [0, 1, 2, 3].map((i) => {
+    let isCut = false;
+    return { id: `b${i}`, x: 0, y: 0, z: i * 4, halfLength: 2, halfWidth: 1.2, yaw: 0, get isCut() { return isCut; }, cut() { isCut = true; } };
+  });
+
+  it('a Cablecrawler goes for the deck behind the host, chews (the tell), and cuts it; hurting it enough stops the chew', () => {
+    const ws = bridge();
+    const c = hunting(at('cablecrawler', 1, 6, 0, 1));
+    const h = host({ x: 0, z: 12, vz: 2 });
+    let chewed = 0;
+    const tokens = new AttackTokens();
+    const s = simulate([c], 8, h, { tokens, each: (sim) => { sim.world.walkways = ws; if (c.phase === 'chew') chewed = Math.max(chewed, c.action); } });
+    const cut = s.events.find((e) => e.e.type === 'cut')?.e as { id: string } | undefined;
+    expect(cut).toBeDefined();
+    // Behind the host (the way back), never the deck underfoot (b3).
+    expect(['b0', 'b1', 'b2']).toContain(cut!.id);
+    expect(chewed).toBeGreaterThan(0.9);
+    const ws2 = bridge();
+    const c2 = hunting(at('cablecrawler', 2, 6, 0, 2));
+    const cd = ABOMINATIONS.cablecrawler.cutWalkway as { interruptDamage: number };
+    const s2 = simulate([c2], 8, host({ x: 0, z: 12, vz: 2 }), { each: (sim) => { sim.world.walkways = ws2; if (c2.phase === 'chew' && c2.action > 0.3) c2.hurt(cd.interruptDamage); } });
+    expect(s2.events.some((e) => e.e.type === 'cut')).toBe(false);
+  });
+
+  it('a Veilwing goes silent, spreads over the host, drops, grabs, carries toward the shaft and lets go', () => {
+    const v = hunting(at('veilwing', 3, 10, 10, 3));
+    const phases: string[] = [];
+    let carriedTo = Infinity;
+    const s = simulate([v], 25, host(), { each: (sim) => {
+      sim.world.dropZone = { x: 40, z: 0 };
+      if (phases[phases.length - 1] !== v.phase) phases.push(v.phase);
+      if (v.phase === 'carry') carriedTo = Math.min(carriedTo, Math.hypot(v.body.x - 40, v.body.z));
+    } });
+    const order = ['hush', 'tell', 'drop', 'carry'].map((p) => phases.indexOf(p));
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(s.events.find((e) => e.e.type === 'grab')?.e).toMatchObject({ damage: ABOMINATIONS.veilwing.damage });
+    expect(s.events.some((e) => e.e.type === 'release')).toBe(true);
+    expect(carriedTo).toBeLessThan(40);
+  });
+
+  it('a Veilwing hurt enough while carrying lets go early', () => {
+    const v = hunting(at('veilwing', 4, 10, 10, 4));
+    const g = ABOMINATIONS.veilwing.grab as { freedByDamage: number; carryTime: number };
+    let freedAt = -1, grabbedAt = -1;
+    simulate([v], 25, host(), { each: (sim) => {
+      for (const e of sim.events) { if (e.e.type === 'grab' && grabbedAt < 0) { grabbedAt = e.t; v.hurt(g.freedByDamage); } if (e.e.type === 'release' && freedAt < 0) freedAt = e.t; }
+    } });
+    expect(grabbedAt).toBeGreaterThan(0);
+    expect(freedAt - grabbedAt).toBeLessThan(g.carryTime * 0.5);
+  });
+
+  it('the Hollowed raises its gun, fires a short burst, then reloads far too slowly', () => {
+    const g = hunting(at('hollowed', 5, 0, 20, 5));
+    const W = ABOMINATIONS.hollowed.usesWeapon as { burst: [number, number]; accuracy: number };
+    let aimed = 0;
+    const s = simulate([g], 8, host(), { each: () => { if (g.phase === 'aim') aimed = Math.max(aimed, g.windup); } });
+    const shots = s.events.filter((e) => e.e.type === 'shot');
+    expect(aimed).toBeGreaterThan(0.9);
+    expect(shots.length).toBeGreaterThanOrEqual(W.burst[0]);
+    expect(shots[0].e).toMatchObject({ damage: ABOMINATIONS.hollowed.damage, accuracy: W.accuracy });
+    // The first burst comes as one group, then a long pause.
+    const first = shots.filter((e) => e.t - shots[0].t < 1.5);
+    expect(first.length).toBeLessThanOrEqual(W.burst[1]);
+    const next = shots.find((e) => e.t - shots[0].t >= 1.5);
+    if (next) expect(next.t - first[first.length - 1].t).toBeGreaterThan(AI.gunner.reloadTime * 0.9);
   });
 });

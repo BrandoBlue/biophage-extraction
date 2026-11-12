@@ -15,9 +15,9 @@
     "mirebrood": "swarm",
     "fenstalker": "burrower",
     "mistwader": "wader",
-    "cablecrawler": "stalker",
-    "veilwing": "flyer",
-    "hollowed": "spitter"
+    "cablecrawler": "crawler",
+    "veilwing": "grabber",
+    "hollowed": "gunner"
   },
   "awareness": {
     "_note": "Awareness fills 0..1. At suspicious the creature turns and investigates the stimulus; at 1 it hunts. Sight fill per second = sightRate * visibility * (1 - distance/range); peripheral (outer half of the field of view) fills at peripheralFactor. A noise adds noiseGain scaled by how far inside its radius the creature is. Awareness decays at decayRate while nothing is sensed.",
@@ -183,7 +183,8 @@
       "falter": [
         "swarm",
         "spitter",
-        "stalker"
+        "stalker",
+        "gunner"
       ]
     },
     "reload": {
@@ -325,6 +326,43 @@
     "startleTime": 8,
     "recoverTime": 1.4,
     "stompShow": 0.8
+  },
+  "crawler": {
+    "_note": "Crawler (Cablecrawler, src/ai/behaviours/crawler.ts). While the host is on a walkway it goes for a deck between minBehind and cutReach m of the host (behind its travel, never the one underfoot, within deckHeight x 2 of its height), at approach x its speed, and chews it when within reach m (abominations.json cutWalkway). deckHeight: how far above or below a deck still counts as on it.",
+    "deckHeight": 2.5,
+    "minBehind": 4,
+    "cutReach": 20,
+    "approach": 1.1,
+    "reach": 1.8
+  },
+  "grabber": {
+    "_note": "Grabber (Veilwing, src/ai/behaviours/grabber.ts). Soars soarRadius m round the host at soarRate rad/s; commits inside commitRange m: hushTime s silent, its wind-up sinking to dropFrom m, then drops at dropSpeed m/s to grabHeight m (gives up after dropTimeout s). After a carry or a miss it climbs for climbTime s.",
+    "turnRate": 2,
+    "soarRadius": 16,
+    "soarRate": 0.35,
+    "commitRange": 30,
+    "hushTime": 1,
+    "dropFrom": 12,
+    "dropSpeed": 14,
+    "grabHeight": 1.6,
+    "dropTimeout": 2.5,
+    "climbTime": 3
+  },
+  "gunner": {
+    "_note": "Gunner (the Hollowed, src/ai/behaviours/gunner.ts). Keeps range m, strafing at strafe (flips at strafeFlip per s); aims for its windup, fires its burst one shot per shotInterval s, then reloads for reloadTime s, or with forgetChance stands forgetTime s having forgotten the gun. A noise of jerkNoise m radius or more snaps its head to it for jerkTime s.",
+    "turnRate": 2.5,
+    "range": [
+      12,
+      28
+    ],
+    "strafe": 0.6,
+    "strafeFlip": 0.2,
+    "shotInterval": 0.14,
+    "reloadTime": 3.2,
+    "forgetChance": 0.15,
+    "forgetTime": 2.5,
+    "jerkNoise": 10,
+    "jerkTime": 0.6
   },
   "widow": {
     "_note": "The Sandwidow (src/ai/widow.ts); attack numbers stay in bosses.json `sandwidow`. Wakes when a host is on the crater floor (within floorHeight m above it) and within wakeRadius. Swims circleRadius m from the host, leading by circleLead rad; keeps inside keepInside x the crater radius. surface rises at riseRate and sinks at sinkRate per s; below hittableAbove nothing reaches her. Bites rise to biteRise, brood calls to callRise; in drown she rides at drownRide. A breach tracks the host at breachTrack per s during its wind-up, then she stays up eruptUp s. Each severed petal takes petalBite off her bite. thrashReach adds to the thrash radius for choosing it. firstAttack: delay before attacks with no firstDelay. Drowning she closes to drownClose m.",

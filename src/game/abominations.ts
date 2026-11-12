@@ -42,6 +42,16 @@ export interface AbominationContext {
   playerVisibility?: number;
   /** Unit XZ direction the host is looking. Stalkers freeze when watched. */
   playerForward?: { x: number; z: number } | null;
+  /** Walkway decks a Cablecrawler can cut, and where a Veilwing drops what it carries (the Marrow Pit). */
+  walkways?: readonly import('../ai').WalkwayView[];
+  dropZone?: { x: number; z: number };
+  /** A Cablecrawler cut deck `id`. */
+  onCut?(a: Abomination, id: string): void;
+  /** A Veilwing took the host (`damage` on the grab) or let it go. */
+  onGrab?(a: Abomination, damage: number): void;
+  onRelease?(a: Abomination): void;
+  /** A Hollowed fired one shot from its gun; `hit` says whether it struck the host. */
+  onShot?(a: Abomination, from: THREE.Vector3, to: THREE.Vector3, hit: boolean, damage: number): void;
   /** The host is reloading / aiming down sights (PvE AI tactics). */
   playerReloading?: boolean;
   playerAiming?: boolean;
@@ -71,6 +81,8 @@ let nextId = 1;
 const UNDERGROUND = -1e4;
 /** Seconds a burrower takes to haul itself out of the sand. */
 const BURROW_EMERGE_TIME = 0.9;
+/** How far above the host a carrying Veilwing holds itself. */
+const CARRY_ABOVE = 2.4;
 /** Per second: how fast body language follows the brain's intent. */
 const MIND_EASE = 5;
 const MIND_LEVELS = ['tilt', 'brace', 'still', 'dark', 'recoil', 'grieve', 'eyes'] as const;
@@ -201,7 +213,7 @@ export class Abomination {
     if (dir && (this.kind === 'needlemaw' || this.kind === 'oculimoth')) this.brain.impulse(dir.x * Math.min(4, amount / 10), dir.z * Math.min(4, amount / 10));
     this.lastHit = amount;
     this.brain.wound(this.biomass / this.t.biomass);
-    this.brain.hurt();
+    this.brain.hurt(amount);
     // Limb hits: enough damage on one limb shoots it off (the creature fights on without it).
     if (sphere?.limb && this.root.parent) {
       const d = (this.limbDamage.get(sphere.limb) ?? 0) + amount;
@@ -270,9 +282,12 @@ export class Abomination {
         reloading: ctx.playerReloading ?? false, aiming: ctx.playerAiming ?? false,
       },
       noises: ctx.noises, allies: ctx.others, tokens, playableRadius: ctx.playableRadius, memory: AI.learning.enabled ? memoryFor(ctx.others) : undefined,
+      walkways: ctx.walkways, dropZone: ctx.dropZone,
     };
     brain.step(dt, world);
     this.handleEvents(ctx);
+    // A Veilwing carrying the host flies just above it (the raid lifts the host; the pit floor may be far below).
+    if ((brain as { carrying?: boolean }).carrying) brain.body.altitude = Math.max(0.5, p.y + CARRY_ABOVE - groundHeight(brain.body.x, brain.body.z));
 
     const b = brain.body, pos = this.root.position;
     pos.set(b.x, groundHeight(b.x, b.z) - this.burrowSink(dt), b.z);
@@ -365,6 +380,20 @@ export class Abomination {
         case 'reveal': ctx.onReveal?.(this, e.how); break;
         case 'web': ctx.onWeb?.(this, e.from, e.to); break;
         case 'volley': this.volley(ctx, e.target, e.count, e.damage, e.spread); break;
+        case 'cut': ctx.onCut?.(this, e.id); break;
+        case 'grab': ctx.onGrab?.(this, e.damage); break;
+        case 'release': ctx.onRelease?.(this); break;
+        case 'shot': {
+          // A carried gun: from the chest, a hit with chance `accuracy` (worse the further and the faster the host moves).
+          const from = this.root.position.clone(); from.y += 1.4;
+          const to = new THREE.Vector3(e.target.x, e.target.y, e.target.z);
+          const moving = Math.hypot(ctx.playerVelocity.x, ctx.playerVelocity.z);
+          const chance = e.accuracy * Math.max(0.2, 1 - from.distanceTo(to) / 80) * (moving > 4 ? 0.7 : 1);
+          const hit = ctx.playerAlive && this.rand() < chance;
+          if (hit) ctx.onMelee(this, e.damage);
+          ctx.onShot?.(this, from, to, hit, e.damage);
+          break;
+        }
         case 'rally':
           // Another species called in: they come to where the caller is aiming.
           for (const o of ctx.others) if (o !== this && o.alive && e.kinds.includes(o.kind) && o.position.distanceTo(pos) <= e.radius) o.alert({ x: e.at.x, z: e.at.z });

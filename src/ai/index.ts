@@ -15,6 +15,9 @@ import { GrazerBrain } from './behaviours/grazer';
 import { WeaverBrain } from './behaviours/weaver';
 import { BurrowerBrain } from './behaviours/burrower';
 import { WaderBrain } from './behaviours/wader';
+import { CrawlerBrain, onWalkway } from './behaviours/crawler';
+import { GrabberBrain } from './behaviours/grabber';
+import { GunnerBrain } from './behaviours/gunner';
 import { HerdBrain } from './behaviours/herd';
 
 export { Brain, type Body } from './brain';
@@ -30,13 +33,13 @@ export { RegentBrain, type RegentEvent, type RegentInput, type RegentPoolView } 
 export { WidowBrain, type WidowEvent, type WidowInput, type WidowCrater } from './widow';
 export { WardenBrain, type WardenEvent, type WardenInput, type WardenRoom, type WardenSurface } from './warden';
 export { PaleVigilBrain, type VigilEvent, type VigilInput } from './vigil';
-export type { AIEvent, AllyView, BrainWorld, HostView, Intent, Mode, Tactic, Vec2, Vec3 } from './types';
-export { SwarmBrain, SpitterBrain, StalkerBrain, FlyerBrain, TankBrain, MimicBrain, GrazerBrain, WeaverBrain, BurrowerBrain, HerdBrain, WaderBrain };
+export type { AIEvent, AllyView, BrainWorld, HostView, Intent, Mode, Tactic, Vec2, Vec3, WalkwayView } from './types';
+export { SwarmBrain, SpitterBrain, StalkerBrain, FlyerBrain, TankBrain, MimicBrain, GrazerBrain, WeaverBrain, BurrowerBrain, HerdBrain, WaderBrain, CrawlerBrain, GrabberBrain, GunnerBrain, onWalkway };
 export { WebField, segDist, type Strand } from './web';
 
 const BRAINS: Record<Archetype, new (...a: ConstructorParameters<typeof SwarmBrain>) => Brain> = {
   swarm: SwarmBrain, spitter: SpitterBrain, stalker: StalkerBrain, flyer: FlyerBrain, tank: TankBrain,
-  mimic: MimicBrain, grazer: GrazerBrain, weaver: WeaverBrain, burrower: BurrowerBrain, herd: HerdBrain, wader: WaderBrain,
+  mimic: MimicBrain, grazer: GrazerBrain, weaver: WeaverBrain, burrower: BurrowerBrain, herd: HerdBrain, wader: WaderBrain, crawler: CrawlerBrain, grabber: GrabberBrain, gunner: GunnerBrain,
 };
 
 export function archetypeOf(kind: string): Archetype { return AI.archetypes[kind] ?? 'swarm'; }

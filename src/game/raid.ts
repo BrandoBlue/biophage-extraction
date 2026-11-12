@@ -188,6 +188,11 @@ export class Raid {
   private widowSlow = 1;
   /** The Nethermaw at the bottom of the Marrow Pit (World's Undermouth). Null in other zones. */
   readonly maw: RaidNethermaw | null = null;
+  /** A Veilwing carrying the host (PvE AI grabber), and the host's height in its grip. */
+  private carriedBy: Abomination | null = null;
+  /** Walkway decks in this zone (the Marrow Pit's bridges) that Cablecrawlers can cut. */
+  private structureWalkways: import('../world/structures').Walkway[] = [];
+  private carryY = 0;
   /** The Nethermaw's false extract lights (the dream phase's lie). */
   private mawLights: SeedSpire[] = [];
   private mawPull = new THREE.Vector3();
@@ -345,6 +350,7 @@ export class Raid {
       this.widow = new RaidWidow(structures.widow, groundHeight, scene, Math.floor(this.rand() * 1e6));
       scene.add(this.widow.body.root);
     }
+    this.structureWalkways = structures?.walkways ?? [];
     if (this.arena?.id === 'undermouth' && BOSSES.nethermaw) {
       this.maw = new RaidNethermaw(this.arena, structures?.walkways ?? [], scene, Math.floor(this.rand() * 1e6));
       scene.add(this.maw.body.root);
@@ -1098,6 +1104,17 @@ export class Raid {
     if (this.dropping) p.velocity.y = -this.dropping;
     p.carry.copy(this.mawPull);
     p.update(dt);
+    // Held by a Veilwing: lifted with it until it lets go (or dies), then the fall is the host's own.
+    if (this.carriedBy) {
+      const c = this.carriedBy;
+      if (!c.alive || !live) this.carriedBy = null;
+      else {
+        this.carryY += Number((ABOMINATIONS.veilwing?.grab as { liftSpeed?: number } | undefined)?.liftSpeed ?? 6) * dt;
+        p.position.set(c.position.x, this.carryY, c.position.z);
+        p.velocity.set(0, 0, 0);
+        p.grounded = false;
+      }
+    }
     if (live && p.sprinting) this.overload.add(HOST.neuralOverload.sprintFillPerSecond * dt);
     this.overload.update(dt);
     if (!wasOver && this.overload.overloaded) this.bus.emit('overload', { duration: HOST.neuralOverload.overloadedDuration });
@@ -1182,6 +1199,28 @@ export class Raid {
       playerVisibility: hostVisibility({ moving: p.moving, sprinting: p.sprinting, crouched: p.crouched, sinceShot: p.sinceFired, virus: p.footstepScale }),
       playerForward: { x: -Math.sin(p.yaw), z: -Math.cos(p.yaw) },
       playerReloading: this.weapon.state.isReloading, playerAiming: this.weapon.aim > 0.5,
+      walkways: this.structureWalkways, dropZone: this.zone === 'marrowPit' ? { x: 0, z: 0 } : undefined,
+      onCut: (c, id) => {
+        const w = this.structureWalkways.find((x) => x.id === id);
+        if (!w || w.isCut) return;
+        w.cut();
+        const at = new THREE.Vector3(w.x, w.y, w.z);
+        this.fx.burst(at, GORE.bone, 1.4);
+        this.noise(at, 30, 'creature');
+        this.bus.emit('creatureTactic', { id: c.id, type: c.kind, what: 'cut', position: { x: w.x, y: w.y, z: w.z } });
+      },
+      onGrab: (c, dmg) => {
+        if (!live) return;
+        this.hurt(dmg, 'torso', c.kind, c.position);
+        this.carriedBy = c; this.carryY = p.position.y;
+        this.bus.emit('creatureTactic', { id: c.id, type: c.kind, what: 'grab', position: { x: c.position.x, y: c.position.y, z: c.position.z } });
+      },
+      onRelease: (c) => { if (this.carriedBy === c) this.carriedBy = null; },
+      onShot: (c, from, to, hit) => {
+        this.noise(from, 35, 'creature');
+        this.fx.impact(hit ? to : to.clone().add(new THREE.Vector3((this.rand() - 0.5) * 3, (this.rand() - 0.5) * 2, (this.rand() - 0.5) * 3)), hit ? GORE.flesh : GORE.bone, 4, 5);
+        if (hit) this.bus.emit('attack', { id: c.id, type: c.kind, position: { x: c.position.x, y: c.position.y, z: c.position.z } });
+      },
       onTactic: (c, what) => this.bus.emit('creatureTactic', { id: c.id, type: c.kind, what, position: { x: c.position.x, y: c.position.y, z: c.position.z } }),
       onKnockback: (c, strength) => {
         const d = new THREE.Vector3(p.position.x - c.position.x, 0, p.position.z - c.position.z);

@@ -182,7 +182,7 @@ export abstract class Brain {
   }
 
   /** The creature was wounded: archetypes can react (Glasswalker reveal). Also alerts. */
-  hurt(): void { this.reveal(); this.spotFor = 0; this.alert(null); this.onHurt(); }
+  hurt(amount = 0): void { this.reveal(); this.spotFor = 0; this.alert(null); this.onHurt(amount); }
 
   /** Biomass left as a fraction (0..1). Badly hurt, it may break off and run, then return with its pack. */
   wound(left: number): void {
@@ -484,7 +484,7 @@ export abstract class Brain {
   protected onEngage(_w: BrainWorld): void { /* optional */ }
   /** Lost the target or got staggered mid-attack: drop wind-ups. */
   protected onInterrupted(): void { this.windup = 0; this.strike = null; }
-  protected onHurt(): void { /* optional */ }
+  protected onHurt(_amount = 0): void { /* optional */ }
   /** Height above ground while calm/investigating (flyers override). */
   protected cruiseAltitude(): number { return 0; }
 

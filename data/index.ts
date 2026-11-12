@@ -412,7 +412,7 @@ export const ZONE_SITES = strip<{ glowmireIsle: Zone7Sites; longSeedWreck: Recor
 /** Zone 1, Glowmire Isle: the Zone 7 island. */
 export const ZONE7_SITES = ZONE_SITES.glowmireIsle;
 /** PvE AI tuning (owned by PvE AI & Encounters): archetype per Abomination kind and how each archetype hunts. */
-export type Archetype = 'swarm' | 'spitter' | 'stalker' | 'flyer' | 'tank' | 'mimic' | 'grazer' | 'weaver' | 'burrower' | 'herd' | 'wader';
+export type Archetype = 'swarm' | 'spitter' | 'stalker' | 'flyer' | 'tank' | 'mimic' | 'grazer' | 'weaver' | 'burrower' | 'herd' | 'wader' | 'crawler' | 'grabber' | 'gunner';
 export interface AiRules {
   archetypes: Record<string, Archetype>;
   awareness: { suspicious: number; sightRate: number; closeSight: number; peripheralFactor: number; noiseGain: number; noiseImpulse: number; loudNoiseGain: number; decayRate: number; investigateTime: number; senseHz: number };
@@ -443,6 +443,9 @@ export interface AiRules {
     lure: { packMin: number; radius: number; chance: number; show: number; backoff: number; spring: number; time: number };
     falter: { radius: number; time: number; backoff: number; rout: number };
   };
+  crawler: { deckHeight: number; minBehind: number; cutReach: number; approach: number; reach: number };
+  grabber: { turnRate: number; soarRadius: number; soarRate: number; commitRange: number; hushTime: number; dropFrom: number; dropSpeed: number; grabHeight: number; dropTimeout: number; climbTime: number };
+  gunner: { turnRate: number; range: [number, number]; strafe: number; strafeFlip: number; shotInterval: number; reloadTime: number; forgetChance: number; forgetTime: number; jerkNoise: number; jerkTime: number };
   wader: { turnRate: number; underfoot: number; startleTime: number; recoverTime: number; stompShow: number };
   warden: {
     wake: { trigger: 'approach' | 'power'; radius: number };
