@@ -112,4 +112,17 @@ export async function checkWeapons({ page, call, frames, state, fail, log }) {
     if (g.mods?.[0] !== magMod || g.magazine !== want) await fail(`graft ${magMod} not applied: ${JSON.stringify(g)}`);
     log(`graft: ${magMod} on the Synapse Burster, magazine ${g.magazine}`);
   }
+
+  // A graft found in the raid buds onto the held gun's free socket at once.
+  const hush = Object.keys(MODS).find((m) => MODS[m]?.effects?.set?.['sound.muzzle'] && (!MODS[m].fits || MODS[m].fits.includes(WEAPONS.synapseBurster.class)));
+  if (hush) {
+    await call('arm', ['synapseBurster']);
+    await call('give', hush, 1);
+    const fitted = await call('fieldGraft');
+    await frames(30);
+    s = await state();
+    const g = s.weapons.list[0];
+    if (!fitted.includes(hush) || !g.mods?.includes(hush)) await fail(`found graft ${hush} did not bud onto the held gun: ${JSON.stringify({ fitted, g })}`);
+    log(`field graft: ${hush} budded onto the held Synapse Burster`);
+  }
 }
