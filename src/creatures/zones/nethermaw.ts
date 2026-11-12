@@ -134,7 +134,8 @@ export class Nethermaw {
     for (let ring = 0; ring < 2; ring++) {
       const n = 36 - ring * 8;
       const geo = merge(Array.from({ length: n }, (_, k) => {
-        const a = (k / n) * Math.PI * 2 + ring * 0.1;
+        // Uneven spacing and lean, so the cilia read as a living fringe rather than a turned ring.
+        const a = ((k + (this.rand() - 0.5) * 0.7) / n) * Math.PI * 2 + ring * 0.1;
         const len = 1.2 + this.rand() * 0.9 - ring * 0.3;
         return spike(len, 0.06, 0.6, 4).rotateX(-0.25).rotateY(-a + Math.PI / 2).translate(Math.cos(a) * MOUTH * (1.05 - ring * 0.25), MOUTH * 0.25, Math.sin(a) * MOUTH * (1.05 - ring * 0.25));
       }));

@@ -70,6 +70,8 @@ export interface BuiltStructures {
   widow?: WidowArena | null;
   /** Walkway segments that can be cut (the Marrow Pit's bridge decks): `cut()` drops the deck out from under you. */
   walkways?: Walkway[];
+  /** The Mire Regent's pool (src/world/weepingfen.ts), on the Weeping Fen. */
+  regent?: { x: number; z: number; radius: number; floorY: number; waterY: number; entrances: { x: number; z: number }[]; arches: { x: number; z: number }[] } | null;
   /** The Warden's reactor-chamber arena (src/world/wreck.ts), on the Wreck. */
   warden?: WardenArena | null;
   /** Break an arena pillar (boss phase 2): hides it and removes its collider. */
