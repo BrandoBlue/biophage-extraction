@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { haulValue, ZONE7_SITES } from '../data';
+import { awardXp, raidXp } from './game/progression';
+import { haulValue, weaponSpec, ZONE7_SITES } from '../data';
 import { Raid } from './game/raid';
 import { RaidHud } from './ui/raid-hud';
 import { HiveMenu } from './ui/hive-menu';
@@ -49,7 +50,7 @@ function bootRaid(): void {
   const world = buildZone(scene, zoneParam ?? profile.economy.zone, raidSeed);
   // Nothing in the world should read as machined: boxes, cylinders and cones are grown into organic shapes (src/render/organic).
   organicize(scene);
-  const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures);
+  const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures, world.zone);
   const hud = new RaidHud(raid.bus, raid);
   function deployNow(): void {
     if (raid.phase !== 'briefing') return;
@@ -85,12 +86,14 @@ function bootRaid(): void {
     if (e.result === 'extracted') {
       const st = extract(profile, r, e.kills);
       const done = settleContracts(profile, raid.log, true).filter((c) => c.completed);
+      const xp = awardXp(profile, raidXp(raid.log, true, st.dnaBanked));
       save();
-      const note = `${st.dnaBanked} DNA banked.${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}${done.length ? ` Contract complete: ${done.map((c) => c.title).join(', ')}.` : ''}`;
+      const note = `${st.dnaBanked} DNA banked. +${xp.xp} XP${xp.to > xp.from ? `, level ${xp.to}` : ''}.${xp.unlocked.length ? ` Armoury: ${xp.unlocked.map((w) => weaponSpec(w).label).join(', ')} unlocked.` : ''}${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}${done.length ? ` Contract complete: ${done.map((c) => c.title).join(', ')}.` : ''}`;
       menu.showResults({ result: 'extracted', items: r.items, dna: r.dna, value: r.value, kills: e.kills, time: e.time, note });
     } else {
       die(profile, r, e.kills);
       settleContracts(profile, raid.log, false);
+      awardXp(profile, raidXp(raid.log, false));
       save();
       const lost = totals(r.cavity);
       menu.showResults({ result: 'lost', items: lost, dna: r.dna, value: haulValue(lost, r.dna), kills: e.kills, time: e.time, cause: r.cause, kept: totals(r.pouch) });
