@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FAUNA, ORGANIC } from '../../render/palette';
 import { PlanBuilder, V, mix, mutate, tint } from '../builder';
 import { rng } from '../parts';
+import { organic, readable } from './organic';
 import type { BodyPlan, Palette } from '../plan';
 import type { Creature } from '../creature';
 import { GroundFx, damp, smooth } from './fx';
@@ -34,8 +35,10 @@ export function dunewake(seed: number, stage = 0): BodyPlan {
   const s = 0.92 + r() * 0.16;
   const h = 0.2 * s;
   const b = new PlanBuilder('dunewake', seed, stage, { locomotion: 'walker', bodyHeight: h, radius: 0.55 * s, skinNoise: { amp: 0.005, freq: 46 }, skinResolution: 64, fleshScale: 14, palette: pal });
+  organic(b, rng(seed * 17 + 3));
   // Sand-coloured on purpose: the shared naturalise pass would turn it to wet meat. Keep the dune tones.
   b.plan.palette = { ...b.plan.palette, flesh: mix(FAUNA.sand, FAUNA.ochre, 0.18), chitin: mix(FAUNA.sandDeep, FAUNA.ochre, 0.3), bone: mix(FAUNA.dustPale, FAUNA.sand, 0.3), rim: FAUNA.dustPale, membrane: mix(FAUNA.dustPale, FAUNA.sand, 0.5) };
+  readable(b);
   const body = b.bone('body', -1, V(0, h, 0));
   const zAt = (i: number) => (1.0 - i * SPACING) * s;
   const radius = [0.12, 0.125, 0.13, 0.125, 0.11, 0.09, 0.065, 0.04].map((x) => x * s);

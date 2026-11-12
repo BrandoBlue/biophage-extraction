@@ -90,19 +90,24 @@ export function blade(len: number, width: number, thick = 0.02): THREE.BufferGeo
 
 /** Armour plate: a curved shell cap (part of a squashed sphere), convex side up. */
 export function plate(w: number, l: number, h: number, rand: Rand, ridge = 0.3): THREE.BufferGeometry {
-  const g = new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.42);
+  const g = new THREE.SphereGeometry(1, 20, 9, 0, Math.PI * 2, 0, Math.PI * 0.42);
   g.scale(w, h, l);
   const pos = g.attributes.position;
-  const s = rand() * 50;
+  const s = rand() * 50, tilt = (rand() - 0.5) * 0.5;
   for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-    // Central keel ridge and growth-line ripples.
+    let x = pos.getX(i), z = pos.getZ(i);
+    const y = pos.getY(i);
+    // A ragged, grown outline instead of a clean ellipse: the rim pushes in and out with the angle.
+    const rim = Math.hypot(x / w, z / l), ang = Math.atan2(z, x);
+    const rag = 1 + (vnoise(Math.cos(ang) * 2.2 + s, Math.sin(ang) * 2.2, s) - 0.5) * 0.45 * rim;
+    x *= rag; z *= rag;
+    // Central keel ridge, growth-line ripples, and a lopsided lean so no two plates match.
     const keel = Math.exp(-Math.pow(x / (w * 0.18), 2)) * h * ridge;
-    const lines = Math.sin(Math.hypot(x / w, z / l) * 18 + s) * h * 0.04;
-    pos.setY(i, y + keel * (y / h) + lines - h * 0.4);
+    const lines = Math.sin(Math.hypot(x / w, z / l) * 18 + s + ang * 0.5) * h * 0.04;
+    pos.setXYZ(i, x, y + keel * (y / h) + lines - h * 0.4 + x * tilt * (h / w), z);
   }
   g.computeVertexNormals();
-  return g;
+  return roughen(g, h * 0.05, 4 / Math.max(h, 0.02), s);
 }
 
 /** Pustule / bio-node: a swollen lumpy sac. */
@@ -311,7 +316,19 @@ export function limbSegment(len: number, r0: number, r1: number, style: 'needle'
     }
   }
   g = parts.length > 1 ? merge(parts) : g;
-  return g;
+  // Brandon (2026-11-12): less geometric. No limb is a straight turned rod: bow the shaft backward a little, make
+  // its thickness uneven along its length and around it, and lump the surface. Root and tip stay put (sin(0) =
+  // sin(pi) = 0) so joints and IK targets are unchanged.
+  const bow = (0.04 + rand() * 0.04) * len, side = (rand() - 0.5) * 0.04 * len, ph = rand() * 6.28;
+  const pos = g.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), t = Math.min(1, Math.max(0, y / len));
+    const s = 1 + 0.1 * Math.sin(t * Math.PI * 2.3 + ph) * Math.sin(t * Math.PI) + 0.06 * Math.sin(Math.atan2(z, x) * 2 + ph);
+    const arc = Math.sin(t * Math.PI);
+    pos.setXYZ(i, x * s + side * arc, y, z * s - bow * arc);
+  }
+  g.computeVertexNormals();
+  return style === 'tendril' ? g : roughen(g, r0 * 0.07, 3 / Math.max(r0, 0.01), ph);
 }
 
 /** Displace along normals with value noise, so primitives stop looking like primitives. */

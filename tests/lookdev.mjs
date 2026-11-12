@@ -63,6 +63,7 @@ const POSES = {
   fenPool: { at: [58, 72], eye: 1.9, yaw: -0.8, pitch: 0.02 },
   fenPod: { at: [-62, -56], eye: 1.7, yaw: 0.9, pitch: 0.04 },
   fenAerial: { pos: [0, 60, 150], yaw: 0, pitch: -0.38 },
+  fenShallows: { at: [-2, 62], eye: 1.8, yaw: -0.6, pitch: 0.05 },
 };
 const width = Number(process.env.LOOKDEV_W || 1280), height = Number(process.env.LOOKDEV_H || 720);
 const server = spawn('npx', ['vite', 'preview', '--port', '4174', '--strictPort'], { stdio: 'ignore' });

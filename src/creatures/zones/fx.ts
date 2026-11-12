@@ -39,7 +39,8 @@ export class GroundFx {
     this.group.name = 'zone-fx';
     this.group.matrixAutoUpdate = false;
     moundGeo ??= new THREE.SphereGeometry(1, 10, 5, 0, Math.PI * 2, 0, Math.PI / 2);
-    puffGeo ??= new THREE.IcosahedronGeometry(1, 0);
+    // Soft, smooth blobs: faceted shards read as rocks, not dust or water.
+    puffGeo ??= new THREE.SphereGeometry(1, 10, 7);
     ringGeo ??= new THREE.RingGeometry(0.82, 1, 24).rotateX(-Math.PI / 2);
     const add = (n: number, kind: Bit['kind'], geo: THREE.BufferGeometry, mat: THREE.Material) => {
       for (let i = 0; i < n; i++) {

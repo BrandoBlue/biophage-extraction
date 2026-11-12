@@ -123,3 +123,28 @@ describe('the Ochre Reach', () => {
     expect(flatsTrees).toBeGreaterThanOrEqual(D.trees.acaciaFlats * 0.8);
   });
 });
+
+describe('the Skyfall Crater (Sandwidow arena)', () => {
+  const w = world.structures.widow!;
+  it('exposes fixed pillars that are solid rocks a host can stand on', () => {
+    expect(w.id).toBe('skyfallCrater');
+    expect(w.pillars.map((p) => p.id)).toEqual(D.crater.pillars.map((p) => p.id));
+    for (const p of w.pillars) {
+      expect(Math.hypot(p.x - w.x, p.z - w.z)).toBeLessThan(w.radius * 0.65);
+      expect(p.top).toBeGreaterThan(groundHeight(p.x, p.z) + 1.5);
+      expect(SOLIDS.floorAt(p.x, p.z, p.top + 0.5)).toBeCloseTo(p.top, 1);
+    }
+  });
+  it('opens three cuts through the rim lip and keeps rubble out of them', () => {
+    expect(w.entrances).toHaveLength(3);
+    for (const e of w.entrances) {
+      const a = Math.atan2(e.z - w.z, e.x - w.x), at = (r: number) => groundHeight(w.x + Math.cos(a) * r, w.z + Math.sin(a) * r);
+      const side = (r: number) => groundHeight(w.x + Math.cos(a + 0.5) * r, w.z + Math.sin(a + 0.5) * r);
+      // The lip stands on the rim elsewhere but is gone in the cut.
+      expect(side(w.radius * 1.05) - at(w.radius * 1.05)).toBeGreaterThan(2);
+      // Walk in: no step on the way down is higher than the host can take.
+      for (let r = w.radius * 1.3; r > w.radius * 0.3; r -= 1) expect(Math.abs(at(r) - at(r - 1))).toBeLessThan(STEP_HEIGHT);
+    }
+    expect(w.floorY).toBeLessThan(groundHeight(w.entrances[0].x, w.entrances[0].z) - 5);
+  });
+});

@@ -18,19 +18,19 @@ export function creatureHide(base: string, vein: string, rim: string, crust: str
     fragment: /* glsl */ `
       vec3 p = vBioLocal * uHideScale + vBioSeed;
       float mott = bioFbm(p * 0.6);
-      diffuseColor.rgb *= 0.4 + mott * 1.1;
+      diffuseColor.rgb *= 0.6 + mott * 0.75;
       // Bruising: slow dark blotches toward the vein colour, so no stretch of skin is one even tone.
       float bruise = smoothstep(0.45, 0.75, bioNoise(p * 0.3 + 11.0));
-      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.45 + uVein * 0.12, bruise * 0.7);
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 0.45 + uVein * 0.12, bruise * 0.5);
       float pores = 1.0 - smoothstep(0.05, 0.16, bioCells(p * 1.8));
-      diffuseColor.rgb *= 1.0 - pores * 0.4;
+      diffuseColor.rgb *= 1.0 - pores * 0.3;
       float veins = max(bioVein(p * 0.5), bioVein(p * 1.3 + 4.0) * 0.6);
 
       // Sutures: long seams (a low-frequency zero-crossing), sunken and dark, with stitch pits along them.
       float seam = 1.0 - smoothstep(0.0, 0.035, abs(bioNoise(p * 0.3 + 21.0) * 2.0 - 1.0));
       float stitch = 0.0;
       if (seam > 0.01) stitch = seam * (1.0 - smoothstep(0.08, 0.2, bioCells(p * 2.6 + 5.0)));
-      diffuseColor.rgb *= 1.0 - seam * 0.55 - stitch * 0.3;
+      diffuseColor.rgb *= 1.0 - seam * 0.45 - stitch * 0.25;
 
       // Dry crust patches against wet skin; cracked, matte, a few worn through to bone.
       float dry = smoothstep(0.42, 0.54, bioNoise(p * 0.22 + 40.0) * 0.75 + bioNoise(p * 0.6 + 41.0) * 0.25);
@@ -55,7 +55,7 @@ export function creatureHide(base: string, vein: string, rim: string, crust: str
       float fres = pow(1.0 - abs(dot(normalize(vBioNormal), V)), 2.5);
       // Glow only in a few big veins (grounded rule 2); the fine ones are relief, not light.
       float bigVein = bioVein(p * 0.5) * smoothstep(0.45, 0.6, bioNoise(p * 0.15 + 3.0));
-      totalEmissiveRadiance += uVein * bigVein * flow * (1.0 - dry) * 0.4 + uRim * fres * 0.14 * (1.0 - dry * 0.7);
+      totalEmissiveRadiance += uVein * bigVein * flow * (1.0 - dry) * 0.4 + uRim * fres * 0.22 * (1.0 - dry * 0.6);
       roughnessFactor = mix(mix(roughnessFactor, 0.15, pores + tum * 0.6), 0.88, max(dry, boneWin * 0.6));
       hideWet = 1.0 - dry;
     `,

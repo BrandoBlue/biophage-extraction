@@ -3,6 +3,7 @@ import { FAUNA, ORGANIC } from '../../render/palette';
 import { PlanBuilder, V, mix, mutate, tint } from '../builder';
 import { aimBone, solveTwoBone } from '../ik';
 import { rng } from '../parts';
+import { organic, readable } from './organic';
 import type { BodyPlan, Palette } from '../plan';
 import type { Creature } from '../creature';
 import { createWeaponBody, type WeaponBody } from '../weapons/bodies';
@@ -34,8 +35,10 @@ export function hollowed(seed: number, stage = 0): BodyPlan {
   };
   const s = 0.96 + r() * 0.08;
   const b = new PlanBuilder('hollowed', seed, stage, { locomotion: 'walker', bodyHeight: 0.98 * s, radius: 0.42 * s, skinNoise: { amp: 0.006, freq: 18 }, skinResolution: 64, fleshScale: 10, palette: pal });
+  organic(b, rng(seed * 17 + 3));
   // Grey, bloodless skin under scraps of gear; the only colour is the wrong light in the chest.
   b.plan.palette = { ...b.plan.palette, flesh: mix(FAUNA.pearl, FAUNA.soot, 0.45), chitin: mix(FAUNA.soot, FAUNA.rope, 0.3), bone: mix(FAUNA.pearl, FAUNA.rope, 0.35), glow: mix(FAUNA.sickGreen, FAUNA.pearl, 0.25) };
+  readable(b);
   const S = (x: number, y: number, z: number) => V(x * s, y * s, z * s);
   const body = b.bone('body', -1, S(0, 0.98, 0));
   const chest = b.bone('chest', body, S(0, 1.3, 0.0));
