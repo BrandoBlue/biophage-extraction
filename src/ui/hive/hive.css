@@ -247,7 +247,7 @@
 .scr-raid .orbit { position:absolute; left:calc(var(--u) * 3); top:calc(var(--u) * 10.5); width:calc(var(--u) * 44); height:calc(var(--u) * 44); }
 .scr-raid .orbit canvas { width:100%; height:100%; }
 .scr-raid .orbit-label { position:absolute; left:calc(var(--u) * 1); top:calc(var(--u) * 1.5); display:flex; flex-direction:column; }
-.scr-raid .orbit-label b { font-family:var(--display); font-size:calc(var(--u) * 2.6); color:var(--bone); letter-spacing:.1em; text-shadow:0 0 calc(var(--u) * 1) color-mix(in srgb, var(--violet) 35%, transparent); }
+.scr-raid .orbit-label b { max-width:calc(var(--u) * 21); line-height:1.05; font-family:var(--display); font-size:calc(var(--u) * 2.1); color:var(--bone); letter-spacing:.1em; text-shadow:0 0 calc(var(--u) * 1) color-mix(in srgb, var(--violet) 35%, transparent); }
 .scr-raid .orbit-label span { font-size:calc(var(--u) * .85); color:var(--magenta); letter-spacing:.16em; }
 .scr-raid .legend { position:absolute; left:calc(var(--u) * 1); bottom:calc(var(--u) * 1); list-style:none; margin:0; padding:0; font-size:calc(var(--u) * .85); display:grid; gap:.2em; }
 .scr-raid .legend li { display:flex; gap:.4em; align-items:center; }
@@ -380,6 +380,18 @@
 .scr-raid .zone.locked { opacity:.55; } .scr-raid .zone.locked:hover { opacity:.8; }
 .scr-raid .zone.locked b { color:color-mix(in srgb, var(--bone) 70%, transparent); }
 .raid-info .mods .bone { color:var(--bone); }
+/* A shut zone the player is reading: its card stays lit, its map dims behind a veil, and the reason leads the panel. */
+.scr-raid .zone.shown:not(.on) { opacity:1; border-color:color-mix(in srgb, var(--amber) 55%, transparent); }
+.scr-raid .zone.shown:not(.on) em { color:var(--amber); }
+.scr-raid .orbit.shut canvas { filter:saturate(.5) brightness(.75); }
+.scr-raid .orbit .uncharted { position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); text-align:center; font-family:var(--display); font-style:italic; font-size:calc(var(--u) * 2.4); color:color-mix(in srgb, var(--bone) 70%, transparent); pointer-events:none; }
+.scr-raid .orbit .uncharted small { display:block; font-family:var(--ui); font-style:normal; font-size:calc(var(--u) * .7); letter-spacing:.2em; text-transform:uppercase; color:var(--lab); margin-top:.4em; }
+.raid-info > h2 small { line-height:1.35; }
+.raid-info.shut > h2 small { color:var(--amber); font-size:.6em; }
+.scr-raid .orbit-label.long b { font-size:calc(var(--u) * 1.6); }
+.scr-raid .orbit-label span { color:var(--lab); max-width:calc(var(--u) * 30); }
+.hv-cta:disabled { cursor:default; filter:grayscale(.85) brightness(.6); transform:none; box-shadow:none; }
+.hv-cta:disabled .arrow { opacity:.4; }
 
 /* Hive vendors (src/ui/hive/vendors.ts): switcher row, reputation, unlocks, stock, contracts. Bone frames, amber for standing. */
 .vd-row { position:absolute; top:calc(var(--u) * 8.2); left:50%; transform:translateX(-50%); display:flex; gap:calc(var(--u) * .6); z-index:2; }
@@ -438,6 +450,7 @@
 .scr-raid .zone b, .vd-pick b { font-family:var(--display); font-size:calc(var(--u) * 1.15); letter-spacing:.03em; font-weight:600; text-transform:capitalize; }
 .vd-pick { padding:calc(var(--u) * .5) calc(var(--u) * 1.4); }
 .scr-raid .orbit-label b { font-family:var(--display); font-weight:500; font-size:calc(var(--u) * 3); letter-spacing:.06em; text-shadow:none; }
+.scr-raid .orbit-label.long b { font-size:calc(var(--u) * 1.6); }
 .scr-raid .orbit-label span { color:var(--lab); font-size:calc(var(--u) * .7); letter-spacing:.24em; }
 .scr-raid .legend { color:var(--lab); } .scr-raid .legend .spire, .scr-raid .legend .drop { color:var(--acid); }
 .raid-info .threat b { font-family:var(--display); font-size:1.3em; }

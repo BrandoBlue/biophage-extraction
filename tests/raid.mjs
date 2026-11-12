@@ -430,8 +430,14 @@ try {
   log(`Flesh Market: ${cards} offers, sold one item for ${(await profile()).dna - before} DNA`);
 
   // --- Raid select into another zone: deploying with a different built zone picked reloads into that map and deploys.
-  await page.evaluate(() => { const p = window.__biophage.profile; p.economy.unlocks.push('zone:longSeedWreck'); p.economy.zone = 'longSeedWreck'; });
-  await Promise.all([page.waitForNavigation({ timeout: 120000 }), page.evaluate(() => window.__biophage.debug.begin())]);
+  // It goes through the real buttons: the zone card shows that zone's own map and details, and Deploy goes there.
+  await page.evaluate(() => { window.__biophage.profile.economy.unlocks.push('zone:longSeedWreck'); });
+  await tab('raid');
+  await page.click('#hive .zone[data-zone="longSeedWreck"]');
+  const pick = await page.evaluate(() => ({ title: document.querySelector('#hive .raid-info h2')?.textContent ?? '', map: document.querySelector('#hive .orbit canvas')?.getAttribute('data-zone'),
+    zone: window.__biophage.profile.economy.zone, deploy: document.querySelector('#deploy')?.disabled }));
+  if (!/LONG SEED/.test(pick.title) || pick.map !== 'longSeedWreck' || pick.zone !== 'longSeedWreck' || pick.deploy) await fail(`raid select did not switch to the Wreck: ${JSON.stringify(pick)}`);
+  await Promise.all([page.waitForNavigation({ timeout: 120000 }), page.click('#deploy')]);
   await boot();
   for (let i = 0; i < 20; i++) { s = await state(); if (s.phase === 'raid') break; await frames(1); }
   if (s.phase !== 'raid' || s.zone !== 'longSeedWreck') await fail(`zone switch did not deploy into the Wreck: phase ${s.phase}, zone ${s.zone}`);

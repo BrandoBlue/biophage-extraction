@@ -5,14 +5,15 @@
  * references in docs/reference/ set the mood only.
  */
 import { def as itemOf } from '../items';
-import { BOSSES, CLASSES, CONTRACTS, RAID, VIRUSES, ZONES, layoutPosition } from '../../../data';
+import { ABOMINATIONS, BOSSES, CLASSES, CONTRACTS, RAID, ZONES } from '../../../data';
 import type { ClassId } from '../../../data';
-import { HIVE, ORGANIC, PATH, ZONE7, ZONE7_SHADE } from '../../render/palette';
+import { FAUNA, HIVE, ORGANIC, PATH, ZONE7, ZONE7_SHADE } from '../../render/palette';
 import { hostPortrait } from '../hosts';
 import { glyph, itemIcon, KIND_COLOUR } from '../icons';
 import { cta, esc, h, keyHints, meter, panel, q } from './kit';
 import type { ProfileView, ZoneView } from './model';
 import { usage, valueOf } from './model';
+import { zoneExtracts, zoneMap } from './zonemap';
 
 const BASE: ClassId = 'neuroInfiltrator';
 const pct = (x: number) => `${x > 0 ? '+' : ''}${Math.round(x * 100)}%`;
@@ -178,14 +179,32 @@ const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 
 /** The zone this build deploys into (Zone 7 is Glowmire Isle). */
 export const LIVE_ZONE = 'glowmireIsle';
 
-/** Plain-words access requirement for a zone (zones.json `access`). */
+/** Plain-words access requirement for a zone (zones.json `access`), when Gameplay's zone list is not there. */
 export function zoneAccess(access: string): string {
-  if (access === 'open') return 'OPEN';
-  const c = /^contract (\w+)/.exec(access);
-  if (c) return `CONTRACT · ${(CONTRACTS.find((k) => k.id === c[1])?.title ?? c[1]).toUpperCase()}`;
-  if (access === 'apex') return 'APEX MILESTONE';
-  if (access.startsWith('host')) return 'HOST LEVEL 5';
-  return access.toUpperCase();
+  return access === 'open' ? 'OPEN' : accessReason(access).toUpperCase();
+}
+
+const accessReason = (access: string) => plainLock(access.split(/\s+or\s+/).map((alt) => {
+  const c = /^contract (\w+)/.exec(alt);
+  return c ? `finish ${CONTRACTS.find((k) => k.id === c[1])?.title ?? c[1]}` : alt;
+}).join(' or '));
+
+/**
+ * Why a zone is shut, in a player's words (Gameplay's reasons are terse and name milestones): "Unlocks at host level 5
+ * or when you finish the contract The Reliquary", "Not open yet: its map is still being built".
+ */
+export function plainLock(reason: string): string {
+  const r = reason.trim();
+  if (/^apex$|^arrives in /i.test(r)) return 'Not open yet: it arrives in a later update';
+  if (/map is still growing/i.test(r)) return 'Not open yet: its map is still being built';
+  const parts = r.split(/\s+or\s+/).map((alt) => {
+    const lvl = /level\s+(\d+)/i.exec(alt);
+    if (lvl) return `at host level ${lvl[1]}`;
+    const fin = /^finish\s+(.+)$/i.exec(alt);
+    if (fin) return `when you finish the contract ${fin[1].replace(/\s*\(.*\)$/, '')}`;
+    return alt;
+  });
+  return `Unlocks ${parts.join(' or ')}`;
 }
 
 /** The zone roster in travel order: open zones first-class, the rest show what opens them. */
@@ -198,85 +217,131 @@ export function zoneRoster(open: (id: string) => boolean = (id) => ZONES[id]?.ac
 
 interface ZoneCallbacks { notice?(msg: string, tone?: string): void; zones?(): ZoneView[]; selectZone?(id: string): boolean; changed?(): void }
 
-function zoneRow(current: string, cb: ZoneCallbacks): HTMLElement {
+/** A shut zone the player is looking at (its map and details show; Deploy says why it cannot go). Cleared on a pick. */
+let preview: string | null = null;
+
+function zoneRow(current: string, shown: string, cb: ZoneCallbacks): HTMLElement {
   const row = h('div', 'zones');
   // Gameplay's zoneList decides access when it is there; otherwise zones.json's `access` does.
   const live = cb.zones?.();
   const roster = zoneRoster(live ? (id) => live.find((z) => z.id === id)?.access.state === 'open' : undefined);
   for (const z of roster) {
-    const acc = live?.find((x) => x.id === z.id)?.access;
-    const why = acc && acc.state !== 'open' ? acc.reason.toUpperCase() : z.access;
-    const b = h<HTMLButtonElement>('button', `zone${z.open ? '' : ' locked'}${z.id === current ? ' on' : ''}`, `<em>${ROMAN[z.order] ?? z.order}</em>
-      <div><b>${esc(z.label.toUpperCase())}</b><small>${z.open ? `<span class="pips">${[1, 2, 3, 4, 5].map((i) => `<i class="${i >= z.threat[0] && i <= z.threat[1] ? 'on' : ''}"></i>`).join('')}</span>${z.raidTime ? fmt(z.raidTime) : ''}` : `${glyph('lock')}${esc(why)}`}</small></div>`);
+    const why = lockWhy(z.id, live);
+    const b = h<HTMLButtonElement>('button', `zone${z.open ? '' : ' locked'}${z.id === current ? ' on' : ''}${z.id === shown ? ' shown' : ''}`, `<em>${ROMAN[z.order] ?? z.order}</em>
+      <div><b>${esc(z.label.toUpperCase())}</b><small>${z.open ? `<span class="pips">${[1, 2, 3, 4, 5].map((i) => `<i class="${i >= z.threat[0] && i <= z.threat[1] ? 'on' : ''}"></i>`).join('')}</span>${z.raidTime ? fmt(z.raidTime) : ''}` : `${glyph('lock')}${esc(why ?? '')}`}</small></div>`);
     b.dataset.zone = z.id;
-    b.title = z.open ? z.pitch : `${z.label} · ${why.toLowerCase()}`;
+    b.title = z.open ? z.pitch : `${z.label}: ${why}`;
     b.addEventListener('click', () => {
-      if (!z.open) { cb.notice?.(`${z.label.toUpperCase()} · ${why}`, 'danger'); return; }
-      if (z.id !== current && cb.selectZone?.(z.id)) cb.changed?.();
+      if (!z.open) { preview = z.id; cb.changed?.(); return; }
+      preview = null;
+      if (z.id !== current) { if (cb.selectZone?.(z.id)) cb.changed?.(); } else cb.changed?.();
     });
     row.append(b);
   }
   return row;
 }
 
+/** Why a zone is shut, or null when it is open. */
+function lockWhy(id: string, live?: ZoneView[]): string | null {
+  const acc = live?.find((x) => x.id === id)?.access;
+  if (acc) return acc.state === 'open' ? null : plainLock(acc.reason);
+  return ZONES[id]?.access === 'open' ? null : accessReason(ZONES[id]?.access ?? 'apex');
+}
+
+const firstSentence = (s: string) => (s.split(/(?<=[.;])\s/)[0] ?? s).replace(/[;.]$/, '');
+const creatureName = (k: string) => ABOMINATIONS[k]?.label ?? NAMES[k] ?? k.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
+
+/** The zone's pitch cut to a short line for the map caption. */
+const caption = (pitch: string) => {
+  const s = pitch.split(/[:.]/)[0];
+  return s.length > 58 ? `${s.slice(0, 56).replace(/\s+\S*$/, '')}…` : s;
+};
+
 export function raidSelect(p: ProfileView, cb: { deploy(): void } & ZoneCallbacks): HTMLElement {
   const el = h('div', 'scr scr-raid');
-  const zoneId = p.zone && ZONES[p.zone] ? p.zone : LIVE_ZONE;
+  const current = p.zone && ZONES[p.zone] ? p.zone : LIVE_ZONE;
+  const live = cb.zones?.();
+  if (preview && (!ZONES[preview] || !lockWhy(preview, live))) preview = null;
+  const zoneId = preview ?? current;
   const zone = ZONES[zoneId];
-  const boss = zone?.boss ? BOSSES[zone.boss] : null;
-  const roster = zoneRoster();
-  const plan = raidPlan();
-  const extracts = RAID.larva?.extracts ?? [{ label: RAID.extract.label, radius: RAID.extract.radius, bearing: RAID.extract.bearing, opensAt: 0 }];
+  const why = lockWhy(zoneId, live);
+  const map = zoneMap(zoneId);
+  const ex = zoneExtracts(zoneId);
+  const isle = zoneId === LIVE_ZONE;
+  const plan = isle ? raidPlan() : null;
+  const bosses = (zone.bosses ?? (zone.boss ? [zone.boss] : [])).map((b) => BOSSES[b]).filter(Boolean);
+  const threat = zone.threat[1];
+  const pods = zone.containers ? Object.values(zone.containers).reduce((a, b) => a + b, 0) : plan?.pods ?? 0;
+  const mechanics = Object.entries(zone.mechanics ?? {}).map(([k, v]) => {
+    const m = v as { note?: string; description?: string };
+    const text = typeof v === 'object' && v ? m.note ?? m.description : null;
+    return text ? { label: k.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase()), text: firstSentence(text.replace(/\s*\([^)]*\)/g, '')).replace(/^./, (c) => c.toUpperCase()) } : null;
+  }).filter(Boolean) as { label: string; text: string }[];
+  // Most telling first; the panel keeps five so it never runs into Deploy.
+  const mods = [
+    ...bosses.map((b) => `<li class="bone">${glyph('nest')}<b>${esc(b.label)} waits in the ${esc(String(b.arena.shape ?? 'arena'))}</b><span>Wakes when ${esc(b.dormantUntil.replace(/\s*\(.*\)$/, ''))}.</span></li>`),
+    ...((zone.nests ?? []).length ? [`<li class="danger">${glyph('nest')}<b>Brood Heart nest present</b><span>Wakes within range, pulses spawn waves. Kill it for the Brood Cache.</span></li>`] : []),
+    ...ex.later.map((x) => `<li class="lime">${glyph('spire')}<b>${esc(x.label)} ${x.opensAt ? `opens at ${fmt(x.opensAt)}` : 'opens later'}</b><span>${x.opensAt ? 'Routes and timing shift mid-raid.' : 'Only once its condition is met in the raid.'}</span></li>`),
+    ...mechanics.slice(0, 2).map((m) => `<li class="cyan">${glyph('warn')}<b>${esc(m.label)}</b><span>${esc(m.text)}.</span></li>`),
+    ...(isle && RAID.larva?.corpseHarvest ? [`<li class="cyan">${glyph('dna')}<b>Corpse harvesting</b><span>Hold E on a dead Abomination to cut out its organ.</span></li>`] : []),
+    ...(zone.lootFocus ? [`<li class="violet">${glyph('virus')}<b>Worth taking</b><span>${esc(zone.lootFocus.charAt(0).toUpperCase() + zone.lootFocus.slice(1))}.</span></li>`] : []),
+  ];
+  const legend = [
+    ex.count ? `<li class="spire">${glyph('spire')}Extract</li>` : '',
+    bosses.length && map.marks.some((m) => m.kind === 'boss') ? `<li class="nest">${glyph('nest')}Boss lair</li>` : '',
+    map.marks.some((m) => m.kind === 'nest') ? `<li class="nest">${glyph('nest')}Brood Heart nest</li>` : '',
+    map.marks.some((m) => m.kind === 'pod') ? `<li class="pod">${glyph('pod')}Bio-Pod</li>` : '',
+    map.marks.some((m) => m.kind === 'drop') ? `<li class="drop">${glyph('play')}Your drop point</li>` : '',
+  ].join('');
   el.innerHTML = `
-    <div class="orbit"><canvas width="1100" height="1100"></canvas>
-      <div class="orbit-label"><b>ZONE 7</b><span>BIOLUMINESCENT PSYCH-WAVE SECTOR</span></div>
-      <ul class="legend">
-        <li class="spire">${glyph('spire')}Seed Spire extract</li><li class="nest">${glyph('nest')}Brood Heart nest</li>
-        <li class="pod">${glyph('pod')}Bio-Pod</li><li class="drop">${glyph('play')}Your drop point</li>
-      </ul>
+    <div class="orbit${why ? ' shut' : ''}" data-zone="${zoneId}"><canvas width="1100" height="1100" data-zone="${zoneId}"></canvas>
+      <div class="orbit-label${zone.label.length > 18 ? ' long' : ''}"><b>${esc((isle ? 'Zone 7' : zone.label.replace(/^The /, '')).toUpperCase())}</b><span>${esc(caption(zone.pitch).toUpperCase())}</span></div>
+      ${map.shape === 'uncharted' ? '<div class="uncharted">Uncharted<small>No survey of this zone yet</small></div>' : ''}
+      <ul class="legend">${legend}</ul>
     </div>`;
-  const info = panel('raid-info', `EXCLUSION ZONE: ${(zone?.label ?? 'Zone 7').toUpperCase()}`, `Zone 7 · ${roster.filter((z) => z.open).length} of ${roster.length} zones open`);
+  const open = cb.zones ? (cb.zones() ?? []).filter((z) => z.access.state === 'open').length : zoneRoster().filter((z) => z.open).length;
+  const info = panel('raid-info', `EXCLUSION ZONE: ${zone.label.toUpperCase()}`, why ?? `${open} of ${Object.keys(ZONES).length} zones open`);
+  if (why) info.classList.add('shut');
   info.insertAdjacentHTML('beforeend', `
-    <div class="threat"><span>THREAT LEVEL</span><div class="pips">${[1, 2, 3, 4, 5].map((i) => `<i class="${i <= plan.threat ? 'on' : ''}"></i>`).join('')}</div><b>${['', 'LOW', 'GUARDED', 'HIGH', 'SEVERE', 'EXTREME'][plan.threat]}</b></div>
+    <div class="threat"><span>THREAT LEVEL</span><div class="pips">${[1, 2, 3, 4, 5].map((i) => `<i class="${i >= zone.threat[0] && i <= threat ? 'on' : ''}"></i>`).join('')}</div><b>${['', 'LOW', 'GUARDED', 'HIGH', 'SEVERE', 'EXTREME'][threat]}</b></div>
     <dl class="raidfacts">
-      <div><dt>RAID TIME</dt><dd>${fmt(RAID.raidTime)}</dd></div>
+      <div><dt>RAID TIME</dt><dd>${zone.raidTime ? fmt(zone.raidTime) : '?'}</dd></div>
       <div><dt>ZONE COLLAPSE WARNING</dt><dd>${fmt(RAID.zoneCollapse.warningAt)} left</dd></div>
-      <div><dt>BIO-PODS</dt><dd>${plan.pods}</dd></div>
-      <div><dt>EXTRACTS</dt><dd>${extracts.length}</dd></div>
+      <div><dt>CONTAINERS</dt><dd>${pods || '?'}</dd></div>
+      <div><dt>EXTRACTS</dt><dd>${ex.count || '?'}</dd></div>
     </dl>
     <h3>ACTIVE MODIFIERS</h3>
-    <ul class="mods">
-      ${boss ? `<li class="bone">${glyph('nest')}<b>${esc(boss.label)} sleeps in the ${esc(String(boss.arena.shape ?? 'arena'))}</b><span>Dormant until a ${esc(boss.dormantUntil)}. Its song carries ${boss.songRadius} m.</span></li>` : ''}
-      ${plan.nests ? `<li class="danger">${glyph('nest')}<b>Brood Heart nest present</b><span>Wakes within range, pulses spawn waves. Kill it for the Brood Cache.</span></li>` : ''}
-      ${extracts.filter((x) => x.opensAt > 0).map((x) => `<li class="lime">${glyph('spire')}<b>Second ${esc(x.label)} opens at ${fmt(x.opensAt)}</b><span>Bearing ${x.bearing}°. Routes and timing shift mid-raid.</span></li>`).join('')}
-      ${RAID.larva?.corpseHarvest ? `<li class="cyan">${glyph('dna')}<b>Corpse harvesting</b><span>Hold E on a dead Abomination to cut out its organ.</span></li>` : ''}
-      <li class="violet">${glyph('virus')}<b>Viral strains in the wild</b><span>${Object.values(VIRUSES).map((v) => esc(v.label)).join(' · ')}</span></li>
+    <ul class="mods">${mods.slice(0, 5).join('')}
     </ul>
     <h3>KNOWN ABOMINATIONS</h3>
-    <ul class="roster">${plan.hostiles.map((x) => `<li><span>${esc(NAMES[x.type] ?? x.type)}</span><b>×${x.count}</b></li>`).join('')}</ul>`);
-  el.append(info, zoneRow(zoneId, cb));
+    <ul class="roster">${plan ? plan.hostiles.map((x) => `<li><span>${esc(creatureName(x.type))}</span><b>×${x.count}</b></li>`).join('')
+      : (zone.creatures ?? []).map((k) => `<li><span>${esc(creatureName(k))}</span></li>`).join('') || '<li><span>Unknown</span></li>'}</ul>`);
+  el.append(info, zoneRow(current, zoneId, cb));
   el.insertAdjacentHTML('beforeend', `
     <div class="squad"><h3>HIVE-MIND SQUAD</h3>
       <div class="sq-slots"><div class="sq you">${hostPortrait(p.host)}<span>${esc(p.callsign)}</span></div>
-      <div class="sq off">${glyph('lock')}<span>OPENS IN HIVE</span></div><div class="sq off">${glyph('lock')}<span>OPENS IN HIVE</span></div></div></div>
+      <div class="sq off">${glyph('lock')}<span>SQUAD UP IN HIVE-MIND</span></div><div class="sq off">${glyph('lock')}<span>SQUAD UP IN HIVE-MIND</span></div></div></div>
     <div class="loadout-sum"><h3>CARRYING IN</h3><div class="pv-grid">${p.cavity.map((s) => tile(s.item, s.count)).join('') || '<em>Cavities empty: innate Synapse Burster only</em>'}</div>
       <p>${glyph('warn')} Cavity contents are lost if the host dies. Gut pouch survives.</p></div>`);
-  const go = cta('DEPLOY', 'PVPVE ZONE · DEATH LOSES YOUR LOADOUT', 'deploy');
+  const go = cta(why ? 'ZONE SHUT' : 'DEPLOY', why ? why.toUpperCase() : `INTO ${zone.label.toUpperCase()} · DEATH LOSES YOUR LOADOUT`, 'deploy');
+  go.disabled = !!why;
   el.append(go, keyHints([['ENTER', 'DEPLOY'], ['ESC', 'BACK']]));
-  go.addEventListener('click', () => cb.deploy());
+  go.addEventListener('click', () => { if (!go.disabled) cb.deploy(); });
   drawOrbit(q<HTMLCanvasElement>(el, 'canvas'));
   return el;
 }
 
-/** Static orbital map frame. HiveMenu animates it by calling drawOrbit with a time. */
+/** The zone map disc. HiveUI animates it by calling drawOrbit with a time; the zone comes from the canvas. */
 export function drawOrbit(cv: HTMLCanvasElement, t = 0): void {
   const c = cv.getContext('2d');
   if (!c) return;
+  const map = zoneMap(cv.dataset.zone ?? LIVE_ZONE);
   const W = cv.width, cx = W / 2, cy = W / 2, R = W * 0.36;
+  const [inner, outer, ink] = map.tone;
   c.clearRect(0, 0, W, W);
   // Halo and orbital rings.
   const halo = c.createRadialGradient(cx, cy, R * 0.8, cx, cy, R * 1.45);
-  halo.addColorStop(0, `${ORGANIC.mist}30`); halo.addColorStop(0.5, `${ORGANIC.mist}0c`); halo.addColorStop(1, `${ZONE7.void}00`);
+  halo.addColorStop(0, `${ink}30`); halo.addColorStop(0.5, `${ink}0c`); halo.addColorStop(1, `${ZONE7.void}00`);
   c.fillStyle = halo; c.beginPath(); c.arc(cx, cy, R * 1.45, 0, Math.PI * 2); c.fill();
   c.save(); c.translate(cx, cy);
   for (let i = 0; i < 4; i++) {
@@ -287,33 +352,78 @@ export function drawOrbit(cv: HTMLCanvasElement, t = 0): void {
   }
   c.setLineDash([]);
   c.restore();
-  // Island body.
-  c.save(); c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.clip();
-  const g = c.createRadialGradient(cx - R * 0.3, cy - R * 0.3, R * 0.1, cx, cy, R);
-  g.addColorStop(0, ZONE7_SHADE.moss); g.addColorStop(0.55, ZONE7_SHADE.rock); g.addColorStop(1, ZONE7_SHADE.rockDeep);
-  c.fillStyle = g; c.fillRect(0, 0, W, W);
-  // Swirling psych-wave clouds.
-  for (let i = 0; i < 9; i++) {
-    c.strokeStyle = [ORGANIC.mist, ZONE7.cyan, HIVE.bone, ORGANIC.amber][i % 4];
-    c.globalAlpha = 0.09 + 0.04 * Math.sin(t * 0.8 + i);
-    c.lineWidth = 2 + (i % 3) * 2;
-    c.beginPath();
-    for (let a = 0; a <= Math.PI * 2 + 0.01; a += 0.05) {
-      const rr = R * (0.12 + i * 0.1) + Math.sin(a * (2 + (i % 3)) + t * 0.4 + i * 1.7) * R * 0.05;
-      const x = cx + Math.cos(a + t * 0.05 * (i % 2 ? 1 : -1)) * rr, y = cy + Math.sin(a) * rr * 0.96;
-      if (a === 0) c.moveTo(x, y); else c.lineTo(x, y);
-    }
-    c.stroke();
-  }
-  c.globalAlpha = 1;
-  // Fungal glow specks.
+  const k = R / map.radius;
+  const P = (x: number, z: number): [number, number] => [cx + x * k, cy + z * k];
   let s = 7;
   const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
-  for (let i = 0; i < 160; i++) {
-    const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * R;
-    c.fillStyle = [HIVE.bone, ZONE7.cyan, ORGANIC.amber][i % 3];
-    c.globalAlpha = 0.15 + 0.35 * Math.abs(Math.sin(t * 1.3 + i));
-    c.beginPath(); c.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 1 + rnd() * 2.2, 0, Math.PI * 2); c.fill();
+  // Ground.
+  c.save(); c.beginPath(); c.arc(cx, cy, R, 0, Math.PI * 2); c.clip();
+  const g = c.createRadialGradient(cx - R * 0.3, cy - R * 0.3, R * 0.1, cx, cy, R);
+  g.addColorStop(0, inner); g.addColorStop(0.6, map.shape === 'isle' ? ZONE7_SHADE.rock : outer); g.addColorStop(1, outer);
+  c.fillStyle = map.shape === 'hull' || map.shape === 'uncharted' ? outer : g; c.fillRect(0, 0, W, W);
+  if (map.shape === 'isle' || map.shape === 'fen' || map.shape === 'uncharted') {
+    // Drifting mist (psych-wave clouds on the isle, fog over the fen, nothing known elsewhere).
+    for (let i = 0; i < 9; i++) {
+      c.strokeStyle = map.shape === 'isle' ? [ORGANIC.mist, ZONE7.cyan, HIVE.bone, ORGANIC.amber][i % 4] : [ink, HIVE.bone][i % 2];
+      c.globalAlpha = (map.shape === 'uncharted' ? 0.05 : 0.09) + 0.04 * Math.sin(t * 0.8 + i);
+      c.lineWidth = 2 + (i % 3) * 2;
+      c.beginPath();
+      for (let a = 0; a <= Math.PI * 2 + 0.01; a += 0.05) {
+        const rr = R * (0.12 + i * 0.1) + Math.sin(a * (2 + (i % 3)) + t * 0.4 + i * 1.7) * R * 0.05;
+        const x = cx + Math.cos(a + t * 0.05 * (i % 2 ? 1 : -1)) * rr, y = cy + Math.sin(a) * rr * 0.96;
+        if (a === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      }
+      c.stroke();
+    }
+  }
+  if (map.shape === 'desert') {
+    // Dune ripples: long soft waves that drift with the wind.
+    c.strokeStyle = ink; c.lineWidth = 1.5;
+    for (let i = 0; i < 26; i++) {
+      c.globalAlpha = 0.08 + 0.05 * Math.sin(i * 1.3);
+      const y0 = cy - R + (i / 26) * R * 2;
+      c.beginPath();
+      for (let x = cx - R; x <= cx + R; x += 8) c.lineTo(x, y0 + Math.sin(x * 0.012 + i * 0.9 + t * 0.15) * R * 0.03);
+      c.stroke();
+    }
+  }
+  if (map.shape === 'fen') {
+    // Water channels: dark pools with a moss sheen.
+    for (let i = 0; i < 14; i++) {
+      const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * R * 0.9;
+      c.fillStyle = FAUNA.water; c.globalAlpha = 0.5;
+      c.beginPath(); c.ellipse(cx + Math.cos(a) * d, cy + Math.sin(a) * d, R * (0.05 + rnd() * 0.08), R * (0.03 + rnd() * 0.05), rnd() * 3, 0, Math.PI * 2); c.fill();
+    }
+  }
+  if (map.shape === 'pit' && map.layers) {
+    // Depth layers: each shelf a ring, darker and greener toward the bottom.
+    map.layers.forEach((l, i) => {
+      const rr = l.r * k;
+      const lg = c.createRadialGradient(cx, cy, rr * 0.6, cx, cy, rr);
+      lg.addColorStop(0, i === map.layers!.length - 1 ? `${ink}66` : `${FAUNA.soot}`); lg.addColorStop(1, i ? `${ZONE7_SHADE.rockDeep}` : `${FAUNA.rope}44`);
+      c.globalAlpha = 0.9; c.fillStyle = lg; c.beginPath(); c.arc(cx, cy, rr, 0, Math.PI * 2); c.fill();
+      c.globalAlpha = 0.5; c.strokeStyle = HIVE.bone; c.lineWidth = 1; c.setLineDash([3, 6]); c.beginPath(); c.arc(cx, cy, rr, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
+    });
+    const glow = c.createRadialGradient(cx, cy, 0, cx, cy, R * 0.3);
+    glow.addColorStop(0, `${ink}${Math.round(0x40 + 0x20 * Math.sin(t)).toString(16)}`); glow.addColorStop(1, `${ink}00`);
+    c.globalAlpha = 1; c.fillStyle = glow; c.beginPath(); c.arc(cx, cy, R * 0.3, 0, Math.PI * 2); c.fill();
+  }
+  if (map.shape === 'hull' && map.rooms) {
+    // The wreck's plan: the hull seen from above, its rooms in order from prow to reactor.
+    for (const r of map.rooms) {
+      const [x0, y0] = P(r.x0, r.z0), [x1, y1] = P(r.x1, r.z1);
+      c.globalAlpha = 0.85; c.fillStyle = inner; c.fillRect(x0, y0, x1 - x0, y1 - y0);
+      c.globalAlpha = 0.5; c.strokeStyle = HIVE.bone; c.lineWidth = 1; c.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    }
+  }
+  // Fungal glow specks (or dust).
+  if (map.shape !== 'hull') {
+    for (let i = 0; i < 160; i++) {
+      const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * R;
+      c.fillStyle = map.shape === 'isle' ? [HIVE.bone, ZONE7.cyan, ORGANIC.amber][i % 3] : i % 2 ? HIVE.bone : ink;
+      c.globalAlpha = (map.shape === 'isle' ? 0.15 : 0.06) + (map.shape === 'isle' ? 0.35 : 0.14) * Math.abs(Math.sin(t * 1.3 + i));
+      c.beginPath(); c.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 1 + rnd() * 2.2, 0, Math.PI * 2); c.fill();
+    }
   }
   c.globalAlpha = 1;
   // Terminator shading.
@@ -332,46 +442,53 @@ export function drawOrbit(cv: HTMLCanvasElement, t = 0): void {
     c.beginPath(); c.moveTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); c.lineTo(cx + Math.cos(a) * r2, cy + Math.sin(a) * r2); c.stroke();
     if (b % 90 === 0) c.fillText(['N', 'E', 'S', 'W'][b / 90], cx + Math.cos(a) * R * 1.14, cy + Math.sin(a) * R * 1.14);
   }
-  // Markers from raid.json layout (world radius → map radius).
-  const toMap = (radius: number, bearing: number): [number, number] => {
-    const [x, z] = layoutPosition({ radius, bearing });
-    const k = R / RAID.playableRadius;
-    return [cx + x * k, cy + z * k];
-  };
+  // Markers.
   const pulse = 0.5 + 0.5 * Math.sin(t * 3);
   const ring = (x: number, y: number, col: string, r: number) => {
     c.strokeStyle = col; c.globalAlpha = 0.25 + pulse * 0.4; c.lineWidth = 2;
     c.beginPath(); c.arc(x, y, r + pulse * 8, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
   };
-  const label = (x: number, y: number, text: string, col: string) => {
-    c.font = `600 ${W * 0.015}px "Manrope", sans-serif`; c.fillStyle = col; c.shadowColor = HIVE.background; c.shadowBlur = 6;
+  const label = (x: number, y: number, text: string, col: string, size = 0.015) => {
+    c.font = `600 ${W * size}px "Manrope", sans-serif`; c.fillStyle = col; c.shadowColor = HIVE.background; c.shadowBlur = 6;
     c.fillText(text, x, y); c.shadowBlur = 0;
   };
-  for (const pod of RAID.larva?.containers ?? RAID.containers) {
-    const [x, y] = toMap(pod.radius, pod.bearing);
-    c.fillStyle = PATH.dna; c.shadowColor = PATH.dna; c.shadowBlur = 4;
-    c.beginPath(); c.ellipse(x, y, 6, 9, 0, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
-    if (pod.guard) label(x, y + 22, 'GUARDED', PATH.dna);
+  // Area names stay quiet and give way to anything marked in them (a boss lair, an extract).
+  const marked = map.marks.filter((x) => x.kind === 'boss' || x.kind === 'extract');
+  for (const m of map.marks.filter((x) => x.kind === 'site' && !marked.some((b) => Math.hypot(x.x - b.x, x.z - b.z) < (x.r ?? 20) * 0.8))) {
+    const [x, y] = P(m.x, m.z);
+    c.strokeStyle = `${HIVE.bone}40`; c.lineWidth = 1; c.setLineDash([2, 5]);
+    c.beginPath(); c.arc(x, y, (m.r ?? 20) * k, 0, Math.PI * 2); c.stroke(); c.setLineDash([]);
+    label(x, y, m.label.toUpperCase(), `${HIVE.bone}99`, 0.012);
   }
-  for (const n of RAID.larva?.nests ?? []) {
-    const [x, y] = toMap(n.radius, n.bearing);
-    ring(x, y, HIVE.danger, 18);
-    c.fillStyle = HIVE.danger; c.shadowColor = HIVE.danger; c.shadowBlur = 6;
-    c.beginPath(); c.arc(x, y, 10, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
-    label(x, y - 30, 'BROOD HEART', HIVE.danger);
+  if (map.shape === 'hull') for (const r of map.rooms ?? []) {
+    // Room names only where they fit inside the room and nothing else is marked there.
+    const [x, y] = P((r.x0 + r.x1) / 2, (r.z0 + r.z1) / 2);
+    c.font = `600 ${W * 0.011}px "Manrope", sans-serif`;
+    if (c.measureText(r.label.toUpperCase()).width < (r.x1 - r.x0) * k - 6 && !marked.some((b) => b.x >= r.x0 && b.x <= r.x1 && b.z >= r.z0 && b.z <= r.z1)) label(x, y, r.label.toUpperCase(), `${HIVE.bone}99`, 0.011);
   }
-  const ex = RAID.larva?.extracts ?? [{ label: RAID.extract.label, radius: RAID.extract.radius, bearing: RAID.extract.bearing, opensAt: 0 }];
-  for (const e of ex) {
-    const [x, y] = toMap(e.radius, e.bearing);
-    ring(x, y, HIVE.acid, 14);
-    c.strokeStyle = HIVE.acid; c.lineWidth = 2; c.shadowColor = HIVE.acid; c.shadowBlur = 4;
-    c.beginPath(); c.moveTo(x, y - 12); c.lineTo(x + 9, y); c.lineTo(x, y + 12); c.lineTo(x - 9, y); c.closePath(); c.stroke(); c.shadowBlur = 0;
-    label(x, y - 28, e.opensAt ? `SPIRE · ${fmt(e.opensAt)}` : 'SEED SPIRE', HIVE.acid);
+  if (map.shape === 'pit') for (const l of map.layers ?? []) { const [x, y] = P(0, -l.r); label(x, y + 14, l.label.toUpperCase(), `${HIVE.bone}aa`, 0.012); }
+  for (const m of map.marks) {
+    const [x, y] = P(m.x, m.z);
+    if (m.kind === 'pod') {
+      c.fillStyle = PATH.dna; c.shadowColor = PATH.dna; c.shadowBlur = 4;
+      c.beginPath(); c.ellipse(x, y, 6, 9, 0, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+      if (m.guard) label(x, y + 22, 'GUARDED', PATH.dna);
+    } else if (m.kind === 'nest' || m.kind === 'boss') {
+      ring(x, y, HIVE.danger, m.kind === 'boss' ? 24 : 18);
+      c.fillStyle = HIVE.danger; c.shadowColor = HIVE.danger; c.shadowBlur = 6;
+      c.beginPath(); c.arc(x, y, m.kind === 'boss' ? 8 : 10, 0, Math.PI * 2); c.fill(); c.shadowBlur = 0;
+      label(x, y + (m.kind === 'boss' ? 38 : -30), m.label, HIVE.danger);
+    } else if (m.kind === 'extract') {
+      ring(x, y, HIVE.acid, 14);
+      c.strokeStyle = HIVE.acid; c.lineWidth = 2; c.shadowColor = HIVE.acid; c.shadowBlur = 4;
+      c.beginPath(); c.moveTo(x, y - 12); c.lineTo(x + 9, y); c.lineTo(x, y + 12); c.lineTo(x - 9, y); c.closePath(); c.stroke(); c.shadowBlur = 0;
+      label(x, y - 28, `${m.label.toUpperCase()}${m.opensAt ? ` · ${fmt(m.opensAt)}` : m.opensAt === null ? ' · LATER' : ''}`, HIVE.acid);
+    } else if (m.kind === 'drop') {
+      c.fillStyle = ORGANIC.amber; c.shadowColor = ORGANIC.amber; c.shadowBlur = 4;
+      c.beginPath(); c.moveTo(x, y - 12); c.lineTo(x + 9, y + 8); c.lineTo(x - 9, y + 8); c.closePath(); c.fill(); c.shadowBlur = 0;
+      label(x, y + 26, 'DROP', ORGANIC.amber);
+    }
   }
-  const [sx, sy] = toMap(RAID.spawn.radius, RAID.spawn.bearing);
-  c.fillStyle = ORGANIC.amber; c.shadowColor = ORGANIC.amber; c.shadowBlur = 4;
-  c.beginPath(); c.moveTo(sx, sy - 12); c.lineTo(sx + 9, sy + 8); c.lineTo(sx - 9, sy + 8); c.closePath(); c.fill(); c.shadowBlur = 0;
-  label(sx, sy + 26, 'DROP', ORGANIC.amber);
 }
 
 /* ------------------------------------------------------------------------------------------- RESULTS */
