@@ -581,3 +581,15 @@ describe('creature minds (docs/gdd/11-creature-minds.md)', () => {
     }
   });
 });
+
+describe('pay-to-leave extract', () => {
+  it('is always open, charges only on a completed channel, from carried kill DNA then banked DNA, per host', () => {
+    const pe = RAID.host.extracts.paidExtract;
+    expect(pe.costDna).toBeGreaterThan(0);
+    expect(pe.alwaysOpen).toBe(true);
+    expect(pe.chargeOn).toBe('complete');
+    expect(pe.payFrom).toEqual(['carriedKillDna', 'bankedDna']);
+    expect(pe.perHost).toBe(true);
+    expect(RAID.host.extracts.pool.some((p) => p.bearing === pe.bearing)).toBe(true);
+  });
+});

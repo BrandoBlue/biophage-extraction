@@ -1,6 +1,6 @@
 {
   "_note": "The Weeping Fen (zone weepingFen) (World & Level): a flooded forest of giant root-footed trees. Geometry and positions only; Design's numbers live in zones.json under the same id. Frame: metres, +x east, +z south. Water surface is y = 0; the ground under it is mud. Everything here is placed on purpose: titans, groves, huts and channels are named and fixed, the seed only varies small dressing.",
-  "radius": 146,
+  "radius": 380,
   "water": {
     "level": 0,
     "shallow": -0.45,
@@ -15,16 +15,23 @@
     {
       "id": "lanternLift",
       "label": "Lantern Lift",
-      "x": 18,
-      "z": -124,
+      "x": 40,
+      "z": -336,
       "opensAt": 0
     },
     {
       "id": "causewayEnd",
       "label": "Causeway End",
-      "x": 126,
-      "z": 36,
+      "x": 334,
+      "z": 96,
       "opensAt": 240
+    },
+    {
+      "id": "outflowSwim",
+      "label": "The Outflow",
+      "x": 214,
+      "z": 262,
+      "opensAt": 360
     }
   ],
   "islets": [
@@ -111,6 +118,111 @@
       "z": 20,
       "radius": 7,
       "height": 0.55
+    },
+    {
+      "id": "lanternLift",
+      "x": 40,
+      "z": -336,
+      "radius": 14,
+      "height": 1.1
+    },
+    {
+      "id": "causewayEnd",
+      "x": 334,
+      "z": 96,
+      "radius": 13,
+      "height": 1.0
+    },
+    {
+      "id": "outflowBank",
+      "x": 214,
+      "z": 262,
+      "radius": 13,
+      "height": 0.9
+    },
+    {
+      "id": "titanGateFoot",
+      "x": 20,
+      "z": -246,
+      "radius": 20,
+      "height": 0.8
+    },
+    {
+      "id": "orchardIsleA",
+      "x": -236,
+      "z": -150,
+      "radius": 24,
+      "height": 0.7
+    },
+    {
+      "id": "orchardIsleB",
+      "x": -196,
+      "z": -210,
+      "radius": 16,
+      "height": 0.6
+    },
+    {
+      "id": "stepA",
+      "x": 176,
+      "z": 40,
+      "radius": 7,
+      "height": 0.5
+    },
+    {
+      "id": "stepB",
+      "x": 214,
+      "z": 58,
+      "radius": 8,
+      "height": 0.55
+    },
+    {
+      "id": "stepC",
+      "x": 252,
+      "z": 70,
+      "radius": 7,
+      "height": 0.5
+    },
+    {
+      "id": "stepD",
+      "x": 292,
+      "z": 86,
+      "radius": 8,
+      "height": 0.6
+    },
+    {
+      "id": "wallowRise",
+      "x": 40,
+      "z": 286,
+      "radius": 20,
+      "height": 0.6
+    },
+    {
+      "id": "bonewaterIsle",
+      "x": -286,
+      "z": 64,
+      "radius": 26,
+      "height": 0.9
+    },
+    {
+      "id": "greyHummock",
+      "x": -170,
+      "z": 200,
+      "radius": 18,
+      "height": 0.7
+    },
+    {
+      "id": "eastTangle",
+      "x": 230,
+      "z": -150,
+      "radius": 20,
+      "height": 0.8
+    },
+    {
+      "id": "northMarrow",
+      "x": -120,
+      "z": -290,
+      "radius": 16,
+      "height": 0.7
     }
   ],
   "channels": [
@@ -118,6 +230,10 @@
       "id": "weepingChannel",
       "halfWidth": 7,
       "points": [
+        [
+          -360,
+          -20
+        ],
         [
           -140,
           -30
@@ -145,6 +261,18 @@
         [
           70,
           -118
+        ],
+        [
+          110,
+          -180
+        ],
+        [
+          150,
+          -260
+        ],
+        [
+          176,
+          -350
         ]
       ]
     },
@@ -152,6 +280,14 @@
       "id": "drownedRun",
       "halfWidth": 6,
       "points": [
+        [
+          -60,
+          360
+        ],
+        [
+          -30,
+          250
+        ],
         [
           -20,
           140
@@ -179,6 +315,66 @@
         [
           140,
           90
+        ],
+        [
+          200,
+          120
+        ],
+        [
+          300,
+          170
+        ],
+        [
+          370,
+          190
+        ]
+      ]
+    },
+    {
+      "id": "outflow",
+      "halfWidth": 6,
+      "points": [
+        [
+          96,
+          72
+        ],
+        [
+          130,
+          130
+        ],
+        [
+          170,
+          200
+        ],
+        [
+          214,
+          250
+        ],
+        [
+          250,
+          330
+        ]
+      ]
+    },
+    {
+      "id": "bonewaterRun",
+      "halfWidth": 5,
+      "points": [
+        [
+          -150,
+          10
+        ],
+        [
+          -210,
+          40
+        ],
+        [
+          -260,
+          30
+        ],
+        [
+          -330,
+          60
         ]
       ]
     }
@@ -296,6 +492,102 @@
       "radius": 4.6,
       "height": 42,
       "roots": 7
+    },
+    {
+      "id": "gateWardenWest",
+      "x": -14,
+      "z": -252,
+      "radius": 7.5,
+      "height": 62,
+      "roots": 10
+    },
+    {
+      "id": "gateWardenEast",
+      "x": 58,
+      "z": -262,
+      "radius": 7,
+      "height": 58,
+      "roots": 10
+    },
+    {
+      "id": "orchardMother",
+      "x": -238,
+      "z": -152,
+      "radius": 6,
+      "height": 52,
+      "roots": 9
+    },
+    {
+      "id": "bonewaterKing",
+      "x": -290,
+      "z": 64,
+      "radius": 8,
+      "height": 66,
+      "roots": 12
+    },
+    {
+      "id": "wallowGiant",
+      "x": 46,
+      "z": 290,
+      "radius": 6.4,
+      "height": 54,
+      "roots": 9
+    },
+    {
+      "id": "outflowSentry",
+      "x": 198,
+      "z": 212,
+      "radius": 5,
+      "height": 46,
+      "roots": 8
+    },
+    {
+      "id": "eastTangleElder",
+      "x": 232,
+      "z": -150,
+      "radius": 6.6,
+      "height": 56,
+      "roots": 10
+    },
+    {
+      "id": "causewayHermit",
+      "x": 300,
+      "z": 40,
+      "radius": 5,
+      "height": 44,
+      "roots": 8
+    },
+    {
+      "id": "greyHummockOld",
+      "x": -172,
+      "z": 202,
+      "radius": 5.8,
+      "height": 50,
+      "roots": 9
+    },
+    {
+      "id": "northMarrowTree",
+      "x": -122,
+      "z": -292,
+      "radius": 5.4,
+      "height": 48,
+      "roots": 8
+    },
+    {
+      "id": "farSouthWidow",
+      "x": -100,
+      "z": 330,
+      "radius": 5.6,
+      "height": 48,
+      "roots": 9
+    },
+    {
+      "id": "farEastLantern",
+      "x": 330,
+      "z": -60,
+      "radius": 5.2,
+      "height": 46,
+      "roots": 8
     }
   ],
   "groves": [
@@ -340,6 +632,70 @@
       "z": 56,
       "radius": 30,
       "trees": 10,
+      "caps": true
+    },
+    {
+      "id": "ghostOrchard",
+      "x": -230,
+      "z": -170,
+      "radius": 50,
+      "trees": 16
+    },
+    {
+      "id": "gateWood",
+      "x": 20,
+      "z": -210,
+      "radius": 46,
+      "trees": 12
+    },
+    {
+      "id": "eastTangle",
+      "x": 220,
+      "z": -140,
+      "radius": 56,
+      "trees": 16
+    },
+    {
+      "id": "bonewaterWood",
+      "x": -270,
+      "z": 80,
+      "radius": 56,
+      "trees": 14
+    },
+    {
+      "id": "southWallow",
+      "x": -60,
+      "z": 250,
+      "radius": 60,
+      "trees": 12
+    },
+    {
+      "id": "outflowWood",
+      "x": 260,
+      "z": 200,
+      "radius": 44,
+      "trees": 10
+    },
+    {
+      "id": "northDeep",
+      "x": -140,
+      "z": -270,
+      "radius": 46,
+      "trees": 12
+    },
+    {
+      "id": "farEast",
+      "x": 320,
+      "z": -20,
+      "radius": 40,
+      "trees": 8
+    },
+    {
+      "id": "wallowCaps",
+      "x": 110,
+      "z": 300,
+      "radius": 34,
+      "trees": 7,
       "caps": true
     }
   ],
@@ -534,6 +890,21 @@
       "id": "cathedralBloom",
       "x": -100,
       "z": 60
+    },
+    {
+      "id": "orchardBloom",
+      "x": -224,
+      "z": -140
+    },
+    {
+      "id": "wallowBloom",
+      "x": 30,
+      "z": 278
+    },
+    {
+      "id": "tangleBloom",
+      "x": 222,
+      "z": -138
     }
   ],
   "areas": [
@@ -610,8 +981,78 @@
     {
       "id": "lanternLift",
       "label": "Lantern Lift",
-      "x": 18,
-      "z": -124,
+      "x": 40,
+      "z": -336,
+      "radius": 16
+    },
+    {
+      "id": "titanGate",
+      "label": "Titan Gate",
+      "x": 22,
+      "z": -252,
+      "radius": 40
+    },
+    {
+      "id": "ghostOrchard",
+      "label": "Ghost Orchard",
+      "x": -226,
+      "z": -166,
+      "radius": 54
+    },
+    {
+      "id": "drownedCauseway",
+      "label": "Drowned Causeway",
+      "x": 250,
+      "z": 68,
+      "radius": 70
+    },
+    {
+      "id": "paleWallows",
+      "label": "Pale Wallows",
+      "x": 50,
+      "z": 284,
+      "radius": 60
+    },
+    {
+      "id": "bonewater",
+      "label": "Bonewater",
+      "x": -284,
+      "z": 64,
+      "radius": 50
+    },
+    {
+      "id": "theOutflow",
+      "label": "The Outflow",
+      "x": 200,
+      "z": 240,
+      "radius": 40
+    },
+    {
+      "id": "eastTangle",
+      "label": "East Tangle",
+      "x": 226,
+      "z": -146,
+      "radius": 50
+    },
+    {
+      "id": "greyHummock",
+      "label": "Grey Hummock",
+      "x": -170,
+      "z": 200,
+      "radius": 30
+    },
+    {
+      "id": "northDeep",
+      "label": "North Deep",
+      "x": -130,
+      "z": -280,
+      "radius": 40
+    },
+    {
+      "id": "causewayEnd",
+      "label": "Causeway End",
+      "x": 334,
+      "z": 96,
       "radius": 16
     }
   ],
@@ -619,8 +1060,8 @@
     "_note": "Ambient mistwaders beyond the walkable ring: tall long-necked grazers wading slowly through the outer mist. Visual only, never in reach; Creature and PvE AI own the real ones.",
     "count": 5,
     "ring": [
-      170,
-      230
+      410,
+      470
     ],
     "height": [
       14,
@@ -736,6 +1177,38 @@
       "x1": 96,
       "z1": -30,
       "radius": 1.1
+    },
+    {
+      "id": "causewayLogA",
+      "x0": 184,
+      "z0": 43,
+      "x1": 206,
+      "z1": 55,
+      "radius": 1.2
+    },
+    {
+      "id": "causewayLogB",
+      "x0": 222,
+      "z0": 61,
+      "x1": 245,
+      "z1": 68,
+      "radius": 1.1
+    },
+    {
+      "id": "causewayLogC",
+      "x0": 259,
+      "z0": 73,
+      "x1": 285,
+      "z1": 83,
+      "radius": 1.2
+    },
+    {
+      "id": "orchardLog",
+      "x0": -214,
+      "z0": -178,
+      "x1": -202,
+      "z1": -198,
+      "radius": 1.1
     }
   ],
   "spawns_note": "Creature homes, matching Design's data/habitats.json weepingFen. Fenstalkers wait under the water (buried: they surge up when the host comes within that many metres).",
@@ -822,5 +1295,137 @@
       "spread": 6,
       "roam": 10
     }
-  ]
+  ],
+  "_growth_note": "Grown to Design's playableRadius 380 (2026-11-12): the original heart (r < 146) is unchanged; outer districts ring it, joined to the heart by trails that trees keep clear of. Extracts moved to the edges.",
+  "trails": {
+    "_note": "Paths the designers keep open: trees never stand on them. Each runs from the heart to an extract.",
+    "list": [
+      {
+        "id": "toLanternLift",
+        "to": "lanternLift",
+        "points": [
+          [
+            -6,
+            126
+          ],
+          [
+            10,
+            100
+          ],
+          [
+            20,
+            20
+          ],
+          [
+            19,
+            -110
+          ],
+          [
+            16,
+            -180
+          ],
+          [
+            22,
+            -257
+          ],
+          [
+            34,
+            -300
+          ],
+          [
+            40,
+            -336
+          ]
+        ]
+      },
+      {
+        "id": "toCausewayEnd",
+        "to": "causewayEnd",
+        "points": [
+          [
+            -6,
+            126
+          ],
+          [
+            10,
+            100
+          ],
+          [
+            20,
+            20
+          ],
+          [
+            110,
+            20
+          ],
+          [
+            150,
+            32
+          ],
+          [
+            176,
+            40
+          ],
+          [
+            195,
+            49
+          ],
+          [
+            214,
+            58
+          ],
+          [
+            233,
+            64
+          ],
+          [
+            252,
+            70
+          ],
+          [
+            272,
+            78
+          ],
+          [
+            292,
+            86
+          ],
+          [
+            334,
+            96
+          ]
+        ]
+      },
+      {
+        "id": "toOutflow",
+        "to": "outflowSwim",
+        "points": [
+          [
+            -6,
+            126
+          ],
+          [
+            10,
+            100
+          ],
+          [
+            40,
+            120
+          ],
+          [
+            110,
+            150
+          ],
+          [
+            160,
+            200
+          ],
+          [
+            214,
+            262
+          ]
+        ]
+      }
+    ]
+  }
 }

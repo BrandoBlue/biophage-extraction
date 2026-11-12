@@ -63,6 +63,7 @@ interface FenData {
   logs: Log[];
   waders: { count: number; ring: [number, number]; height: [number, number] };
   spawns: SpawnPlacement[];
+  trails: { list: { id: string; to: string; points: [number, number][] }[] };
 }
 
 export const FEN = FEN_JSON as unknown as FenData;
@@ -329,7 +330,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   scene.add(back);
 
   // ---- Ground and water.
-  const span = (FEN.radius + 80) * 2, segs = 200;
+  const span = (FEN.radius + 80) * 2, segs = Math.round(span / 3);
   const ground = new THREE.PlaneGeometry(span, span, segs, segs).rotateX(-Math.PI / 2);
   const gp = ground.attributes.position;
   for (let i = 0; i < gp.count; i++) gp.setY(i, fenHeight(gp.getX(i), gp.getZ(i)));
@@ -337,7 +338,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   const groundMesh = new THREE.Mesh(ground, fenMud());
   groundMesh.name = 'ground';
   scene.add(groundMesh);
-  const water = new THREE.PlaneGeometry(span, span, 120, 120).rotateX(-Math.PI / 2);
+  const water = new THREE.PlaneGeometry(span, span, Math.round(span / 6), Math.round(span / 6)).rotateX(-Math.PI / 2);
   const wp = water.attributes.position;
   const depth = new Float32Array(wp.count * 3);
   for (let i = 0; i < wp.count; i++) depth[i * 3] = Math.min(1, Math.max(0, (FEN_WATER_Y - fenHeight(wp.getX(i), wp.getZ(i))) / 1.2));
@@ -374,6 +375,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
     ...FEN.titans.map((t) => ({ x: t.x, z: t.z, r: t.radius * 2.6 })),
   ];
   const clear = (x: number, z: number, r: number) => keep.every((k) => Math.hypot(x - k.x, z - k.z) > k.r + r)
+    && FEN.trails.list.every((t) => polyDist(x, z, t.points) > r + 3)
     && FEN.stiltVillage.walks.every(([a, b]) => {
       const A = hutById(a), B = hutById(b);
       return segDist(x, z, A.x, A.z, B.x, B.z) > r + 2;
@@ -382,7 +384,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   // ---- Trees: the named titans, then each grove's own stand. Moss hangs from branches; canopy masses close the sky.
   const hanging: THREE.Matrix4[] = [];
   const capMats: THREE.Matrix4[] = [];
-  function tree(t: { x: number; z: number; radius: number; height: number; roots: number; hollow?: boolean }, s: number, cathedral = false): void {
+  function tree(t: { x: number; z: number; radius: number; height: number; roots: number; hollow?: boolean }, s: number, cathedral = false, lite = false): void {
     const base = fenHeight(t.x, t.z);
     const R = t.radius, H = t.height;
     if (cathedral) {
@@ -398,11 +400,12 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
       return;
     }
     if (!t.hollow) {
-      batch.add(bark, trunkGeometry(R, H, t.roots, s), M4(t.x, base, t.z));
+      // Lite trees (the wall beyond the ring, seen only through fog) are drawn with far fewer triangles.
+      batch.add(bark, trunkGeometry(R, H, t.roots, s, lite ? { radial: 10 } : {}), M4(t.x, base, t.z));
       octagon(t.x, t.z, R * 1.15, base - 2, base + H * 0.8, `trunk`);
     }
     // Prop roots: arching from the trunk out into the water, the "feet" the fen is named for.
-    const nRoots = t.roots + (R > 3 ? 3 : 0);
+    const nRoots = lite ? 4 : t.roots + (R > 3 ? 3 : 0);
     for (let k = 0; k < nRoots; k++) {
       const a = (k / nRoots) * Math.PI * 2 + noise3(s, k, 5) * 0.5;
       if (t.hollow && inHollowGap(a)) continue;
@@ -415,7 +418,8 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
         new THREE.Vector3(t.x + c * out, fenHeight(t.x + c * out, t.z + sn * out) + 0.1, t.z + sn * out),
         new THREE.Vector3(t.x + c * out * 1.06, fenHeight(t.x + c * out, t.z + sn * out) - 1.2, t.z + sn * out * 1.06),
       ];
-      batch.add(bark, taperedTube(pts, R * 0.2, R * 0.07, 16, 7));
+      batch.add(bark, taperedTube(pts, R * 0.2, R * 0.07, lite ? 8 : 16, lite ? 5 : 7));
+      if (lite) continue;
       const fx = t.x + c * out, fz = t.z + sn * out;
       SOLIDS.add({ cx: fx, cz: fz, hx: R * 0.12 + 0.2, hz: R * 0.12 + 0.2, yaw: a, y0: fenHeight(fx, fz) - 1, y1: fenHeight(fx, fz) + R * 0.35, tag: 'root-foot' });
       // The arch's shoulder: you cannot walk through the root near the trunk.
@@ -423,7 +427,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
       SOLIDS.add({ cx: mx, cz: mz, hx: R * 0.35, hz: R * 0.2 + 0.2, yaw: -a, y0: base - 1, y1: base + up * 1.1, tag: 'root' });
     }
     // Branches and canopy.
-    const nb = R > 3 ? 5 : 3;
+    const nb = lite ? 2 : R > 3 ? 5 : 3;
     for (let k = 0; k < nb; k++) {
       const a = (k / nb) * Math.PI * 2 + noise3(s, k, 11) * 1.2;
       const y = H * (0.55 + noise3(k, s, 12) * 0.35), len = R * (2.5 + noise3(s, k, 13) * 2.5);
@@ -433,9 +437,9 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
         new THREE.Vector3(t.x + c * len * 0.45, base + y + len * 0.35, t.z + sn * len * 0.45),
         new THREE.Vector3(t.x + c * len, base + y + len * 0.4, t.z + sn * len),
       ];
-      batch.add(bark, taperedTube(pts, R * 0.3, R * 0.08, 12, 6));
+      batch.add(bark, taperedTube(pts, R * 0.3, R * 0.08, lite ? 6 : 12, lite ? 5 : 6));
       const bx = t.x + c * len, bz = t.z + sn * len, by = base + y + len * 0.45;
-      const blob = new THREE.IcosahedronGeometry(1, 2);
+      const blob = new THREE.IcosahedronGeometry(1, lite ? 1 : 2);
       const bp = blob.attributes.position;
       for (let i = 0; i < bp.count; i++) {
         const n = 0.6 + noise3(bp.getX(i) * 2.2 + s + k, bp.getY(i) * 2.2, bp.getZ(i) * 2.2) * 0.7;
@@ -446,12 +450,12 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
       batch.add(mossMass, blob, M4(bx, by, bz, a, br * 1.3, br, br * 1.3));
       // A second, smaller clump hanging off the first breaks the silhouette.
       batch.add(mossMass, blob.clone(), M4(bx - c * br * 0.9, by - br * 0.35, bz - sn * br * 0.9, a + 1, br * 0.7, br * 0.6, br * 0.7));
-      for (let m = 0; m < 6; m++) {
+      for (let m = 0; m < (lite ? 0 : 6); m++) {
         const ma = noise3(s, k, m + 20) * Math.PI * 2, mr = br * 1.3 * noise3(m, k, s + 21);
         hanging.push(M4(bx + Math.cos(ma) * mr, by - br * 0.3, bz + Math.sin(ma) * mr, ma, 0.35 + R * 0.06, 3 + noise3(m, s, k) * (5 + R), 0.35 + R * 0.06));
       }
       // Shelf fungus brackets on the trunk below each branch.
-      if (R > 2.5) {
+      if (R > 2.5 && !lite) {
         const fy = base + 3 + noise3(k, s, 30) * y * 0.6, fr = R * (0.28 + noise3(s, k, 31) * 0.2);
         capMats.push(M4(t.x + c * R * 0.9, fy, t.z + sn * R * 0.9, -a, fr, fr * 0.35, fr));
       }
@@ -478,10 +482,11 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
     }
   }
   // The wall of trunks beyond the walkable ring: dense, dark, half lost in fog.
-  for (let i = 0; i < 46; i++) {
-    const a = (i / 46) * Math.PI * 2 + fixed() * 0.1, d = FEN.radius + 8 + fixed() * 40;
+  const wall = Math.round(FEN.radius * 0.32);
+  for (let i = 0; i < wall; i++) {
+    const a = (i / wall) * Math.PI * 2 + fixed() * 0.1, d = FEN.radius + 8 + fixed() * 40;
     const R = 1.6 + fixed() * 2.6;
-    tree({ x: Math.cos(a) * d, z: Math.sin(a) * d, radius: R, height: 22 + R * 6, roots: 5 }, 400 + i * 1.7);
+    tree({ x: Math.cos(a) * d, z: Math.sin(a) * d, radius: R, height: 22 + R * 6, roots: 5 }, 400 + i * 1.7, false, true);
   }
 
   // ---- The Mushroom Cathedral climb: shelf brackets spiral up the Great Spire to a gallery cap, and a gill bridge
@@ -884,7 +889,8 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   const capGeo = capGeometry(28);
   scene.add(instancedFrom(capGeo, caps, capMats, 'fen-caps'));
   const reeds: THREE.Matrix4[] = [], pads: THREE.Matrix4[] = [];
-  for (let i = 0; i < 2600; i++) {
+  const reedTries = Math.round(2600 * (FEN.radius / 146) * 1.2); // thinner per square metre in the grown outer ring
+  for (let i = 0; i < reedTries; i++) {
     const a = fixed() * Math.PI * 2, d = Math.sqrt(fixed()) * (FEN.radius - 4);
     const x = Math.cos(a) * d, z = Math.sin(a) * d, h = fenHeight(x, z);
     if (h > -0.55 && h < 0.12 && noise3(x * 0.08, 3, z * 0.08) > 0.45 && clear(x, z, 1)) {
