@@ -2,6 +2,9 @@
 
 Every tuning change to `data/*.json`, newest first, with the reason.
 
+## Vendors sell ammo for the guns they sell (2026-11-12)
+- vendors.json: Mother Clot adds Needle Feed (rep 1), Shard Feed (rep 2) and Bolt Feed (rep 3). The Gullet Broker adds Spore Feed (rep 2). Prices match the Archivist's. A data test enforces the rule.
+
 ## Three new zones, Apex and online (2026-11-11, Brandon: everything now)
 - zones.json: `ochreReach`, `weepingFen` and `marrowPit` (orders 4–6, with depth `layers` for the pit). The Hollow Choir and Ossuary Reef move to orders 7–8 and get sizes, landmarks, creatures and bosses.
 - abominations.json: nine creatures (Dunewake, Bristleback, Shroudling, Cablecrawler, Veilwing, the Hollowed, Fenstalker, Mirebrood, Mistwader), introducedIn host.
