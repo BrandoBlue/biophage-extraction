@@ -28,10 +28,12 @@ export function naturalise(p: Palette): Palette {
   const boneDark = mix(HIVE.bone, ORGANIC.wetFleshDeep, 0.55);
   return {
     ...p,
-    flesh: mix(p.flesh, ORGANIC.wetFlesh, 0.85, 0.85),
+    // Brandon (2026-11-12): "a bit too dark... more visible". Hides sit in the lit mid-tones, a little toward bone,
+    // so a creature reads against the night instead of melting into it.
+    flesh: mix(mix(p.flesh, ORGANIC.wetFlesh, 0.85), HIVE.bone, 0.12),
     vein: mix(p.vein, ORGANIC.vein, 0.75),
     rim: mix(p.rim, ORGANIC.mist, 0.85, 0.75),
-    chitin: mix(p.chitin, boneDark, 0.92, 0.75),
+    chitin: mix(p.chitin, boneDark, 0.92, 0.95),
     chitinGlow: mix(p.chitinGlow, ORGANIC.amber, 0.85, 0.5),
     bone: mix(p.bone, boneDark, 0.3),
     glow: mix(p.glow, ORGANIC.amber, 0.8, 0.75),
