@@ -34,6 +34,8 @@ export class Player {
   crouched = false;
   /** Set by the raid each frame (abilities, overload). */
   speedMultiplier = 1;
+  /** World carry (m/s, XZ) this frame, e.g. a boss's pull; walls and cliffs still stop it. The raid sets it. */
+  readonly carry = new THREE.Vector3();
   /** Set by the raid each frame from the held weapon's aim: the FOV divides by it, and so does mouse look. */
   zoom = 1;
   /** Mouse sensitivity and field of view from the player's Settings (kept live). */
@@ -169,6 +171,7 @@ export class Player {
     const prevY = p.y, prevX = p.x, prevZ = p.z;
     p.addScaledVector(this.velocity, dt);
     this.velocity.y -= fall;
+    p.x += this.carry.x * dt; p.z += this.carry.z * dt;
     // Terrain cliffs (maps that set a max slope, e.g. the Marrow Pit's walls): slide along them, never up them.
     if (climbBlocked(prevY, prevX, prevZ, p.x, p.z)) {
       if (!climbBlocked(prevY, prevX, prevZ, p.x, prevZ)) { p.z = prevZ; this.velocity.z = 0; }

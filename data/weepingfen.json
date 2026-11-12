@@ -466,6 +466,18 @@
       "container": "drownedLocker",
       "site": "drownedPod",
       "onFloorOf": "drownedPod"
+    },
+    {
+      "id": "cathedral-gallery",
+      "container": "fenHollow",
+      "site": "mushroomCathedral",
+      "onFloorOf": "cathedralGallery"
+    },
+    {
+      "id": "cathedral-chapel",
+      "container": "drownedLocker",
+      "site": "mushroomCathedral",
+      "onFloorOf": "cathedralChapel"
     }
   ],
   "pods": [
@@ -660,6 +672,36 @@
     "yaw": 25,
     "length": 30,
     "radius": 7
+  },
+  "cathedral": {
+    "_note": "Mushroom Cathedral climb: the Great Spire, a giant cap-tree whose shelf brackets spiral up to a gallery cap; a gill bridge slopes down to the Chapel cap on a second stalk. Webs between the caps are the Tithe Weavers' home. climb.endShort (radians) stops the bracket stair where it meets the gallery's edge.",
+    "spire": {
+      "x": -118,
+      "z": 44,
+      "radius": 3.4,
+      "height": 40,
+      "cap": 15
+    },
+    "climb": {
+      "turns": 1.25,
+      "top": 14,
+      "width": 1.25,
+      "steps": 24,
+      "endShort": 0.45
+    },
+    "gallery": {
+      "out": 7.4,
+      "radius": 3.6
+    },
+    "chapel": {
+      "x": -106,
+      "z": 68,
+      "radius": 1.6,
+      "height": 26,
+      "deck": 9,
+      "deckRadius": 4.4
+    },
+    "webs": 7
   },
   "regentPool": {
     "_note": "The zone boss arena (Design's mireRegent): a deep black pool ringed by half-drowned bone arches. Waist-deep in the middle.",

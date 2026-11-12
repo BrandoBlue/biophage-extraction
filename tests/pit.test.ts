@@ -210,4 +210,16 @@ describe('the Marrow Pit', () => {
     const deep = sp.find((s) => pitLandmarkAt(s.x, s.z) === 'undermouth')!, rim = sp.find((s) => pitLandmarkAt(s.x, s.z) === 'rimCamp')!;
     expect(deep.toughness!).toBeGreaterThan(rim.toughness!);
   });
+  it('grows its built shapes: no plain box or cylinder left for the boot-time organic pass to double up on', () => {
+    let shaped = 0, plain = 0;
+    world.structures.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || (m as THREE.InstancedMesh).isInstancedMesh) return;
+      const g = m.geometry;
+      if (g.userData.organic) shaped++;
+      else if ((g.type === 'CylinderGeometry' || g.type === 'BoxGeometry') && !m.userData.noOrganic && !m.parent?.userData.noOrganic) plain++;
+    });
+    expect(shaped).toBeGreaterThan(40); // hut roofs and posts, pylons, pillars, scaffolds, the lift cage
+    expect(plain).toBeLessThan(shaped);
+  });
 });

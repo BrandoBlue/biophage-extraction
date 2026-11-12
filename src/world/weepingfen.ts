@@ -48,6 +48,13 @@ interface FenData {
   stiltVillage: { deck: number; huts: Hut[]; walks: [string, string][]; ramps: { from: string; x: number; z: number }[] };
   spiderHollow: { fire: XZ; shelters: (XZ & { yaw: number })[] };
   drownedPod: XZ & { yaw: number; length: number; radius: number };
+  cathedral: {
+    spire: XZ & { radius: number; height: number; cap: number };
+    climb: { turns: number; top: number; width: number; steps: number; endShort: number };
+    gallery: { out: number; radius: number };
+    chapel: XZ & { radius: number; height: number; deck: number; deckRadius: number };
+    webs: number;
+  };
   regentPool: XZ & { radius: number; arches: number; depth: number };
   loot: { id: string; container: string; site: string; onFloorOf: string }[];
   pods: { id: string; type: string; x: number; z: number }[];
@@ -215,6 +222,19 @@ class Batch {
 
 const M4 = (x: number, y: number, z: number, yaw = 0, sx = 1, sy = sx, sz = sx) =>
   new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, yaw, 0)), new THREE.Vector3(sx, sy, sz));
+
+/** A web sheet strung from `a` to `b`, `height` tall, sagging by `sag` in the middle and tattered at the edges. */
+function webSheet(a: THREE.Vector3, b: THREE.Vector3, height: number, sag: number): THREE.BufferGeometry {
+  const nu = 8, nv = 4, geo = new THREE.PlaneGeometry(1, 1, nu, nv), pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const u = pos.getX(i) + 0.5, v = pos.getY(i) + 0.5;
+    const p = a.clone().lerp(b, u);
+    const droop = Math.sin(u * Math.PI) * sag + (noise3(u * 5, v * 3, a.x) - 0.5) * 0.5;
+    pos.setXYZ(i, p.x, p.y + (v - 0.5) * height * (0.6 + 0.4 * Math.sin(u * Math.PI)) - droop, p.z);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
 
 /**
  * A solid box whose local +u points along world angle `dir` (radians, atan2(z, x)); optional ramp `rise` along +u.
@@ -440,6 +460,12 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   FEN.titans.forEach((t, i) => { if (!t.hollow) tree(t, 13 + i * 7.3); });
   let gi = 0;
   for (const g of FEN.groves) {
+    // The cathedral climb keeps its own ground clear (added here so the other groves keep their stands).
+    if (g.caps) keep.push(
+      { x: FEN.cathedral.spire.x, z: FEN.cathedral.spire.z, r: FEN.cathedral.gallery.out + FEN.cathedral.gallery.radius + 1 },
+      { x: FEN.cathedral.chapel.x, z: FEN.cathedral.chapel.z, r: FEN.cathedral.chapel.deckRadius + 1.5 },
+      { x: (FEN.cathedral.spire.x + FEN.cathedral.chapel.x) / 2, z: (FEN.cathedral.spire.z + FEN.cathedral.chapel.z) / 2, r: 4 },
+    );
     let placed = 0;
     for (let tries = 0; placed < g.trees && tries < g.trees * 30; tries++) {
       const a = fixed() * Math.PI * 2, d = Math.sqrt(fixed()) * g.radius;
@@ -456,6 +482,86 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
     const a = (i / 46) * Math.PI * 2 + fixed() * 0.1, d = FEN.radius + 8 + fixed() * 40;
     const R = 1.6 + fixed() * 2.6;
     tree({ x: Math.cos(a) * d, z: Math.sin(a) * d, radius: R, height: 22 + R * 6, roots: 5 }, 400 + i * 1.7);
+  }
+
+  // ---- The Mushroom Cathedral climb: shelf brackets spiral up the Great Spire to a gallery cap, and a gill bridge
+  // slopes down to the Chapel cap on a second stalk. Webs (the Tithe Weavers' home) are strung between the stalks.
+  {
+    const C = FEN.cathedral, sp = C.spire, ch = C.chapel, cl = C.climb;
+    const sb = fenHeight(sp.x, sp.z), chb = fenHeight(ch.x, ch.z);
+    const top = sb + cl.top, deck = chb + ch.deck;
+    // The spire: a pale fibrous stalk with a vast drooping cap high above the nave.
+    batch.add(paleBark, trunkGeometry(sp.radius, sp.height, 7, 71, { flare: 0.8, radial: 18 }), M4(sp.x, sb, sp.z));
+    octagon(sp.x, sp.z, sp.radius * 0.95, sb - 2, sb + sp.height, 'spire');
+    capMats.push(M4(sp.x, sb + sp.height * 0.95, sp.z, 0.4, sp.cap, sp.cap * 0.5, sp.cap * 0.92));
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2 + noise3(k, 2, 71) * 0.3, rr = sp.cap * (0.75 + noise3(k, 3, 71) * 0.2);
+      hanging.push(M4(sp.x + Math.cos(a) * rr, sb + sp.height * 0.95, sp.z + Math.sin(a) * rr, a, 0.5, 4 + noise3(k, 71, 4) * 9, 0.5));
+    }
+    // The climb ends facing the chapel, so the bridge leaves straight off the gallery.
+    const toChapel = Math.atan2(ch.z - sp.z, ch.x - sp.x);
+    const sweep = cl.turns * Math.PI * 2, start = toChapel - cl.endShort - sweep, Rr = sp.radius + 2.2, dh = cl.top / cl.steps;
+    for (let i = 0; i < cl.steps; i++) {
+      const a0 = start + (i / cl.steps) * sweep, a1 = start + ((i + 1) / cl.steps) * sweep;
+      const x0 = sp.x + Math.cos(a0) * Rr, z0 = sp.z + Math.sin(a0) * Rr, x1 = sp.x + Math.cos(a1) * Rr, z1 = sp.z + Math.sin(a1) * Rr;
+      const len = Math.hypot(x1 - x0, z1 - z0) / 2 + 0.25, y0 = sb + i * dh;
+      solid(null, null, (x0 + x1) / 2, (z0 + z1) / 2, len, cl.width, Math.atan2(z1 - z0, x1 - x0), Math.max(sb - 0.6, y0 - 0.45), y0 + dh, dh, 'spire-shelf');
+      // Two overlapping shelf brackets per step, grown out of the stalk, never quite the same size.
+      for (const f of [0.2 + noise3(i, 1, 77) * 0.15, 0.65 + noise3(i, 2, 77) * 0.2]) {
+        const a = a0 + (a1 - a0) * f, br = 1.45 + noise3(i * 1.7, f * 4, 72) * 1.1, out = sp.radius + br * (0.8 + noise3(f, i, 78) * 0.3);
+        const y = y0 + dh * f - br * 0.22 + (noise3(i, f, 79) - 0.5) * 0.2;
+        capMats.push(M4(sp.x + Math.cos(a) * out, y, sp.z + Math.sin(a) * out, a, br, br * (0.3 + noise3(i, f, 80) * 0.2), br * (0.75 + noise3(f, i, 73) * 0.45)));
+        // Now and then a small bracket clusters under the big one, so the stair grows rather than repeats.
+        if (noise3(i, f, 81) > 0.55) {
+          const sr = br * 0.45, sa = a + (noise3(i, f, 82) - 0.5) * 0.5;
+          capMats.push(M4(sp.x + Math.cos(sa) * (sp.radius + sr * 0.8), y - 0.6 - noise3(f, i, 83) * 0.8, sp.z + Math.sin(sa) * (sp.radius + sr * 0.8), sa, sr, sr * 0.35, sr));
+        }
+      }
+    }
+    // The gallery: a broad cap jutting from the spire at the head of the climb.
+    const gx = sp.x + Math.cos(toChapel) * C.gallery.out, gz = sp.z + Math.sin(toChapel) * C.gallery.out, gr = C.gallery.radius;
+    capMats.push(M4(gx, top - gr * 0.24, gz, 1.1, gr * 1.12, gr * 0.38, gr * 1.05));
+    octagon(gx, gz, gr * 0.92, top - 0.6, top, 'cathedral-gallery');
+    loot.push({ id: 'cathedral-gallery', container: lootContainer('cathedral-gallery'), x: gx + Math.cos(toChapel + Math.PI / 2) * 1.6, y: top, z: gz + Math.sin(toChapel + Math.PI / 2) * 1.6 });
+    // The chapel: a slimmer stalk with its own cap, and a ring shelf at deck height where the bridge lands.
+    batch.add(paleBark, trunkGeometry(ch.radius, ch.height, 5, 74, { flare: 0.7, radial: 14 }), M4(ch.x, chb, ch.z));
+    octagon(ch.x, ch.z, ch.radius * 1.1, chb - 2, chb + ch.height, 'chapel-stalk');
+    const capR = ch.radius * 5.5;
+    capMats.push(M4(ch.x, chb + ch.height * 0.93, ch.z, 2.3, capR, capR * 0.55, capR));
+    capMats.push(M4(ch.x, deck - ch.deckRadius * 0.24, ch.z, 0.7, ch.deckRadius * 1.08, ch.deckRadius * 0.36, ch.deckRadius));
+    octagon(ch.x, ch.z, ch.deckRadius * 0.92, deck - 0.6, deck, 'cathedral-chapel');
+    const back = toChapel + Math.PI;
+    loot.push({ id: 'cathedral-chapel', container: lootContainer('cathedral-chapel'), x: ch.x + Math.cos(back + 1.2) * (ch.radius + 1.3), y: deck, z: ch.z + Math.sin(back + 1.2) * (ch.radius + 1.3) });
+    // The gill bridge: a fallen cap's spine, sagging, rising from the chapel shelf to the gallery.
+    const bx0 = ch.x + Math.cos(back) * (ch.deckRadius - 0.8), bz0 = ch.z + Math.sin(back) * (ch.deckRadius - 0.8);
+    const bx1 = gx + Math.cos(toChapel) * (gr - 0.8), bz1 = gz + Math.sin(toChapel) * (gr - 0.8);
+    const blen = Math.hypot(bx1 - bx0, bz1 - bz0);
+    solid(null, null, (bx0 + bx1) / 2, (bz0 + bz1) / 2, blen / 2, 0.95, back, deck - 0.6, top, top - deck, 'gill-bridge');
+    const spine = [0, 0.33, 0.66, 1].map((t) => new THREE.Vector3(bx0 + (bx1 - bx0) * t, deck + (top - deck) * t - 0.45 - Math.sin(t * Math.PI) * 0.15, bz0 + (bz1 - bz0) * t));
+    batch.add(paleBark, taperedTube(spine, 0.75, 0.6, 18, 9));
+    for (let k = 1; k < 6; k++) {
+      const t = k / 6, br = 1.1 + noise3(k, 5, 75) * 0.4;
+      capMats.push(M4(bx0 + (bx1 - bx0) * t, deck + (top - deck) * t - br * 0.3, bz0 + (bz1 - bz0) * t, k, br, br * 0.25, br));
+    }
+    // Webs: sagging sheets between the spire, the chapel and the nearest caps, with egg sacs hanging in them.
+    const web = membrane(HIVE.bone, 0.16);
+    web.side = THREE.DoubleSide;
+    const anchors = [{ x: sp.x, z: sp.z, r: sp.radius, h: sp.height * 0.8, b: sb }, { x: ch.x, z: ch.z, r: ch.radius, h: ch.height * 0.8, b: chb }];
+    for (let k = 0; k < C.webs; k++) {
+      const A = anchors[k % 2];
+      const ang = toChapel + (k % 2 ? Math.PI : 0) + (noise3(k, 6, 76) - 0.5) * 2.2, reach = 9 + noise3(k, 7, 76) * 8;
+      const ya = A.b + 5 + noise3(k, 8, 76) * (A.h - 6), yb = ya + (noise3(k, 9, 76) - 0.6) * 6;
+      const pa = new THREE.Vector3(A.x + Math.cos(ang) * A.r, ya, A.z + Math.sin(ang) * A.r);
+      const pb = new THREE.Vector3(A.x + Math.cos(ang) * (A.r + reach), Math.max(yb, 3), A.z + Math.sin(ang) * (A.r + reach));
+      const sheet = new THREE.Mesh(webSheet(pa, pb, 3 + noise3(k, 10, 76) * 3, 1.2 + noise3(k, 11, 76)), web);
+      sheet.userData.noShadow = true;
+      root.add(sheet);
+      const mid = pa.clone().lerp(pb, 0.4 + noise3(k, 12, 76) * 0.3);
+      const sac = new THREE.Mesh(new THREE.SphereGeometry(0.3 + noise3(k, 13, 76) * 0.2, 10, 8), web);
+      sac.position.set(mid.x, mid.y - 1.6, mid.z);
+      sac.scale.y = 1.5;
+      root.add(sac);
+    }
   }
 
   // ---- The Root Hut: a dwelling grown into the Hollow Elder.
@@ -839,7 +945,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   return {
     layout,
     sites: { group: sitesGroup, setExtractOpen(id, open) { const r = rings.get(id); if (r) r.visible = open; }, setNodeHarvested() { /* blooms wither through Gameplay's prop */ } },
-    structures: { group: root, loot, arena: null, breakPillar() { /* no pillars in the fen */ } },
+    structures: { group: root, loot, arena: null, regent: regentPool, breakPillar() { /* no pillars in the fen */ } },
     landmarkAt: (x, z) => fenAreaAt(x, z)?.id ?? null,
   };
 }

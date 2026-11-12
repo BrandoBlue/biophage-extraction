@@ -24,6 +24,7 @@ export class LivingWeaponView implements WeaponModel {
   readonly grip: THREE.Object3D;
   readonly scoped: boolean;
   readonly flashColour: string;
+  readonly muzzleFx: string;
   readonly sockets: Partial<Record<ModSocket, THREE.Object3D>>;
   private sinceFire = 99;
   private reloadT: number | null = null;
@@ -48,6 +49,7 @@ export class LivingWeaponView implements WeaponModel {
     this.grip = body.grip;
     this.scoped = !!spec.ads?.scope;
     this.flashColour = body.fxColour;
+    this.muzzleFx = body.muzzleFx;
     this.sockets = body.sockets;
     for (const id of (spec as WeaponSpec & { mods?: string[] }).mods ?? []) {
       const slot = MODS[id]?.slot as ModSlot | undefined;

@@ -271,6 +271,30 @@ describe('lighting, relief and world scale', () => {
     expect(curve(0.05, 1.12)).toBeGreaterThan(0.03);
   });
 
+  it('has an organic muzzle spray for every living-weapon style, with no star flash', async () => {
+    const { MUZZLE_SPRAYS, muzzleSpray } = await import('../src/render/shotfx');
+    for (const k of ['spore', 'quill', 'spit', 'bile', 'beam'] as const) {
+      const m = MUZZLE_SPRAYS[k];
+      expect(m.n).toBeGreaterThan(0);
+      expect(m.size[1]).toBeLessThan(0.05); // fine particles at the muzzle, not a burst
+      expect(m.flash).toBeLessThanOrEqual(0.5);
+      expect(m.cone).toBeGreaterThanOrEqual(0);
+    }
+    expect(MUZZLE_SPRAYS.quill.stretch).toBeGreaterThan(MUZZLE_SPRAYS.spore.stretch); // needles hiss as streaks
+    expect(MUZZLE_SPRAYS.spore.grav).toBeLessThan(0); // spores drift up
+    expect(MUZZLE_SPRAYS.bile.grav).toBeGreaterThan(MUZZLE_SPRAYS.spore.grav); // globs fall
+    expect(muzzleSpray('nope')).toBe(MUZZLE_SPRAYS.spore);
+  });
+
+  it('every weapon body names a muzzle spray', async () => {
+    const { WEAPON_BODIES, createWeaponBody } = await import('../src/creatures/weapons/bodies');
+    const { MUZZLE_SPRAYS } = await import('../src/render/shotfx');
+    for (const id of WEAPON_BODIES) {
+      const body = createWeaponBody(id);
+      expect(MUZZLE_SPRAYS).toHaveProperty(body.muzzleFx);
+    }
+  });
+
   it('has a complete impact look for every living-weapon style', async () => {
     const { SHOT_STYLES, shotStyle } = await import('../src/render/shotfx');
     for (const s of ['spore', 'quill', 'spit', 'bile', 'beam']) {
