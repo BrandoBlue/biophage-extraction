@@ -143,6 +143,24 @@ describe('the Weeping Fen', () => {
     expect(q.y).toBeCloseTo(fenHeight(ch.x, ch.z) + ch.deck, 1);
   });
 
+  it('gives every outer district a point of interest with loot, and the outer hamlets\' ramps reach their decks', () => {
+    const pois = [...FEN.hamlets.list, ...FEN.wrecks.list, ...FEN.boneRings.list, ...FEN.skeletons.list] as { id: string; area?: string }[];
+    const outer = ['titanGate', 'ghostOrchard', 'paleWallows', 'bonewater', 'eastTangle', 'greyHummock', 'northDeep'];
+    for (const a of outer) expect(pois.some((p) => p.area === a), a).toBe(true);
+    for (const p of pois) {
+      const sites = 'huts' in p ? (p as { huts: { id: string }[] }).huts.map((h) => h.id) : [p.id];
+      expect(world.structures.loot.some((l) => sites.includes(FEN.loot.find((e) => e.id === l.id)!.site)), p.id).toBe(true);
+    }
+    for (const v of FEN.hamlets.list) for (const r of v.ramps) {
+      const h = v.huts.find((x) => x.id === r.from)!;
+      const rim = polar(h.x, h.z, Math.atan2(r.z - h.z, r.x - h.x), h.radius + 1.3);
+      const out = polar(r.x, r.z, Math.atan2(r.z - h.z, r.x - h.x), 2);
+      const p = walk({ x: out[0], y: fenHeight(out[0], out[1]), z: out[1] }, [[r.x, r.z], rim]);
+      expect(near(p, rim[0], rim[1]), v.id).toBeLessThan(0.6);
+      expect(p.y, v.id).toBeCloseTo(v.deck, 1);
+    }
+  });
+
   it('crosses the Fallen Span log from the landing', () => {
     const lg = FEN.logs[0];
     const p = walk({ x: lg.x0 - (lg.x1 - lg.x0) * 0.2, y: 1, z: lg.z0 - (lg.z1 - lg.z0) * 0.2 }, [[(lg.x0 + lg.x1) / 2, (lg.z0 + lg.z1) / 2]]);
