@@ -646,7 +646,7 @@ export class Reliquary {
       if (l.stepping) {
         const dur = collapse ? 0.4 : THREE.MathUtils.clamp(0.75 - speed * 0.08, 0.4, 0.75);
         l.step = Math.min(1, l.step + dt / dur);
-        l.to.lerp(desired, 0.2);
+        l.to.lerp(desired, 1 - Math.pow(0.8, dt * 60)); // same pull per second at any frame rate
         const e = smooth(l.step);
         l.foot.lerpVectors(l.from, l.to, e);
         l.foot.y += Math.sin(l.step * Math.PI) * (collapse ? 0.7 : 1.3);

@@ -34,11 +34,12 @@ export const GradeShader = {
     uSplit: { value: 0.18 },
     /** Unsharp mask strength and one-pixel step: keeps surface detail crisp after TAA-free sampling and bloom. */
     uSharpen: { value: 0.22 },
+    uLift: { value: 0 },
     uTexel: { value: new THREE.Vector2(1 / 1280, 1 / 720) },
   },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
   fragmentShader: /* glsl */ `
-    uniform sampler2D tDiffuse; uniform float uTime, uOverload, uHit, uAberration, uVignette, uSaturation, uContrast, uGrain, uSplit, uSharpen; uniform vec2 uTexel;
+    uniform sampler2D tDiffuse; uniform float uTime, uOverload, uHit, uAberration, uVignette, uSaturation, uContrast, uGrain, uSplit, uSharpen, uLift; uniform vec2 uTexel;
     uniform vec3 uShadow, uHighlight, uHitColour; varying vec2 vUv;
     float h(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
     void main() {
@@ -60,12 +61,14 @@ export const GradeShader = {
       float vig = (1.0 - smoothstep(0.15, 0.85, sqrt(r2) * (1.0 + uVignette)));
       col = mix(uShadow * 0.3, col, mix(1.0, vig, uVignette + uOverload * 0.25));
       col = mix(col, uHitColour, uHit * smoothstep(0.1, 0.6, sqrt(r2)) * 0.6);
+      col = col * (1.0 - uLift) + uLift * mix(vec3(1.0), uShadow * 4.0, 0.5);
       col += (h(vUv * 1000.0 + fract(uTime) * 100.0) - 0.5) * uGrain;
       gl_FragColor = vec4(max(col, 0.0), 1.0);
     }`,
 };
 
 export type Quality = 'low' | 'high';
+export interface DisplaySettings { brightness: number; renderScale: number; graphics: 'high' | 'balanced' | 'performance' }
 
 export interface Pipeline {
   renderer: THREE.WebGLRenderer;
@@ -76,6 +79,13 @@ export interface Pipeline {
   /** Damage flash at screen edges; decays on its own. */
   hitPulse(strength?: number): void;
   setPreset(name: keyof typeof GRADE_PRESETS): void;
+  /**
+   * Player display settings (src/ui/settings.ts): brightness multiplies the zone's exposure, renderScale scales the
+   * 3D view's pixel density, graphics drops ambient occlusion ('balanced') and sun shadows too ('performance').
+   */
+  applyDisplay(d: DisplaySettings): void;
+  /** Exposure scale for the current zone (ZONE_EXPOSURE in presets.ts); 1 for the night zones. */
+  setZoneExposure(k: number): void;
   /** When set, render through this camera instead (look-dev captures). */
   overrideCamera: THREE.Camera | null;
   /** When set, render this scene instead (Hive lab stage, menus). Post stack and grade stay on. */
@@ -120,7 +130,11 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
   installHeightFog();
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   const quality = detectQuality(renderer);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, quality === 'high' ? 2 : 1));
+  const maxRatio = () => Math.min(devicePixelRatio, quality === 'high' && display.graphics !== 'performance' ? 2 : 1);
+  let display: DisplaySettings = { brightness: 1, renderScale: 1, graphics: 'high' };
+  let size = { w: 1, h: 1 };
+  let zoneExposure = 1;
+  renderer.setPixelRatio(maxRatio());
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 
@@ -131,6 +145,7 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
   const ao = quality === 'high' ? new BioAOPass(scene, camera) : null;
   const shadows = sunShadows(renderer, quality === 'high');
   if (ao) composer.addPass(ao);
+  let aoOn = !!ao;
   const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 1, 0.6, 0.6);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
@@ -161,12 +176,12 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
   let overload = 0;
   const applyPreset = (p: GradePreset) => {
     preset = p;
-    renderer.toneMappingExposure = p.exposure;
+    renderer.toneMappingExposure = p.exposure * display.brightness * (p === GRADE_PRESETS.zone7 ? zoneExposure : 1);
     scene.environmentIntensity = p.environment;
     bloom.strength = p.bloom.strength; bloom.radius = p.bloom.radius; bloom.threshold = p.bloom.threshold;
     const g = grade.uniforms;
     g.uAberration.value = p.aberration; g.uVignette.value = p.vignette; g.uSaturation.value = p.saturation;
-    g.uContrast.value = p.contrast; g.uGrain.value = p.grain; g.uSplit.value = p.split;
+    g.uContrast.value = p.contrast; g.uGrain.value = p.grain; g.uSplit.value = p.split; g.uLift.value = p.lift;
     g.uShadow.value.set(p.shadow); g.uHighlight.value.set(p.highlight); g.uHitColour.value.set(p.hit);
   };
   applyPreset(preset);
@@ -193,11 +208,12 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
       renderPass.scene = active;
       renderPass.camera = pipeline.overrideCamera ?? camera;
       shadows.update(active, renderPass.camera);
-      if (ao) { ao.scene = active; ao.syncCamera(renderPass.camera); }
+      if (ao) { ao.enabled = aoOn; if (aoOn) { ao.scene = active; ao.syncCamera(renderPass.camera); } }
       if (pipeline.bypassPost) renderer.render(active, renderPass.camera);
       else composer.render(dt);
     },
     setSize(w, h) {
+      size = { w, h };
       renderer.setSize(w, h, false);
       composer.setSize(w, h);
       const pr = renderer.getPixelRatio();
@@ -206,6 +222,16 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
     setOverload(v) { overload = THREE.MathUtils.clamp(v, 0, 1); },
     hitPulse(strength = 1) { hit = Math.min(1, hit + strength); },
     setPreset(name) { applyPreset(GRADE_PRESETS[name]); },
+    setZoneExposure(k) { zoneExposure = k; applyPreset(preset); },
+    applyDisplay(d) {
+      display = { ...d };
+      applyPreset(preset);
+      aoOn = !!ao && d.graphics === 'high';
+      shadows.setActive(d.graphics !== 'performance');
+      const ratio = Math.max(0.35, maxRatio() * THREE.MathUtils.clamp(d.renderScale, 0.5, 1));
+      if (ratio !== renderer.getPixelRatio()) {
+        if (size.w <= 1) { renderer.setPixelRatio(ratio); composer.setPixelRatio(ratio); return; } renderer.setPixelRatio(ratio); composer.setPixelRatio(ratio); pipeline.setSize(size.w, size.h); }
+    },
   };
   return pipeline;
 }

@@ -12,7 +12,9 @@ import { BUILT_ZONES, buildZone } from './world/zones';
 import { createPipeline } from './render/pipeline';
 import { installLookdev } from './render/lookdev';
 import { GameAudio } from './audio';
-import { getSettings } from './ui/settings';
+import { getSettings, type Settings } from './ui/settings';
+import { ZONE_EXPOSURE } from './render/presets';
+import { organicize } from './render/organic';
 import { caveDistance } from './world/cave';
 import { layerAt } from './world/pit';
 import { AUDIO } from './audio';
@@ -46,6 +48,8 @@ function bootRaid(): void {
   // Picking another zone saves and reloads straight into the deploy (AUTO_DEPLOY).
   const zoneParam = new URLSearchParams(location.search).get('zone');
   const world = buildZone(scene, zoneParam ?? profile.economy.zone, raidSeed);
+  // Nothing in the world should read as machined: boxes, cylinders and cones are grown into organic shapes (src/render/organic).
+  organicize(scene);
   const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures, world.zone);
   const hud = new RaidHud(raid.bus, raid);
   function deployNow(): void {
@@ -111,6 +115,10 @@ function bootRaid(): void {
   });
 
   const pipeline = createPipeline(canvas, scene, camera, 'zone7');
+  // Display settings (Hive → Settings): brightness, render scale and graphics level apply live.
+  pipeline.applyDisplay(getSettings());
+  pipeline.setZoneExposure(ZONE_EXPOSURE[world.zone] ?? 1);
+  addEventListener('biophage:settings', (e) => pipeline.applyDisplay((e as CustomEvent<Settings>).detail));
   installLookdev(pipeline, camera, scene);
   raid.pipeline = pipeline;
   const stage = new HiveStage(pipeline);
