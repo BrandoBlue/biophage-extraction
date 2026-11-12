@@ -431,7 +431,16 @@ export interface AiRules {
   weaver: { turnRate: number; hoverHeight: number; spinEvery: number; cutAhead: number; keepRange: [number, number] };
   burrower: { turnRate: number; diveRate: number; surfaceRate: number; rippleFactor: number; lungeTime: number; swimCurl: number; knockback: number; lurkCreep: number; lurkSurface: [number, number] };
   widow: { floorHeight: number; circleRadius: number; circleLead: number; keepInside: number; riseRate: number; sinkRate: number; hittableAbove: number; biteRise: number; callRise: number; drownRide: number; breachTrack: number; eruptUp: number; petalBite: number; thrashReach: number; firstAttack: number; drownClose: number };
+  nethermaw: { wakeAbove: number; breathCycle: number; inhaleFrom: number; swellHold: number; flinchDamage: number; falseLightRadius: number; falseLightTrigger: number; falseLightBlast: number; rootRadius: number; rootMinRange: number; firstAttack: number; columnPulseCut: number; falseLightEvery: number };
+  regent: { wakeRadius: number; wadeHeight: number; keepInside: number; stalkDistance: number; armReach: number; grabRadius: number; riseRate: number; rearEvery: number; rearFor: number; diveFor: number; tongueCone: number; lungeDistance: number; firstAttack: number; eyeBiomass: number; enrageDrain: number };
   herd: { turnRate: number; gunfireNoise: number; chargeRange: [number, number]; stampedeTurn: number; trampleKnockback: number; wheelTime: number; volleyLead: number; volleySpread: number; volleyMin: number };
+  tactics: {
+    uses: Record<'press' | 'evade' | 'lure' | 'falter', Archetype[]>;
+    reload: { range: number; extraTokens: number; callCooldown: number };
+    aim: { cone: number; range: number; hold: number; adsFactor: number; speed: number; time: number; cooldown: number };
+    lure: { packMin: number; radius: number; chance: number; show: number; backoff: number; spring: number; time: number };
+    falter: { radius: number; time: number; backoff: number; rout: number };
+  };
   wader: { turnRate: number; underfoot: number; startleTime: number; recoverTime: number; stompShow: number };
   warden: {
     wake: { trigger: 'approach' | 'power'; radius: number };

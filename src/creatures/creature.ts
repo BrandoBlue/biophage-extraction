@@ -57,7 +57,35 @@ export interface DriveState {
   burrow: number;
   /** New-zone species action, 0..1 (see each species' file header: quill volley, cutting, grabbing, combing). */
   action: number;
+  /**
+   * Body language: the brain's decisions made visible (docs/gdd/11-creature-minds.md, `mind.shows` in
+   * data/abominations.json). Levels are 0..1 and the brain eases them; pulses are set to 1 and decay by themselves.
+   */
+  mind: MindTells;
 }
+
+export interface MindTells {
+  /** Deciding: the head cocks to one side and holds (Glasswalker's tilt, any "it is weighing you up"). */
+  tilt: number;
+  /** About to commit: feet planted, head lowered, body dropped and coiled (Mournback before a charge). */
+  brace: number;
+  /** Freeze: breathing, sway, tendrils and wingbeats slow almost to nothing ("it stops when you turn", plucked thread). */
+  still: number;
+  /** Lights out: every glow on the body dims (lanterns going dark together, the Grazer's flicker). */
+  dark: number;
+  /** Pull in: tendrils draw up under the body and it hunches smaller (threatened, cornered). */
+  recoil: number;
+  /** Grief: head hung low, a slow rocking sway (a Mournback over a dead packmate). */
+  grieve: number;
+  /** Eyelids: 1 open, 0 shut (Oculimoth eyes flicking open when they see you). */
+  eyes: number;
+  /** Pulse, decays over 0.4 s: a call (chirp, hum, pluck): throat and sacs throb, the head jerks up. */
+  call: number;
+  /** Pulse, decays over 0.35 s: the lens or eyes catch the light just before it moves. */
+  glint: number;
+}
+
+export const restingMind = (): MindTells => ({ tilt: 0, brace: 0, still: 0, dark: 0, recoil: 0, grieve: 0, eyes: 1, call: 0, glint: 0 });
 
 const UP = new THREE.Vector3(0, 1, 0);
 const _w = new THREE.Vector3();
@@ -67,7 +95,7 @@ const _q = new THREE.Quaternion();
 export class Creature {
   readonly rig: Rig;
   readonly plan: BodyPlan;
-  readonly drive: DriveState = { velocity: new THREE.Vector3(), excite: 0, windup: 0, look: null, strike: null, reveal: 1, altitude: null, camo: 1, screech: 0, slam: 0, burrow: 0, action: 0 };
+  readonly drive: DriveState = { velocity: new THREE.Vector3(), excite: 0, windup: 0, look: null, strike: null, reveal: 1, altitude: null, camo: 1, screech: 0, slam: 0, burrow: 0, action: 0, mind: restingMind() };
   /** Called with the limb id whenever a limb is severed (behaviour code: crawl phases, slow-downs). */
   onLimbSevered: ((limbId: string) => void) | null = null;
   private camoOn = false;
@@ -109,6 +137,10 @@ export class Creature {
   }
 
   get root(): THREE.Group { return this.rig.root; }
+
+  /** The head bone (or neck) that body-language tells turn, with its rest pose; null when the body is the head. */
+  private headRig: { bone: THREE.Bone; rest: THREE.Quaternion } | null | undefined;
+  private readonly tellSide = Math.random() < 0.5 ? -1 : 1;
 
   /** The root's world position (behaviour code may parent the rig under its own moving group). */
   private readonly _wp = new THREE.Vector3();
@@ -157,10 +189,11 @@ export class Creature {
 
   update(dt: number): void {
     if (!this.planted) this.plant();
-    this.time += dt;
+    const d = this.drive, mind = d.mind;
+    // A frozen creature's idle life (breath, sway, tendrils, wingbeats) all but stops.
+    this.time += dt * (1 - 0.9 * THREE.MathUtils.clamp(mind.still, 0, 1));
     const root = this.rig.root;
     root.updateMatrixWorld(true);
-    const d = this.drive;
     const speed = Math.hypot(d.velocity.x, d.velocity.z);
     const body = this.rig.bones[0];
     const loco = this.plan.locomotion;
@@ -193,8 +226,10 @@ export class Creature {
     }
     // Screech: a fast shudder through the body.
     if (d.screech > 0) { this.bodyTilt.x += Math.sin(this.time * 70) * 0.04 * d.screech; this.bodyTilt.z += Math.sin(this.time * 53) * 0.05 * d.screech; }
+    this.bodyLanguage(dt, body, scale);
     body.quaternion.setFromEuler(this.bodyTilt);
     body.updateMatrixWorld(true);
+    this.headLanguage();
 
     // After the body moved, re-reach planted feet so they stay nailed to the ground.
     if (loco === 'walker') for (const f of this.feet) if (!f.limb.severed) this.reach(f);
@@ -202,6 +237,44 @@ export class Creature {
     this.animateParts();
     this.motion?.update(dt);
     refreshHits(this.rig);
+  }
+
+  /** Mind tells on the body: brace drops and pitches it, recoil hunches it, grief and tilt lean it (no head bone). */
+  private bodyLanguage(dt: number, body: THREE.Bone, scale: number): void {
+    const m = this.drive.mind;
+    m.call = Math.max(0, m.call - dt / 0.4);
+    m.glint = Math.max(0, m.glint - dt / 0.35);
+    const headless = this.head() === null;
+    body.position.y -= (m.brace * 0.1 + m.recoil * 0.06 + m.grieve * 0.05) * scale;
+    this.bodyTilt.x += m.brace * 0.12 + m.grieve * 0.08 - m.call * (headless ? 0.1 : 0.03);
+    if (headless) {
+      this.bodyTilt.z += m.tilt * 0.3 * this.tellSide + m.grieve * Math.sin(this.time * 0.8) * 0.08;
+      this.bodyTilt.x += m.tilt * 0.06;
+    }
+    const k = 1 - m.recoil * 0.1;
+    body.scale.set(k, 1 - m.recoil * 0.06, k);
+  }
+
+  private head(): { bone: THREE.Bone; rest: THREE.Quaternion } | null {
+    if (this.headRig === undefined) {
+      const b = this.rig.bones.find((x) => x.name === 'head') ?? this.rig.bones.find((x) => x.name === 'neck') ?? null;
+      this.headRig = b ? { bone: b, rest: b.quaternion.clone() } : null;
+    }
+    return this.headRig;
+  }
+
+  /** Mind tells on the head: the decision tilt, the lowered charge, the hung head of grief, the jerk of a call. */
+  private headLanguage(): void {
+    const h = this.head(), m = this.drive.mind;
+    if (!h) return;
+    const side = this.tellSide;
+    const e = new THREE.Euler(
+      m.brace * 0.35 + m.grieve * 0.55 - m.call * 0.3 + m.tilt * 0.08,
+      m.tilt * 0.15 * side + m.grieve * Math.sin(this.time * 0.8) * 0.2,
+      m.tilt * 0.5 * side,
+    );
+    h.bone.quaternion.copy(h.rest).multiply(_q.setFromEuler(e));
+    h.bone.updateMatrixWorld(true);
   }
 
   private deathPose(dt: number): void {
@@ -358,6 +431,8 @@ export class Creature {
           -1,
           -d.velocity.z * 0.12 + Math.cos(this.time * 1.0 + i * 0.9 + l.spec.mount.z * 3) * 0.18 * (i + 1) * 0.5,
         ).normalize();
+        // Recoil: tendrils draw up and in under the body, each segment curling tighter.
+        if (d.mind.recoil > 0) target.lerp(_w.set(-l.spec.mount.x, 0.4 + i * 0.3, -l.spec.mount.z).normalize(), d.mind.recoil * Math.min(1, 0.5 + i * 0.25)).normalize();
         t.dirs[i].lerp(target, 1 - Math.exp(-dt * (3 - i * 0.4))).normalize();
         aimBone(l.bones[i], t.dirs[i], pole);
       }
@@ -369,7 +444,8 @@ export class Creature {
     const d = this.drive, time = bioTime.value + this.time;
     const rig = this.rig;
     this.applyCamo(d.camo);
-    const glowK = (0.65 + d.excite * 0.5) * d.reveal * (0.2 + 0.8 * d.camo);
+    const mind = d.mind, lit = (1 - 0.92 * THREE.MathUtils.clamp(mind.dark, 0, 1)) * (1 + mind.glint * 1.5);
+    const glowK = (0.65 + d.excite * 0.5) * d.reveal * (0.2 + 0.8 * d.camo) * lit;
     for (const g of rig.glows) g.mat.emissiveIntensity = g.base * glowK;
     for (const p of rig.parts.values()) {
       const s = p.spec, m = p.mesh;
@@ -378,13 +454,18 @@ export class Creature {
         const mat = m.material as THREE.MeshStandardMaterial;
         if (p.mesh.userData.popped) continue;
         const swell = 1 + d.windup * 0.5 + Math.sin(time * 4 + s.at.x * 5) * 0.04;
-        m.scale.setScalar(swell);
-        mat.emissiveIntensity = (0.6 + d.windup * 4) * d.reveal * (0.2 + 0.8 * d.camo);
+        m.scale.setScalar(swell * (s.type === 'eye' ? 1 + mind.glint * 0.15 : 1));
+        if (s.type === 'eye') m.scale.y *= Math.max(0.06, mind.eyes);
+        mat.emissiveIntensity = (0.6 + d.windup * 4) * d.reveal * (0.2 + 0.8 * d.camo) * lit;
       } else if (s.type === 'membraneDome') {
         // Bells and bladders breathe; faster when hunting, clench on wind-up.
         const rate = this.plan.locomotion === 'hover' ? 1.6 : 2.5 + d.excite * 4.5;
         const k = Math.sin(time * rate) * (this.plan.locomotion === 'hover' ? 0.025 : 0.07);
         m.scale.set(1 + k - d.windup * 0.12, 1 + k - d.windup * 0.12, 1 - k * 0.7);
+      } else if (s.type === 'eye' && (mind.eyes < 0.999 || mind.glint > 0)) {
+        // Lids: shut eyes flatten to a slit; a glint swells them for a beat.
+        const g = 1 + mind.glint * 0.15 + d.screech * 0.45;
+        m.scale.set(g, g * Math.max(0.06, mind.eyes), g);
       } else if (s.type === 'eye' && d.screech > 0) {
         m.scale.setScalar(1 + d.screech * 0.45);
       } else if (s.type === 'eye' && d.look) {
@@ -408,9 +489,9 @@ export class Creature {
     }
     // Bile Cantor vocal sacs swell as it sings.
     for (const b of rig.bones) {
-      if (!b.name.startsWith('sac')) continue;
-      const i = Number(b.name.slice(3));
-      const k = Math.sin(time * 6 + i) * (0.08 + d.windup * 0.25);
+      if (!b.name.startsWith('sac') && b.name !== 'throat') continue;
+      const i = b.name === 'throat' ? 0 : Number(b.name.slice(3));
+      const k = Math.sin(time * 6 + i) * (0.08 + d.windup * 0.25) + d.mind.call * 0.3;
       b.scale.set(1 + k, 1 + k * 1.6, 1 + k);
     }
   }

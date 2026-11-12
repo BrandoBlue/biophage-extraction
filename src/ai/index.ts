@@ -23,10 +23,12 @@ export { Awareness, sightRate, noiseGain } from './senses';
 export { hostVisibility, type VisibilityInput } from './light';
 export { WaveDirector, type NestSpawn, type NestState } from './nest';
 export { ReliquaryBrain, type BossEvent, type BossInput, type BossState } from './reliquary';
+export { NethermawBrain, type NethermawEvent, type NethermawInput, type NethermawPit } from './nethermaw';
+export { RegentBrain, type RegentEvent, type RegentInput, type RegentPoolView } from './regent';
 export { WidowBrain, type WidowEvent, type WidowInput, type WidowCrater } from './widow';
 export { WardenBrain, type WardenEvent, type WardenInput, type WardenRoom, type WardenSurface } from './warden';
 export { PaleVigilBrain, type VigilEvent, type VigilInput } from './vigil';
-export type { AIEvent, AllyView, BrainWorld, HostView, Mode, Vec2, Vec3 } from './types';
+export type { AIEvent, AllyView, BrainWorld, HostView, Intent, Mode, Tactic, Vec2, Vec3 } from './types';
 export { SwarmBrain, SpitterBrain, StalkerBrain, FlyerBrain, TankBrain, MimicBrain, GrazerBrain, WeaverBrain, BurrowerBrain, HerdBrain, WaderBrain };
 export { WebField, segDist, type Strand } from './web';
 

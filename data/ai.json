@@ -163,6 +163,59 @@
       "cooldown": 1.4
     }
   },
+  "tactics": {
+    "_note": "Readable thinking (src/ai/brain.ts tactics; docs/gdd/pve-ai.md Thinking). Each tactic applies to the archetypes listed in `uses`. reload: a hunter within range m of a reloading host presses in; the first calls the pack (once per callCooldown s) and the attack-token pool grows by extraTokens while the reload lasts. aim: held inside cone degrees (full width) within range m for hold s (aiming down sights fills adsFactor x faster), a hunter not mid-attack breaks sideways out of the line at speed x its speed for time s, at most once per cooldown s. lure: a hunter that spots the host itself with at least packMin of its kind within radius m may lure instead of coming (chance): it shows itself for show s, then backs toward its pack at backoff x its speed, facing the host, and springs the pack (alarm over radius) when the host is within spring m of the pack or after time s. falter: when a packmate of its kind dies within radius m, a hunter not mid-attack stops and backs off at backoff x its speed for time s; once rout of the pack it started with has fallen, it runs instead.",
+    "uses": {
+      "press": [
+        "swarm",
+        "stalker",
+        "spitter",
+        "burrower"
+      ],
+      "evade": [
+        "swarm",
+        "spitter"
+      ],
+      "lure": [
+        "swarm",
+        "stalker"
+      ],
+      "falter": [
+        "swarm",
+        "spitter",
+        "stalker"
+      ]
+    },
+    "reload": {
+      "range": 28,
+      "extraTokens": 2,
+      "callCooldown": 4
+    },
+    "aim": {
+      "cone": 12,
+      "range": 35,
+      "hold": 0.9,
+      "adsFactor": 1.8,
+      "speed": 1.1,
+      "time": 0.9,
+      "cooldown": 2.5
+    },
+    "lure": {
+      "packMin": 2,
+      "radius": 28,
+      "chance": 0.6,
+      "show": 1.4,
+      "backoff": 0.55,
+      "spring": 9,
+      "time": 7
+    },
+    "falter": {
+      "radius": 22,
+      "time": 1.3,
+      "backoff": 0.5,
+      "rout": 0.6
+    }
+  },
   "warden": {
     "_note": "The Warden of the Long Seed (src/ai/warden.ts); attack numbers stay in bosses.json `warden`. wake.trigger: 'approach' (a host enters the reactor chamber or comes within radius m) until Gameplay's ship-power objective exists, then 'power'. It crawls walls and ceiling at crawlSpeed in tend, re-perching every perchTime s; later phases hold holdDistance m on the floor at floorSpeed. The root spear reaches spearRange m and lands where the host was heading (velocity x spearLead s), hitting within spearRadius m. A vented valve opens its seam for seamOpenTime s. Tells for attacks bosses.json gives no wind-up: steamTell, birthTell. Enraged, the reactor pulses every enragePulseEvery s.",
     "wake": {
@@ -273,5 +326,39 @@
     "thrashReach": 2,
     "firstAttack": 4,
     "drownClose": 5
+  },
+  "nethermaw": {
+    "_note": "The Nethermaw (src/ai/nethermaw.ts); attack numbers stay in bosses.json `nethermaw`. Wakes when a host is within wakeRadius of the mouth and no more than wakeAbove m above the pit floor (the deep layer), or when shot. Breathes on a breathCycle s cycle; the updraft pulls only while the breath is past inhaleFrom. A lobe swells for the pulse wind-up and stays swollen swellHold s after it fires (still hittable). It picks the lobe facing the host; a swelling lobe shot for flinchDamage within the wind-up flinches and the pulse is lost. False lights stand falseLightRadius m out from the mouth and spring when a host comes within falseLightTrigger m (a blast of radius falseLightBlast). Wall roots strike at the host from the nearest wall: a host still within rootRadius m of the aim when they land is hit; only used on hosts at least rootMinRange m from the mouth. Walkways tear from the lowest up. firstAttack: delay before attacks with no firstDelay. Each broken root column takes columnPulseCut off its pulses (bosses.json: 20% each). Once every false light has sprung, new ones rise after falseLightEvery s.",
+    "wakeAbove": 45,
+    "breathCycle": 7,
+    "inhaleFrom": 0.35,
+    "swellHold": 1.2,
+    "flinchDamage": 120,
+    "falseLightRadius": 20,
+    "falseLightTrigger": 3.5,
+    "falseLightBlast": 6,
+    "rootRadius": 2.6,
+    "rootMinRange": 6,
+    "firstAttack": 4,
+    "columnPulseCut": 0.2,
+    "falseLightEvery": 25
+  },
+  "regent": {
+    "_note": "The Mire Regent (src/ai/regent.ts); attack numbers stay in bosses.json `mireRegent`. Wakes when a host wades into the pool (within the pool radius and below waterY + wadeHeight) and within wakeRadius, or when shot. A host more than wadeHeight above the water stands on a root or island: out of the arm, the ripple and the thrash. It keeps inside keepInside x the pool radius. Lurking it stalks under the water to stalkDistance m from a wading host and waits beside an island the host stands on. armReach adds to dragUnder.range from its centre; the arm grabs if the host is still within grabRadius m of where it reached. rise eases at riseRate per s; the rise phase rears every rearEvery s for rearFor s (pearls out). An eye hit makes it dive for diveFor s and come up on the far side. tongueCone: half angle (deg) of the tongue line. The belly slam lunges lungeDistance m toward the host during the wind-up. firstAttack: delay before attacks with no firstDelay. Each eye takes eyeBiomass before it bursts (every eye hit makes it dive; eyes under the water while it dives cannot be hit). Enraged, a host standing in water anywhere loses enrageDrain Biomass per s (bosses.json: 4/s).",
+    "wakeRadius": 25,
+    "wadeHeight": 0.6,
+    "keepInside": 0.85,
+    "stalkDistance": 7,
+    "armReach": 5,
+    "grabRadius": 2.5,
+    "riseRate": 1.2,
+    "rearEvery": 9,
+    "rearFor": 5,
+    "diveFor": 3,
+    "tongueCone": 9,
+    "lungeDistance": 5,
+    "firstAttack": 3,
+    "eyeBiomass": 200,
+    "enrageDrain": 4
   }
 }

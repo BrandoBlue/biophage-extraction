@@ -554,6 +554,21 @@ describe('new zones, Apex and online (docs/gdd/10, apex-milestone, hive-mileston
   });
 });
 
+describe('vendor ammo', () => {
+  it('every vendor that sells a gun also sells its ammo, at the same reputation or lower', () => {
+    for (const [name, v] of Object.entries(VENDORS)) {
+      const stock = v.stock ?? [];
+      for (const s of stock) {
+        const ammo = WEAPONS[s.item]?.ammo;
+        if (!ammo) continue;
+        const feed = stock.find((x) => x.item === ammo);
+        expect(feed, `${name} sells ${s.item} but not ${ammo}`).toBeDefined();
+        expect(feed!.rep, `${name}: ${ammo} rep`).toBeLessThanOrEqual(s.rep);
+      }
+    }
+  });
+});
+
 describe('creature minds (docs/gdd/11-creature-minds.md)', () => {
   it('every creature has a mind: what it wants, how it shows its thinking, how it plans, how it learns', () => {
     for (const [kind, a] of Object.entries(ABOMINATIONS)) {

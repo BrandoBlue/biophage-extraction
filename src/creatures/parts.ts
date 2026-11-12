@@ -88,8 +88,12 @@ export function blade(len: number, width: number, thick = 0.02): THREE.BufferGeo
   return g;
 }
 
-/** Armour plate: a curved shell cap (part of a squashed sphere), convex side up. */
-export function plate(w: number, l: number, h: number, rand: Rand, ridge = 0.3): THREE.BufferGeometry {
+/**
+ * Armour plate: a curved shell cap (part of a squashed sphere), convex side up. Plates lie like scales
+ * (Rendering's organic note): the trailing (+Z) edge lifts off the body by `lift` x h so a row of plates
+ * reads as overlapping scales, and the shell has a real underside so the lifted edge shows thickness.
+ */
+export function plate(w: number, l: number, h: number, rand: Rand, ridge = 0.3, lift = 0.6): THREE.BufferGeometry {
   const g = new THREE.SphereGeometry(1, 20, 9, 0, Math.PI * 2, 0, Math.PI * 0.42);
   g.scale(w, h, l);
   const pos = g.attributes.position;
@@ -104,10 +108,25 @@ export function plate(w: number, l: number, h: number, rand: Rand, ridge = 0.3):
     // Central keel ridge, growth-line ripples, and a lopsided lean so no two plates match.
     const keel = Math.exp(-Math.pow(x / (w * 0.18), 2)) * h * ridge;
     const lines = Math.sin(Math.hypot(x / w, z / l) * 18 + s + ang * 0.5) * h * 0.04;
-    pos.setXYZ(i, x, y + keel * (y / h) + lines - h * 0.4 + x * tilt * (h / w), z);
+    // The trailing edge curls up and out, strongest at the rim.
+    const curl = Math.max(0, z / l) ** 2 * rim * rim * h * lift;
+    pos.setXYZ(i, x, y + keel * (y / h) + lines - h * 0.4 + x * tilt * (h / w) + curl, z * (1 + curl / h * 0.08));
   }
   g.computeVertexNormals();
-  return roughen(g, h * 0.05, 4 / Math.max(h, 0.02), s);
+  const top = roughen(g, h * 0.05, 4 / Math.max(h, 0.02), s);
+  return merge([top, underside(top, h * 0.16)]);
+}
+
+/** The inside of a shell: the surface pushed in along its normals, winding and normals flipped. */
+function underside(g: THREE.BufferGeometry, t: number): THREE.BufferGeometry {
+  const u = g.clone(), pos = u.attributes.position, nor = u.attributes.normal;
+  for (let i = 0; i < pos.count; i++) {
+    pos.setXYZ(i, pos.getX(i) - nor.getX(i) * t, pos.getY(i) - nor.getY(i) * t, pos.getZ(i) - nor.getZ(i) * t);
+    nor.setXYZ(i, -nor.getX(i), -nor.getY(i), -nor.getZ(i));
+  }
+  const idx = u.index!;
+  for (let i = 0; i < idx.count; i += 3) { const a = idx.getX(i + 1); idx.setX(i + 1, idx.getX(i + 2)); idx.setX(i + 2, a); }
+  return u;
 }
 
 /** Pustule / bio-node: a swollen lumpy sac. */

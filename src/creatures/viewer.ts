@@ -14,7 +14,7 @@ import { bioSurface, bioNode } from '../render/materials';
 import { createPipeline, simplifyForSoftware, type Pipeline } from '../render/pipeline';
 import { buildZone7, groundHeight } from '../world/zone7';
 import { mutation } from '../render/dissolve';
-import { Creature } from './creature';
+import { Creature, type MindTells } from './creature';
 import { creatureGore } from './gore';
 import { SPECIES_IDS } from './species';
 import { MAX_STAGE, type SpeciesId } from './plan';
@@ -526,6 +526,8 @@ export function startCreatureViewer(canvas: HTMLCanvasElement): void {
       creatureGore.pool(scene, c);
       c.alive = false;
     },
+    /** Body-language tells (creature minds) on every creature on show, e.g. { tilt: 1 } or { recoil: 1, dark: 0.8 }. */
+    mind(tells: Partial<MindTells>) { for (const c of creatures) Object.assign(c.drive.mind, tells); },
     walk(on: boolean) { st.walking = on; refreshUi(); },
     strike() { st.striking = 1.2; },
     /** New-zone creatures: dive under (Dunewake into sand, Fenstalker under water) or surface. */
