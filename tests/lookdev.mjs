@@ -68,6 +68,10 @@ const POSES = {
   fenCauseway: { at: [196, 50], eye: 1.8, yaw: -1.3, pitch: 0.06 },
   fenTitanGate: { at: [18, -196], eye: 1.8, yaw: 0, pitch: 0.22 },
 };
+// Map edge (any zone): stand at a fraction of the playable radius on the north side and look out.
+POSES.edgeMid = { edge: 0.6 };
+POSES.edgeNear = { edge: 0.85 };
+POSES.edgeAt = { edge: 0.97 };
 const width = Number(process.env.LOOKDEV_W || 1280), height = Number(process.env.LOOKDEV_H || 720);
 const server = spawn('npx', ['vite', 'preview', '--port', '4174', '--strictPort'], { stdio: 'ignore' });
 const fail = (msg) => { console.error(`LOOKDEV FAIL: ${msg}`); server.kill(); process.exit(1); };
@@ -94,6 +98,7 @@ try {
     await page.evaluate(() => window.__biophageLookdev.lab(false));
     if (pose.lab !== undefined) await page.evaluate((y) => window.__biophageLookdev.lab(true, y), pose.lab);
     else if (pose.main) await page.evaluate(() => window.__biophageLookdev.clear());
+    else if (pose.edge) await page.evaluate((f) => { const R = window.__biophage.layout.playableRadius ?? 150; window.__biophageLookdev.view({ at: [0, -R * f], eye: 1.7, yaw: 0, pitch: 0.04 }); }, pose.edge);
     else await page.evaluate((p) => window.__biophageLookdev.view(p), pose);
     for (const n of (process.env.HIDE || '').split(',').filter(Boolean)) await page.evaluate((x) => window.__biophageLookdev.show(x, false), n);
     for (const g of pose.gore ?? []) await page.evaluate(([x, z, c]) => window.__biophageLookdev.gore(x, z, c), g);
@@ -108,6 +113,8 @@ try {
     await page.waitForFunction((f) => window.__biophage.frames > f + 2, from, { timeout: 120000 });
     await page.screenshot({ path: `tests/out/lookdev-${name}${process.env.RAW ? '-raw' : ''}${process.env.TAG ?? ''}.png`, timeout: 120000 });
     console.log(`lookdev-${name}.png`);
+    // NANSCAN=1: report NaN/infinite pixels in the raw HDR frame and the materials that cause them.
+    if (process.env.NANSCAN) console.log(`nanscan ${name}: ${JSON.stringify(await page.evaluate(() => window.__biophageLookdev.nanScan()))}`);
   }
   await browser.close();
   const real = errors.filter((e) => !/GPU stall|ReadPixels|swiftshader|Automatic fallback|deprecated/i.test(e));

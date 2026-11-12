@@ -15,6 +15,10 @@ import { GameAudio } from './audio';
 import { getSettings, type Settings } from './ui/settings';
 import { ZONE_GRADE } from './render/presets';
 import { organicize } from './render/organic';
+import { edgeMurk, setEdgeFog } from './render/edgemurk';
+import { ZONE7_SHADE } from './render/palette';
+import { groundHeight } from './world/zone7';
+import { PLAYABLE } from './world/layout';
 import { caveDistance } from './world/cave';
 import { layerAt } from './world/pit';
 import { AUDIO } from './audio';
@@ -50,6 +54,10 @@ function bootRaid(): void {
   const world = buildZone(scene, zoneParam ?? profile.economy.zone, raidSeed);
   // Nothing in the world should read as machined: boxes, cylinders and cones are grown into organic shapes (src/render/organic).
   organicize(scene);
+  // The map's edge sinks into churning murk (Brandon, 2026-11-12): the fog swallows what lies past it and closes in
+  // as you approach. The Wreck is an interior with no open edge.
+  const openEdge = world.zone !== 'longSeedWreck' ? world.layout.playableRadius ?? PLAYABLE : 0;
+  if (openEdge) setEdgeFog(openEdge);
   const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures, world.zone);
   const hud = new RaidHud(raid.bus, raid);
   function deployNow(): void {
@@ -118,6 +126,10 @@ function bootRaid(): void {
   // Display settings (Hive → Settings): brightness, render scale and graphics level apply live.
   pipeline.applyDisplay(getSettings());
   pipeline.setZoneGrade(ZONE_GRADE[world.zone] ?? {});
+  if (openEdge) {
+    const fog = scene.fog as THREE.FogExp2 | null;
+    scene.add(edgeMurk({ radius: openEdge, ground: groundHeight, colour: fog?.color ?? ZONE7_SHADE.skyHorizon, lite: pipeline.quality === 'low' }));
+  }
   addEventListener('biophage:settings', (e) => pipeline.applyDisplay((e as CustomEvent<Settings>).detail));
   installLookdev(pipeline, camera, scene);
   raid.pipeline = pipeline;

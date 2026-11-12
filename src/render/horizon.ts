@@ -20,7 +20,7 @@ export interface HorizonOptions {
   lightDir?: THREE.Vector3;
 }
 
-export const HORIZON = { radii: [380, 560, 800], base: -70, height: 120, segments: 360 } as const;
+export const HORIZON = { radii: [380, 560, 800], base: -70, height: 120, segments: 540 } as const;
 
 /** Seeded ridge profile around the ring: ridged octaves, flattened mesas and a few needle spires. Returns 0..~1.3. */
 export function ridgeProfile(seed: number, t: number): number {
@@ -28,16 +28,17 @@ export function ridgeProfile(seed: number, t: number): number {
   const ph = (k: number) => Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453 % 6.283;
   let h = 0, amp = 0.55, f = 3;
   // Two ridged octaves for the big crests, then smooth octaves so the skyline erodes instead of turning to saw teeth.
+  // The crests are rounded (a softened |w|): weathered shoulders read grown, knife-edge cusps read as cut paper.
   for (let o = 0; o < 5; o++) {
     const w = Math.sin(a * f + ph(o));
-    h += amp * (o < 2 ? 1 - Math.abs(w) : 0.5 + 0.5 * w);
+    h += amp * (o < 2 ? 1.12 - Math.sqrt(w * w + 0.03) : 0.5 + 0.5 * w);
     amp *= 0.45; f *= 2.3;
   }
   // Mesas: clamp broad swells into flat tops.
   const swell = 0.5 + 0.5 * Math.sin(a * 2 + ph(9));
   h = Math.min(h, 0.55 + swell * 0.4);
   // Rare spires.
-  const spire = Math.pow(Math.max(0, Math.sin(a * 23 + ph(11))), 40) * 0.25;
+  const spire = Math.pow(Math.max(0, Math.sin(a * 23 + ph(11))), 24) * 0.18;
   return Math.max(0.05, h + spire);
 }
 
@@ -87,7 +88,7 @@ export function horizonLands(o: HorizonOptions = {}): THREE.Group {
         uRim: { value: new THREE.Color(ORGANIC.mist) },
         uSpeck: { value: new THREE.Color(ZONE7.cyan) },
         uLight: { value: light },
-        uHazeK: { value: 0.35 + haze * 0.4 },
+        uHazeK: { value: 0.3 + haze * 0.3 },
         uSpecks: { value: k === 0 ? 1 : 0 },
       },
       vertexShader: 'varying vec2 vUv; varying vec3 vW, vN; void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position,1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal); gl_Position = projectionMatrix * viewMatrix * w; }',
@@ -105,7 +106,10 @@ export function horizonLands(o: HorizonOptions = {}): THREE.Group {
           c += uRim * lit * 0.06;
           // Aerial perspective: farther rings sit deeper in the haze; every foot dissolves into valley mist.
           float mist = 1.0 - smoothstep(0.0, 0.45, vUv.y);
-          c = mix(c, uHaze * 0.7, clamp(uHazeK + mist * 0.65, 0.0, 1.0));
+          c = mix(c, uHaze * 0.55, clamp(uHazeK + mist * 0.65, 0.0, 1.0));
+          // Ridgelines stay a touch darker than the night sky behind them, so they read as distant land in silhouette
+          // rather than pale cut-outs pasted on the sky (2026-11-12 Expanse review).
+          c *= 1.0 - 0.3 * smoothstep(0.55, 1.0, vUv.y);
           // A few faint far lights on the nearest ridges: scale cues, not neon.
           float speck = uSpecks * step(0.985, bioNoise(vec3(vW.xz * 0.15, 4.0))) * smoothstep(0.2, 0.6, vUv.y) * (1.0 - smoothstep(0.7, 0.9, vUv.y));
           c += uSpeck * speck * 0.35;

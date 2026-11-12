@@ -129,6 +129,44 @@ export function installLookdev(pipeline: Pipeline, base: THREE.PerspectiveCamera
     raw(on: boolean) { pipeline.bypassPost = on; },
     hit() { pipeline.hitPulse(1); },
     clear() { pipeline.overrideCamera = null; },
+    /**
+     * Count non-finite (NaN or infinite) pixels in a raw HDR render of the current view, and name the materials that
+     * produce them on their own. One such pixel used to spread through the bloom into a black block over much of
+     * the screen (Brandon, 2026-11-12).
+     */
+    nanScan(w = 192, h = 108) {
+      if (!scene) return { bad: 0, culprits: [] as string[] };
+      const r = pipeline.renderer, camera = pipeline.overrideCamera ?? base;
+      const rt = new THREE.WebGLRenderTarget(w, h, { type: THREE.FloatType });
+      const buf = new Float32Array(w * h * 4);
+      const count = () => {
+        r.setRenderTarget(rt); r.clear(); r.render(scene, camera); r.setRenderTarget(null);
+        r.readRenderTargetPixels(rt, 0, 0, w, h, buf);
+        let n = 0; for (let i = 0; i < buf.length; i++) if (!Number.isFinite(buf[i])) n++;
+        return n;
+      };
+      const bad = count();
+      const culprits: string[] = [];
+      if (bad) {
+        const meshes: THREE.Mesh[] = [];
+        scene.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.visible) meshes.push(o as THREE.Mesh); });
+        const byMat = new Map<string, THREE.Mesh[]>();
+        for (const m of meshes) {
+          const mat = Array.isArray(m.material) ? m.material[0] : m.material;
+          const key = `${mat.type}:${mat.name || mat.uuid.slice(0, 6)}:${m.name || m.parent?.name || ''}`;
+          byMat.set(key, [...(byMat.get(key) ?? []), m]);
+        }
+        for (const m of meshes) m.visible = false;
+        for (const [key, ms] of byMat) {
+          for (const m of ms) m.visible = true;
+          if (count()) culprits.push(key);
+          for (const m of ms) m.visible = false;
+        }
+        for (const m of meshes) m.visible = true;
+      }
+      rt.dispose();
+      return { bad, culprits };
+    },
     stats() { const i = pipeline.renderer.info; return { calls: i.render.calls, triangles: i.render.triangles, programs: i.programs?.length ?? 0 }; },
   };
   (window as unknown as { __biophageLookdev: typeof api }).__biophageLookdev = api;

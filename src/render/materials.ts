@@ -50,13 +50,16 @@ float bioCells(vec3 p) {
 /**
  * Relief without textures: BIO_BUMP(height, scale) tilts the shading normal by the screen-space slope of a procedural
  * height field (in metres times scale), so surfaces catch light across grain, pores and plates. Use it inside a
- * bioSurface fragment; it compiles to nothing on the software tier.
+ * bioSurface fragment; it compiles to nothing on the software tier. A face seen exactly edge-on, or smaller than a
+ * pixel, makes the perturbed normal a zero vector: it keeps the unbumped normal there, because normalize(0) is NaN on
+ * some GPUs and one NaN pixel used to black out a block of the screen through the bloom (2026-11-12).
  */
 export const GLSL_BUMP = /* glsl */ `
 #ifndef BIO_LOW
 #define BIO_BUMP(h, k) { float bh_ = (h) * (k); vec3 bsx_ = dFdx(-vViewPosition), bsy_ = dFdy(-vViewPosition); \\
   vec3 br1_ = cross(bsy_, normal), br2_ = cross(normal, bsx_); float bdet_ = dot(bsx_, br1_) * (gl_FrontFacing ? 1.0 : -1.0); \\
-  vec3 bg_ = sign(bdet_) * (dFdx(bh_) * br1_ + dFdy(bh_) * br2_); normal = normalize(abs(bdet_) * normal - bg_); }
+  vec3 bg_ = sign(bdet_) * (dFdx(bh_) * br1_ + dFdy(bh_) * br2_); vec3 bn_ = abs(bdet_) * normal - bg_; \\
+  normal = dot(bn_, bn_) > 1e-20 ? normalize(bn_) : normal; }
 #else
 #define BIO_BUMP(h, k)
 #endif
@@ -451,7 +454,9 @@ export function grownWall(opts: { base?: string; seam?: string; vein?: string; p
       vec3 r1 = cross(sy, normal), r2 = cross(normal, sx);
       float det = dot(sx, r1) * (gl_FrontFacing ? 1.0 : -1.0);
       vec3 grad = sign(det) * (dFdx(hgt) * r1 + dFdy(hgt) * r2);
-      normal = normalize(abs(det) * normal - grad);
+      // Edge-on and sub-pixel faces give a zero vector here; normalizing it is NaN on some GPUs (see GLSL_BUMP).
+      vec3 bumped = abs(det) * normal - grad;
+      normal = dot(bumped, bumped) > 1e-20 ? normalize(bumped) : normal;
       // Rare capillaries in the seams.
       float cap = seam * bioVein(vec3(q * 0.9, 3.0)) * step(0.7, bioHash(vec3(best, 9.0)));
       totalEmissiveRadiance = emissive * cap * (0.5 + 0.3 * sin(bioTime * 1.2 + id * 6.0));
