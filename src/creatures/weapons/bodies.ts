@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { MODS, WEAPON_FEEL, WEAPONS, type Rarity, type WeaponDef } from '../../../data';
 import { HIVE, ORGANIC, PATH, ZONE7 } from '../../render/palette';
 import { alienEye, bioNode, chitin, livingFlesh, membrane } from '../../render/materials';
+import { organicGeometry } from '../../render/organic';
 import { merge, needleRing, rng, roughen, spike, taperTube, wing, type Rand } from '../parts';
+import { vnoise } from '../sdf';
 
 /**
  * Living weapon bodies (Creature & Mutation). Each archetype is a grown organism, never a machine with
@@ -89,6 +91,33 @@ const smooth = (t: number) => { const k = THREE.MathUtils.clamp(t, 0, 1); return
 /** 0 → 1 → 0 bump over [a, b]. */
 const bump = (t: number, a: number, b: number) => (t <= a || t >= b ? 0 : Math.sin(((t - a) / (b - a)) * Math.PI));
 
+/**
+ * Brandon (2026-11-12): "less geometric, more organic". Rings and bands are grown, not turned on a lathe:
+ * a round tube (never a square one) whose radius, thickness and plane wander around the loop.
+ */
+let ringSeed = 0;
+export function ring(R: number, r: number, radial = 10, tubular = 18, arc = Math.PI * 2): THREE.BufferGeometry {
+  const g = new THREE.TorusGeometry(R, r, Math.max(10, radial), Math.max(18, tubular), arc);
+  const s = (ringSeed = (ringSeed + 1) % 97) * 3.7;
+  const pos = g.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const a = Math.atan2(y, x), ca = Math.cos(a), sa = Math.sin(a);
+    const n = (k: number, f: number) => vnoise(ca * f + s + k, sa * f + k * 1.7, s) - 0.5;
+    const cx = R * ca, cy = R * sa;
+    const rad = 1 + n(0, 1.6) * 0.16, thick = 1 + n(5, 2.4) * 0.7 + n(9, 6) * 0.25, lift = n(13, 1.3) * R * 0.14;
+    pos.setXYZ(i, cx * rad + (x - cx) * thick, cy * rad + (y - cy) * thick, z * thick + lift);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/** A short stalk or cell: a cylinder grown round (rounded rims, many sides, a little sag). */
+export function stalk(rTop: number, rBot: number, h: number, seed = 0): THREE.BufferGeometry {
+  const r = Math.min(rTop, rBot);
+  return organicGeometry(new THREE.CylinderGeometry(rTop, rBot, h, 14, 3), { amp: r * 0.1, scale: r * 1.6, soften: 3, seed, maxVerts: 700 });
+}
+
 type Pose = WeaponPose & { equip: number };
 
 interface Mats { flesh: THREE.MeshPhysicalMaterial; fleshDeep: THREE.MeshPhysicalMaterial; bone: THREE.MeshPhysicalMaterial; boneDark: THREE.MeshPhysicalMaterial; sac: THREE.MeshStandardMaterial; core: THREE.MeshStandardMaterial }
@@ -120,13 +149,16 @@ function lathe(len: number, r: (t: number) => number, seed: number, segs = 22): 
 /** Bone grip curving down and back from the body; the wrist frame sits at its base. */
 function gripBone(at: THREE.Vector3, len: number, rand: Rand): THREE.BufferGeometry {
   const pts = [at.clone(), at.clone().add(V(0, -len * 0.45, len * 0.12)), at.clone().add(V(0, -len, len * 0.3))];
-  const parts = [taperTube(pts, [0.024, 0.022, 0.02], 9, 4)];
+  const parts = [taperTube(pts, [0.024, 0.022, 0.02], 16, 4)];
   const c = new THREE.CatmullRomCurve3(pts);
   for (let i = 0; i < 4; i++) {
-    // Finger ridges on the front of the grip and sinew bands round it.
+    // Finger ridges on the front of the grip; sinew wraps sunk into it (part of the grip, not coils round it).
     const t = 0.2 + i * 0.2, p = c.getPointAt(t), d = c.getTangentAt(t);
-    parts.push(new THREE.SphereGeometry(0.011, 8, 6).scale(1.6, 0.8, 1).translate(p.x, p.y, p.z - 0.02));
-    parts.push(new THREE.TorusGeometry(0.0235, 0.003, 4, 14).applyMatrix4(new THREE.Matrix4().compose(p, new THREE.Quaternion().setFromUnitVectors(V(0, 0, 1), d), V(1, 1, 1))));
+    parts.push(new THREE.SphereGeometry(0.011, 14, 10).scale(1.6, 0.8, 1).translate(p.x, p.y, p.z - 0.02));
+    if (i % 2 === 1) continue;
+    const r = 0.024 - t * 0.004, spin = new THREE.Quaternion().setFromAxisAngle(V(0, 0, 1), rand() * Math.PI * 2);
+    const q = new THREE.Quaternion().setFromUnitVectors(V(0, 0, 1), d).multiply(spin);
+    parts.push(ring(r * 0.93, 0.0042, 10, 18, Math.PI * (1.1 + rand() * 0.5)).applyMatrix4(new THREE.Matrix4().compose(p, q, V(1, 1, 1))));
   }
   parts.push(new THREE.SphereGeometry(0.026, 12, 8).scale(1, 0.6, 1.2).translate(pts[2].x, pts[2].y, pts[2].z)); // pommel knob
   return roughen(merge(parts), 0.002, 70, rand() * 9);
@@ -154,7 +186,7 @@ function graftMesh(slot: ModSlot, size: number, m: Mats, rand: Rand): THREE.Grou
   const mesh = (geo: THREE.BufferGeometry, mat: THREE.Material) => { const o = new THREE.Mesh(geo, mat); o.frustumCulled = false; g.add(o); return o; };
   if (slot === 'barrel') {
     const parts: THREE.BufferGeometry[] = [taperTube([V(0, 0, 0.02 * k), V(0, 0, -0.05 * k), V(0, 0, -0.1 * k)], [0.02 * k, 0.019 * k, 0.016 * k], 10, 5)];
-    for (let i = 0; i < 3; i++) parts.push(new THREE.TorusGeometry(0.021 * k, 0.003 * k, 4, 14).translate(0, 0, -0.02 * k - i * 0.03 * k));
+    for (let i = 0; i < 3; i++) parts.push(ring(0.021 * k, 0.003 * k, 4, 14).translate(0, 0, -0.02 * k - i * 0.03 * k));
     mesh(roughen(merge(parts), 0.0015 * k, 90 / k, rand() * 9), m.fleshDeep);
     mesh(needleRing(0.019 * k, 8, 0.025 * k, rand, 0.7).rotateX(-Math.PI / 2).translate(0, 0, -0.1 * k), m.bone);
   } else if (slot === 'sight') {
@@ -194,7 +226,7 @@ function modGraft(id: string, size: number, m: Mats, rand: Rand): THREE.Group {
   const eyeMat = (c: string) => alienEye(c, HIVE.bone);
   switch (id) {
     case 'lampreyMouth': // a ring of tiny inward teeth round the muzzle
-      mesh(new THREE.TorusGeometry(0.022 * k, 0.008 * k, 10, 20).translate(0, 0, -0.008 * k), m.fleshDeep);
+      mesh(ring(0.022 * k, 0.008 * k, 10, 20).translate(0, 0, -0.008 * k), m.fleshDeep);
       mesh(needleRing(0.022 * k, 16, 0.014 * k, rand, 1).rotateX(-Math.PI / 2).translate(0, 0, -0.01 * k), m.bone);
       break;
     case 'hushGill': { // feathery gill slits along the barrel
@@ -208,7 +240,7 @@ function modGraft(id: string, size: number, m: Mats, rand: Rand): THREE.Group {
       const barbs: THREE.BufferGeometry[] = [];
       for (let i = 0; i < 7; i++) { const a = (i / 7) * Math.PI * 2; barbs.push(spike(0.035 * k, 0.005 * k, 0.9).rotateX(-1.1).rotateZ(a - Math.PI / 2).translate(Math.cos(a) * 0.018 * k, Math.sin(a) * 0.018 * k, 0)); }
       mesh(merge(barbs), m.boneDark);
-      mesh(new THREE.TorusGeometry(0.019 * k, 0.005 * k, 6, 18), m.bone);
+      mesh(ring(0.019 * k, 0.005 * k, 6, 18), m.bone);
       break;
     }
     case 'pupilBud': { // a second small eye budding beside the sight
@@ -231,7 +263,7 @@ function modGraft(id: string, size: number, m: Mats, rand: Rand): THREE.Group {
     }
     case 'tendonBrace': { // a cord of tendon anchoring the gun back to the forearm
       const cord: THREE.BufferGeometry[] = [taperTube([V(0, 0, 0), V(0, -0.03 * k, 0.08 * k), V(0.01 * k, -0.08 * k, 0.17 * k)], [0.006 * k, 0.005 * k, 0.007 * k], 7, 6)];
-      for (let i = 1; i < 4; i++) cord.push(new THREE.TorusGeometry(0.0075 * k, 0.0018 * k, 4, 10).rotateX(1.0).translate(0.002 * k * i, -0.02 * k * i, 0.042 * k * i));
+      for (let i = 1; i < 4; i++) cord.push(ring(0.0075 * k, 0.0018 * k, 4, 10).rotateX(1.0).translate(0.002 * k * i, -0.02 * k * i, 0.042 * k * i));
       mesh(merge(cord), m.flesh);
       break;
     }
@@ -257,7 +289,7 @@ function modGraft(id: string, size: number, m: Mats, rand: Rand): THREE.Group {
     case 'quickGullet': { // a ribbed throat swallowing the next load
       mesh(taperTube([V(0, 0, 0.03 * k), V(0.004 * k, 0, -0.01 * k), V(0, 0, -0.05 * k)], [0.014 * k, 0.016 * k, 0.012 * k], 10, 4).translate(0.012 * k, 0, 0), m.flesh);
       const ribs: THREE.BufferGeometry[] = [];
-      for (let i = 0; i < 6; i++) ribs.push(new THREE.TorusGeometry(0.0155 * k, 0.003 * k, 4, 12).translate(0.012 * k, 0, 0.025 * k - i * 0.014 * k));
+      for (let i = 0; i < 6; i++) ribs.push(ring(0.0155 * k, 0.003 * k, 4, 12).translate(0.012 * k, 0, 0.025 * k - i * 0.014 * k));
       mesh(merge(ribs), m.bone);
       break;
     }
@@ -273,14 +305,14 @@ function modGraft(id: string, size: number, m: Mats, rand: Rand): THREE.Group {
       break;
     }
     case 'seekerStrain': // a nerve knot steering each shot
-      mesh(new THREE.TorusKnotGeometry(0.012 * k, 0.0035 * k, 48, 6, 2, 3).translate(0.012 * k, 0, 0), m.flesh);
+      mesh(new THREE.TorusKnotGeometry(0.012 * k, 0.0035 * k, 64, 10, 2, 3).translate(0.012 * k, 0, 0), m.flesh);
       mesh(new THREE.SphereGeometry(0.006 * k, 10, 8).translate(0.012 * k, 0, 0), bioNode(mix(PATH.dna, ORGANIC.mist, 0.4), 3.2));
       break;
     case 'leechStrain': { // a leech coiled through the chamber
       const pts: THREE.Vector3[] = [];
       for (let i = 0; i <= 24; i++) { const a = (i / 24) * Math.PI * 4; pts.push(V(0.012 * k + Math.cos(a) * 0.012 * k, Math.sin(a) * 0.016 * k, 0.04 * k - (i / 24) * 0.08 * k)); }
       mesh(roughen(taperTube(pts, pts.map((_, i) => (0.006 - Math.abs(i - 12) * 0.0002) * k), 7, 2), 0.001 * k, 120 / k, rand() * 9), m.fleshDeep);
-      mesh(new THREE.TorusGeometry(0.006 * k, 0.002 * k, 5, 10).rotateY(Math.PI / 2).translate(pts[0].x, pts[0].y, pts[0].z), m.bone);
+      mesh(ring(0.006 * k, 0.002 * k, 5, 10).rotateY(Math.PI / 2).translate(pts[0].x, pts[0].y, pts[0].z), m.bone);
       break;
     }
     case 'splinterStrain': { // bone spurs packed into the feed
@@ -557,7 +589,7 @@ class Sidearm extends Body {
     this.flesh = this.add(lathe(0.3, (t) => 0.028 + Math.sin(t * Math.PI) * 0.03 - t * 0.008, 3).translate(0, 0, 0.1), this.m.flesh);
     // Bone sheath along the top and a short ribbed barrel.
     const ribs: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 4; i++) ribs.push(new THREE.TorusGeometry(0.032 - i * 0.002, 0.005, 5, 16, Math.PI * 1.2).rotateZ(-0.3).translate(0, 0.004, -0.04 - i * 0.035));
+    for (let i = 0; i < 4; i++) ribs.push(ring(0.032 - i * 0.002, 0.005, 5, 16, Math.PI * 1.2).rotateZ(-0.3).translate(0, 0.004, -0.04 - i * 0.035));
     ribs.push(taperTube([V(0, 0.045, 0.1), V(0, 0.055, -0.02), V(0, 0.04, -0.17)], [0.012, 0.01, 0.006], 6, 4));
     this.add(merge(ribs), this.m.bone);
     this.fangs = this.add(needleRing(0.022, 7, 0.03, this.rand, 0.6).rotateX(-Math.PI / 2).translate(0, 0, -0.2), this.m.bone);
@@ -607,12 +639,12 @@ class Smg extends Body {
     this.flesh = this.add(lathe(0.36, (t) => 0.04 + Math.sin(Math.pow(t, 0.7) * Math.PI) * 0.025, 5).translate(0, 0, 0.14), this.m.fleshDeep);
     // Hexagonal comb plates down the flanks.
     const comb: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 6; i++) for (const s of [-1, 1]) comb.push(new THREE.CylinderGeometry(0.014, 0.014, 0.008, 6).rotateZ(Math.PI / 2).translate(s * 0.052, 0.012 - (i % 2) * 0.022, 0.08 - Math.floor(i / 2) * 0.05));
+    for (let i = 0; i < 6; i++) for (const s of [-1, 1]) comb.push(stalk(0.014, 0.012, 0.008, i * 2 + (s > 0 ? 1 : 0)).rotateZ(Math.PI / 2).translate(s * 0.052, 0.012 - (i % 2) * 0.022, 0.08 - Math.floor(i / 2) * 0.05));
     this.add(merge(comb), this.m.bone);
     const bar: THREE.BufferGeometry[] = [];
     for (const s of [-1, 1]) {
       bar.push(taperTube([V(s * 0.016, 0.012, -0.16), V(s * 0.017, 0.012, -0.24), V(s * 0.015, 0.01, -0.32)], [0.012, 0.011, 0.01], 7, 3));
-      for (let i = 0; i < 4; i++) bar.push(new THREE.TorusGeometry(0.013, 0.003, 4, 12).translate(s * 0.016, 0.012, -0.18 - i * 0.04));
+      for (let i = 0; i < 4; i++) bar.push(ring(0.013, 0.003, 4, 12).translate(s * 0.016, 0.012, -0.18 - i * 0.04));
     }
     this.barrels = this.add(merge(bar), this.m.bone);
     this.muzzle.position.set(0, 0.012, -0.34);
@@ -664,7 +696,7 @@ class Rifle extends Body {
     const v: THREE.BufferGeometry[] = [];
     for (let i = 0; i < 9; i++) {
       const z = -0.16 - i * 0.034, r = 0.022 - i * 0.0009;
-      v.push(roughen(new THREE.CylinderGeometry(r, r * 1.08, 0.022, 10).rotateX(Math.PI / 2).translate(0, 0.014, z), 0.0015, 120, i));
+      v.push(stalk(r, r * 1.08, 0.022, i).rotateX(Math.PI / 2).translate(0, 0.014, z));
       v.push(spike(0.032 - i * 0.001, 0.007, 0.6).rotateX(-1.0).translate(0, 0.014 + r, z));
       for (const s of [-1, 1]) v.push(spike(0.02, 0.005, 0.3).rotateZ(-s * 1.3).translate(s * r, 0.01, z));
     }
@@ -734,7 +766,7 @@ class Shotgun extends Body {
     this.add(merge(shells), this.m.core);
     // Bone ribs over the top.
     const ribs: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 5; i++) ribs.push(new THREE.TorusGeometry(0.068 - Math.abs(i - 2) * 0.005, 0.007, 5, 16, Math.PI * 1.1).rotateZ(-0.05).translate(0, 0, 0.06 - i * 0.06));
+    for (let i = 0; i < 5; i++) ribs.push(ring(0.068 - Math.abs(i - 2) * 0.005, 0.007, 5, 16, Math.PI * 1.1).rotateZ(-0.05).translate(0, 0, 0.06 - i * 0.06));
     this.add(merge(ribs), this.m.bone);
     this.setGrip(V(0, -0.035, 0.1), 0.11);
     this.size = 1.25;
@@ -767,7 +799,7 @@ class Sniper extends Body {
     this.add(roughen(taperTube([V(0, 0.005, 0.2), V(0, -0.01, 0.32), V(0, -0.035, 0.42)], [0.02, 0.018, 0.03], 8, 3), 0.003, 50, 5), this.m.bone);
     // Long spine barrel with a sinew wrap.
     const sp: THREE.BufferGeometry[] = [taperTube([V(0, 0.008, -0.14), V(0, 0.008, -0.45), V(0, 0.008, -0.72)], [0.011, 0.009, 0.008], 7, 8)];
-    for (let i = 0; i < 12; i++) sp.push(new THREE.TorusGeometry(0.012, 0.0025, 4, 10).translate(0, 0.008, -0.16 - i * 0.045));
+    for (let i = 0; i < 12; i++) sp.push(ring(0.012, 0.0025, 4, 10).translate(0, 0.008, -0.16 - i * 0.045));
     sp.push(needleRing(0.014, 6, 0.018, this.rand, 0.9).rotateX(-Math.PI / 2).translate(0, 0.008, -0.72));
     this.add(merge(sp), this.m.bone);
     this.muzzle.position.set(0, 0.008, -0.74);
@@ -826,7 +858,7 @@ class Launcher extends Body {
     this.mouth = this.add(needleRing(0.07, 10, 0.035, this.rand, 0.75).rotateX(-Math.PI / 2).translate(0, 0, -0.28), this.m.bone);
     this.muzzle.position.set(0, 0, -0.3);
     const ribs: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 6; i++) ribs.push(new THREE.TorusGeometry(0.094 - Math.abs(i - 2.5) * 0.006, 0.008, 5, 18).translate(0, 0, 0.16 - i * 0.075));
+    for (let i = 0; i < 6; i++) ribs.push(ring(0.094 - Math.abs(i - 2.5) * 0.006, 0.008, 5, 18).translate(0, 0, 0.16 - i * 0.075));
     this.add(merge(ribs), this.m.bone);
     // Shoulder hump and a carrying spine.
     this.add(roughen(taperTube([V(0, 0.09, 0.2), V(0, 0.11, 0.0), V(0, 0.09, -0.2)], [0.02, 0.026, 0.014], 7, 4), 0.003, 40, 1), this.m.bone);
@@ -874,7 +906,7 @@ class MarrowHand extends Body {
     // The knuckle cylinder: five knuckle bones round an axle, each with a glowing marrow core.
     this.cylinder = new THREE.Group();
     this.cylinder.position.set(0, 0.0, -0.035);
-    this.add(new THREE.CylinderGeometry(0.008, 0.008, 0.07, 8).rotateX(Math.PI / 2), this.m.boneDark, this.cylinder);
+    this.add(stalk(0.008, 0.0085, 0.07, 3).rotateX(Math.PI / 2), this.m.boneDark, this.cylinder);
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2, k = new THREE.Group();
       k.position.set(Math.cos(a) * 0.028, Math.sin(a) * 0.028, 0);
@@ -915,7 +947,7 @@ class StingerChoir extends Body {
     // The abdomen: banded segments (a lathe with ridges) from the grip forward.
     this.flesh = this.add(lathe(0.34, (t) => 0.036 + Math.sin(Math.pow(t, 0.8) * Math.PI) * 0.024 + (Math.sin(t * 40) > 0.6 ? 0.004 : 0), 17).translate(0, 0, 0.14), this.m.fleshDeep);
     const bands: THREE.BufferGeometry[] = [];
-    for (let i = 0; i < 6; i++) bands.push(new THREE.TorusGeometry(0.064 - Math.abs(i - 2.5) * 0.005, 0.007, 5, 18, Math.PI * 1.3).rotateZ(-0.15 * Math.PI).translate(0, 0.002, 0.12 - i * 0.05));
+    for (let i = 0; i < 6; i++) bands.push(ring(0.064 - Math.abs(i - 2.5) * 0.005, 0.007, 5, 18, Math.PI * 1.3).rotateZ(-0.15 * Math.PI).translate(0, 0.002, 0.12 - i * 0.05));
     this.add(merge(bands), this.m.bone);
     // Tymbal: the drum membrane on the flank that sings with each burst.
     this.tymbal = this.add(new THREE.SphereGeometry(0.03, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.4).rotateZ(-Math.PI / 2).scale(0.5, 1, 1.4).translate(0.045, 0.005, 0.02), this.m.sac);
@@ -980,7 +1012,7 @@ class Cicadine extends Body {
     }
     // Snout barrel: a proboscis with feeding ridges.
     const b: THREE.BufferGeometry[] = [taperTube([V(0, 0.01, -0.2), V(0, 0.012, -0.36), V(0, 0.006, -0.5)], [0.016, 0.012, 0.008], 8, 6)];
-    for (let i = 0; i < 6; i++) b.push(new THREE.TorusGeometry(0.014 - i * 0.001, 0.0028, 4, 12).translate(0, 0.011, -0.24 - i * 0.04));
+    for (let i = 0; i < 6; i++) b.push(ring(0.014 - i * 0.001, 0.0028, 4, 12).translate(0, 0.011, -0.24 - i * 0.04));
     this.add(roughen(merge(b), 0.001, 120, 5), this.m.bone);
     this.muzzle.position.set(0, 0.006, -0.51);
     // Compound sighting eyes either side of the snout.
@@ -1130,7 +1162,7 @@ class TumorLauncher extends Body {
       this.lumps.push(m);
     }
     // Wide wet muzzle: puckered lips of flesh with a bone rim.
-    this.lips = this.add(new THREE.TorusGeometry(0.045, 0.016, 10, 20).scale(1, 1, 0.8).translate(0, 0, -0.25), this.m.fleshDeep);
+    this.lips = this.add(ring(0.045, 0.016, 10, 20).scale(1, 1, 0.8).translate(0, 0, -0.25), this.m.fleshDeep);
     this.add(needleRing(0.04, 9, 0.02, this.rand, 0.8).rotateX(-Math.PI / 2).translate(0, 0, -0.26), this.m.bone);
     this.muzzle.position.set(0, 0, -0.27);
     this.bolt = new THREE.Group();
@@ -1175,7 +1207,7 @@ class LumenLance extends Body {
     for (let i = 0; i < 4; i++) {
       const g = new THREE.Group();
       g.position.set(0, 0.008, -0.14 - i * 0.11);
-      this.add(roughen(new THREE.TorusGeometry(0.024 - i * 0.003, 0.006, 6, 16), 0.001, 120, i), this.m.bone, g);
+      this.add(roughen(ring(0.024 - i * 0.003, 0.006, 6, 16), 0.001, 120, i), this.m.bone, g);
       for (let k = 0; k < 3; k++) this.add(spike(0.03, 0.004, 0.4).rotateZ((k / 3) * Math.PI * 2).translate(0, 0.024 - i * 0.003, 0), this.m.boneDark, g);
       this.flex.add(g);
       this.rings.push(g);
@@ -1256,7 +1288,7 @@ class Coreburner extends Body {
     for (let i = 0; i < 3; i++) {
       const g = new THREE.Group();
       g.position.set(0, 0.058, 0.13 - i * 0.04);
-      this.add(new THREE.CylinderGeometry(0.008, 0.012, 0.03, 8).translate(0, 0.015, 0), this.m.boneDark, g);
+      this.add(stalk(0.008, 0.012, 0.03, 5).translate(0, 0.015, 0), this.m.boneDark, g);
       this.flex.add(g);
       this.vents.push(g);
     }
