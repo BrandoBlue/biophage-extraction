@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FAUNA, ORGANIC } from '../../render/palette';
 import { PlanBuilder, V, mix, mutate, tint } from '../builder';
 import { rng } from '../parts';
+import { organic, readable } from './organic';
 import type { BodyPlan, Palette } from '../plan';
 import type { Creature } from '../creature';
 import { GroundFx, damp } from './fx';
@@ -31,8 +32,10 @@ export function fenstalker(seed: number, stage = 0): BodyPlan {
   const s = 0.94 + r() * 0.12;
   const h = 0.62 * s;
   const b = new PlanBuilder('fenstalker', seed, stage, { locomotion: 'walker', bodyHeight: h, radius: 1.1 * s, skinNoise: { amp: 0.006, freq: 16 }, skinResolution: 64, fleshScale: 7, palette: pal });
+  organic(b, rng(seed * 17 + 3));
   // Wet reed and peat, glossy; not meat.
   b.plan.palette = { ...b.plan.palette, flesh: mix(FAUNA.reed, FAUNA.fenMoss, 0.25), chitin: mix(FAUNA.peat, FAUNA.soot, 0.3), bone: mix(FAUNA.pearl, FAUNA.reed, 0.3), membrane: mix(FAUNA.reed, FAUNA.water, 0.4) };
+  readable(b);
   const S = (x: number, y: number, z: number) => V(x * s, y * s, z * s);
   const body = b.bone('body', -1, S(0, 0.62, 0));
   const chest = b.bone('chest', body, S(0, 0.64, 0.55));

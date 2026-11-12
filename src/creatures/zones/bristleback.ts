@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FAUNA, ORGANIC } from '../../render/palette';
 import { PlanBuilder, V, mix, mutate, tint } from '../builder';
 import { rng } from '../parts';
+import { organic, readable } from './organic';
 import type { BodyPlan, Palette } from '../plan';
 import type { Creature } from '../creature';
 import { damp } from './fx';
@@ -29,8 +30,10 @@ export function bristleback(seed: number, stage = 0): BodyPlan {
   const s = 0.94 + r() * 0.12;
   const h = 1.75 * s;
   const b = new PlanBuilder('bristleback', seed, stage, { locomotion: 'walker', bodyHeight: h, radius: 1.55 * s, skinNoise: { amp: 0.018, freq: 6 }, skinResolution: 60, fleshScale: 4, palette: pal });
+  organic(b, rng(seed * 17 + 3));
   // Dust-caked hide and sun-bleached plate, not wet meat.
   b.plan.palette = { ...b.plan.palette, flesh: mix(FAUNA.ochre, FAUNA.sandDeep, 0.35), chitin: mix(FAUNA.sandDeep, FAUNA.ochre, 0.35), bone: mix(FAUNA.sand, FAUNA.sandDeep, 0.35), membrane: mix(FAUNA.water, FAUNA.dustPale, 0.25), rim: FAUNA.dustPale };
+  readable(b);
   const S = (x: number, y: number, z: number) => V(x * s, y * s, z * s);
   const body = b.bone('body', -1, S(0, 1.75, 0));
   const neck = b.bone('neck', body, S(0, 1.85, 1.05));
@@ -96,7 +99,7 @@ export function bristleback(seed: number, stage = 0): BodyPlan {
     for (let k = 0; k < 9; k++) {
       const z = 0.5 - k * 0.15;
       const len = 9 + Math.sin((k / 8) * Math.PI) * 13 + r() * 2;
-      b.part({ id: `quill${sideI}${k}`, type: 'vent', bone: qb, at: S(side * (0.7 + Math.abs(k - 4) * 0.015), 2.05, z), dir: V(side * 0.2, 1, -0.1 - k * 0.025), fwd: V(0, 0, 1), size: 0.036 * s, p: [len], material: 'bone' });
+      b.part({ id: `quill${sideI}${k}`, type: 'spike', bone: qb, at: S(side * (0.7 + Math.abs(k - 4) * 0.015), 2.05, z), dir: V(side * (0.2 + (r() - 0.5) * 0.15), 1, -0.1 - k * 0.025 + (r() - 0.5) * 0.1), fwd: V(0, 0, -1), size: len * 0.036 * s, p: [0.07, 0.12 + r() * 0.15], material: 'bone' });
     }
   });
   // Camel legs: long, knobbled at the knee, splayed wide pads.

@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FAUNA, ORGANIC } from '../../render/palette';
 import { PlanBuilder, V, mix, mutate, tint } from '../builder';
 import { rng } from '../parts';
+import { organic, readable } from './organic';
 import type { BodyPlan, Palette } from '../plan';
 import type { Creature } from '../creature';
 import { GroundFx, damp } from './fx';
@@ -32,12 +33,14 @@ export function mistwader(seed: number, stage = 0): BodyPlan {
   const s = 0.95 + r() * 0.1;
   const h = 8 * s;
   const b = new PlanBuilder('mistwader', seed, stage, { locomotion: 'walker', bodyHeight: h, radius: 3.2 * s, skinNoise: { amp: 0.035, freq: 2.5 }, skinResolution: 64, fleshScale: 1.4, palette: pal });
+  organic(b, rng(seed * 17 + 3));
   // Wet moss over grey hide, bark-dark legs, pale shelf fungus; the sacs a dim pearl.
   b.plan.palette = {
     ...b.plan.palette,
     flesh: mix(FAUNA.fenMoss, FAUNA.peat, 0.3), chitin: mix(FAUNA.peat, FAUNA.soot, 0.3), bone: mix(FAUNA.pearl, FAUNA.reed, 0.35),
     membrane: mix(FAUNA.fenMoss, FAUNA.reed, 0.3), glow: mix(FAUNA.pearl, ORGANIC.amber, 0.25), rim: mix(FAUNA.pearl, FAUNA.water, 0.4),
   };
+  readable(b);
   const S = (x: number, y: number, z: number) => V(x * s, y * s, z * s);
   const body = b.bone('body', -1, S(0, 8, 0));
   // The swan neck: up off the shoulders, back a little, then forward to the head.
