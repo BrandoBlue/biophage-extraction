@@ -10,7 +10,7 @@ import type { Raid } from '../game/raid';
 import { AUDIO, ambienceFor, type Weight } from './config';
 import { AudioEngine, volumeGain, type Bus, type V3 } from './engine';
 import { Ambience } from './ambience';
-import { Music } from './music';
+import { Music, flavourFor } from './music';
 import { Intensity, Stride, behind, stepLevel, surfaceFor, threatLevel, weightOf } from './director';
 import * as S from './sfx';
 import { bossAttack, bossVoice, ribWind, speciesVoice, stalkWarn } from './voices';
@@ -24,6 +24,10 @@ export interface GameAudioOptions {
   menuVisible(): boolean;
   /** True where the host is underground or indoors (caves, hull): reverb, ambience and footsteps change. */
   enclosed?(x: number, z: number): boolean;
+  /** Ambience region where the zone has several (a Marrow Pit layer: 'pitRim', 'pitDeep'...), else null. */
+  region?(x: number, y: number, z: number): string | null;
+  /** Depth dread 0..1 (Marrow Pit: 0 at the rim, 1 on the floor). */
+  depth?(x: number, y: number, z: number): number;
   /** Master volume 0..1 (Settings). */
   volume(): number;
 }
@@ -53,6 +57,7 @@ export class GameAudio {
   private reloadGain: GainNode | null = null;
   private riser: GainNode | null = null;
   private enclosedNow = false;
+  private regionNow: string | null = null;
   private weight: Weight = 'medium';
   private onSettings = () => this.applyVolume();
 
@@ -255,10 +260,16 @@ export class GameAudio {
       return;
     }
     music.start('raid');
+    music.flavour = flavourFor(this.opt.zone);
     const p = raid.player.position;
+    const dread = Math.max(0, Math.min(1, this.opt.depth?.(p.x, p.y, p.z) ?? 0));
+    music.dread = dread;
+    amb.dread = dread;
     this.weight = weightOf(this.opt.hostClass());
     this.enclosedNow = this.opt.enclosed?.(p.x, p.z) ?? false;
-    amb.set(ambienceFor(this.enclosedNow && !/wreck/i.test(this.opt.zone) ? 'cave' : this.opt.zone));
+    const region = this.opt.region?.(p.x, p.y, p.z) ?? null;
+    this.regionNow = region;
+    amb.set(ambienceFor(region ?? (this.enclosedNow && !/wreck|pit/i.test(this.opt.zone) ? 'cave' : this.opt.zone)));
 
     this.footsteps(p);
     this.creatures(now, p, fwd);
@@ -271,6 +282,8 @@ export class GameAudio {
     if (raid.extract.progress > 0) target = Math.max(target, 0.45);
     const bossNear = !!this.bossActive && (() => { const b = this.bossPos(this.bossActive!); return !!b && Math.hypot(b.x - p.x, b.z - p.z) < 70; })();
     for (const n of raid.nests) if ((n.state as string) === 'active' && Math.hypot(n.position.x - p.x, n.position.z - p.z) < 40) target = Math.max(target, 0.7);
+    // The deeper into the pit, the less the music lets you relax.
+    target = Math.max(target, dread * AUDIO.pitDepth.intensityFloor);
     const intensity = this.intensity.update(dt, target);
 
     // The sleeping Reliquary: wind through its ribs carries across the island (Design: songRadius).
@@ -300,10 +313,11 @@ export class GameAudio {
     // Near death: the world muffles and your heart is all you hear.
     const M = AUDIO.mix;
     e.muffle.frequency.setTargetAtTime(frac < M.lowHealthMuffleAt ? M.lowHealthCutoff + (frac / M.lowHealthMuffleAt) * 4000 : 20000, now, 0.3);
-    if ((frac < 0.35 || this.hush > 0.5) && now >= this.heartAt) {
-      const bpm = this.hush > 0.5 && frac >= 0.35 ? 64 : 70 + (1 - frac / 0.35) * 60;
+    const deepHeart = dread >= AUDIO.pitDepth.heartbeatFrom;
+    if ((frac < 0.35 || this.hush > 0.5 || deepHeart) && now >= this.heartAt) {
+      const bpm = frac >= 0.35 ? (this.hush > 0.5 ? 64 : 56) : 70 + (1 - frac / 0.35) * 60;
       this.heartAt = now + 60 / bpm;
-      this.play((x, o, t) => S.heartbeat(x, o, t, 0.55), null, { priority: 3, bus: 'ui' });
+      this.play((x, o, t) => S.heartbeat(x, o, t, frac >= 0.35 && this.hush <= 0.5 ? 0.35 : 0.55), null, { priority: 3, bus: 'ui' });
     }
   }
 
@@ -311,7 +325,7 @@ export class GameAudio {
     const pl = this.raid.player;
     const dist = Math.hypot(p.x - this.lastPos.x, p.z - this.lastPos.z);
     this.lastPos.copy(p);
-    const surface = surfaceFor(this.opt.zone, this.enclosedNow);
+    const surface = this.regionNow === 'pitDeep' ? 'flesh' : surfaceFor(this.opt.zone, this.enclosedNow);
     if (pl.grounded && !this.wasGrounded) {
       const fall = this.peakY - p.y;
       if (fall > AUDIO.footsteps.landMinFall) this.play((x, o, t) => S.land(x, o, t, surface, this.weight, fall), null, { priority: 2 });
@@ -361,7 +375,7 @@ export class GameAudio {
   stats(): Record<string, unknown> {
     const e = this.engine;
     return e
-      ? { started: true, state: (e.ctx as AudioContext).state, played: e.played, dropped: e.dropped, active: e.active, level: +e.level.toFixed(3), music: this.music?.mode, notes: this.music?.notes, intensity: +this.intensity.value.toFixed(3), hush: +this.hush.toFixed(2), ambience: this.ambience?.current?.bed ?? null, ambienceCalls: this.ambience?.calls ?? 0 }
+      ? { started: true, state: (e.ctx as AudioContext).state, played: e.played, dropped: e.dropped, active: e.active, level: +e.level.toFixed(3), music: this.music?.mode, notes: this.music?.notes, intensity: +this.intensity.value.toFixed(3), hush: +this.hush.toFixed(2), flavour: this.music?.flavour, dread: +(this.ambience?.dread ?? 0).toFixed(2), ambience: this.ambience?.current?.bed ?? null, ambienceCalls: this.ambience?.calls ?? 0 }
       : { started: false };
   }
 }

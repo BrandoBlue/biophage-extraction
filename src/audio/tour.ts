@@ -84,3 +84,58 @@ export async function renderTour(sampleRate = 44100): Promise<AudioBuffer> {
   }
   return ctx.startRendering();
 }
+
+export const ZONE_TOUR_SECONDS = 72;
+
+/** The new zones: the Ochre Reach, the Weeping Fen, then down the Marrow Pit from rim to floor. */
+export async function renderZoneTour(sampleRate = 44100): Promise<AudioBuffer> {
+  const ctx = new OfflineAudioContext(2, Math.ceil(ZONE_TOUR_SECONDS * sampleRate), sampleRate);
+  const e = new AudioEngine(ctx);
+  const music = new Music(e), amb = new Ambience(e);
+  const x = e.x;
+  e.setListener({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: -1 }, { x: 0, y: 1, z: 0 });
+  const fx = (r: S.Recipe, t: number, p: V3 | null = null, level = 1) => { const g = ctx.createGain(); g.gain.value = level; g.connect(p ? e.at(p, 3) : e.buses.sfx); r(x, g, t); };
+  const L = (dx: number, dz: number, dy = 0.8): V3 => ({ x: dx, y: 1.7 + dy, z: dz });
+  const steps = (from: number, to: number, surface: S.Surface, gap = 0.55, level = 0.6) => { for (let t = from; t < to; t += gap) fx((a, o, tt) => S.footstep(a, o, tt, surface, 'medium', level), t); };
+
+  // Ochre Reach (0-22 s)
+  music.flavour = 'desert'; music.start('raid', 0);
+  amb.set(ambienceFor('ochreReach'), 1, 0);
+  steps(1, 9, 'sand');
+  fx(speciesVoice('bristleback').idle, 4, L(-30, -40, 2));
+  fx(speciesVoice('dunewake').hunt, 10, L(8, -10, -0.5));
+  fx(speciesVoice('dunewake').attack, 12.5, L(2, -3, -0.5));
+  fx(S.burst('ambush'), 12.4, L(2, -3, -0.5));
+  for (let t = 13.5; t < 15.5; t += 0.5) fx((a, o, tt) => S.FIRE.shotgun(a, o, tt, false), t);
+  fx(speciesVoice('dunewake').death, 15.6, L(2, -4, 0));
+  // Weeping Fen (22-44 s)
+  amb.set(ambienceFor('weepingFen'), 3, 22);
+  steps(23, 33, 'water', 0.7);
+  fx(speciesVoice('mistwader').idle, 26, L(30, -50, 10));
+  fx(speciesVoice('fenstalker').idle, 31, L(-6, -8, -0.5));
+  fx(speciesVoice('fenstalker').hunt, 34, L(-4, -5, 0));
+  fx(speciesVoice('fenstalker').attack, 35.5, L(-1.5, -2, 0));
+  fx(speciesVoice('mirebrood').hunt, 38, L(6, 4, 0));
+  // Marrow Pit, rim to floor (44-72 s)
+  const pit: [number, string][] = [[44, 'pitRim'], [51, 'pitCables'], [58, 'pitWarrens'], [65, 'pitDeep']];
+  for (const [t, id] of pit) amb.set(ambienceFor(id), 2.5, t);
+  steps(45, 50, 'stone', 0.6);
+  steps(51, 57, 'stone', 0.75, 0.4);
+  steps(58, 64, 'stone', 0.8, 0.35);
+  steps(65, 70, 'flesh', 0.85, 0.3);
+  fx(speciesVoice('cablecrawler').hunt, 53, L(5, 4, 2));
+  fx(speciesVoice('hollowed').idle, 60, L(-8, -6));
+  fx(speciesVoice('shroudling').idle, 62, L(3, 6));
+  for (let t = 66; t < 72; t += 60 / 56) fx((a, o, tt) => S.heartbeat(a, o, tt, 0.35), t);
+
+  for (let t = 0; t < ZONE_TOUR_SECONDS; t += 0.05) {
+    if (t >= 22 && music.flavour === 'desert') { music.flavour = 'fen'; }
+    if (t >= 44 && music.flavour === 'fen') { music.flavour = 'pit'; }
+    const dread = t < 44 ? 0 : Math.min(1, (t - 44) / 24);
+    music.dread = dread; amb.dread = dread;
+    const intensity = t >= 10 && t < 17 ? 0.85 : t >= 34 && t < 40 ? 0.8 : Math.max(0.05, dread * 0.38);
+    music.update(t, intensity, false);
+    amb.update(t);
+  }
+  return ctx.startRendering();
+}

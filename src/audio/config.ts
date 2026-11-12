@@ -6,10 +6,12 @@ import audioJson from '../../data/audio.json';
 
 export type EmitterKind =
   | 'distantCall' | 'insect' | 'bubble' | 'sporeSigh' | 'chime' | 'drip' | 'creak' | 'whisper'
-  | 'clank' | 'embryo' | 'sandHiss' | 'rumble' | 'croak' | 'splash';
-export type BedKind = 'marsh' | 'cave' | 'hull' | 'dunes' | 'hive';
+  | 'clank' | 'embryo' | 'sandHiss' | 'rumble' | 'croak' | 'splash'
+  | 'duneRace' | 'herdHum' | 'heatShimmer' | 'mistHum' | 'swarm' | 'pitBreath' | 'ropeCreak' | 'boneClack' | 'lanternHum';
+export type BedKind = 'marsh' | 'cave' | 'hull' | 'dunes' | 'hive' | 'fen';
 
-export interface Emitter { kind: EmitterKind; perMinute: number; level: number; range: [number, number] }
+/** `dread`: calls more often the deeper the host is (Marrow Pit). */
+export interface Emitter { kind: EmitterKind; perMinute: number; level: number; range: [number, number]; dread?: boolean }
 export interface AmbienceProfile {
   wind: number; windCutoff: number; hum: number; humFreq: number; bed: BedKind; reverb: 'open' | 'enclosed';
   emitters: Emitter[];
@@ -32,6 +34,7 @@ interface AudioData {
   };
   creatures: { hearing: number; nearest: number; idle: [number, number]; hunt: [number, number]; stalkWarnRadius: number; heavyStepEvery: number };
   aliases: Record<string, string>;
+  pitDepth: { floorY: number; extra: number; intensityFloor: number; heartbeatFrom: number };
   zones: Record<string, AmbienceProfile>;
 }
 

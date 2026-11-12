@@ -62,8 +62,8 @@ export function stepLevel(weight: Weight, crouched: boolean, sprinting: boolean)
 export function surfaceFor(zone: string, enclosed: boolean): Surface {
   const z = zone.toLowerCase();
   if (/wreck|hull|ship/.test(z)) return enclosed ? 'metal' : 'stone';
-  if (/desert|sand|dune|savann?ah?|waste/.test(z)) return enclosed ? 'stone' : 'sand';
-  if (/pit|abyss/.test(z)) return 'flesh';
+  if (/ochre|desert|sand|dune|savann?ah?|waste/.test(z)) return enclosed ? 'stone' : 'sand';
+  if (/pit|abyss/.test(z)) return 'stone';
   if (/fen$|fen[^a-z]|swamp|bog|weeping/.test(z)) return enclosed ? 'moss' : 'water';
   return enclosed ? 'stone' : 'moss';
 }
