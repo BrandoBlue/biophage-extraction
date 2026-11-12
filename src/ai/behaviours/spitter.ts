@@ -1,7 +1,8 @@
 /**
  * Spitter (Bile Cantor): artillery. Hovers at its preferred range, drifting sideways so you cannot simply stand and
  * trade; backs off if you close in. Its song pustules swell through a long wind-up, then it lobs bile where you are
- * going (leadTarget). Two spitters at most fire in the same window so the sky never fills with bile.
+ * going (leadTarget). Two spitters at most fire in the same window so the sky never fills with bile. As it winds up
+ * it sings its allies (ai.json teamwork.calls: Needlemaws) onto where it is aiming.
  */
 import { AI, type Range } from '../../../data';
 import { Brain } from '../brain';
@@ -52,6 +53,10 @@ export class SpitterBrain extends Brain {
     const ml = Math.hypot(mx, mz) || 1;
     this.steer((mx / ml) * t.speed * Math.min(back, 1.4), (mz / ml) * t.speed * Math.min(back, 1.4), 2, dt);
 
-    if (dist < t.attackRange && this.cooldown === 0 && this.requestToken(w)) this.setPhase('windup');
+    if (dist < t.attackRange && this.cooldown === 0 && this.requestToken(w)) {
+      // Its choir rises as it charges, and sings the Needlemaws onto where it is aiming.
+      this.rally(host);
+      this.setPhase('windup');
+    }
   }
 }

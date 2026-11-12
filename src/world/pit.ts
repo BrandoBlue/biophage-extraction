@@ -275,8 +275,14 @@ function pitRock(): THREE.MeshStandardMaterial {
   const top = PIT.layers[0].y, bottom = PIT.layers[PIT.layers.length - 1].y;
   m.onBeforeCompile = (shader, renderer) => {
     base(shader, renderer);
+    // Rock, not cartoon: hairline cracks soft and faint instead of black outlines, flesh blotches muted toward the stone.
+    shader.fragmentShader = shader.fragmentShader
+      .replace('smoothstep(0.0, 0.035, abs(bioNoise(vBioWorld * 6.5', 'smoothstep(0.0, 0.11, abs(bioNoise(vBioWorld * 6.5')
+      .replace('col *= 1.0 - near * (crack * 0.35', 'col *= 1.0 - near * (crack * 0.1')
+      .replace('relief += near * (grit * 0.12 - crack * 0.18)', 'relief += near * (grit * 0.12 - crack * 0.05)')
+      .replace('col = mix(col, growth, growthMask);', 'col = mix(col, mix(rock, growth, 0.45), growthMask);');
     shader.fragmentShader = shader.fragmentShader.replace('#include <lights_physical_fragment>',
-      `diffuseColor.rgb *= mix(0.62, 1.0, smoothstep(${bottom.toFixed(1)}, ${(top - 10).toFixed(1)}, vBioWorld.y));\n#include <lights_physical_fragment>`);
+      `diffuseColor.rgb = mix(vec3(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722))), diffuseColor.rgb, 0.6);\ndiffuseColor.rgb *= mix(0.62, 1.0, smoothstep(${bottom.toFixed(1)}, ${(top - 10).toFixed(1)}, vBioWorld.y));\n#include <lights_physical_fragment>`);
   };
   const key = m.customProgramCacheKey();
   m.customProgramCacheKey = () => key + '|pitDepth';
@@ -462,7 +468,7 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
     const t = Math.min(1, Math.max(0, (top - camPos.y) / depth));
     moon.intensity = 3.4 - 2.0 * t;
     rake.intensity = 1.5 - 0.8 * t;
-    hemi.intensity = 2.0 - 1.1 * t;
+    hemi.intensity = 2.0 - 1.1 * t * t; // sky fill holds through the middle layers, so the Warrens stay readable
     fog.color.copy(fogTop).lerp(fogDeep, t);
   };
   scene.add(ground);
@@ -684,6 +690,15 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
     }
     const [lx, lz] = polar((w.from + w.to) / 2, w.radius[0] - 3);
     lantern(k, mats, lx, y + 3.5, lz, 26);
+    // Lanterns at both ends of the row, and a soft high fill so the shelf is easy to read at eye height.
+    for (const b of [w.from + 8, w.to - 8]) {
+      const [ex, ez] = polar(b, w.radius[0] - 4);
+      lantern(k, mats, ex, pitHeight(ex, ez) + 3.2, ez, 14);
+    }
+    const [fx, fz] = polar((w.from + w.to) / 2, w.radius[0] - 12);
+    const fill = new THREE.PointLight(ORGANIC.mist, 60, 90, 1.1);
+    fill.position.set(fx, y + 22, fz);
+    k.group.add(fill);
   }
 
   // ---- The Bone Gallery: giant ribs curving out of the wall over the Warrens shelf, roofed with old plates.
