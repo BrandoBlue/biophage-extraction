@@ -441,7 +441,7 @@
   },
   "weepingFen": {
     "label": "The Weeping Fen",
-    "milestone": "host",
+    "milestone": "larva",
     "order": 5,
     "pitch": "A drowned swamp under giant mushroom-trees: knee-deep black water, glowing moss, mist, long-necked giants wading through it, and something in the deep pool.",
     "look": "teal mist and black water, moss glow as accents, huge pale cap-trees, roots like cathedrals, a coloured campfire smoke; restrained, not neon",
@@ -454,7 +454,7 @@
       2,
       4
     ],
-    "access": "host level 4 or contract lightsInTheFen",
+    "access": "open",
     "structures": [
       "Root Hut (a dwelling grown into a giant root, with a ladder inside the trunk)",
       "Mushroom Cathedral (the tallest cap-trees; climbable caps)",

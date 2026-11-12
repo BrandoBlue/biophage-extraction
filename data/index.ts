@@ -311,7 +311,7 @@ export const ZONE_SITES = strip<{ glowmireIsle: Zone7Sites; longSeedWreck: Recor
 /** Zone 1, Glowmire Isle: the Zone 7 island. */
 export const ZONE7_SITES = ZONE_SITES.glowmireIsle;
 /** PvE AI tuning (owned by PvE AI & Encounters): archetype per Abomination kind and how each archetype hunts. */
-export type Archetype = 'swarm' | 'spitter' | 'stalker' | 'flyer' | 'tank' | 'mimic' | 'grazer' | 'weaver';
+export type Archetype = 'swarm' | 'spitter' | 'stalker' | 'flyer' | 'tank' | 'mimic' | 'grazer' | 'weaver' | 'burrower' | 'herd';
 export interface AiRules {
   archetypes: Record<string, Archetype>;
   awareness: { suspicious: number; sightRate: number; closeSight: number; peripheralFactor: number; noiseGain: number; noiseImpulse: number; loudNoiseGain: number; decayRate: number; investigateTime: number; senseHz: number };
@@ -328,6 +328,9 @@ export interface AiRules {
   mimic: { turnRate: number; walkFactor: number; unmaskTell: number; lungeTime: number; recoverTime: number; knockback: number };
   grazer: { turnRate: number; idleHeight: number; tellRange: number; diveFrom: number; diveSpeed: number; slamHeight: number; diveTimeout: number; climbTime: number; knockback: number };
   weaver: { turnRate: number; hoverHeight: number; spinEvery: number; cutAhead: number; keepRange: [number, number] };
+  burrower: { turnRate: number; diveRate: number; surfaceRate: number; rippleFactor: number; lungeTime: number; swimCurl: number; knockback: number };
+  widow: { floorHeight: number; circleRadius: number; circleLead: number; keepInside: number; riseRate: number; sinkRate: number; hittableAbove: number; biteRise: number; callRise: number; drownRide: number; breachTrack: number; eruptUp: number; petalBite: number; thrashReach: number; firstAttack: number; drownClose: number };
+  herd: { turnRate: number; gunfireNoise: number; chargeRange: [number, number]; stampedeTurn: number; trampleKnockback: number; wheelTime: number; volleyLead: number; volleySpread: number; volleyMin: number };
   warden: {
     wake: { trigger: 'approach' | 'power'; radius: number };
     crawlSpeed: number; floorSpeed: number; perchTime: [number, number]; holdDistance: number;

@@ -64,6 +64,8 @@ try {
   await page.keyboard.up('KeyW');
   const end = await page.evaluate(() => window.__biophage.position);
   const build = await page.evaluate(() => document.querySelector('meta[name="biophage-build"]')?.content ?? null);
+  // Audio (src/audio) starts on the deploy click: the engine must be up and making sound by now.
+  const audio = await page.evaluate(() => window.__biophage.audio);
   // The living reticle (src/ui/raid/reticle.ts) is drawn in the raid: a sized canvas at screen centre.
   const reticle = await page.evaluate(() => { const c = document.querySelector('#hud .h-reticle'); return c ? { w: c.width, h: c.height } : null; });
 
@@ -75,10 +77,11 @@ try {
   if (errors.length) fail(`console errors:\n${errors.join('\n')}`);
   const moved = Math.hypot(end[0] - start[0], end[2] - start[2]);
   if (moved < 1) fail(`player did not move (moved ${moved.toFixed(2)} m)`);
+  if (!audio?.started || !(audio.played > 0) || audio.music !== 'raid') fail(`audio did not start: ${JSON.stringify(audio)}`);
   if (!reticle || reticle.w < 50) fail(`living reticle missing or unsized (${JSON.stringify(reticle)})`);
 
   // Software-rendered fps says nothing about a real GPU; it is logged to spot big regressions between runs.
-  const report = { target: label, build, firstFrameMs, swiftshaderFps: +((WALK_FRAMES * 1000) / walkMs).toFixed(1), movedM: +moved.toFixed(2), screenshot: shot };
+  const report = { target: label, build, firstFrameMs, swiftshaderFps: +((WALK_FRAMES * 1000) / walkMs).toFixed(1), movedM: +moved.toFixed(2), audio, screenshot: shot };
   writeFileSync(`tests/out/smoke-${label}.json`, JSON.stringify(report, null, 2));
   if (process.env.GITHUB_STEP_SUMMARY) {
     appendFileSync(process.env.GITHUB_STEP_SUMMARY,

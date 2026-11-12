@@ -20,6 +20,7 @@
     "smoke:creatures": "node tests/creatures.mjs",
     "smoke:raid:hive": "node tests/raid.mjs --hive",
     "smoke:raid:hive:release": "node tests/raid.mjs --hive --release",
+    "sound-tour": "node tests/sound-tour.mjs",
     "smoke:online": "node tests/online.mjs",
     "smoke:online:release": "node tests/online.mjs --release",
     "smoke:ochre": "node tests/ochre.mjs"
