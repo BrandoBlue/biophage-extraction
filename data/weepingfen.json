@@ -28,10 +28,11 @@
     },
     {
       "id": "outflowSwim",
-      "label": "The Outflow",
+      "label": "Outflow Swim-out",
       "x": 214,
       "z": 262,
-      "opensAt": 360
+      "opensAt": 0,
+      "paid": true
     },
     {
       "id": "rootLift",
