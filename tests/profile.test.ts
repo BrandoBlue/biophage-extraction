@@ -248,3 +248,18 @@ describe('Flesh Market', () => {
     expect(loadProfile(kv).profile.marketMood).toBe(1.5);
   });
 });
+
+describe('paid extract toll', () => {
+  it('reports banked DNA at deploy and takes the part carried DNA did not cover from the bank on extraction', () => {
+    const p = newProfile();
+    p.dna = 300;
+    const d = deploy(p);
+    expect(d.bankedDna).toBe(300);
+    const st = extract(p, { cavity: [], pouch: [], dna: 0, weapons: d.weapons, mods: d.mods, bankToll: 100 }, 0);
+    expect(st.dnaBanked).toBe(0);
+    expect(p.dna).toBe(200);
+    // Never below zero, and no toll leaves the bank alone.
+    extract(p, { cavity: [], pouch: [], dna: 5, bankToll: 999 }, 0);
+    expect(p.dna).toBe(5);
+  });
+});

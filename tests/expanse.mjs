@@ -46,7 +46,7 @@ try {
     return { zone: b.state.zone, radius: b.layout.playableRadius, extracts: b.layout.extracts.length, nests: b.layout.nests.length, creatures: b.state.enemies.map((e) => [e.position[0], e.position[2]]), pos: b.position };
   });
   console.log(`expanse: zone ${s.zone}, radius ${s.radius}, ${s.extracts} extracts, ${s.nests} nests, ${s.creatures.length} creatures, host at ${s.pos.map((v) => v.toFixed(1))}`);
-  if (s.zone !== 'expanse' || s.radius !== 500 || s.extracts !== 4 || s.nests !== 2) fail(`not the Expanse layout: ${JSON.stringify({ ...s, creatures: s.creatures.length })}`);
+  if (s.zone !== 'expanse' || s.radius !== 500 || s.extracts !== 5 || s.nests !== 2) fail(`not the Expanse layout: ${JSON.stringify({ ...s, creatures: s.creatures.length })}`);
   if (Math.hypot(s.pos[0], s.pos[2] + 100) > 75) fail(`host did not drop into the Glowmire Flats: ${s.pos}`);
   if (s.creatures.length < 15) fail(`creature homes missing: ${s.creatures.length}`);
   // Homes spread over the map, not piled at the centre: some in each half.
@@ -68,6 +68,24 @@ try {
   const fps = ((await page.evaluate(() => window.__biophage.frames)) - fr0) / ((Date.now() - t0) / 1000);
   console.log(`expanse: ${fps.toFixed(2)} fps (software rendering)`);
   await page.evaluate(() => window.__biophageLookdev.clear?.());
+
+  // Gameplay: the raid clock follows zones.json (25 min here), and the paid tether takes DNA to leave.
+  const timeLeft = await page.evaluate(() => window.__biophage.state.timeLeft);
+  if (timeLeft < 1300 || timeLeft > 1500) fail(`raid timer ${timeLeft} s, not the Expanse's 1500 s`);
+  const paid = await page.evaluate(() => window.__biophage.layout.extracts.find((e) => e.costDna));
+  if (!paid) fail('no paid extract in the layout');
+  const step = async (n) => { const f = await page.evaluate(() => window.__biophage.frames); await page.waitForFunction((x) => window.__biophage.frames >= x, f + n, { timeout: 240000 }); };
+  const phase = () => page.evaluate(() => window.__biophage.state.phase);
+  await page.evaluate(([x, z]) => { const d = window.__biophage.debug; d.killAll(); d.setTimeScale(4); d.setDna(0, 0); d.teleport(x, z); }, [paid.x, paid.z]);
+  await step(20);
+  if ((await phase()) !== 'raid') fail('the paid tether let a host with no DNA out');
+  // Design's payFrom: banked DNA covers what carried DNA does not, so 100 carried + 100 banked is enough.
+  await page.evaluate((c) => window.__biophage.debug.setDna(c - 50, 100), paid.costDna);
+  for (let i = 0; i < 40 && (await phase()) === 'raid'; i++) await step(5);
+  const out = await page.evaluate(() => ({ phase: window.__biophage.state.phase, dna: window.__biophage.state.carried?.dna }));
+  if (out.phase !== 'extracted') fail(`paying the tether did not extract: ${JSON.stringify(out)}`);
+  if (out.dna !== undefined && out.dna !== 0) fail(`the tether should have taken all carried DNA first, ${out.dna} left`);
+  console.log(`expanse: timer ${Math.round(timeLeft)} s; paid tether refuses at 0 DNA, extracts for ${paid.costDna} DNA from carried then banked`);
 
   await browser.close();
   const real = errors.filter((e) => !/GPU stall|ReadPixels|swiftshader|Automatic fallback|deprecated/i.test(e));

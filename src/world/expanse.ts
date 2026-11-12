@@ -222,7 +222,7 @@ const EXTRACT_NAMES = ['North Rim', 'East Rim', 'South Rim', 'West Rim'];
  * The raid layout: the host drops into the Glowmire Flats (Design's drop zone) at one of the DROP_POINTS and fights
  * outward; two rim extracts open at the start and another every `shiftEvery` seconds, in a seeded order. Design's
  * ring of squad spawns is kept level for rival hosts (rivalSpawns). Creatures come from the biome habitats, not
- * `spawns`. Design's paid extract (bearing 140) waits on Gameplay's pay-to-leave rule, so it is not live yet.
+ * `spawns`. Design's paid extract (raid.json host.extracts.paidExtract) is open from the start and costs DNA to use.
  */
 export function expanseLayout(seed: number): Zone7Layout {
   const rand = mulberry32(seed * 7919 + 13);
@@ -231,6 +231,11 @@ export function expanseLayout(seed: number): Zone7Layout {
   for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
   const open = H.extracts.openAtStart, shift = H.extracts.shiftEvery;
   const extracts: ExtractSite[] = pool.map((e, i) => ({ ...e, opensAt: i < open ? 0 : (i - open + 1) * shift }));
+  const paid = H.extracts.paidExtract, at = H.extracts.pool.find((p) => p.bearing === paid?.bearing);
+  if (paid && at) {
+    const [x, z] = layoutPosition(at, EXPANSE_RADIUS);
+    extracts.push({ id: 'paid-tether', label: 'Paid Tether', x, z, opensAt: 0, costDna: paid.costDna, time: paid.extractTime });
+  }
   return {
     seed,
     spawn: { id: 'spawn', x: drop.x, z: drop.z },
