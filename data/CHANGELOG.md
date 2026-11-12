@@ -2,6 +2,9 @@
 
 Every tuning change to `data/*.json`, newest first, with the reason.
 
+## Vendors sell ammo for the guns they sell (2026-11-12)
+- vendors.json: Mother Clot adds Needle Feed (rep 1), Shard Feed (rep 2) and Bolt Feed (rep 3). The Gullet Broker adds Spore Feed (rep 2). Prices match the Archivist's. A data test enforces the rule.
+
 ## Creature minds (2026-11-12, Brandon: smart, creepy, show how they think)
 - abominations.json: every creature gets a `mind` block (wants, shows, plans, learns). The bar is in docs/gdd/11-creature-minds.md, and a data test enforces it.
 
