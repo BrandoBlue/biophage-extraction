@@ -32,6 +32,7 @@ export const NAV: { id: string; label: string; sub?: string; locked?: string }[]
   { id: 'menu', label: 'MAIN MENU' },
   { id: 'host', label: 'HOST SELECT' },
   { id: 'stash', label: 'STASH & LOADOUT' },
+  { id: 'arms', label: 'WEAPONS', sub: 'Slots, grafts, armoury', locked: 'SOON' },
   { id: 'raid', label: 'RAID SELECT', sub: 'Exclusion Zone' },
   { id: 'synapse', label: 'SYNAPSE & SKILLS', locked: 'NEXT UPDATE' },
   { id: 'lab', label: 'VIRAL LAB', locked: 'NEXT UPDATE' },

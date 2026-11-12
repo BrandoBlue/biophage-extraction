@@ -125,6 +125,7 @@
 /* Bottom right: the weapon. Ammo in the serif, the magazine as a thin line, ego charge as a slow ring. */
 .organic .h-weapon { position:absolute; right:calc(var(--u) * 2.4); bottom:calc(var(--u) * 3); width:calc(var(--u) * 19); display:flex; flex-direction:column; align-items:flex-end; isolation:isolate; }
 .organic .h-weapon .wname { font-family:var(--display); font-style:italic; font-weight:500; font-size:calc(var(--u) * 1.25); color:var(--bone); }
+.organic .h-weapon .wname[data-slot]:not([data-slot=""])::after { content:attr(data-slot); margin-left:.6em; font-family:var(--ui); font-style:normal; font-size:.5em; letter-spacing:.18em; color:var(--lab); vertical-align:.25em; }
 .organic .h-weapon .wrow { display:flex; align-items:center; gap:calc(var(--u) * 1.2); margin-top:calc(var(--u) * .2); }
 .organic .h-weapon .ammo { display:flex; align-items:baseline; gap:.4em; }
 .organic .h-weapon .ammo b { font-size:calc(var(--u) * 4); line-height:.85; display:inline-block; transform-origin:100% 80%; }

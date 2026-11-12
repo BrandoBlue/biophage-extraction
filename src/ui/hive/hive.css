@@ -682,3 +682,51 @@ body[data-hive-tab]:not([data-hive-tab=menu]) #hivemind.collapsed { display:none
 .hv-nav .vein { position:absolute; left:calc(var(--u) * 1); right:calc(var(--u) * 1); top:calc(100% - var(--u) * .1); height:calc(var(--u) * .84); overflow:visible; pointer-events:none; }
 .hv-nav .vein path { fill:none; stroke:color-mix(in srgb, var(--bone) 16%, transparent); stroke-width:1; vector-effect:non-scaling-stroke; }
 .hv-nav .tab.locked em { color:color-mix(in srgb, var(--bone) 60%, transparent); }
+
+/* ---------------------------------------------------------------- WEAPONS (src/ui/hive/arsenal.ts)
+   Loadout cards on the left (name, numbers with graft changes, sockets), the stash's guns and grafts in the middle,
+   the class Armoury on the right. Amber marks what changes your loadout; danger marks what you can lose. */
+.scr-arms .hv-panel { top:calc(var(--u) * 11.4); bottom:calc(var(--u) * 10); overflow:hidden; display:flex; flex-direction:column; }
+.ar-load { left:calc(var(--u) * 3.5); width:calc(var(--u) * 46); }
+.ar-stash { left:calc(var(--u) * 51); width:calc(var(--u) * 22); }
+.ar-armoury { left:calc(var(--u) * 74.5); right:calc(var(--u) * 3.5); }
+.ar-slots { flex:1; min-height:0; align-content:start; display:grid; gap:calc(var(--u) * .7); overflow:auto; scrollbar-width:thin; padding-right:calc(var(--u) * .3); }
+.ar-slot { position:relative; padding:calc(var(--u) * .8) calc(var(--u) * 1); border-radius:var(--seed); background:color-mix(in srgb, var(--bone) 3%, transparent); box-shadow:inset 0 0 0 1px var(--hair); }
+.ar-slot.empty { box-shadow:inset 0 0 0 1px var(--hair); background:repeating-linear-gradient(135deg, transparent 0 calc(var(--u) * .6), color-mix(in srgb, var(--bone) 3%, transparent) calc(var(--u) * .6) calc(var(--u) * 1.2)); }
+.ar-slot header { display:flex; justify-content:space-between; align-items:baseline; font-size:calc(var(--u) * .7); letter-spacing:.22em; text-transform:uppercase; color:var(--lab); font-weight:600; }
+.ar-slot header .nm { color:var(--amber); }
+.ar-slot header small { font-size:1em; letter-spacing:.14em; } .ar-slot header small.risk { color:color-mix(in srgb, var(--danger) 75%, var(--bone)); }
+.ar-slot .hollow { margin:calc(var(--u) * .5) 0 0; font-size:calc(var(--u) * .9); color:var(--lab); line-height:1.4; }
+.ar-slot .who { display:flex; gap:calc(var(--u) * .9); align-items:center; margin-top:calc(var(--u) * .4); }
+.ar-slot .who .tile { width:calc(var(--u) * 3.4); height:calc(var(--u) * 3.4); }
+.ar-slot h3 { margin:0 !important; font-family:var(--display) !important; font-size:calc(var(--u) * 1.6) !important; letter-spacing:.02em !important; color:var(--bone) !important; font-weight:600; }
+.ar-slot .who p { margin:.15em 0 0; font-size:calc(var(--u) * .78); color:var(--lab); }
+.ar-slot .stats { display:grid; grid-template-columns:repeat(8, auto); justify-content:space-between; gap:calc(var(--u) * .3) calc(var(--u) * .7); margin:calc(var(--u) * .6) 0 0; }
+.ar-slot .stats div { border-bottom:1px solid var(--hair); padding-bottom:.15em; }
+.ar-slot .stats dt { font-size:calc(var(--u) * .55); letter-spacing:.12em; white-space:nowrap; text-transform:uppercase; color:var(--lab); }
+.ar-slot .stats dd { margin:0; font-family:var(--display); font-size:calc(var(--u) * 1.1); color:var(--bone); white-space:nowrap; }
+.ar-slot .stats em { display:block; font-family:var(--ui); font-style:normal; font-size:.55em; margin-left:0 !important; margin-left:.4em; letter-spacing:.04em; vertical-align:.2em; }
+.ar-slot .stats em.up { color:color-mix(in srgb, var(--acid) 70%, var(--bone)); } .ar-slot .stats em.down { color:color-mix(in srgb, var(--danger) 80%, var(--bone)); }
+.ar-slot .sockets { display:flex; flex-wrap:wrap; gap:calc(var(--u) * .4); margin-top:calc(var(--u) * .6); }
+.ar-slot .sock { display:flex; flex-direction:column; align-items:flex-start; padding:calc(var(--u) * .25) calc(var(--u) * .8); border:none; border-radius:99px; background:none; box-shadow:inset 0 0 0 1px var(--hair2); }
+.ar-slot .sock span { font-size:calc(var(--u) * .55); letter-spacing:.2em; text-transform:uppercase; color:var(--lab); }
+.ar-slot .sock b { font-size:calc(var(--u) * .78); font-weight:600; color:color-mix(in srgb, var(--bone) 55%, transparent); }
+.ar-slot .sock.full { box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--path-viral) 55%, transparent); }
+.ar-slot .sock.full b { color:var(--bone); }
+.ar-slot .sock.full:hover { box-shadow:inset 0 0 0 1px var(--danger); } .ar-slot .sock.full:hover b { text-decoration:line-through; }
+.ar-slot .sock:disabled { cursor:default; }
+.ar-slot .none { font-size:calc(var(--u) * .78); color:var(--lab); }
+.ar-slot .unequip { position:absolute; right:calc(var(--u) * 1); bottom:calc(var(--u) * .8); width:auto; margin:0; padding:calc(var(--u) * .3) calc(var(--u) * .8); font-size:calc(var(--u) * .65); }
+.ar-list { min-height:0; flex-shrink:1; list-style:none; margin:0 0 calc(var(--u) * .6); padding:0; display:grid; gap:calc(var(--u) * .35); overflow:auto; scrollbar-width:thin; }
+.ar-list li { display:grid; grid-template-columns:auto 1fr auto; gap:calc(var(--u) * .7); align-items:center; padding:calc(var(--u) * .3) calc(var(--u) * .4); border-radius:calc(var(--u) * .6); }
+.ar-list li:hover { background:color-mix(in srgb, var(--bone) 4%, transparent); }
+.ar-list li .tile { width:calc(var(--u) * 3); height:calc(var(--u) * 3); }
+.ar-list li .txt { display:flex; flex-direction:column; min-width:0; }
+.ar-list li .txt b { font-family:var(--display); font-size:calc(var(--u) * 1.15); font-weight:600; color:var(--bone); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ar-list li .txt span { font-size:calc(var(--u) * .7); color:var(--lab); }
+.ar-list li .acts { display:flex; gap:calc(var(--u) * .3); }
+.ar-list li.none { display:block; font-size:calc(var(--u) * .85); color:var(--lab); line-height:1.4; }
+.ar-list li.locked { opacity:.55; }
+.hv-btn.mini { width:auto; margin:0; padding:calc(var(--u) * .3) calc(var(--u) * .7); font-size:calc(var(--u) * .7); letter-spacing:.1em; }
+.ar-armoury h3 { display:flex; justify-content:space-between; align-items:baseline; } .ar-armoury h3 small { font-size:1em; letter-spacing:.12em; text-transform:none; color:var(--amber); }
+.ar-armoury { overflow:auto !important; scrollbar-width:thin; } .ar-armoury .ar-list { flex-shrink:0; overflow:visible; }

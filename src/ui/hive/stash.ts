@@ -102,7 +102,7 @@ export function stashScreen(p: ProfileView, cb: StashCallbacks): HTMLElement & {
 
   const kinds = new Set(p.stash.map((s) => itemOf(s.item)?.kind));
   el.insertAdjacentHTML('beforeend', `<div class="legend-kinds">${(['consumable', 'currency', 'mutagen', 'virus', 'tech', 'organ', 'weapon', 'ammo', 'mod'] as const).filter((k) => kinds.has(k) || k === 'organ' || k === 'virus').map((k) => `<span class="k-${k}"><i></i>${k}</span>`).join('')}</div>`);
-  const go = cta('CHOOSE DROP ZONE', 'NEXT: RAID SELECT');
+  const go = cb.actions.arsenal ? cta('PICK YOUR GUNS', 'NEXT: WEAPONS & GRAFTS') : cta('CHOOSE DROP ZONE', 'NEXT: RAID SELECT');
   el.append(go, keyHints([['DRAG', 'MOVE'], ['R / RMB', 'ROTATE WHILE DRAGGING'], ['DBL-CLICK', 'QUICK MOVE'], ['SHIFT+DBL', 'TO GUT POUCH'], ['ESC', 'BACK']]));
   go.addEventListener('click', () => cb.next());
   return el;
