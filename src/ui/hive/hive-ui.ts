@@ -5,7 +5,8 @@
  */
 import './hive.css';
 import { applyTheme } from '../theme';
-import { DEFAULT_SETTINGS, getSettings, saveSettings, SETTING_RANGES } from '../settings';
+import { DEFAULT_SETTINGS, getSettings, GRAPHICS_LEVELS, saveSettings, SETTING_RANGES, type GraphicsLevel } from '../settings';
+import { GRAPHICS_WORDS } from './kit';
 import type { Settings } from '../settings';
 import { frame, h, panel, cta, keyHints } from './kit';
 import { glyph } from '../icons';
@@ -163,15 +164,25 @@ export class HiveUI {
       const [lo, hi, step] = SETTING_RANGES[k];
       return `<label>${label}<input type="range" data-k="${k}" min="${lo}" max="${hi}" step="${step}" value="${s[k]}"/><output>${fmt(s[k])}</output></label>`;
     };
-    pnl.insertAdjacentHTML('beforeend', row('sensitivity', 'MOUSE SENSITIVITY', (v) => `${v.toFixed(2)}×`) + row('fov', 'FIELD OF VIEW', (v) => `${v}°`) + row('volume', 'MASTER VOLUME', (v) => `${Math.round(v * 100)}%`)
-      + `<label>REDUCE MOTION<input type="checkbox" data-k="reduceMotion" ${s.reduceMotion ? 'checked' : ''}/><output></output></label>`
-      + `<label>EYE SCOPE ON LONG GUNS<input type="checkbox" data-k="eyeScope" ${s.eyeScope ? 'checked' : ''}/><output></output></label>`);
+    const pct = (v: number) => `${Math.round(v * 100)}%`;
+    const box = (k: 'reduceMotion' | 'eyeScope', label: string) => `<label>${label}<input type="checkbox" data-k="${k}" ${s[k] ? 'checked' : ''}/><output></output></label>`;
+    const quality = GRAPHICS_LEVELS.map((g) => `<button type="button" class="q${s.graphics === g ? ' on' : ''}" data-graphics="${g}"><b>${GRAPHICS_WORDS[g][0]}</b><small>${GRAPHICS_WORDS[g][1]}</small></button>`).join('');
+    pnl.insertAdjacentHTML('beforeend', `<div class="set-cols">
+      <section><h4>Controls & sound</h4>${row('sensitivity', 'MOUSE SENSITIVITY', (v) => `${v.toFixed(2)}×`)}${row('fov', 'FIELD OF VIEW', (v) => `${v}°`)}${row('volume', 'MASTER VOLUME', pct)}${box('reduceMotion', 'REDUCE MOTION')}${box('eyeScope', 'EYE SCOPE ON LONG GUNS')}</section>
+      <section><h4>Display</h4>${row('brightness', 'BRIGHTNESS', pct)}${row('renderScale', 'RENDER SCALE', pct)}
+        <div class="set-q"><span>GRAPHICS</span><div class="qs">${quality}</div></div>
+        <p class="set-note">The frame rate follows your display, up to 240 Hz and beyond. For high refresh rates pick Performance or lower the render scale.</p>
+        <div class="set-full"></div></section></div>`);
+    pnl.querySelectorAll<HTMLButtonElement>('[data-graphics]').forEach((b) => b.addEventListener('click', () => {
+      saveSettings({ ...getSettings(), graphics: b.dataset.graphics as GraphicsLevel });
+      pnl.querySelectorAll('[data-graphics]').forEach((o) => o.classList.toggle('on', o === b));
+    }));
     if (canFullscreen()) {
       const fs = h<HTMLButtonElement>('button', 'hv-btn', `${glyph('expand')}BORDERLESS FULLSCREEN <kbd>F</kbd>`);
       fs.dataset.full = '';
       fs.classList.toggle('on', isFullscreen());
       fs.addEventListener('click', () => void toggleFullscreen());
-      pnl.append(fs);
+      pnl.querySelector('.set-full')!.append(fs);
     }
     pnl.addEventListener('input', (e) => {
       const i = e.target as HTMLInputElement;
@@ -181,7 +192,7 @@ export class HiveUI {
       const out = i.parentElement!.querySelector('output')!;
       if (k === 'sensitivity') out.textContent = `${Number(i.value).toFixed(2)}×`;
       if (k === 'fov') out.textContent = `${i.value}°`;
-      if (k === 'volume') out.textContent = `${Math.round(Number(i.value) * 100)}%`;
+      if (k === 'volume' || k === 'brightness' || k === 'renderScale') out.textContent = `${Math.round(Number(i.value) * 100)}%`;
     });
     const reset = h<HTMLButtonElement>('button', 'hv-btn', 'RESTORE DEFAULTS');
     reset.addEventListener('click', () => { saveSettings({ ...DEFAULT_SETTINGS }); this.show('settings'); });
