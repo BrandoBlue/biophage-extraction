@@ -21,7 +21,10 @@ export class GrazerBrain extends Brain {
   protected cruiseAltitude(): number { return this.roost ?? AI.grazer.idleHeight; }
   get panicking(): boolean { return this.panicFor > 0; }
 
+  private markHurt = false;
+
   protected onHurt(): void {
+    this.markHurt = true;
     if (this.panicFor <= 0) this.dives = this.temper.panicDives;
     this.panicFor = this.temper.calmAfter;
   }
@@ -34,6 +37,14 @@ export class GrazerBrain extends Brain {
     if (this.panicFor > 0 && this.mode === 'calm') this.alert(null);
     super.step(dt, passive ? { ...w, noises: [] } : w);
     if (passive && this.panicFor <= 0) this.forget();
+    // Learning: the herd remembers where a host hurt one of them, and keeps away from there for the rest of the raid.
+    if (this.markHurt && w.host.alive) { this.markHurt = false; this.memory?.mark(this.kind, 'hurt', w.host); }
+    if (passive) {
+      for (const s of this.memory?.spots(this.kind, 'hurt') ?? []) {
+        const ax = this.body.x - s.x, az = this.body.z - s.z, d = Math.hypot(ax, az);
+        if (d < AI.learning.avoidRadius && d > 1e-3) { this.steer((ax / d) * this.data.speed, (az / d) * this.data.speed, 3, dt); this.setPhase('avoid'); break; }
+      }
+    }
   }
 
   private forget(): void {

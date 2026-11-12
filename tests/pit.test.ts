@@ -222,4 +222,10 @@ describe('the Marrow Pit', () => {
     expect(shaped).toBeGreaterThan(40); // hut roofs and posts, pylons, pillars, scaffolds, the lift cage
     expect(plain).toBeLessThan(shaped);
   });
+  it('softens the shared rock shader\'s cracks and blotches: the lines it patches still exist', () => {
+    const src = Object.values(import.meta.glob('../src/render/materials.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>)[0];
+    for (const anchor of ['smoothstep(0.0, 0.035, abs(bioNoise(vBioWorld * 6.5', 'col *= 1.0 - near * (crack * 0.35', 'relief += near * (grit * 0.12 - crack * 0.18)', 'col = mix(col, growth, growthMask);']) {
+      expect(src).toContain(anchor);
+    }
+  });
 });
