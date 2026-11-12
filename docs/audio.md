@@ -7,7 +7,7 @@ Every sound is synthesised in the browser at runtime with Web Audio: shaped nois
 nothing added to the release size beyond the code.
 
 Listen without playing: `npm run sound-tour` renders an 85-second walk through the game's sound offline
-(`src/audio/tour.ts`) to `tests/out/sound-tour.wav`; `npm run sound-tour -- --zones` renders the desert, fen and pit.
+(`src/audio/tour.ts`) to `tests/out/sound-tour.wav`; `npm run sound-tour -- --zones` renders the desert, fen and pit; `npm run sound-tour -- --guns` plays every gun, then one rifle with different grafts fitted.
 
 ## How it fits together
 
@@ -17,6 +17,7 @@ Listen without playing: `npm run sound-tour` renders an 85-second walk through t
 | `engine.ts` | Mixer: music, ambience, sfx and UI buses, open and enclosed reverbs, low-health muffle, limiter, HRTF 3D placement with air absorption, voice budget. |
 | `synth.ts` | Primitives: `noise`, `tone`, `fm`, `voice` (formants), `impulse`, `shaper`. |
 | `sfx.ts` | Weapons per class, reload beats (keyed by the `cue` strings in `data/weapon-feel.json`), impacts, the host's body, gear, extraction, footsteps per surface and class weight, Hive UI. |
+| `guns.ts` | A voice per gun (`GUNS`, keyed by `data/weapons.json` id; unknown guns fall back to the class sound in `sfx.ts` `FIRE`). `MOD_SOUNDS`: grafts from `data/mods.json` filter the shot and/or add a layer (Hush Gill muffles, Barb Crown rips, Acid sizzles, ...). Read from the held gun's `spec.mods` at every shot, so wherever a graft came from, it is heard. |
 | `voices.ts` | A vocabulary per creature species (idle, hunt, attack, death, heavy steps) and per boss (wake, phase, enrage, attacks, hurt, defeated). Ambience one-shots. |
 | `ambience.ts` | Zone beds (wind with gusts, hum, the zone's texture) and 3D one-shots around the listener. |
 | `music.ts` | Adaptive score: drone, choir, bells (explore), heartbeat pulse (tension), 3-3-2 drums and gritty bass (combat), brass stabs (boss). |
@@ -44,4 +45,5 @@ Listen without playing: `npm run sound-tour` renders an 85-second walk through t
 1. A creature: add `SPECIES.<id>` in `voices.ts`. `tests/audio.test.ts` fails until every id in
    `data/abominations.json` and `data/bosses.json` has a voice.
 2. A gameplay event: add it to `src/game/events.ts` (Gameplay) and a `bus.on` line in `game-audio.ts`.
-3. A reload cue: any new `cue` string in `data/weapon-feel.json` needs a recipe in `RELOAD_CUES` (tested).
+3. A gun or a graft: add `GUNS.<id>` or `MOD_SOUNDS.<id>` in `guns.ts`. Tested for every weapon and every barrel/chamber graft (sights and under-barrel grips may stay silent).
+4. A reload cue: any new `cue` string in `data/weapon-feel.json` needs a recipe in `RELOAD_CUES` (tested).

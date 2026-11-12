@@ -13,6 +13,7 @@ import { Ambience } from './ambience';
 import { Music, flavourFor } from './music';
 import { Intensity, Stride, behind, stepLevel, surfaceFor, threatLevel, weightOf } from './director';
 import * as S from './sfx';
+import { gunShot, weaponSwap } from './guns';
 import { bossAttack, bossVoice, ribWind, speciesVoice, stalkWarn } from './voices';
 
 export interface GameAudioOptions {
@@ -120,12 +121,16 @@ export class GameAudio {
     const bus = this.raid.bus;
     bus.on('shot', (e) => {
       const w = WEAPONS[e.weapon] as WeaponInfo | undefined;
-      const fire = S.FIRE[w?.class ?? 'carbine'] ?? S.FIRE.carbine;
+      // Each gun has its own voice; grafts fitted to the held gun (mods.json) change it.
+      const held = this.raid.weapon;
+      const mods = held && held.id === e.weapon ? held.spec.mods : [];
+      const fire = gunShot(e.weapon, mods, S.FIRE[w?.class ?? 'carbine'] ?? S.FIRE.carbine);
       this.play((x, o, t) => fire(x, o, t, e.ego), null, { priority: 2 });
       // A shot cuts any reload still running.
       if (this.reloadGain && this.engine) { this.reloadGain.gain.setTargetAtTime(0, this.engine.now, 0.02); this.reloadGain = null; }
     });
     bus.on('reload', (e) => this.reload(e.weapon, e.time));
+    bus.on('weaponSwap', () => this.play(weaponSwap, null, { priority: 2 }));
     bus.on('hit', (e) => {
       if (!e.kill) this.play(e.weakPoint ? S.weakHit : S.fleshHit, e.position, { priority: 1 });
       this.play(S.hitTick(e.weakPoint), null, { priority: 2, level: 0.8 });
