@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { HIVE, ORGANIC, ZONE7, ZONE7_SHADE } from '../render/palette';
 import { bioNode, bioTime, fungusCap, grownWall, membrane, zoneRock } from '../render/materials';
 import { capGeometry, noise3 } from '../render/geometry';
@@ -7,6 +7,7 @@ import { lightShaft } from '../render/atmos';
 import { zone7Sky } from '../render/sky';
 import { groundCover } from '../render/cover';
 import FEN_JSON from '../../data/weepingfen.json';
+import { RAID } from '../../data';
 import { mulberry32 } from './rng';
 import type { Collider } from './collision';
 import { oldBone, type BuiltStructures, type LootSpot } from './structures';
@@ -39,7 +40,8 @@ interface FenData {
   radius: number;
   water: { level: number; shallow: number; channel: number; mudRise: number };
   spawn: XZ;
-  extracts: { id: string; label: string; x: number; z: number; opensAt: number | null }[];
+  /** `paid`: Design's pay-to-leave extract (raid.json host.extracts.paidExtract): always open, costs DNA when the channel completes. */
+  extracts: { id: string; label: string; x: number; z: number; opensAt: number | null; paid?: boolean }[];
   islets: Islet[];
   channels: Channel[];
   titans: Titan[];
@@ -133,7 +135,10 @@ export function fenAreaAt(x: number, z: number): Area | null {
 
 /** The fen's layout in the Raid's terms. */
 export function fenLayout(seed: number): Zone7Layout {
-  const extracts: ExtractSite[] = FEN.extracts.map((e) => ({ id: e.id, label: e.label, x: e.x, z: e.z, opensAt: e.opensAt ?? Infinity }));
+  const paid = RAID.host.extracts.paidExtract;
+  const extracts: ExtractSite[] = FEN.extracts.map((e) => e.paid && paid
+    ? { id: e.id, label: e.label, x: e.x, z: e.z, opensAt: 0, costDna: paid.costDna, time: paid.extractTime }
+    : { id: e.id, label: e.label, x: e.x, z: e.z, opensAt: e.opensAt ?? Infinity });
   const R = FEN.radius - 18;
   return {
     seed,
@@ -338,7 +343,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   scene.add(back);
 
   // ---- Ground and water.
-  const span = (FEN.radius + 80) * 2, segs = Math.round(span / 3);
+  const span = FEN.radius * 1.32 * 2, segs = Math.round(span / 3);
   const ground = new THREE.PlaneGeometry(span, span, segs, segs).rotateX(-Math.PI / 2);
   const gp = ground.attributes.position;
   for (let i = 0; i < gp.count; i++) gp.setY(i, fenHeight(gp.getX(i), gp.getZ(i)));
@@ -360,7 +365,8 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
 
   // ---- Materials (three shader families of our own plus the zone's shared ones).
   const bark = fenBark({ base: ZONE7_SHADE.rock });
-  const paleBark = fenBark({ base: HIVE.bone, deep: ZONE7_SHADE.stem, mossy: 0.5 });
+  // Pale cap-tree stalks: bone-pale but dimmed and broad-ridged, so they read calm at range instead of glaring.
+  const paleBark = fenBark({ base: HIVE.bone, deep: ZONE7_SHADE.stem, mossy: 0.6, ridges: 3, dim: 0.28 });
   // Drowned ribs: finer plated, stained bone, a shade darker than the hut bone so they read old, not plastic.
   const ribBone = oldBone(ORGANIC.mist, 0.9);
   ribBone.color.multiplyScalar(0.7);
@@ -454,12 +460,15 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
       ];
       batch.add(bark, taperedTube(pts, R * 0.3, R * 0.08, lite ? 6 : 12, lite ? 5 : 6));
       const bx = t.x + c * len, bz = t.z + sn * len, by = base + y + len * 0.45;
-      const blob = new THREE.IcosahedronGeometry(1, lite ? 1 : 2);
+      let blob: THREE.BufferGeometry = new THREE.IcosahedronGeometry(1, lite ? 1 : 2);
       const bp = blob.attributes.position;
       for (let i = 0; i < bp.count; i++) {
         const n = 0.6 + noise3(bp.getX(i) * 2.2 + s + k, bp.getY(i) * 2.2, bp.getZ(i) * 2.2) * 0.7;
         bp.setXYZ(i, bp.getX(i) * n, bp.getY(i) * n * 0.8, bp.getZ(i) * n);
       }
+      // Weld the shared corners so the lumps shade soft rather than faceted.
+      blob.deleteAttribute('normal'); blob.deleteAttribute('uv');
+      blob = mergeVertices(blob);
       blob.computeVertexNormals();
       const br = R * (1.3 + noise3(k, s, 14) * 0.8);
       batch.add(mossMass, blob, M4(bx, by, bz, a, br * 1.3, br, br * 1.3));
@@ -491,7 +500,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
       const a = fixed() * Math.PI * 2, d = Math.sqrt(fixed()) * g.radius;
       const x = g.x + Math.cos(a) * d, z = g.z + Math.sin(a) * d;
       const R = g.caps ? 1.2 + fixed() * 1.1 : 1.1 + fixed() * 1.6;
-      if (Math.hypot(x, z) > FEN.radius - 8 || !clear(x, z, R * 2.2)) continue;
+      if (Math.hypot(x, z) > FEN.radius - 16 || !clear(x, z, R * 2.2)) continue; // canopies stay inside the edge murk
       keep.push({ x, z, r: R * 2.2 });
       tree({ x, z, radius: R, height: g.caps ? 22 + fixed() * 14 : 16 + R * 6 + fixed() * 6, roots: 4 + Math.floor(fixed() * 3) }, 100 + gi++ * 3.1, g.caps);
       placed++;
@@ -500,7 +509,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   // The wall of trunks beyond the walkable ring: dense, dark, half lost in fog.
   const wall = Math.round(FEN.radius * 0.32);
   for (let i = 0; i < wall; i++) {
-    const a = (i / wall) * Math.PI * 2 + fixed() * 0.1, d = FEN.radius + 8 + fixed() * 40;
+    const a = (i / wall) * Math.PI * 2 + fixed() * 0.1, d = FEN.radius * (1.21 + fixed() * 0.08); // past the edge murk's curtains (Rendering keeps 0.98-1.2 R clear)
     const R = 1.6 + fixed() * 2.6;
     tree({ x: Math.cos(a) * d, z: Math.sin(a) * d, radius: R, height: 22 + R * 6, roots: 5 }, 400 + i * 1.7, false, true);
   }
@@ -1113,6 +1122,20 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
       const a = (k / 4) * Math.PI * 2 + 0.4, px = e.x + Math.cos(a) * 5, pz = e.z + Math.sin(a) * 5;
       batch.add(bark, new THREE.CylinderGeometry(0.1, 0.14, 2.6, 6), M4(px, g + 1.3, pz));
       batch.add(amber, new THREE.SphereGeometry(0.15, 8, 6), M4(px, g + 2.7, pz));
+    }
+    if (e.costDna) {
+      // The toll: three bone legs lean together over a lit amber gland, the price of the swim-out.
+      const tx = e.x + 6.6, tz = e.z - 1.2, th = 2.4;
+      for (let k = 0; k < 3; k++) {
+        const a = (k / 3) * Math.PI * 2, fx = tx + Math.cos(a) * 1.1, fz = tz + Math.sin(a) * 1.1;
+        const leg = new THREE.Vector3(tx - fx, th, tz - fz);
+        const m = new THREE.Matrix4().compose(
+          new THREE.Vector3((fx + tx) / 2, g + th / 2, (fz + tz) / 2),
+          new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), leg.clone().normalize()),
+          new THREE.Vector3(1, 1, 1));
+        batch.add(ribBone, new THREE.CylinderGeometry(0.07, 0.13, leg.length(), 6), m);
+      }
+      batch.add(amber, new THREE.IcosahedronGeometry(0.42, 2).scale(1, 1.3, 1), M4(tx, g + th - 0.35, tz));
     }
     const ring = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.07, 6, 48).rotateX(-Math.PI / 2), bioNode(e.opensAt > 0 ? ZONE7.violet : ORGANIC.amber, 2.5));
     ring.position.set(e.x, g + 0.08, e.z);

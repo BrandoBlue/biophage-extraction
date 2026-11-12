@@ -166,12 +166,12 @@ describe('built-space atmosphere and grown walls', () => {
   it('gives grown walls plates, bumped normals and restrained vein glow', async () => {
     const { grownWall } = await import('../src/render/materials');
     const s = compile(grownWall());
-    expect(s.fragmentShader).toContain('normal = normalize(abs(det) * normal - grad)');
+    expect(s.fragmentShader).toContain('normal = dot(bumped, bumped) > 1e-20 ? normalize(bumped) : normal');
     expect(s.fragmentShader).toContain('* bioGlow');
   });
 
   it('keeps the held gun in lit, natural tones rather than neon pink', async () => {
-    const { ORGANIC, ZONE7 } = await import('../src/render/palette');
+    const { ARMOURY, ZONE7 } = await import('../src/render/palette');
     const { SynapseBursterView } = await import('../src/game/viewmodel');
     const view = new SynapseBursterView();
     const { WeaponRig } = await import('../src/game/weapon-rig');
@@ -180,12 +180,13 @@ describe('built-space atmosphere and grown walls', () => {
     const lights: THREE.PointLight[] = [];
     rig.root.traverse((o) => { if ((o as THREE.PointLight).isPointLight) lights.push(o as THREE.PointLight); });
     expect(lights.some((l) => l.color.getHexString() === new THREE.Color(ZONE7.magenta).getHexString())).toBe(false);
-    let flesh = false;
+    // The starter's body is polished bone over slate carapace (palette ARMOURY), lit rather than glowing.
+    let shell = false;
     view.root.traverse((o) => {
       const m = (o as THREE.Mesh).material as THREE.MeshPhysicalMaterial | undefined;
-      if (m?.color?.getHexString() === new THREE.Color(ORGANIC.wetFlesh).getHexString()) flesh = true;
+      if (m?.color?.getHexString() === new THREE.Color(ARMOURY.shell).getHexString() && !(m.emissiveIntensity > 0 && m.emissive?.getHex())) shell = true;
     });
-    expect(flesh).toBe(true);
+    expect(shell).toBe(true);
   });
 });
 
@@ -322,5 +323,51 @@ describe('per-zone grade', () => {
     const cap = fungusCap();
     expect(cap.roughness).toBeGreaterThanOrEqual(0.5);
     expect(cap.clearcoat).toBeLessThanOrEqual(0.3);
+  });
+});
+
+describe('map edge murk and bad-pixel guards', () => {
+  it('stands curtains around the playable edge, one for the software tier', async () => {
+    const { edgeMurk, EDGE_MURK } = await import('../src/render/edgemurk');
+    const full = edgeMurk({ radius: 150, ground: () => 2, colour: '#3A3F46' });
+    expect(full.children.length).toBe(EDGE_MURK.rings.length);
+    const lite = edgeMurk({ radius: 150, ground: () => 2, colour: '#3A3F46', lite: true });
+    expect(lite.children.length).toBe(1);
+    const ring = full.children[0] as THREE.Mesh;
+    ring.geometry.computeBoundingBox();
+    const bb = ring.geometry.boundingBox!;
+    expect(bb.max.x).toBeCloseTo(150, 0);
+    expect(bb.min.y).toBeLessThan(2);
+    expect(bb.max.y).toBeGreaterThan(2 + 50);
+    expect((ring.material as THREE.ShaderMaterial).transparent).toBe(true);
+  });
+
+  it('bakes the edge into the fog only when a zone sets it', async () => {
+    const { heightFog, installHeightFog } = await import('../src/render/fog');
+    const { setEdgeFog } = await import('../src/render/edgemurk');
+    setEdgeFog(400);
+    expect(heightFog.edgeRadius.value).toBe(400);
+    installHeightFog();
+    expect(THREE.ShaderChunk.fog_fragment).toContain('edgeFar');
+    expect(THREE.ShaderChunk.fog_fragment).toContain((400 * 0.98).toFixed(3));
+  });
+
+  it('keeps NaN and infinite light out of the bloom chain', async () => {
+    const { guardBloom, BLOOM_INPUT_MAX } = await import('../src/render/pipeline');
+    const fake = { materialHighPassFilter: new THREE.ShaderMaterial({ fragmentShader: 'void main(){ vec4 texel = texture2D( tDiffuse, vUv ); }' }) };
+    guardBloom(fake as never);
+    const fs = fake.materialHighPassFilter.fragmentShader;
+    expect(fs).toContain('isnan');
+    expect(fs).toContain(BLOOM_INPUT_MAX.toFixed(1));
+  });
+
+  it('gives degenerate organic vertices a real normal', async () => {
+    const { fixZeroNormals } = await import('../src/render/organic');
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0], 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 0, NaN, 0, 0], 3));
+    expect(fixZeroNormals(g)).toBe(2);
+    const n = g.attributes.normal;
+    for (let i = 0; i < 3; i++) expect(Math.hypot(n.getX(i), n.getY(i), n.getZ(i))).toBeCloseTo(1, 5);
   });
 });

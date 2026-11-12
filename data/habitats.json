@@ -571,7 +571,7 @@
     },
     "weepingFen": {
       "fenstalker": {
-        "home": "Under the water of the shallows and around the stilt village.",
+        "home": "Under the water of the shallows and around the stilt village. In the outer fen: the Titan Gate channel, the gaps of the Drowned Causeway, and the Outflow swim-out.",
         "roam": 30,
         "groups": [
           {
@@ -594,11 +594,32 @@
             },
             "count": 1,
             "spread": 15
+          },
+          {
+            "where": {
+              "landmark": "titanGate"
+            },
+            "count": 1,
+            "spread": 15
+          },
+          {
+            "where": {
+              "landmark": "drownedCauseway"
+            },
+            "count": 2,
+            "spread": 30
+          },
+          {
+            "where": {
+              "landmark": "theOutflow"
+            },
+            "count": 1,
+            "spread": 15
           }
         ]
       },
       "mirebrood": {
-        "home": "Clustered in Spider Hollow and the Root Hut's roots.",
+        "home": "Clustered in Spider Hollow and the Root Hut's roots. Outer nests in the Bonewater ossuary cairn and the Grey Hummock ribcage.",
         "roam": 15,
         "groups": [
           {
@@ -616,11 +637,27 @@
             "count": 1,
             "packed": true,
             "spread": 8
+          },
+          {
+            "where": {
+              "landmark": "bonewater"
+            },
+            "count": 2,
+            "packed": true,
+            "spread": 10
+          },
+          {
+            "where": {
+              "landmark": "greyHummock"
+            },
+            "count": 1,
+            "packed": true,
+            "spread": 8
           }
         ]
       },
       "mistwader": {
-        "home": "Wades the open shallows in a small herd.",
+        "home": "Wades the open shallows in a small herd. Lone old ones graze the Pale Wallows and the sunken shrine of the North Deep.",
         "roam": 70,
         "groups": [
           {
@@ -629,11 +666,25 @@
             },
             "count": 2,
             "spread": 40
+          },
+          {
+            "where": {
+              "landmark": "paleWallows"
+            },
+            "count": 1,
+            "spread": 40
+          },
+          {
+            "where": {
+              "landmark": "northDeep"
+            },
+            "count": 1,
+            "spread": 25
           }
         ]
       },
       "titheWeaver": {
-        "home": "Webs between the cathedral caps.",
+        "home": "Webs between the cathedral caps. Also webs the East Tangle huts.",
         "roam": 12,
         "groups": [
           {
@@ -642,11 +693,18 @@
             },
             "count": 2,
             "spread": 20
+          },
+          {
+            "where": {
+              "landmark": "eastTangle"
+            },
+            "count": 2,
+            "spread": 18
           }
         ]
       },
       "glasswalker": {
-        "home": "Inside the drowned pod's corridors.",
+        "home": "Inside the drowned pod's corridors. Also haunts the second wreck in the Ghost Orchard.",
         "roam": 10,
         "groups": [
           {
@@ -655,6 +713,13 @@
             },
             "count": 2,
             "spread": 6
+          },
+          {
+            "where": {
+              "landmark": "ghostOrchard"
+            },
+            "count": 2,
+            "spread": 8
           }
         ]
       }

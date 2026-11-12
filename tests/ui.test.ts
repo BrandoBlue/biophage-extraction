@@ -231,3 +231,10 @@ describe('settings words', () => {
     for (const g of GRAPHICS_LEVELS) expect(GRAPHICS_WORDS[g][0].length).toBeGreaterThan(0);
   });
 });
+
+describe('graft toast', () => {
+  it('names the graft and the gun it budded onto', async () => {
+    const { graftToast } = await import('../src/ui/raid/hud');
+    expect(graftToast('Hush Gill', 'Synapse Burster')).toBe('HUSH GILL TAKES HOLD · SYNAPSE BURSTER');
+  });
+});

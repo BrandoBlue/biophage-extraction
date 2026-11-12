@@ -126,6 +126,25 @@ export function simplifyForSoftware(root: THREE.Object3D): number {
   return n;
 }
 
+/**
+ * Keep one bad pixel from blacking out the screen. A NaN or infinite value anywhere in the HDR frame (a shader edge
+ * case on one GPU) is blurred by every bloom level, and at the coarsest level a single pixel covers a block hundreds
+ * of pixels wide: the whole block composites as black with a hard edge (Brandon's screenshot, 2026-11-12). The bright
+ * pass now drops non-finite values and caps the rest, so the bloom chain only ever sees finite light.
+ */
+export const BLOOM_INPUT_MAX = 256;
+export function guardBloom(bloom: UnrealBloomPass): void {
+  const m = bloom.materialHighPassFilter;
+  m.fragmentShader = m.fragmentShader.replace(
+    'vec4 texel = texture2D( tDiffuse, vUv );',
+    `vec4 texel = texture2D( tDiffuse, vUv );
+			// isnan can be compiled away under fast math; a failed comparison catches NaN there too.
+			bool bad = any( isnan( texel ) ) || any( isinf( texel ) ) || !( dot( abs( texel ), vec4( 1.0 ) ) < 1e30 );
+			texel = bad ? vec4( 0.0 ) : clamp( texel, 0.0, ${BLOOM_INPUT_MAX.toFixed(1)} );`,
+  );
+  m.needsUpdate = true;
+}
+
 export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, camera: THREE.Camera, presetName: keyof typeof GRADE_PRESETS = 'zone7'): Pipeline {
   installHeightFog();
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -147,6 +166,7 @@ export function createPipeline(canvas: HTMLCanvasElement, scene: THREE.Scene, ca
   if (ao) composer.addPass(ao);
   let aoOn = !!ao;
   const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 1, 0.6, 0.6);
+  guardBloom(bloom);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
   const grade = new ShaderPass(GradeShader);

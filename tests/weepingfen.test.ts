@@ -4,7 +4,7 @@ import { STEP_HEIGHT, type Vec3Like } from '../src/world/collision';
 import { FEN, buildWeepingFen, fenAreaAt, fenHeight, regentPool } from '../src/world/weepingfen';
 import { SOLIDS, groundHeight, setTerrain } from '../src/world/zone7';
 import { BUILT_ZONES } from '../src/world/zones';
-import { HABITATS, LOOT, ZONES } from '../data';
+import { HABITATS, LOOT, RAID, ZONES } from '../data';
 
 const scene = new THREE.Scene();
 const world = buildWeepingFen(scene, 3);
@@ -57,6 +57,13 @@ describe('the Weeping Fen', () => {
     expect(Math.max(Math.abs(l.area!.x0), l.area!.x1, Math.abs(l.area!.z0), l.area!.z1)).toBeLessThan(FEN.radius);
     expect(fenAreaAt(FEN.spawn.x, FEN.spawn.z)?.id).toBe('fenLanding');
     expect(world.landmarkAt(-58, 8)).toBe('rootHut');
+  });
+
+  it('makes the Outflow the paid swim-out: always open, priced by Design\'s pay-to-leave rule', () => {
+    const paid = RAID.host.extracts.paidExtract;
+    const swim = world.layout.extracts.find((e) => e.id === 'outflowSwim')!;
+    expect(swim).toMatchObject({ opensAt: 0, costDna: paid.costDna, time: paid.extractTime });
+    expect(world.layout.extracts.filter((e) => e.costDna)).toHaveLength(1);
   });
 
   it('walks from the spawn along the trails through the shallows to every extract', () => {

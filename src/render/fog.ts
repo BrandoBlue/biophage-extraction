@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+/** Boundary fog shaping (see src/render/edgemurk.ts). */
+export const EDGE_FOG = { closeIn: 0.7, closeGain: 1.6, swallow: [0.98, 1.2] } as const;
+
 /**
  * Volumetric-looking height fog for every material that uses scene fog. Replaces Three's fog chunks:
  * density falls off exponentially with altitude (analytic integral along the view ray), so valleys,
@@ -15,9 +18,31 @@ export const heightFog = {
   layer: { value: 11 },
   /** Patchiness 0..1. */
   noise: { value: 0.6 },
+  /** Playable edge (src/render/edgemurk.ts setEdgeFog): fog closes in near it and swallows what lies past it. 0 = off. */
+  edgeRadius: { value: 0 },
+  edgeCentre: { value: [0, 0] as [number, number] },
 };
 
 let installed = false;
+
+/** Near the playable edge the whole fog thickens (the murk closes in); nothing changes inside EDGE_MURK.closeIn. */
+function edgeTerm(): string {
+  const R = heightFog.edgeRadius.value;
+  if (!R) return '';
+  const [cx, cz] = heightFog.edgeCentre.value;
+  const f = (v: number) => v.toFixed(3);
+  return `    float edgeCam = smoothstep(${f(R * EDGE_FOG.closeIn)}, ${f(R * 0.98)}, length(cameraPosition.xz - vec2(${f(cx)}, ${f(cz)})));
+    density *= 1.0 + edgeCam * ${f(EDGE_FOG.closeGain)};`;
+}
+/** Past the edge everything sinks into the fog, so cut-off terrain and ridges never read. */
+function edgeSwallow(): string {
+  const R = heightFog.edgeRadius.value;
+  if (!R) return '';
+  const [cx, cz] = heightFog.edgeCentre.value;
+  const f = (v: number) => v.toFixed(3);
+  return `    float edgeFar = smoothstep(${f(R * EDGE_FOG.swallow[0])}, ${f(R * EDGE_FOG.swallow[1])}, length(vFogWorld.xz - vec2(${f(cx)}, ${f(cz)})));
+    fogFactor = max(fogFactor, edgeFar * 0.985);`;
+}
 
 /** Install once, before the first material compiles. Safe to call repeatedly. */
 export function installHeightFog(): void {
@@ -66,7 +91,9 @@ export function installHeightFog(): void {
     float layerAvg = exp(-(camY - (${heightFog.base.value.toFixed(3)})) * k) * (abs(dy) > 0.01 ? (1.0 - exp(-dy * k)) / (dy * k) : 1.0);
     float banks = mix(1.0, 0.35 + 1.3 * hfNoise(vFogWorld * vec3(0.03, 0.12, 0.03)), ${heightFog.noise.value.toFixed(3)});
     float density = fogDensity * (1.0 + ${heightFog.layer.value.toFixed(3)} * clamp(layerAvg, 0.0, 6.0) * banks);
+${edgeTerm()}
     float fogFactor = 1.0 - exp( - density * density * vFogDepth * vFogDepth );
+${edgeSwallow()}
   #else
     float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
   #endif

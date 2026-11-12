@@ -18,10 +18,19 @@ export interface SenseResult {
 
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
+/**
+ * Distance for the senses, with height: a few metres of slope are free, but a sheer drop (the Marrow Pit's layers,
+ * a cliff) counts `verticalWeight` times over, since rock and shelf edges block the view and the sound.
+ */
+export function reach3(d: number, dy: number, A = AI.awareness): number {
+  const v = Math.max(0, Math.abs(dy) - (A.verticalFree ?? Infinity)) * (A.verticalWeight ?? 1);
+  return v > 0 ? Math.hypot(d, v) : d;
+}
+
 /** Sight fill rate per second for this host, or 0 if not visible. Yaw 0 faces +Z. */
-export function sightRate(p: Perception, cx: number, cz: number, yaw: number, host: HostView, A = AI.awareness): number {
+export function sightRate(p: Perception, cx: number, cz: number, yaw: number, host: HostView, A = AI.awareness, cy = host.y): number {
   const dx = host.x - cx, dz = host.z - cz;
-  const d = Math.hypot(dx, dz);
+  const d = reach3(Math.hypot(dx, dz), host.y - cy, A);
   if (d <= A.closeSight) return A.sightRate * 4; // you can feel it breathing on you
   const range = p.sight * host.visibility;
   if (d > range) return 0;
@@ -38,8 +47,8 @@ export function sightRate(p: Perception, cx: number, cz: number, yaw: number, ho
 }
 
 /** Awareness gain from one noise, or 0 if out of earshot. */
-export function noiseGain(p: Perception, cx: number, cz: number, n: Noise, A = AI.awareness): number {
-  const d = Math.hypot(n.x - cx, n.z - cz);
+export function noiseGain(p: Perception, cx: number, cz: number, n: Noise, A = AI.awareness, dy = 0): number {
+  const d = reach3(Math.hypot(n.x - cx, n.z - cz), dy, A);
   const reach = Math.max(p.hearing, n.radius * 0.5);
   if (d > n.radius || d > reach) return 0;
   const depth = 1 - d / n.radius;
@@ -63,11 +72,11 @@ export class Awareness {
    * Each sense tick turns the loudest noise heard since the last tick into one impulse of awareness, so a gunshot
    * makes a creature suspicious and two or three bring it running. Returns null on frames with no sense tick.
    */
-  update(dt: number, cx: number, cz: number, yaw: number, host: HostView, noises: readonly Noise[]): SenseResult | null {
+  update(dt: number, cx: number, cz: number, yaw: number, host: HostView, noises: readonly Noise[], cy = host.y): SenseResult | null {
     this.sinceSeen += dt;
     if (host.alive && !host.hidden) {
       for (const n of noises) {
-        const g = noiseGain(this.p, cx, cz, n, this.A);
+        const g = noiseGain(this.p, cx, cz, n, this.A, host.y - cy); // raid noises are the host's: they carry its height
         if (g > this.heardMax) { this.heardMax = g; this.heardAt = { x: n.x, z: n.z }; }
       }
     }
@@ -78,7 +87,7 @@ export class Awareness {
     const res: SenseResult = { sawHost: false, heard: this.heardMax > 0, heardAt: this.heardAt };
     let gained = this.heardMax * this.A.noiseImpulse;
     if (host.alive && !host.hidden) {
-      const s = sightRate(this.p, cx, cz, yaw, host, this.A);
+      const s = sightRate(this.p, cx, cz, yaw, host, this.A, cy);
       if (s > 0) {
         gained += s * step;
         res.sawHost = true;

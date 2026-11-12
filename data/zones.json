@@ -472,7 +472,16 @@
       "mistwaderShallows",
       "spiderHollow",
       "drownedPod",
-      "regentPool"
+      "regentPool",
+      "titanGate",
+      "ghostOrchard",
+      "drownedCauseway",
+      "paleWallows",
+      "bonewater",
+      "theOutflow",
+      "eastTangle",
+      "greyHummock",
+      "northDeep"
     ],
     "creatures": [
       "fenstalker",
