@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { FAUNA, ORGANIC } from '../../render/palette';
 import { PlanBuilder, V, mix, mutate, tint } from '../builder';
 import { rng } from '../parts';
+import { organic, readable } from './organic';
 import type { BodyPlan, Palette } from '../plan';
 import type { Creature } from '../creature';
 import { damp } from './fx';
@@ -29,8 +30,10 @@ export function cablecrawler(seed: number, stage = 0): BodyPlan {
   const s = 0.94 + r() * 0.12;
   const h = 0.32 * s;
   const b = new PlanBuilder('cablecrawler', seed, stage, { locomotion: 'walker', bodyHeight: h, radius: 0.85 * s, skinNoise: { amp: 0.006, freq: 20 }, skinResolution: 60, fleshScale: 10, palette: pal });
+  organic(b, rng(seed * 17 + 3));
   // Damp old rope and pale mould, not meat.
   b.plan.palette = { ...b.plan.palette, flesh: mix(FAUNA.rope, FAUNA.soot, 0.25), chitin: mix(FAUNA.rope, FAUNA.peat, 0.4), bone: mix(FAUNA.pearl, FAUNA.rope, 0.4) };
+  readable(b);
   const S = (x: number, y: number, z: number) => V(x * s, y * s, z * s);
   const body = b.bone('body', -1, S(0, 0.32, 0));
   const head = b.bone('head', body, S(0, 0.3, 0.36));

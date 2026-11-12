@@ -94,11 +94,11 @@ export class MireRegent {
   constructor(seed = 1, private scene?: THREE.Object3D) {
     this.rand = rng(seed);
     this.root.name = 'mireRegent';
-    const back = livingFlesh(mix(FAUNA.fenMoss, FAUNA.peat, 0.45), mix(ORGANIC.vein, FAUNA.peat, 0.5), FAUNA.reed, 1.2);
+    const back = livingFlesh(mix(FAUNA.fenMoss, FAUNA.reed, 0.25), mix(ORGANIC.vein, FAUNA.peat, 0.5), FAUNA.pearl, 1.2);
     back.roughness = 0.55;
     const belly = livingFlesh(mix(FAUNA.pearl, FAUNA.rope, 0.35), mix(ORGANIC.vein, FAUNA.rope, 0.4), FAUNA.pearl, 1.5);
     const inner = livingFlesh(mix(ORGANIC.wetFleshDeep, FAUNA.peat, 0.35), ORGANIC.vein, FAUNA.rope, 3);
-    const wood = chitin(mix(FAUNA.peat, FAUNA.soot, 0.25), FAUNA.fenMoss, 2);
+    const wood = chitin(mix(FAUNA.peat, FAUNA.reed, 0.35), FAUNA.fenMoss, 2);
     wood.roughness = 0.85; wood.clearcoat = 0.1;
     const moss = livingFlesh(mix(FAUNA.fenMoss, FAUNA.reed, 0.2), FAUNA.peat, FAUNA.reed, 6);
     const eyeMat = alienEye(mix(ORGANIC.amber, FAUNA.reed, 0.4), FAUNA.soot);
@@ -112,11 +112,11 @@ export class MireRegent {
     this.hull.add(new THREE.Mesh(blob(WIDTH / 2, HEIGHT * 0.42, HALF, this.rand, 0.08), back));
     this.hull.add(new THREE.Mesh(blob(WIDTH * 0.44, HEIGHT * 0.36, HALF * 0.88, this.rand, 0.05).translate(0, -HEIGHT * 0.16, 0.2), belly));
     // Warty ridges along the back.
-    this.hull.add(new THREE.Mesh(merge(Array.from({ length: 26 }, () => {
+    this.hull.add(new THREE.Mesh(merge(Array.from({ length: 26 }, (_, k) => {
       const x = (this.rand() - 0.5) * WIDTH * 0.7, z = (this.rand() - 0.5) * LENGTH * 0.8;
       const y = HEIGHT * 0.42 * Math.sqrt(Math.max(0, 1 - (2 * x / WIDTH) ** 2 - (z / HALF) ** 2)) - 0.1;
       const r = 0.25 + this.rand() * 0.4;
-      return new THREE.SphereGeometry(r, 10, 6).scale(1, 0.6, 1).translate(x, y, z);
+      return roughen(new THREE.SphereGeometry(r, 10, 7).scale(1 + this.rand() * 0.4, 0.5 + this.rand() * 0.3, 1 + this.rand() * 0.4), 0.15 * r, 3 / r, k).translate(x, y, z);
     })), back));
     // The head: the front of the hull, a door-wide upper lip, and the lower jaw on its hinge.
     const lip = new THREE.Mesh(roughen(new THREE.TorusGeometry(WIDTH * 0.36, 0.32, 10, 36, Math.PI).rotateX(Math.PI / 2).rotateY(-Math.PI / 2).scale(1, 1, 0.55).translate(0, -0.15, HALF * 0.82), 0.06, 2, 3), back);
@@ -157,7 +157,7 @@ export class MireRegent {
       this.hull.add(sac);
       const mat = bioNode(this.glow, 0.5 + this.rand() * 0.4);
       mat.emissiveIntensity = 0.4;
-      const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 14), mat);
+      const mesh = new THREE.Mesh(roughen(new THREE.SphereGeometry(0.42, 20, 14).scale(1, 0.9 + this.rand() * 0.2, 1.1), 0.04, 5, i), mat);
       mesh.name = `pearl${i}`;
       mesh.position.copy(rest).add(V(0, -0.15, 0));
       this.hull.add(mesh);
