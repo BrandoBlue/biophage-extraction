@@ -70,6 +70,8 @@ const POSES = {
   fenGrazer: { at: [-12, 284], eye: 1.8, yaw: -2.4, pitch: 0.12 },
   fenOssuary: { at: [-234, 112], eye: 1.8, yaw: 0.91, pitch: 0.1 },
   fenTangle: { at: [230, -108], eye: 1.8, yaw: 1.23, pitch: 0.12 },
+  fenFerry: { at: [342, 100], eye: 2.2, yaw: 2.68, pitch: 0.0 },
+  fenRootLift: { at: [-100, 63], eye: 1.8, yaw: 0.98, pitch: 0.4 },
 };
 const width = Number(process.env.LOOKDEV_W || 1280), height = Number(process.env.LOOKDEV_H || 720);
 const server = spawn('npx', ['vite', 'preview', '--port', '4174', '--strictPort'], { stdio: 'ignore' });
