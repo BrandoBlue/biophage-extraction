@@ -110,3 +110,13 @@ Enrage at 7:00: the pool fills the bowl; only the ledge is safe.
   - Catwalk events bring down the nearest standing catwalk, and anyone on it falls.
   - The swarm spawns at the body's `birthPoint`, clamped inside the chamber.
   - When it dies, the spoils drop on the floor under it.
+
+## The Sandwidow (Ochre Reach, Skyfall Crater)
+`src/ai/widow.ts` (`WidowBrain`) is renderer-free. Attack numbers come from `bosses.json` `sandwidow`; movement, tells and rise/sink rates from `ai.json` `widow`. `src/game/widow.ts` (`RaidWidow`) joins it to Creature's body (`src/creatures/zones/sandwidow.ts`) and World's crater (`structures.widow`, a `WidowArena`).
+- **Wake:** a host steps onto the crater floor near her (or shoots her while she is up).
+- **Under the sand** (`surface` below `hittableAbove`) nothing reaches her: shots, splash and the boss bar damage all stop.
+- **circle:** she swims `circleRadius` m round the host. The **undertow** sinks a funnel where the host stood (the tell) and bites up through it. Every `surface.every` s she **breathes** for `surface.duration` s: crown open, throat sacs exposed (×2.5, 400 each). **Brood call** brings Dunewake out of her throat.
+- **erupt:** the **breach** tracks the host through its wind-up, bursts out under them, and she stays up `eruptUp` s. Up, she **sand-blasts** a cone (damage and `blindDuration`, raised as the `hostBlinded` bus event). Jaw petals can be shot off (200 each), and each takes `petalBite` off her bites.
+- **drown:** the floor turns to **quicksand** (`floorFraction` of the radius, the whole floor once enraged). It slows the host to `slowMultiplier` and grinds `damagePerSecond`. She closes in and **thrashes**; her body takes ×1.3.
+- **Debris rocks** are the counter. A host standing on one (feet 0.9 m above the sand) is out of reach of the undertow, the thrash and the quicksand; the breach still reaches a low rock.
+- **Kill:** `bossKilled('sandwidow')` pays her DNA, the Widow Clutch and the Widow Egg harvest.

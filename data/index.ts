@@ -329,6 +329,7 @@ export interface AiRules {
   grazer: { turnRate: number; idleHeight: number; tellRange: number; diveFrom: number; diveSpeed: number; slamHeight: number; diveTimeout: number; climbTime: number; knockback: number };
   weaver: { turnRate: number; hoverHeight: number; spinEvery: number; cutAhead: number; keepRange: [number, number] };
   burrower: { turnRate: number; diveRate: number; surfaceRate: number; rippleFactor: number; lungeTime: number; swimCurl: number; knockback: number };
+  widow: { floorHeight: number; circleRadius: number; circleLead: number; keepInside: number; riseRate: number; sinkRate: number; hittableAbove: number; biteRise: number; callRise: number; drownRide: number; breachTrack: number; eruptUp: number; petalBite: number; thrashReach: number; firstAttack: number; drownClose: number };
   herd: { turnRate: number; gunfireNoise: number; chargeRange: [number, number]; stampedeTurn: number; trampleKnockback: number; wheelTime: number; volleyLead: number; volleySpread: number; volleyMin: number };
   warden: {
     wake: { trigger: 'approach' | 'power'; radius: number };

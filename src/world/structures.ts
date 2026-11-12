@@ -48,12 +48,25 @@ export interface Walkway {
   cut(): void;
 }
 
+/** The Sandwidow's crater (PvE AI): its centre and swimming floor, the debris rocks a host can stand on, the ways in. */
+export interface WidowArena {
+  id: string; x: number; z: number;
+  /** Radius of the crater floor she swims in; floor height at the centre (read groundHeight elsewhere). */
+  radius: number; floorY: number;
+  /** Debris rocks to stand on, safe from the quicksand: centre, footprint radius and standing height. */
+  pillars: { id: string; x: number; z: number; radius: number; top: number }[];
+  entrances: { id: string; x: number; z: number }[];
+  bossSpawn: { x: number; z: number };
+}
+
 export interface BuiltStructures {
   group: THREE.Group;
   loot: LootSpot[];
   arena: ArenaInfo | null;
   /** The Pale Vigil's cave lair (src/world/cave.ts), on zones that have one. */
   lair?: CaveLair | null;
+  /** The Sandwidow's Skyfall Crater (src/world/ochre.ts), on the Ochre Reach. */
+  widow?: WidowArena | null;
   /** Walkway segments that can be cut (the Marrow Pit's bridge decks): `cut()` drops the deck out from under you. */
   walkways?: Walkway[];
   /** The Warden's reactor-chamber arena (src/world/wreck.ts), on the Wreck. */

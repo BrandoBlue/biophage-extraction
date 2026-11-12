@@ -236,5 +236,24 @@
     "volleyLead": 0.4,
     "volleySpread": 2.5,
     "volleyMin": 6
+  },
+  "widow": {
+    "_note": "The Sandwidow (src/ai/widow.ts); attack numbers stay in bosses.json `sandwidow`. Wakes when a host is on the crater floor (within floorHeight m above it) and within wakeRadius. Swims circleRadius m from the host, leading by circleLead rad; keeps inside keepInside x the crater radius. surface rises at riseRate and sinks at sinkRate per s; below hittableAbove nothing reaches her. Bites rise to biteRise, brood calls to callRise; in drown she rides at drownRide. A breach tracks the host at breachTrack per s during its wind-up, then she stays up eruptUp s. Each severed petal takes petalBite off her bite. thrashReach adds to the thrash radius for choosing it. firstAttack: delay before attacks with no firstDelay. Drowning she closes to drownClose m.",
+    "floorHeight": 13,
+    "circleRadius": 14,
+    "circleLead": 0.5,
+    "keepInside": 0.92,
+    "riseRate": 1.4,
+    "sinkRate": 0.8,
+    "hittableAbove": 0.25,
+    "biteRise": 0.6,
+    "callRise": 0.7,
+    "drownRide": 0.6,
+    "breachTrack": 1.5,
+    "eruptUp": 5,
+    "petalBite": 0.15,
+    "thrashReach": 2,
+    "firstAttack": 4,
+    "drownClose": 5
   }
 }
