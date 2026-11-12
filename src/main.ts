@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { haulValue } from '../data';
+import { haulValue, ZONE7_SITES } from '../data';
 import { Raid } from './game/raid';
 import { RaidHud } from './ui/raid-hud';
 import { HiveMenu } from './ui/hive-menu';
@@ -10,6 +10,9 @@ import { settleContracts } from './game/economy';
 import { BUILT_ZONES, buildZone } from './world/zones';
 import { createPipeline } from './render/pipeline';
 import { installLookdev } from './render/lookdev';
+import { GameAudio } from './audio';
+import { getSettings } from './ui/settings';
+import { caveDistance } from './world/cave';
 import pkg from '../package.json';
 import { Online } from './net';
 
@@ -89,6 +92,16 @@ function bootRaid(): void {
   });
 
 
+  // Audio (src/audio): starts on the first click or key press, reads the raid each frame.
+  const audio = new GameAudio(raid, {
+    zone: world.zone,
+    hostClass: () => profile.host,
+    menuVisible: () => menu.visible,
+    enclosed: world.zone === 'longSeedWreck' || world.zone === 'marrowPit' ? () => true
+      : world.zone === 'glowmireIsle' ? (x, z) => ZONE7_SITES.caves.some((c) => caveDistance(c, x, z) < 0) : () => false,
+    volume: () => getSettings().volume,
+  });
+
   const pipeline = createPipeline(canvas, scene, camera, 'zone7');
   installLookdev(pipeline, camera, scene);
   raid.pipeline = pipeline;
@@ -120,6 +133,7 @@ function bootRaid(): void {
     // Landmarks (Design's zones.json) count toward contracts the first time the host walks into one.
     if (!menu.visible) { const lm = world.landmarkAt(camera.position.x, camera.position.z, raid.player.position.y); if (lm) raid.visit(lm); }
     hud.update(dt, raid.hud());
+    audio.update(dt, camera);
     // The main menu draws the 3D Hive lab with the host on its pedestal; other Hive screens cover the whole view, so
     // the 3D frame behind them is skipped (the loop and frame counter keep running). The first frames always render
     // the raid scene so its shaders compile at boot, not on the DEPLOY click.
@@ -128,6 +142,6 @@ function bootRaid(): void {
     if (!menu.visible || frames < 3 || stage.due()) pipeline.render(dt);
     frames++;
     // Read by tests/smoke.mjs and tests/raid.mjs: proves the loop is alive and drives scripted raids.
-    (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), profile, debug, layout: world.layout, net: online.test };
+    (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), audio: audio.stats(), profile, debug, layout: world.layout, net: online.test };
   });
 }
