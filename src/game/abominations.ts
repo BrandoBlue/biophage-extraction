@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { groundHeight, mulberry32 } from '../world/zone7';
-import type { Abomination as AbominationData } from '../../data';
+import { AI, type Abomination as AbominationData } from '../../data';
 import type { Noise } from './perception';
 import { createBrain, memoryFor, mindLevels, mindPulse, tokensFor, type Brain, type BrainWorld, type Vec3 } from '../ai';
 import { Creature } from '../creatures/creature';
@@ -269,7 +269,7 @@ export class Abomination {
         visibility: ctx.playerVisibility ?? 1, forward: ctx.playerForward ?? null,
         reloading: ctx.playerReloading ?? false, aiming: ctx.playerAiming ?? false,
       },
-      noises: ctx.noises, allies: ctx.others, tokens, playableRadius: ctx.playableRadius, memory: memoryFor(ctx.others),
+      noises: ctx.noises, allies: ctx.others, tokens, playableRadius: ctx.playableRadius, memory: AI.learning.enabled ? memoryFor(ctx.others) : undefined,
     };
     brain.step(dt, world);
     this.handleEvents(ctx);

@@ -61,6 +61,8 @@ None of these interrupts a committed attack (a wind-up, lunge, burst or charge),
 
 ### Learning within a raid (`ai.json` `learning`, src/ai/memory.ts)
 
+**Switched off for now** (Brandon, 2026-11-12: "lets skip creatures that learn your tricks during a raid, for now"). `learning.enabled` is false, so raids get no memory and nothing below happens in play. The code and tests stay; set the flag to true to bring it back.
+
 One `RaidMemory` per raid (keyed like the attack tokens) records the tricks the host uses on each kind. Once a trick has worked `learning.after` times, that kind counters it, and the switch shows as an `adapt` tactic. Nothing carries between raids.
 
 | Trick | Noted when | Counter |

@@ -850,3 +850,9 @@ describe('species working together and more learning (ai.json teamwork, learning
     expect(b2.engaged).toBe(true);
   });
 });
+
+describe('learning switch', () => {
+  it('learning is off for now (Brandon, 2026-11-12): raids get no memory', () => {
+    expect(AI.learning.enabled).toBe(false);
+  });
+});
