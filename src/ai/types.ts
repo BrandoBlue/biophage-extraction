@@ -15,6 +15,10 @@ export interface HostView {
   visibility: number;
   /** Unit direction the host is looking (XZ), if known. Stalkers freeze when watched. */
   forward: Vec2 | null;
+  /** Reloading right now: hunters that see it press in (ai.json tactics.reload). */
+  reloading?: boolean;
+  /** Aiming down sights: a held aim unsettles hunters faster (tactics.aim). */
+  aiming?: boolean;
 }
 
 /** Another creature, as a brain sees it (for separation, screech alerts and pack slots). */
@@ -51,7 +55,14 @@ export type AIEvent =
   | { type: 'alarm'; radius: number }
   /** Juked sideways out of the host's aim. */
   | { type: 'dodge' }
+  /** Thinking out loud (ai.json tactics): calls the pack in on a reload, breaks out of a held aim, starts or springs a
+   *  lure, falters when a packmate falls. The body, sound and HUD read these as tells. */
+  | { type: 'tactic'; what: Tactic }
   /** Burst from its tank, dropped its disguise, or sprang the ambush it laid where it lost the host. */
   | { type: 'reveal'; how: 'hatch' | 'disguise' | 'ambush' };
 
+/** A tactical choice a hunter just made (see Brain.intent). */
+export type Tactic = 'press' | 'evade' | 'lure' | 'spring' | 'falter' | 'rout';
+/** What a creature is thinking right now, readable by the body, sound and HUD. */
+export type Intent = 'idle' | 'wary' | 'stare' | 'hunt' | 'stalk' | 'attack' | 'search' | 'flee' | 'reel' | 'press' | 'evade' | 'lure' | 'falter' | 'dead';
 export type Mode = 'calm' | 'investigate' | 'hunt' | 'stagger' | 'dead';

@@ -29,10 +29,10 @@ export class AttackTokens {
   }
 
   /** Try to take a slot. Re-requesting a held token refreshes it. */
-  request(id: number, kind: TokenKind): boolean {
+  request(id: number, kind: TokenKind, bonus = 0): boolean {
     const h = this.held.get(id);
     if (h) { h.since = this.time; return true; }
-    if (this.count(kind) >= this.limits[kind]) return false;
+    if (this.count(kind) >= this.limits[kind] + bonus) return false;
     this.held.set(id, { kind, since: this.time });
     return true;
   }

@@ -42,8 +42,13 @@ export interface AbominationContext {
   playerVisibility?: number;
   /** Unit XZ direction the host is looking. Stalkers freeze when watched. */
   playerForward?: { x: number; z: number } | null;
+  /** The host is reloading / aiming down sights (PvE AI tactics). */
+  playerReloading?: boolean;
+  playerAiming?: boolean;
   /** Shove the host away from `from` (Mournback horns and slam). */
   onKnockback?(a: Abomination, strength: number): void;
+  /** A hunter made a readable tactical choice (press, evade, lure, spring, falter, rout): for sound and the bus. */
+  onTactic?(a: Abomination, what: import('../ai').Tactic): void;
   /** An Oculimoth screeched: everything within `radius` was alerted. */
   onScreech?(a: Abomination, radius: number): void;
   /** It burst from its tank or dropped its disguise (PvE AI habitats): play the burst, make the noise. */
@@ -259,6 +264,7 @@ export class Abomination {
         x: p.x, y: p.y, z: p.z, vx: ctx.playerVelocity.x, vz: ctx.playerVelocity.z,
         alive: ctx.playerAlive, hidden: ctx.playerHidden,
         visibility: ctx.playerVisibility ?? 1, forward: ctx.playerForward ?? null,
+        reloading: ctx.playerReloading ?? false, aiming: ctx.playerAiming ?? false,
       },
       noises: ctx.noises, allies: ctx.others, tokens, playableRadius: ctx.playableRadius,
     };
@@ -355,6 +361,11 @@ export class Abomination {
         case 'volley': this.volley(ctx, e.target, e.count, e.damage, e.spread); break;
         case 'alarm':
           for (const o of ctx.others) if (o !== this && o.alive && o.kind === this.kind && o.position.distanceTo(pos) <= e.radius) o.alert({ x: p.x, z: p.z });
+          break;
+        case 'tactic':
+          // The call that brings the pack in on a reload is a short screech the host can hear and see.
+          if (e.what === 'press' || e.what === 'spring') this.pulse('screech');
+          ctx.onTactic?.(this, e.what);
           break;
         case 'charge': case 'notice': case 'dodge': break; // read by audio through the bus later
       }

@@ -17,6 +17,8 @@ export interface GameEvents {
   overload: { duration: number };
   noise: { position: Vec3Like; radius: number; source: string };
   alert: { id: number; type: string; position: Vec3Like };
+  /** A hunter made a readable tactical choice (src/ai tactics): press on a reload, evade an aim, lure, spring, falter, rout. */
+  creatureTactic: { id: number; type: string; what: string; position: Vec3Like };
   attack: { id: number; type: string; position: Vec3Like };
   creatureDeath: { id: number; type: string; position: Vec3Like; dna: number };
   ability: { id: string; slot: number };
