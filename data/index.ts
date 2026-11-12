@@ -114,27 +114,94 @@ export function sustainedDps(w: WeaponDef): number {
   return perShot * w.fireRate;
 }
 
-/** The Spore starter's original fields, still read by src/game/raid.ts. */
+export type FireMode = 'auto' | 'semi' | 'burst' | 'charge';
+export type ReloadStyle = 'magazine' | 'perShell' | 'regrow';
+export type ProjectileLook = 'spore' | 'needle' | 'shard' | 'glob' | 'bolt';
+export interface EgoCharge {
+  chargePerHit: number; chargePerWeakPointHit: number; chargeToFire: number; overloadFill: number;
+  projectiles: number; damage: number; seekRadius: number; seekTurnRate: number;
+  projectileSpeed: number; burstRadius: number;
+}
+
+/**
+ * A weapons.json entry as written. The Synapse Burster predates the roster schema (reloadTime, projectileSpeed,
+ * burst, adsTime at top level); `weaponSpec` resolves either shape, with defaults, into a WeaponSpec.
+ */
 export interface Weapon {
   label: string;
+  class?: WeaponClass;
+  rarity?: Rarity;
+  fantasy?: string;
+  fireMode?: FireMode;
+  burstCount?: number;
+  /** Seconds between rounds inside one burst. */
+  burstDelay?: number;
+  chargeTime?: number;
+  /** Charge weapons: hold time and the least charge (0..1) that still fires on release. */
+  charge?: { time?: number; minFraction?: number; overloadPerShot?: number; fanDegrees?: number };
+  /** Splash also hurts the host. */
+  selfDamage?: boolean;
+  dropsFrom?: string;
+  /** Feed item the reload takes from the cavities and pouch (loot.json kind 'ammo'); null or absent: regrows. */
+  ammo?: string | null;
+  milestone?: string;
   damage: number;
+  pellets?: number;
   fireRate: number;
-  burst: { radius: number; damage: number };
   magazine: number;
-  reserve: number | 'infinite';
-  reloadTime: number;
-  projectileSpeed: number;
-  projectileGravity: number;
+  reload?: { style: ReloadStyle; time: number; perShellTime?: number; emptyExtra?: number };
+  projectile?: {
+    look?: ProjectileLook; speed: number; gravity?: number; splash?: { radius: number; damage: number };
+    /** Creatures a round passes through before it stops. */
+    pierce?: number;
+    /** Sticks where it lands and bursts after `fuse` seconds. */
+    stick?: boolean; fuse?: number;
+  };
+  spread: { hip: number; ads?: number; movingPenalty: number; sprintBlocksFire?: boolean };
+  range: { falloffStart: number; falloffEnd: number; minMultiplier: number; maxDistance?: number };
+  weakPointMultiplier: number;
+  recoil?: { pitch: number; yawJitter: number; recovery: number };
+  /** false: this weapon cannot aim down sights (no zoom). zoom is the FOV divisor while aiming. */
+  ads?: false | { zoom: number; time: number; scope?: boolean };
+  handling?: { equipTime: number; moveSpeed?: number };
+  knockback?: number;
+  egoCharge?: EgoCharge;
+  // Legacy (Synapse Burster) fields.
+  burst?: { radius: number; damage: number };
+  reserve?: number | 'infinite';
+  reloadTime?: number;
+  projectileSpeed?: number;
+  projectileGravity?: number;
+  adsTime?: number;
+}
+
+/** A weapon with every field resolved. What the raid fires. */
+export interface WeaponSpec {
+  id: string; label: string; class: WeaponClass; rarity: Rarity; fantasy: string;
+  fireMode: FireMode; burstCount: number; burstDelay: number; chargeTime: number; minCharge: number;
+  ammo: string | null; milestone: string;
+  damage: number; pellets: number; fireRate: number; magazine: number;
+  reload: { style: ReloadStyle; time: number; perShellTime: number; emptyExtra: number };
+  projectile: { look: ProjectileLook; speed: number; gravity: number; splash: { radius: number; damage: number } | null; pierce: number; stick: boolean; fuse: number };
   spread: { hip: number; ads: number; movingPenalty: number; sprintBlocksFire: boolean };
   range: { falloffStart: number; falloffEnd: number; minMultiplier: number; maxDistance: number };
   weakPointMultiplier: number;
   recoil: { pitch: number; yawJitter: number; recovery: number };
-  adsTime: number;
-  egoCharge: {
-    chargePerHit: number; chargePerWeakPointHit: number; chargeToFire: number; overloadFill: number;
-    projectiles: number; damage: number; seekRadius: number; seekTurnRate: number;
-    projectileSpeed: number; burstRadius: number;
-  };
+  ads: { zoom: number; time: number; scope: boolean } | null;
+  handling: { equipTime: number; moveSpeed: number };
+  knockback: number;
+  egoCharge: EgoCharge | null;
+  /** Neural Overload each shot adds (charge weapons). */
+  overloadPerShot: number;
+  /** Pellets fan out evenly across this many degrees instead of a random cone (0: random cone). */
+  fanDegrees: number;
+  selfDamage: boolean;
+  /** Multiplies the host's gunfire noise radius while this gun fires (mods: noise.gunfire). */
+  noise: { gunfire: number };
+  /** Mod behaviours Gameplay implements by id (mods.json effects.special). */
+  specials: { id: string; [param: string]: unknown }[];
+  /** mods.json ids grafted onto this gun. */
+  mods: string[];
 }
 
 export interface Ability {
@@ -263,6 +330,40 @@ export const CLASSES = strip<Record<ClassId, HostClass>>(classesJson);
 export const HOST = strip<HostRules>(hostJson);
 export const WEAPONS = strip<Record<string, WeaponDef> & { synapseBurster: Weapon & Omit<WeaponDef, 'spread'> }>(weaponsJson);
 export type WeaponId = keyof typeof weaponsJson & string;
+/** Every weapon id in weapons.json, starter first. */
+export const WEAPON_IDS = Object.keys(WEAPONS);
+
+/** Resolves a weapons.json entry (roster or legacy shape) into a full WeaponSpec. Throws on an unknown id. */
+export function weaponSpec(id: string): WeaponSpec {
+  const w = WEAPONS[id] as Weapon | undefined;
+  if (!w) throw new Error(`unknown weapon ${id}`);
+  const reloadTime = w.reload?.time ?? w.reloadTime ?? 2;
+  const speed = w.projectile?.speed ?? w.projectileSpeed ?? 90;
+  const adsTime = w.adsTime ?? 0.2;
+  return {
+    id, label: w.label, class: w.class ?? 'carbine', rarity: w.rarity ?? 'common', fantasy: w.fantasy ?? '',
+    fireMode: w.fireMode ?? 'auto', burstCount: w.burstCount ?? 3, burstDelay: w.burstDelay ?? 1 / w.fireRate,
+    chargeTime: w.charge?.time ?? w.chargeTime ?? 1, minCharge: w.charge?.minFraction ?? 1,
+    ammo: w.ammo ?? null, milestone: w.milestone ?? 'spore',
+    damage: w.damage, pellets: w.pellets ?? 1, fireRate: w.fireRate, magazine: w.magazine,
+    reload: { style: w.reload?.style ?? 'regrow', time: reloadTime, perShellTime: w.reload?.perShellTime ?? reloadTime / Math.max(1, w.magazine), emptyExtra: w.reload?.emptyExtra ?? 0 },
+    projectile: {
+      look: w.projectile?.look ?? 'spore', speed, gravity: w.projectile?.gravity ?? w.projectileGravity ?? 0,
+      splash: w.projectile?.splash ?? w.burst ?? null,
+      pierce: w.projectile?.pierce ?? 0, stick: w.projectile?.stick ?? false, fuse: w.projectile?.fuse ?? 0,
+    },
+    spread: { hip: w.spread.hip, ads: w.spread.ads ?? w.spread.hip, movingPenalty: w.spread.movingPenalty, sprintBlocksFire: w.spread.sprintBlocksFire ?? true },
+    range: { ...w.range, maxDistance: w.range.maxDistance ?? w.range.falloffEnd * 1.8 },
+    weakPointMultiplier: w.weakPointMultiplier,
+    recoil: w.recoil ?? { pitch: 0.4, yawJitter: 0.15, recovery: 9 },
+    ads: w.ads === false ? null : { zoom: w.ads?.zoom ?? 1.2, time: w.ads?.time ?? adsTime, scope: w.ads?.scope ?? false },
+    handling: { equipTime: w.handling?.equipTime ?? 0.5, moveSpeed: w.handling?.moveSpeed ?? 1 },
+    knockback: w.knockback ?? 0,
+    egoCharge: w.egoCharge ?? null,
+    overloadPerShot: w.charge?.overloadPerShot ?? 0, fanDegrees: w.charge?.fanDegrees ?? 0, selfDamage: w.selfDamage ?? false,
+    noise: { gunfire: 1 }, specials: [], mods: [],
+  };
+}
 
 export const ABILITIES = strip<Record<string, Ability>>(abilitiesJson);
 export const ABOMINATIONS = strip<Record<string, Abomination>>(abominationsJson);
@@ -365,7 +466,7 @@ export function extractTimeFor(cls: ClassId): number {
 }
 
 /** Damage of one weapon projectile after range falloff and hit-zone/weak-point multipliers. */
-export function projectileDamage(w: Weapon, distance: number, multiplier = 1): number {
+export function projectileDamage(w: Pick<Weapon, 'damage' | 'range'>, distance: number, multiplier = 1): number {
   const { falloffStart, falloffEnd, minMultiplier } = w.range;
   const t = Math.min(1, Math.max(0, (distance - falloffStart) / (falloffEnd - falloffStart)));
   return w.damage * (1 - t * (1 - minMultiplier)) * multiplier;
@@ -433,6 +534,8 @@ export interface Progression {
   /** Total XP needed to reach level index+1. */
   levels: number[];
   evolutions: Record<ClassId, Evolution[]>;
+  /** Hive Armoury: class signature weapons grown for priceFraction x item value once the class level is reached. */
+  armoury?: { priceFraction: number; growTime: number };
 }
 
 export interface ViralLab {
@@ -615,12 +718,21 @@ export function weaponSources(id: string): { unlock?: { class: ClassId; level: n
 }
 
 export interface ReloadBeat { at: number; pose: string; cue: string }
-export interface FireFeel { kick: number; shake: number; push: number; settle: number; flash: number }
+export type ReticleStyle = 'cross' | 'ring' | 'chevron' | 'dot' | 'arc';
+export interface FireFeel {
+  kick: number; shake: number; push: number; settle: number; flash: number;
+  /** Spread bloom: degrees added per shot, the cap, and degrees/s it recovers. */
+  bloom?: number; bloomMax?: number; bloomRecover?: number;
+  /** Crosshair shape for the class (UI draws it). */
+  reticle?: ReticleStyle;
+}
 export interface WeaponFeel {
   reload: Record<'magazine' | 'perShell' | 'regrow', { beats: ReloadBeat[]; emptyExtraPose?: string; cancelAt?: number; openAndCloseTime?: number }>;
   fire: Record<WeaponClass, FireFeel>;
   idle: { breathe: { period: number; amplitude: number }; twitchEvery: Range; note: string };
   impact: { hitMarkerTime: number; weakPointHitMarkerScale: number; fleshDecalLife: number; note: string };
+  /** Which classes get the living-eye scope overlay, and the zoom cap for every other aiming gun. */
+  scope?: { classes: WeaponClass[]; noScopeZoom: number };
 }
 /** Firing and reload feel per weapon class and reload style (Design; read by Gameplay and Creature). */
 export const WEAPON_FEEL = stripDeep(weaponFeelJson) as WeaponFeel;

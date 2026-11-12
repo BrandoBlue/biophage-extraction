@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ABILITIES, ABOMINATIONS, HOST, WEAPONS } from '../data';
+import { ABILITIES, ABOMINATIONS, HOST, weaponSpec } from '../data';
 import { AbilitySystem } from '../src/game/abilities';
 import { EventBus } from '../src/game/events';
 import { ExtractionPoint } from '../src/game/extraction';
@@ -52,7 +52,8 @@ describe('Biomass', () => {
 });
 
 describe('Synapse Burster magazine', () => {
-  const w = WEAPONS.synapseBurster;
+  const spec = weaponSpec('synapseBurster');
+  const w = { ...spec, reloadTime: spec.reload.time };
   it('fires at fireRate while held', () => {
     const s = new AutoWeaponState(w);
     let shots = 0;

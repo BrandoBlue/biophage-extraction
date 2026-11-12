@@ -1,5 +1,5 @@
 {
-  "_note": "How firing and reloading should FEEL (docs/gdd/09). Reload beats are fractions of the weapon's reload time (perShell: of each shell's time), in order; each beat is a pose the model and arm must hit, with a sound cue. Fire feel per weapon class: kick = camera pitch kick in degrees per shot, shake = screen shake 0-1, push = how far the gun body recoils back in metres, settle = seconds to return, flash = muzzle bloom size in metres (organic spray, not a star). Gameplay and Creature read these; tune here.",
+  "_note": "How firing and reloading should FEEL (docs/gdd/09). Reload beats are fractions of the weapon's reload time (perShell: of each shell's time), in order; each beat is a pose the model and arm must hit, with a sound cue. Fire feel per weapon class: kick = camera pitch kick in degrees per shot, shake = screen shake 0-1, push = how far the gun body recoils back in metres, settle = seconds to return, flash = muzzle bloom size in metres (organic spray, not a star). Gameplay and Creature read these; tune here. bloom = degrees the spread cone grows per shot (less while aiming), bloomMax its cap, bloomRecover degrees/s it shrinks back; reticle = the crosshair shape UI draws for the class (cross, ring for pellets and beams, chevron, dot for snipers, arc for lobbed rounds).",
   "reload": {
     "magazine": {
       "beats": [
@@ -73,70 +73,110 @@
       "shake": 0.08,
       "push": 0.03,
       "settle": 0.12,
-      "flash": 0.15
+      "flash": 0.15,
+      "bloom": 0.5,
+      "bloomMax": 2.5,
+      "bloomRecover": 6,
+      "reticle": "cross"
     },
     "smg": {
       "kick": 0.35,
       "shake": 0.05,
       "push": 0.015,
       "settle": 0.06,
-      "flash": 0.12
+      "flash": 0.12,
+      "bloom": 0.25,
+      "bloomMax": 3,
+      "bloomRecover": 8,
+      "reticle": "cross"
     },
     "carbine": {
       "kick": 0.45,
       "shake": 0.06,
       "push": 0.02,
       "settle": 0.08,
-      "flash": 0.15
+      "flash": 0.15,
+      "bloom": 0.3,
+      "bloomMax": 2.5,
+      "bloomRecover": 6,
+      "reticle": "cross"
     },
     "rifle": {
       "kick": 0.7,
       "shake": 0.1,
       "push": 0.03,
       "settle": 0.1,
-      "flash": 0.2
+      "flash": 0.2,
+      "bloom": 0.35,
+      "bloomMax": 2,
+      "bloomRecover": 5,
+      "reticle": "cross"
     },
     "shotgun": {
       "kick": 3.5,
       "shake": 0.35,
       "push": 0.09,
       "settle": 0.3,
-      "flash": 0.4
+      "flash": 0.4,
+      "bloom": 1.2,
+      "bloomMax": 3,
+      "bloomRecover": 4,
+      "reticle": "ring"
     },
     "marksman": {
       "kick": 2.2,
       "shake": 0.2,
       "push": 0.06,
       "settle": 0.25,
-      "flash": 0.25
+      "flash": 0.25,
+      "bloom": 0.8,
+      "bloomMax": 2.5,
+      "bloomRecover": 3,
+      "reticle": "chevron"
     },
     "sniper": {
       "kick": 5,
       "shake": 0.45,
       "push": 0.12,
       "settle": 0.5,
-      "flash": 0.35
+      "flash": 0.35,
+      "bloom": 2,
+      "bloomMax": 4,
+      "bloomRecover": 2,
+      "reticle": "dot"
     },
     "launcher": {
       "kick": 3,
       "shake": 0.3,
       "push": 0.1,
       "settle": 0.4,
-      "flash": 0.3
+      "flash": 0.3,
+      "bloom": 0.6,
+      "bloomMax": 2,
+      "bloomRecover": 3,
+      "reticle": "arc"
     },
     "beam": {
       "kick": 1.5,
       "shake": 0.25,
       "push": 0.04,
       "settle": 0.3,
-      "flash": 0.5
+      "flash": 0.5,
+      "bloom": 0.1,
+      "bloomMax": 1,
+      "bloomRecover": 6,
+      "reticle": "ring"
     },
     "relic": {
       "kick": 1.2,
       "shake": 0.2,
       "push": 0.04,
       "settle": 0.2,
-      "flash": 0.35
+      "flash": 0.35,
+      "bloom": 0.4,
+      "bloomMax": 2,
+      "bloomRecover": 4,
+      "reticle": "chevron"
     }
   },
   "idle": {
@@ -155,5 +195,13 @@
     "weakPointHitMarkerScale": 1.4,
     "fleshDecalLife": 20,
     "note": "no damage numbers ever; hit-markers and wound VFX only"
+  },
+  "scope": {
+    "_note": "Only these classes get the full-screen living-eye scope, and only while Settings eyeScope is on. Every other aiming gun, and these with the eye off, zoom at most noScopeZoom with the normal crosshair.",
+    "classes": [
+      "marksman",
+      "sniper"
+    ],
+    "noScopeZoom": 1.6
   }
 }
