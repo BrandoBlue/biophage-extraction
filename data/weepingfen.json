@@ -1350,6 +1350,81 @@
       "count": 2,
       "spread": 6,
       "roam": 10
+    },
+    {
+      "kind": "fenstalker",
+      "x": 20,
+      "z": -252,
+      "count": 1,
+      "buried": 7,
+      "roam": 30
+    },
+    {
+      "kind": "fenstalker",
+      "x": 240,
+      "z": 60,
+      "count": 2,
+      "buried": 7,
+      "spread": 30,
+      "roam": 30
+    },
+    {
+      "kind": "fenstalker",
+      "x": 214,
+      "z": 262,
+      "count": 1,
+      "buried": 8,
+      "roam": 30
+    },
+    {
+      "kind": "glasswalker",
+      "x": -206,
+      "z": -196,
+      "count": 2,
+      "spread": 8,
+      "roam": 10
+    },
+    {
+      "kind": "mistwader",
+      "x": 30,
+      "z": 284,
+      "count": 1,
+      "spread": 40,
+      "roam": 70
+    },
+    {
+      "kind": "mistwader",
+      "x": -152,
+      "z": -262,
+      "count": 1,
+      "spread": 25,
+      "roam": 70
+    },
+    {
+      "kind": "mirebrood",
+      "x": -250,
+      "z": 98,
+      "count": 2,
+      "packed": true,
+      "spread": 10,
+      "roam": 15
+    },
+    {
+      "kind": "mirebrood",
+      "x": -160,
+      "z": 214,
+      "count": 1,
+      "packed": true,
+      "spread": 8,
+      "roam": 15
+    },
+    {
+      "kind": "titheWeaver",
+      "x": 216,
+      "z": -122,
+      "count": 2,
+      "spread": 18,
+      "roam": 12
     }
   ],
   "_growth_note": "Grown to Design's playableRadius 380 (2026-11-12): the original heart (r < 146) is unchanged; outer districts ring it, joined to the heart by trails that trees keep clear of. Extracts moved to the edges.",

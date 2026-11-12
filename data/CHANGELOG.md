@@ -2,6 +2,10 @@
 
 Every tuning change to `data/*.json`, newest first, with the reason.
 
+## Weeping Fen outer homes (2026-11-12, swamp thread #138)
+- habitats.json `weepingFen`: homes in the nine outer districts. Fenstalkers wait at the Titan Gate (1), the Drowned Causeway (2) and the Outflow (1). Glasswalkers haunt the Ghost Orchard wreck (2). Lone Mistwaders graze the Pale Wallows and the North Deep (1 each). Mirebrood nest in Bonewater (2) and Grey Hummock (1). Tithe Weavers web the East Tangle (2).
+- zones.json `weepingFen.landmarks`: adds the nine outer area ids. weepingfen.json `spawns`: the matching spawns at the swamp thread's suggested spots, two of them nudged clear of solids.
+
 ## The Expanse opens now; the pay-to-leave rule (2026-11-12)
 - zones.json `expanse`: milestone larva, access open (coordinator: Brandon reviews by playing and wants the 1 km map now). The intended gate is kept in `accessNote`.
 - raid.json `host.extracts.paidExtract`: alwaysOpen, payFrom carried kill DNA then banked DNA, charged on a completed channel, per host.
