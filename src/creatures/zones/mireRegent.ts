@@ -119,7 +119,7 @@ export class MireRegent {
       return roughen(new THREE.SphereGeometry(r, 10, 7).scale(1 + this.rand() * 0.4, 0.5 + this.rand() * 0.3, 1 + this.rand() * 0.4), 0.15 * r, 3 / r, k).translate(x, y, z);
     })), back));
     // The head: the front of the hull, a door-wide upper lip, and the lower jaw on its hinge.
-    const lip = new THREE.Mesh(roughen(new THREE.TorusGeometry(WIDTH * 0.36, 0.32, 10, 36, Math.PI).rotateX(Math.PI / 2).rotateY(-Math.PI / 2).scale(1, 1, 0.55).translate(0, -0.15, HALF * 0.82), 0.06, 2, 3), back);
+    const lip = new THREE.Mesh(roughen(new THREE.TorusGeometry(WIDTH * 0.36, 0.32, 12, 40, Math.PI).rotateX(Math.PI / 2).rotateY(-Math.PI / 2).scale(1, 1.15, 0.55).translate(0, -0.15, HALF * 0.82), 0.16, 1.4, 3), back);
     this.hull.add(lip);
     this.jaw.position.set(0, -HEIGHT * 0.12, HALF * 0.25);
     this.hull.add(this.jaw);

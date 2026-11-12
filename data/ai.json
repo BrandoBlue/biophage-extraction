@@ -326,5 +326,39 @@
     "thrashReach": 2,
     "firstAttack": 4,
     "drownClose": 5
+  },
+  "nethermaw": {
+    "_note": "The Nethermaw (src/ai/nethermaw.ts); attack numbers stay in bosses.json `nethermaw`. Wakes when a host is within wakeRadius of the mouth and no more than wakeAbove m above the pit floor (the deep layer), or when shot. Breathes on a breathCycle s cycle; the updraft pulls only while the breath is past inhaleFrom. A lobe swells for the pulse wind-up and stays swollen swellHold s after it fires (still hittable). It picks the lobe facing the host; a swelling lobe shot for flinchDamage within the wind-up flinches and the pulse is lost. False lights stand falseLightRadius m out from the mouth and spring when a host comes within falseLightTrigger m (a blast of radius falseLightBlast). Wall roots strike at the host from the nearest wall: a host still within rootRadius m of the aim when they land is hit; only used on hosts at least rootMinRange m from the mouth. Walkways tear from the lowest up. firstAttack: delay before attacks with no firstDelay. Each broken root column takes columnPulseCut off its pulses (bosses.json: 20% each). Once every false light has sprung, new ones rise after falseLightEvery s.",
+    "wakeAbove": 45,
+    "breathCycle": 7,
+    "inhaleFrom": 0.35,
+    "swellHold": 1.2,
+    "flinchDamage": 120,
+    "falseLightRadius": 20,
+    "falseLightTrigger": 3.5,
+    "falseLightBlast": 6,
+    "rootRadius": 2.6,
+    "rootMinRange": 6,
+    "firstAttack": 4,
+    "columnPulseCut": 0.2,
+    "falseLightEvery": 25
+  },
+  "regent": {
+    "_note": "The Mire Regent (src/ai/regent.ts); attack numbers stay in bosses.json `mireRegent`. Wakes when a host wades into the pool (within the pool radius and below waterY + wadeHeight) and within wakeRadius, or when shot. A host more than wadeHeight above the water stands on a root or island: out of the arm, the ripple and the thrash. It keeps inside keepInside x the pool radius. Lurking it stalks under the water to stalkDistance m from a wading host and waits beside an island the host stands on. armReach adds to dragUnder.range from its centre; the arm grabs if the host is still within grabRadius m of where it reached. rise eases at riseRate per s; the rise phase rears every rearEvery s for rearFor s (pearls out). An eye hit makes it dive for diveFor s and come up on the far side. tongueCone: half angle (deg) of the tongue line. The belly slam lunges lungeDistance m toward the host during the wind-up. firstAttack: delay before attacks with no firstDelay. Each eye takes eyeBiomass before it bursts (every eye hit makes it dive; eyes under the water while it dives cannot be hit). Enraged, a host standing in water anywhere loses enrageDrain Biomass per s (bosses.json: 4/s).",
+    "wakeRadius": 25,
+    "wadeHeight": 0.6,
+    "keepInside": 0.85,
+    "stalkDistance": 7,
+    "armReach": 5,
+    "grabRadius": 2.5,
+    "riseRate": 1.2,
+    "rearEvery": 9,
+    "rearFor": 5,
+    "diveFor": 3,
+    "tongueCone": 9,
+    "lungeDistance": 5,
+    "firstAttack": 3,
+    "eyeBiomass": 200,
+    "enrageDrain": 4
   }
 }

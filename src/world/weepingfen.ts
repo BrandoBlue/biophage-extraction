@@ -839,7 +839,7 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
   return {
     layout,
     sites: { group: sitesGroup, setExtractOpen(id, open) { const r = rings.get(id); if (r) r.visible = open; }, setNodeHarvested() { /* blooms wither through Gameplay's prop */ } },
-    structures: { group: root, loot, arena: null, breakPillar() { /* no pillars in the fen */ } },
+    structures: { group: root, loot, arena: null, regent: regentPool, breakPillar() { /* no pillars in the fen */ } },
     landmarkAt: (x, z) => fenAreaAt(x, z)?.id ?? null,
   };
 }
