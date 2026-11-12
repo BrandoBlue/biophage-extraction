@@ -7,6 +7,7 @@ import { lightShaft } from '../render/atmos';
 import { zone7Sky } from '../render/sky';
 import { groundCover } from '../render/cover';
 import FEN_JSON from '../../data/weepingfen.json';
+import { RAID } from '../../data';
 import { mulberry32 } from './rng';
 import type { Collider } from './collision';
 import { oldBone, type BuiltStructures, type LootSpot } from './structures';
@@ -39,7 +40,8 @@ interface FenData {
   radius: number;
   water: { level: number; shallow: number; channel: number; mudRise: number };
   spawn: XZ;
-  extracts: { id: string; label: string; x: number; z: number; opensAt: number | null }[];
+  /** `paid`: Design's pay-to-leave extract (raid.json host.extracts.paidExtract): always open, costs DNA when the channel completes. */
+  extracts: { id: string; label: string; x: number; z: number; opensAt: number | null; paid?: boolean }[];
   islets: Islet[];
   channels: Channel[];
   titans: Titan[];
@@ -133,7 +135,10 @@ export function fenAreaAt(x: number, z: number): Area | null {
 
 /** The fen's layout in the Raid's terms. */
 export function fenLayout(seed: number): Zone7Layout {
-  const extracts: ExtractSite[] = FEN.extracts.map((e) => ({ id: e.id, label: e.label, x: e.x, z: e.z, opensAt: e.opensAt ?? Infinity }));
+  const paid = RAID.host.extracts.paidExtract;
+  const extracts: ExtractSite[] = FEN.extracts.map((e) => e.paid && paid
+    ? { id: e.id, label: e.label, x: e.x, z: e.z, opensAt: 0, costDna: paid.costDna, time: paid.extractTime }
+    : { id: e.id, label: e.label, x: e.x, z: e.z, opensAt: e.opensAt ?? Infinity });
   const R = FEN.radius - 18;
   return {
     seed,
@@ -1117,6 +1122,20 @@ export function buildWeepingFen(scene: THREE.Scene, seed: number): FenWorld {
       const a = (k / 4) * Math.PI * 2 + 0.4, px = e.x + Math.cos(a) * 5, pz = e.z + Math.sin(a) * 5;
       batch.add(bark, new THREE.CylinderGeometry(0.1, 0.14, 2.6, 6), M4(px, g + 1.3, pz));
       batch.add(amber, new THREE.SphereGeometry(0.15, 8, 6), M4(px, g + 2.7, pz));
+    }
+    if (e.costDna) {
+      // The toll: three bone legs lean together over a lit amber gland, the price of the swim-out.
+      const tx = e.x + 6.6, tz = e.z - 1.2, th = 2.4;
+      for (let k = 0; k < 3; k++) {
+        const a = (k / 3) * Math.PI * 2, fx = tx + Math.cos(a) * 1.1, fz = tz + Math.sin(a) * 1.1;
+        const leg = new THREE.Vector3(tx - fx, th, tz - fz);
+        const m = new THREE.Matrix4().compose(
+          new THREE.Vector3((fx + tx) / 2, g + th / 2, (fz + tz) / 2),
+          new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), leg.clone().normalize()),
+          new THREE.Vector3(1, 1, 1));
+        batch.add(ribBone, new THREE.CylinderGeometry(0.07, 0.13, leg.length(), 6), m);
+      }
+      batch.add(amber, new THREE.IcosahedronGeometry(0.42, 2).scale(1, 1.3, 1), M4(tx, g + th - 0.35, tz));
     }
     const ring = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.07, 6, 48).rotateX(-Math.PI / 2), bioNode(e.opensAt > 0 ? ZONE7.violet : ORGANIC.amber, 2.5));
     ring.position.set(e.x, g + 0.08, e.z);

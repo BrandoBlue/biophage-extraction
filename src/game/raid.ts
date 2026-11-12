@@ -383,8 +383,10 @@ export class Raid {
     const p = this.player.position;
     const open = this.spires.filter((s) => s.open);
     if (!open.length) return this.spires[0];
+    // Point the way to a free exit while one is open; the paid one is shown only when it is the sole choice or you stand in it.
+    const free = open.filter((s) => !s.costDna), pick = free.length ? free : open;
     return open.find((s) => s.point.inside)
-      ?? open.reduce((a, b) => (Math.hypot(a.point.x - p.x, a.point.z - p.z) <= Math.hypot(b.point.x - p.x, b.point.z - p.z) ? a : b));
+      ?? pick.reduce((a, b) => (Math.hypot(a.point.x - p.x, a.point.z - p.z) <= Math.hypot(b.point.x - p.x, b.point.z - p.z) ? a : b));
   }
   /** Raid length for this zone (zones.json raidTime), else the default. */
   get raidTime(): number { return ZONES[this.zone]?.raidTime ?? RAID.raidTime; }
