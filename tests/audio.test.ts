@@ -8,6 +8,7 @@ import { Intensity, Stride, behind, stepLevel, surfaceFor, threatLevel, weightOf
 import * as S from '../src/audio/sfx';
 import { GUNS, MOD_SOUNDS, gunShot, weaponSwap } from '../src/audio/guns';
 import { BOSSES as BOSS_VOICES, EMITTERS, SPECIES, bossVoice, speciesVoice, stalkWarn } from '../src/audio/voices';
+import { EdgeMurk, MURK, edgeLevel } from '../src/audio/edge';
 import { fakeContext } from './lib/fake-audio';
 
 const rig = () => { const ctx = fakeContext(); const e = new AudioEngine(ctx); return { ctx, e, out: e.buses.sfx }; };
@@ -132,6 +133,30 @@ describe('zones sound distinct', () => {
       return a.calls;
     };
     expect(count(1)).toBeGreaterThan(count(0) * 1.15);
+  });
+});
+
+describe('the edge of the map', () => {
+  it('fades in from 70% of the playable radius to the edge, and not at all without an edge', () => {
+    expect(edgeLevel(0, 0, 200)).toBe(0);
+    expect(edgeLevel(AUDIO.edge.from * 200 - 1, 0, 200)).toBe(0);
+    const mid = edgeLevel(0, ((AUDIO.edge.from + AUDIO.edge.to) / 2) * 200, 200);
+    expect(mid).toBeGreaterThan(0.3); expect(mid).toBeLessThan(0.7);
+    expect(edgeLevel(150, 150, 200)).toBe(1);
+    expect(edgeLevel(500, 0, 0)).toBe(0);
+  });
+  it('the murk breathes and things move in it, more the closer you are', () => {
+    const { e, out } = rig();
+    for (const r of Object.values(MURK)) expect(r(e.x, out, 0)).toBeGreaterThan(0);
+    const run = (level: number) => {
+      const { ctx, e } = rig();
+      const m = new EdgeMurk(e);
+      for (let i = 0; i < 600; i++) { ctx.currentTime += 1; m.update(ctx.currentTime, level, 190, 0); }
+      return m.calls;
+    };
+    expect(run(0)).toBe(0);
+    expect(run(1)).toBeGreaterThan(run(0.3));
+    expect(run(1)).toBeGreaterThan(20);
   });
 });
 

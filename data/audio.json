@@ -257,5 +257,14 @@
     "extra": 2,
     "intensityFloor": 0.38,
     "heartbeatFrom": 0.8
+  },
+  "edge": {
+    "_note": "Edge of the map (Rendering's boundary murk): silent inside from x playableRadius, full at to x playableRadius (match EDGE_FOG.closeIn in src/render/fog.ts). level = bed loudness at full; music ducks by musicDuck; perMinute = one-shot rates at full (shift: something large moving in the murk, wet: distant wet movement, call: a far call with no source). Calls come from beyond the edge, distance range in metres.",
+    "from": 0.7,
+    "to": 1.0,
+    "level": 0.55,
+    "musicDuck": 0.35,
+    "perMinute": { "shift": 5, "wet": 7, "call": 2.5 },
+    "range": [35, 90]
   }
 }

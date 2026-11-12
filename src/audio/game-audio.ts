@@ -10,6 +10,7 @@ import type { Raid } from '../game/raid';
 import { AUDIO, ambienceFor, type Weight } from './config';
 import { AudioEngine, volumeGain, type Bus, type V3 } from './engine';
 import { Ambience } from './ambience';
+import { EdgeMurk, edgeLevel } from './edge';
 import { Music, flavourFor } from './music';
 import { Intensity, Stride, behind, stepLevel, surfaceFor, threatLevel, weightOf } from './director';
 import * as S from './sfx';
@@ -29,6 +30,8 @@ export interface GameAudioOptions {
   region?(x: number, y: number, z: number): string | null;
   /** Depth dread 0..1 (Marrow Pit: 0 at the rim, 1 on the floor). */
   depth?(x: number, y: number, z: number): number;
+  /** Playable radius round (0, 0) where the map's edge murk begins (0 = no edge, e.g. the Wreck). */
+  edgeRadius?: number;
   /** Master volume 0..1 (Settings). */
   volume(): number;
 }
@@ -41,6 +44,7 @@ export class GameAudio {
   engine: AudioEngine | null = null;
   private music: Music | null = null;
   private ambience: Ambience | null = null;
+  private edge: EdgeMurk | null = null;
   private intensity = new Intensity();
   private stride = new Stride();
   private lastPos = new THREE.Vector3();
@@ -81,6 +85,7 @@ export class GameAudio {
       this.engine = new AudioEngine(ctx);
       this.music = new Music(this.engine);
       this.ambience = new Ambience(this.engine);
+      this.edge = new EdgeMurk(this.engine);
       this.applyVolume();
       if (ctx.state === 'suspended') void ctx.resume();
     } catch (err) {
@@ -262,6 +267,7 @@ export class GameAudio {
       e.muffle.frequency.setTargetAtTime(20000, now, 0.3);
       music.update(now, 0, false);
       amb.update(now);
+      this.edge?.update(now, 0, 0, 0);
       return;
     }
     music.start('raid');
@@ -310,7 +316,10 @@ export class GameAudio {
     }
     this.hush += (hush - this.hush) * Math.min(1, dt * (hush > this.hush ? 1.5 : 0.4));
     const duck = 1 - this.hush * AUDIO.music.hushDuck;
-    e.duck('music', duck, 0.5);
+    // The edge of the map: the murk's own sound fades in and the music thins out.
+    const edge = this.enclosedNow && this.opt.zone !== 'marrowPit' ? 0 : edgeLevel(p.x, p.z, this.opt.edgeRadius ?? 0);
+    this.edge?.update(now, edge, p.x, p.z);
+    e.duck('music', duck * (1 - edge * AUDIO.edge.musicDuck), 0.5);
     e.duck('ambience', duck, 0.5);
     music.update(now, this.hush > 0.5 ? Math.min(intensity, AUDIO.music.tension + 0.1) : intensity, bossNear);
     amb.update(now);
@@ -380,7 +389,7 @@ export class GameAudio {
   stats(): Record<string, unknown> {
     const e = this.engine;
     return e
-      ? { started: true, state: (e.ctx as AudioContext).state, played: e.played, dropped: e.dropped, active: e.active, level: +e.level.toFixed(3), music: this.music?.mode, notes: this.music?.notes, intensity: +this.intensity.value.toFixed(3), hush: +this.hush.toFixed(2), flavour: this.music?.flavour, dread: +(this.ambience?.dread ?? 0).toFixed(2), ambience: this.ambience?.current?.bed ?? null, ambienceCalls: this.ambience?.calls ?? 0 }
+      ? { started: true, state: (e.ctx as AudioContext).state, played: e.played, dropped: e.dropped, active: e.active, level: +e.level.toFixed(3), music: this.music?.mode, notes: this.music?.notes, intensity: +this.intensity.value.toFixed(3), hush: +this.hush.toFixed(2), flavour: this.music?.flavour, dread: +(this.ambience?.dread ?? 0).toFixed(2), ambience: this.ambience?.current?.bed ?? null, ambienceCalls: this.ambience?.calls ?? 0, edge: +(this.edge?.level ?? 0).toFixed(2), edgeCalls: this.edge?.calls ?? 0 }
       : { started: false };
   }
 }
