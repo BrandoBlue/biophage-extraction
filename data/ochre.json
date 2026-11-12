@@ -64,7 +64,21 @@
     "z": -275,
     "radius": 52,
     "depth": 11,
-    "rim": 4
+    "rim": 4,
+    "pillars": [
+      { "id": "spire", "x": -28, "z": -285, "s": 4.5 },
+      { "id": "anvil", "x": -55, "z": -262, "s": 3.8 },
+      { "id": "slab", "x": -48, "z": -296, "s": 3.2 },
+      { "id": "knuckle", "x": -22, "z": -258, "s": 3.0 },
+      { "id": "shard", "x": -62, "z": -283, "s": 4.0 },
+      { "id": "cinder", "x": -35, "z": -302, "s": 2.8 }
+    ],
+    "entrances": [
+      { "id": "villageCut", "angle": 90 },
+      { "id": "rigCut", "angle": 180 },
+      { "id": "duneCut", "angle": 0 }
+    ],
+    "cutWidth": 14
   },
   "gulch": {
     "plateau": {
