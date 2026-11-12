@@ -12,7 +12,7 @@ import { AI, type Abomination as AbominationData } from '../../data';
 import { mulberry32 } from '../world/zone7';
 import { Awareness } from './senses';
 import type { TokenKind } from './tokens';
-import type { AIEvent, BrainWorld, Mode, Vec2, Vec3 } from './types';
+import type { AIEvent, BrainWorld, Intent, Mode, Tactic, Vec2, Vec3 } from './types';
 
 export const wrapAngle = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 const damp = (a: number, b: number, k: number, dt: number) => b + (a - b) * Math.exp(-k * dt);
@@ -21,6 +21,9 @@ const damp = (a: number, b: number, k: number, dt: number) => b + (a - b) * Math
 const TRACK_GRACE = 1.5;
 /** Tuning that makes hunters frightening: the stare, the fanned-out search, the ambush, the wounded retreat. */
 const M = AI.menace;
+const T = AI.tactics;
+/** Phases where an archetype has committed to an attack: no tactic interrupts these. */
+const COMMITTED = /windup|lunge|burst|ripple|charge|stampede|dive|strike|rack|spit|tell|rear/;
 
 export type LurkHow = 'hatch' | 'disguise' | 'ambush';
 
@@ -42,6 +45,8 @@ export abstract class Brain {
   submerged = 0;
   /** 0..1 the species action the new-zone bodies play (quill volley, shear cut, grab...). */
   action = 0;
+  /** What it is thinking right now (stare, stalk, lure, evade, press, falter...): the readable intent. */
+  intent: Intent = 'idle';
   /** One-shot events since the owner last drained them. */
   readonly events: AIEvent[] = [];
   readonly awareness: Awareness;
@@ -78,6 +83,21 @@ export abstract class Brain {
   /** Agile archetypes that juke sideways when the host aims at them and fires (swarm, flyer). */
   protected readonly dodges: boolean = false;
   private dodgeCd = 0;
+  // Tactics (ai.json tactics): readable decisions layered over every archetype's hunt.
+  private aimedFor = 0;
+  private evadeFor = 0;
+  private evadeCd = 0;
+  private evadeSide = 1;
+  private lureFor = 0;
+  private lureShow = 0;
+  private falterFor = 0;
+  /** Packmates of its kind it could count at the start of this hunt, and how many are alive now. */
+  private packStart = -1;
+  private readonly pack = new Set<number>();
+  private packLost = 0;
+  private routed = false;
+  private wasReloading = false;
+  private pressing = false;
   protected phaseTime = 0;
   protected cooldown = 0;
   private staggerFor = 0;
@@ -135,6 +155,8 @@ export abstract class Brain {
     if (this.mode === 'dead' || this.lurk) return;
     this.awareness.alert(at);
     this.awareness.sinceSeen = 0;
+    // Called by the pack: no more staring, it comes.
+    if (this.mode === 'hunt' && this.spotFor > 0) this.spotFor = Math.min(this.spotFor, 0.05);
     this.pendingFix = at === null;
     this.pendingHunt = true;
   }
@@ -204,10 +226,20 @@ export abstract class Brain {
       // It found the host itself (not told by a packmate or a wound): it stops dead and stares before it comes.
       const [r0, r1] = M.reaction;
       this.spotFor = this.pendingHunt ? 0 : r0 + this.rand() * (r1 - r0);
+      const foundIt = !this.pendingHunt;
       this.mode = 'hunt';
       this.chased = true;
       this.awareness.level = 1;
-      this.events.push({ type: 'alert' });
+      // A pack hunter that found the host itself may lure it back to the others instead of calling them in.
+      const lureKey = `lure:${this.kind}`;
+      if (foundIt && this.uses('lure') && !w.tokens.sharedReady(lureKey, T.lure.time)) {
+        // A packmate is already luring this host: it holds still and watches, waiting for the pack to be sprung.
+        this.spotFor = T.lure.time;
+      } else if (foundIt && this.uses('lure') && this.packCount(w, T.lure.radius) >= T.lure.packMin && this.rand() < T.lure.chance) {
+        w.tokens.useShared(lureKey);
+        this.lureFor = T.lure.time; this.lureShow = T.lure.show;
+        this.tactic('lure');
+      } else this.events.push({ type: 'alert' });
       this.setPhase(this.spotFor > 0 ? 'spot' : 'engage');
       if (this.spotFor <= 0) this.onEngage(w);
     } else if (this.mode === 'calm' && this.awareness.suspicious && this.awareness.lastKnown) {
@@ -247,14 +279,162 @@ export abstract class Brain {
           this.searchTo = null; this.searchPts = 0;
           const dx = tgt.x - b.x, dz = tgt.z - b.z;
           const dist = Math.hypot(dx, dz) || 1e-6;
-          this.hunt(dt, w, tgt, dist, dx / dist, dz / dist);
-          this.dodge(dt, w, dist);
+          if (!this.tactics(dt, w, tgt, dist, dx / dist, dz / dist)) {
+            this.hunt(dt, w, tgt, dist, dx / dist, dz / dist);
+            this.dodge(dt, w, dist);
+          }
         } else this.search(dt, w);
         break;
       }
     }
     this.excite = damp(this.excite, this.mode === 'hunt' ? 1 : this.mode === 'investigate' ? 0.45 : 0, 3, dt);
+    this.intent = this.readIntent();
     this.integrate(dt, w);
+  }
+
+  // ------------------------------------------------------------------ tactics: readable thinking
+
+  private uses(t: keyof typeof T.uses): boolean { return T.uses[t].includes(AI.archetypes[this.kind] ?? 'swarm'); }
+
+  /** Living creatures of its own kind within `r` m (not itself). */
+  private packCount(w: BrainWorld, r: number): number {
+    let n = 0;
+    for (const a of w.allies) if (a.id !== this.id && a.kind === this.kind && a.alive && Math.hypot(a.position.x - this.body.x, a.position.z - this.body.z) <= r) n++;
+    return n;
+  }
+
+  private tactic(what: Tactic): void { this.events.push({ type: 'tactic', what }); }
+
+  /** Mid-attack: wind-up, lunge, burst... nothing breaks that, so committed attacks stay punishable. */
+  protected get committed(): boolean {
+    if (COMMITTED.test(this.phase)) return true;
+    // A swarm's feint in the ring is a fake-out, not a commitment.
+    return this.phase !== 'ring' && (this.windup > 0.05 || this.strike !== null);
+  }
+
+  /**
+   * Decisions any hunter can make over its archetype's own hunt, each with a tell: luring the host back to its pack,
+   * faltering when a packmate falls, breaking out of a held aim, pressing in while the host reloads. Returns true when
+   * a tactic moved the body this frame (the archetype's hunt is skipped).
+   */
+  private tactics(dt: number, w: BrainWorld, host: Vec3, dist: number, dx: number, dz: number): boolean {
+    const h = w.host, t = this.data;
+    this.evadeCd = Math.max(0, this.evadeCd - dt);
+    // Packmates falling.
+    if (this.uses('falter')) {
+      // Track the packmates close by; one that dies (not one that wanders off) is a loss it sees.
+      let fell = 0;
+      for (const id of this.pack) {
+        let a: (typeof w.allies)[number] | undefined;
+        for (const o of w.allies) if (o.id === id) { a = o; break; }
+        if (!a || !a.alive) { this.pack.delete(id); fell++; }
+      }
+      for (const a of w.allies) if (a.id !== this.id && a.kind === this.kind && a.alive && Math.hypot(a.position.x - this.body.x, a.position.z - this.body.z) <= T.falter.radius) this.pack.add(a.id);
+      this.packLost += fell;
+      this.packStart = Math.max(this.packStart, this.pack.size + this.packLost);
+      if (fell > 0 && !this.committed) {
+        if (!this.routed && this.packStart >= 2 && this.packLost >= this.packStart * T.falter.rout) {
+          this.routed = true; this.fleeFor = M.wounded.fleeTime * 1.5; this.lureFor = 0;
+          this.tactic('rout');
+        } else { this.falterFor = T.falter.time; this.lureFor = 0; this.tactic('falter'); }
+        this.releaseToken(w);
+      }
+    }
+    // The reload: a window, and they know it.
+    const reloading = !!h.reloading && dist <= T.reload.range && this.uses('press');
+    if (reloading && !this.wasReloading) {
+      this.cooldown = 0; this.falterFor = 0; this.evadeFor = 0; this.aimedFor = 0;
+      if (this.lureFor > 0) { this.lureFor = 0; this.spring(w); }
+      if (w.tokens.sharedReady('press', T.reload.callCooldown)) { w.tokens.useShared('press'); this.tactic('press'); }
+    }
+    this.wasReloading = reloading;
+    this.pressing = reloading;
+    if (this.fleeFor > 0) return false;
+    // Luring: stand in plain view, then back away toward the pack, watching the host, and spring it.
+    if (this.lureFor > 0) {
+      this.lureFor -= dt;
+      this.look = { x: host.x, y: host.y + 1.5, z: host.z };
+      this.windup = 0;
+      this.setPhase('lure');
+      this.face(this.yawTo(host.x, host.z), this.turnRate, dt);
+      let cx = 0, cz = 0, n = 0;
+      for (const a of w.allies) if (a.id !== this.id && a.kind === this.kind && a.alive && Math.hypot(a.position.x - this.body.x, a.position.z - this.body.z) <= T.lure.radius) { cx += a.position.x; cz += a.position.z; n++; }
+      if (n === 0) { this.lureFor = 0; this.spring(w); return false; }
+      cx /= n; cz /= n;
+      if (this.lureShow > 0) { this.lureShow -= dt; this.slow(dt, 6); }
+      else {
+        const tx = cx - this.body.x, tz = cz - this.body.z, tl = Math.hypot(tx, tz);
+        const sp = t.speed * T.lure.backoff;
+        if (tl > 1.5) this.steer((tx / tl) * sp, (tz / tl) * sp, 4, dt); else this.slow(dt, 4);
+      }
+      if (this.lureFor <= 0 || Math.hypot(h.x - cx, h.z - cz) <= T.lure.spring || dist < t.attackRange * 1.5) { this.lureFor = 0; this.spring(w); }
+      return true;
+    }
+    // A packmate just fell: it stops, watches the host and edges back.
+    if (this.falterFor > 0) {
+      this.falterFor -= dt;
+      this.windup = 0; this.strike = null;
+      this.setPhase('falter');
+      this.look = { x: host.x, y: host.y + 1.2, z: host.z };
+      this.face(this.yawTo(host.x, host.z), this.turnRate, dt);
+      this.steer(-dx * t.speed * T.falter.backoff, -dz * t.speed * T.falter.backoff, 4, dt);
+      if (this.falterFor <= 0) this.setPhase('engage');
+      return true;
+    }
+    // Held in the host's sights: it breaks sideways out of the line rather than walking into it.
+    const f = h.forward;
+    if (this.uses('evade') && f && !this.pressing && !this.committed && dist <= T.aim.range) {
+      const cos = (-dx * f.x + -dz * f.z);
+      const inside = cos >= Math.cos((T.aim.cone * Math.PI) / 360);
+      this.aimedFor = inside ? this.aimedFor + dt * (h.aiming ? T.aim.adsFactor : 1) : Math.max(0, this.aimedFor - dt * 2);
+      if (this.aimedFor >= T.aim.hold && this.evadeCd <= 0 && this.evadeFor <= 0) {
+        // Out of the cone on whichever side it is already nearer.
+        this.evadeSide = (f.x * -dz - f.z * -dx) >= 0 ? -1 : 1;
+        this.evadeFor = T.aim.time; this.evadeCd = T.aim.cooldown; this.aimedFor = 0;
+        this.releaseToken(w);
+        this.tactic('evade');
+      }
+    } else this.aimedFor = 0;
+    if (this.evadeFor > 0) {
+      this.evadeFor -= dt;
+      const sp = t.speed * T.aim.speed, s = this.evadeSide;
+      this.steer(-dz * s * sp, dx * s * sp, 8, dt);
+      this.face(this.yawTo(host.x, host.z), this.turnRate, dt);
+      this.look = { x: host.x, y: host.y + 1.2, z: host.z };
+      this.windup = 0;
+      this.setPhase('evade');
+      if (this.evadeFor <= 0) this.setPhase('engage');
+      return true;
+    }
+    return false;
+  }
+
+  /** The lure is sprung: the whole pack comes at once. */
+  private spring(w: BrainWorld): void {
+    this.tactic('spring');
+    this.events.push({ type: 'alert' });
+    this.events.push({ type: 'alarm', radius: T.lure.radius });
+    this.setPhase('engage');
+    this.onEngage(w);
+  }
+
+  private readIntent(): Intent {
+    switch (this.mode) {
+      case 'dead': return 'dead';
+      case 'calm': return 'idle';
+      case 'investigate': return 'wary';
+      case 'stagger': return 'reel';
+    }
+    if (this.fleeFor > 0 || this.phase === 'flee') return 'flee';
+    if (this.spotFor > 0) return 'stare';
+    if (this.lureFor > 0) return 'lure';
+    if (this.falterFor > 0) return 'falter';
+    if (this.evadeFor > 0) return 'evade';
+    if (this.phase === 'search') return 'search';
+    if (this.committed) return 'attack';
+    if (this.pressing) return 'press';
+    if (/stalk|ring|circle|swim|orbit|kite|wheel|hover/.test(this.phase)) return 'stalk';
+    return 'hunt';
   }
 
   // ------------------------------------------------------------------ archetype hooks
@@ -383,6 +563,7 @@ export abstract class Brain {
   private calmDown(w: BrainWorld): void {
     this.mode = 'calm';
     this.chased = false; this.spotFor = 0; this.fleeFor = 0; this.searchTo = null;
+    this.lureFor = 0; this.falterFor = 0; this.evadeFor = 0; this.packStart = -1; this.pack.clear(); this.packLost = 0; this.routed = false; this.pressing = false;
     this.awareness.level = 0;
     this.releaseToken(w);
     this.onInterrupted();
@@ -393,7 +574,7 @@ export abstract class Brain {
 
   protected setPhase(p: string): void { if (this.phase !== p) { this.phase = p; this.phaseTime = 0; } }
 
-  protected requestToken(w: BrainWorld): boolean { return w.tokens.request(this.id, this.tokenKind); }
+  protected requestToken(w: BrainWorld): boolean { return w.tokens.request(this.id, this.tokenKind, this.pressing ? T.reload.extraTokens : 0); }
   protected releaseToken(w: BrainWorld): void { w.tokens.release(this.id); }
   /** Keep a held token alive while committed to an attack. */
   protected keepToken(w: BrainWorld): void { if (w.tokens.holds(this.id)) w.tokens.request(this.id, this.tokenKind); }

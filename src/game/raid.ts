@@ -1135,6 +1135,8 @@ export class Raid {
       // PvE AI senses: how lit up the host is, and where it is looking (src/ai).
       playerVisibility: hostVisibility({ moving: p.moving, sprinting: p.sprinting, crouched: p.crouched, sinceShot: p.sinceFired, virus: p.footstepScale }),
       playerForward: { x: -Math.sin(p.yaw), z: -Math.cos(p.yaw) },
+      playerReloading: this.weapon.state.isReloading, playerAiming: this.weapon.aim > 0.5,
+      onTactic: (c, what) => this.bus.emit('creatureTactic', { id: c.id, type: c.kind, what, position: { x: c.position.x, y: c.position.y, z: c.position.z } }),
       onKnockback: (c, strength) => {
         const d = new THREE.Vector3(p.position.x - c.position.x, 0, p.position.z - c.position.z);
         if (d.lengthSq() < 1e-6) d.set(Math.sin(c.yaw), 0, Math.cos(c.yaw));
@@ -1305,7 +1307,7 @@ export class Raid {
     const t = best;
     return {
       ...ctx, player: t.position, playerVelocity: t.velocity, playerAlive: true,
-      playerVisibility: t.visibility, playerForward: t.forward,
+      playerVisibility: t.visibility, playerForward: t.forward, playerReloading: false, playerAiming: false,
       onMelee: (a, dmg) => {
         this.bus.emit('attack', { id: a.id, type: a.kind, position: { x: a.position.x, y: a.position.y, z: a.position.z } });
         t.hurt(dmg, a.kind, a.position);

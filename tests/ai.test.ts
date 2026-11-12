@@ -645,3 +645,73 @@ describe('swamp creatures: Fenstalker and Mistwader', () => {
     expect(s.events.filter((e) => e.e.type === 'slam').length).toBe(1);
   });
 });
+
+describe('thinking: readable tactics over every hunt (ai.json tactics)', () => {
+  const T = AI.tactics;
+  const tact = (s: Sim, what: string) => s.events.filter((e) => e.e.type === 'tactic' && (e.e as { what: string }).what === what);
+
+  it('a pack hunter that finds the host itself shows itself, backs off toward its pack, then springs them all at once', () => {
+    const bait = at('needlemaw', 1, 0, 14, 1), p1 = at('needlemaw', 2, 0, 38, 2), p2 = at('needlemaw', 3, 2, 38, 3);
+    bait.body.yaw = Math.PI; p1.body.yaw = 0; p2.body.yaw = 0;
+    const h = host({ forward: { x: 0, z: -1 } });
+    let lureAt = -1, startZ = 0, furthest = 0, sprung = -1;
+    const s = simulate([bait, p1, p2], 14, h, { each: (sim) => {
+      for (const e of sim.events) if (e.e.type === 'alarm' && sprung < 0) { sprung = e.t; for (const o of [bait, p1, p2]) if (o !== e.brain) o.alert({ x: 0, z: 0 }); }
+      if (lureAt < 0 && tact(sim, 'lure').length) { const l = tact(sim, 'lure')[0].brain; lureAt = sim.t; startZ = l.body.z; }
+      const l = tact(sim, 'lure')[0]?.brain;
+      if (l && l.intent === 'lure') furthest = Math.max(furthest, l.body.z - startZ);
+    } });
+    expect(tact(s, 'lure').length).toBe(1);
+    const lurer = tact(s, 'lure')[0].brain;
+    expect(lurer).toBe(bait);
+    // It did not call the pack the moment it saw the host.
+    expect(s.events.some((e) => e.brain === lurer && e.e.type === 'alert' && e.t < lureAt + T.lure.show)).toBe(false);
+    expect(furthest).toBeGreaterThan(1);
+    expect(tact(s, 'spring').length).toBeGreaterThan(0);
+    expect(sprung).toBeGreaterThan(lureAt + T.lure.show);
+    for (const b of [bait, p1, p2]) expect(b.engaged).toBe(true);
+  });
+
+  it('when a packmate dies close by, the others falter and back off; lose most of the pack and the rest run', () => {
+    const pack = [0, 1, 2, 3].map((i) => hunting(at('needlemaw', 10 + i, -6 + i * 4, 8, 10 + i)));
+    simulate(pack, 1.5, host());
+    pack[0].kill();
+    let faltered = 0;
+    const s = simulate(pack, 0.6, host(), { each: () => { for (const b of pack.slice(1)) if (b.intent === 'falter') faltered++; } });
+    expect(tact(s, 'falter').length + tact(s, 'rout').length).toBeGreaterThan(0);
+    expect(faltered).toBeGreaterThan(0);
+    pack[1].kill(); pack[2].kill();
+    const r = simulate(pack, 0.6, host());
+    expect(tact(r, 'rout').map((e) => e.brain)).toContain(pack[3]);
+  });
+
+  it('a hunter held in the host\'s sights breaks sideways out of the line', () => {
+    const c = hunting(at('bilecantor', 20, 0, 20, 20));
+    const h = host({ forward: { x: 0, z: 1 }, aiming: true });
+    let maxSide = 0;
+    const s = simulate([c], 3, h, { each: () => { if (c.intent === 'evade') maxSide = Math.max(maxSide, Math.abs(c.body.x)); } });
+    expect(tact(s, 'evade').length).toBeGreaterThan(0);
+    expect(maxSide).toBeGreaterThan(0.5);
+  });
+
+  it('a reload is a window: the pack calls it and more of them commit at once', () => {
+    const pack = [0, 1, 2, 3, 4].map((i) => hunting(at('needlemaw', 30 + i, Math.cos(i) * 7, Math.sin(i) * 7, 30 + i)));
+    const h = host({ forward: null });
+    let calm = 0, pressed = 0;
+    simulate(pack, 3, h, { each: (sim) => { calm = Math.max(calm, sim.world.tokens.count('melee')); } });
+    h.reloading = true;
+    const s = simulate(pack, 2, h, { each: (sim) => { pressed = Math.max(pressed, sim.world.tokens.count('melee')); } });
+    expect(tact(s, 'press').length).toBe(1);
+    expect(calm).toBeLessThanOrEqual(AI.tokens.melee);
+    expect(pressed).toBeGreaterThan(AI.tokens.melee);
+  });
+
+  it('shows what it is thinking: stares when it first sees the host, then hunts', () => {
+    const c = at('glasswalker', 40, 0, 10, 40);
+    c.body.yaw = Math.PI;
+    let stared = false;
+    simulate([c], 4, host(), { each: () => { if (c.intent === 'stare') stared = true; } });
+    expect(stared).toBe(true);
+    expect(['hunt', 'stalk', 'attack', 'press', 'evade']).toContain(c.intent);
+  });
+});

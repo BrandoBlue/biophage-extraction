@@ -32,6 +32,17 @@ Brandon's bar is enemies that feel hard and unpredictable, as if they are thinki
 
 The body can show an ambush through `Abomination.lurking` together with `brain.lurkHow === 'ambush'` (for example, crouched low). The stare is `brain.phase === 'spot'`, and the retreat is `phase === 'flee'`.
 
+## Thinking (readable tactics; `ai.json` `tactics`)
+
+Brandon's bar: creatures must feel smart and creepy, and the player must be able to read how they think, never just "pulling mobs". On top of every archetype's hunt, a hunter makes decisions the player can see. Each one sets `Brain.intent` (idle, wary, stare, stalk, hunt, attack, search, flee, reel, press, evade, lure, falter) and fires a `tactic` event that the raid puts on the bus as `creatureTactic`, for sound and the HUD. `tactics.uses` lists the archetypes that make each choice.
+
+- **Lure** (swarm, stalker): a hunter that finds the host itself, with at least `lure.packMin` of its kind nearby, may not call them in. It stands in plain view for `lure.show` s, then backs toward its pack, still watching the host. Packmates that spot the host during the lure hold still and stare. When the host follows to within `lure.spring` m of the pack, or after `lure.time` s, it springs them: the whole pack comes at once (a screech).
+- **Falter and rout** (swarm, spitter, stalker): when a packmate it was hunting beside dies (not one that just wandered off), a hunter that is not mid-attack stops, watches the host and edges back for `falter.time` s. Once `falter.rout` of the pack it started with is dead, it runs.
+- **Evade** (swarm, spitter): when the host holds it in their sights (inside `aim.cone`; aiming down sights fills `aim.adsFactor` times faster) for `aim.hold` s, a hunter that is not mid-attack breaks sideways out of the line.
+- **Press** (swarm, stalker, spitter, burrower): a reload is a window, and they know it. The first hunter within `reload.range` m to notice calls it (a screech). Cooldowns reset, and `reload.extraTokens` more hunters may commit while the reload lasts.
+
+None of these interrupts a committed attack (a wind-up, lunge, burst or charge), so every attack stays punishable.
+
 ## Archetypes
 | Kind | Archetype | Behaviour | Tell | Counter |
 | --- | --- | --- | --- | --- |
