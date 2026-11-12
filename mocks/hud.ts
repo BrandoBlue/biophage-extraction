@@ -37,7 +37,7 @@ const states: Record<string, Partial<HudView>> = {
   'boss-phase': { boss: { label: 'The Sandwidow', fraction: 0.52, wave: 0, waves: 0 }, overload: 0.2 },
   scope: { weapon: { id: 'eyestalkMarksman' }, aiming: true },
   'scope-reload': { weapon: { id: 'eyestalkMarksman' }, aiming: true, reloading: 0.6 },
-  shotgun: { weapon: { id: 'gulletScatter' }, crosshair: { radius: 0.11, onTarget: true } },
+  shotgun: { weapon: { id: 'gulletScatter', slot: 1, slots: 3, reserve: 18 }, crosshair: { radius: 0.11, onTarget: true } },
   weak: { weapon: { id: 'vertebraRifle' }, crosshair: { radius: 0.03, onTarget: true, weak: true } },
   reload: { reloading: 0.45, ammo: 0 },
   low: { biomass: 38, overload: 0.92, overloaded: false, collapse: true, timeLeft: 94, activeVirus: 'splicedParasites', ammo: 6 },

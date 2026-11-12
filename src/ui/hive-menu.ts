@@ -19,6 +19,10 @@ import {
   canGrowOrgan, canStartRecipe, collectGarden, collectVat, gardenStored, growOrgan, organLevel, organLockedBy, organNext, organNow, startRecipe, vatRecipes, vatStatus,
 } from '../game/hive';
 import { describeLevel } from './hive/body';
+import { equipWeapon, unequipWeapon } from '../game/arsenal';
+import { fitMod, removeMod } from '../game/mods';
+import { classLevel, growWeapon } from '../game/progression';
+import { arsenalView } from './hive/arsenal-view';
 import { HiveUI } from './hive/hive-ui';
 import type { HiveActions, HiveBodyView, ProfileView, VendorView } from './hive/model';
 import { objectiveText } from './hive/vendors';
@@ -47,6 +51,12 @@ export class HiveMenu {
       },
       upgradePouch: () => { const ok = upgradePouch(p); if (ok) onChange(); return ok; },
       deploy: onDeploy,
+      arsenal: () => arsenalView(p),
+      equipWeapon: (slot, w) => { const ok = equipWeapon(p, slot - 1, w); if (ok) onChange(); return ok; },
+      unequipWeapon: (slot) => { const ok = unequipWeapon(p, slot - 1); if (ok) onChange(); return ok; },
+      fitMod: (slot, mod) => { const r = fitMod(p, slot, mod); if (r === 'ok') onChange(); return r; },
+      removeMod: (slot, socket) => { const ok = removeMod(p, slot, socket as never); if (ok) onChange(); return ok; },
+      growWeapon: (w) => { const r = growWeapon(p, w); if (r === 'ok') onChange(); return r; },
       market: () => {
         const now = new Date();
         const next = (marketWindow(now) + 1) * MARKET.rotateHours * 3600e3;
@@ -80,7 +90,8 @@ export class HiveMenu {
   private view(): ProfileView {
     const p = this.profile;
     return { callsign: callsign(p), dna: p.dna, host: p.host, stash: p.stash, stashRows: p.stashRows, cavity: p.cavity,
-      gutPouch: p.gutPouch, gutPouchLevel: p.gutPouchLevel, stats: p.stats, last: this.last, zone: p.economy.zone };
+      gutPouch: p.gutPouch, gutPouchLevel: p.gutPouchLevel, stats: p.stats, last: this.last, zone: p.economy.zone,
+      classLevels: Object.fromEntries((Object.keys(CLASSES) as ClassId[]).map((c) => [c, classLevel(p, c)])) };
   }
 
   /** The Hive Body as its screen reads it: organs with costs against the stash, the garden and the vat. */
