@@ -17,6 +17,8 @@ import { BroodNest } from './nest';
 import { RaidBoss, type HostStrike } from './boss';
 import { RaidVigil } from './vigil';
 import { RaidWarden } from './warden';
+import { RaidWidow } from './widow';
+import type { WidowHit } from '../creatures/zones/sandwidow';
 import type { WardenHit } from '../creatures/warden';
 import type { VigilHit } from '../creatures/palevigil';
 import type { ReliquaryHit } from '../creatures/reliquary';
@@ -151,6 +153,10 @@ export class Raid {
   readonly vigil: RaidVigil | null = null;
   /** The Warden of the Long Seed in World's reactor chamber aboard the wreck (PvE AI). Null in other zones. */
   readonly warden: RaidWarden | null = null;
+  /** The Sandwidow under World's Skyfall Crater on the Ochre Reach (PvE AI). Null in other zones. */
+  readonly widow: RaidWidow | null = null;
+  /** Quicksand slow on the host this frame (1: none). */
+  private widowSlow = 1;
   /** Tithe Weaver web strands (PvE AI, src/ai/web.ts): walking through one roots the host and rings the web. */
   readonly webs = new WebField();
   private readonly webLines = new Map<number, THREE.Line>();
@@ -283,6 +289,10 @@ export class Raid {
     if (structures?.warden && BOSSES.warden) {
       this.warden = new RaidWarden(structures.warden, scene, Math.floor(this.rand() * 1e6));
       scene.add(this.warden.body.root);
+    }
+    if (structures?.widow && BOSSES.sandwidow) {
+      this.widow = new RaidWidow(structures.widow, groundHeight, scene, Math.floor(this.rand() * 1e6));
+      scene.add(this.widow.body.root);
     }
 
     const [sx, sz] = [layout.spawn.x, layout.spawn.z];
@@ -775,6 +785,10 @@ export class Raid {
         const core = this.vigil.centre(new THREE.Vector3()), dmg = q.g.damageAt(Math.max(0, core.distanceTo(at) - 1));
         if (dmg > 0) this.damageVigil(dmg, null, core);
       }
+      if (this.widow?.alive && !this.widow.brain.submerged) {
+        const core = this.widow.centre(new THREE.Vector3()), dmg = q.g.damageAt(Math.max(0, core.distanceTo(at) - 2));
+        if (dmg > 0) this.damageWidow(dmg, null, core);
+      }
       if (this.warden?.alive) {
         const core = this.warden.centre(new THREE.Vector3()), dmg = q.g.damageAt(Math.max(0, core.distanceTo(at) - 1.5));
         if (dmg > 0) this.damageWarden(dmg, null, core);
@@ -940,7 +954,7 @@ export class Raid {
     // Movement and Overload.
     p.canSprint = !this.overload.overloaded && this.useLeft <= 0;
     p.slowed = this.useLeft > 0 ? Number(ABILITIES.clotGel.movementMultiplierWhileUsing ?? 0.6) : 1;
-    p.speedMultiplier = (this.injection.injecting ? VIRUS_RULES.injectMovementMultiplier : 1) * (this.boss && this.boss.pinned > 0 ? 0 : 1) * (this.vigil && this.vigil.pinned > 0 ? 0 : 1) * (this.rootedFor > 0 ? 0 : 1);
+    p.speedMultiplier = (this.injection.injecting ? VIRUS_RULES.injectMovementMultiplier : 1) * (this.boss && this.boss.pinned > 0 ? 0 : 1) * (this.vigil && this.vigil.pinned > 0 ? 0 : 1) * (this.rootedFor > 0 ? 0 : 1) * this.widowSlow;
     const mods = virusModifiers(this.injection.active);
     p.sprintBoost = mods.sprint;
     p.footstepScale = mods.footstep;
@@ -1072,6 +1086,7 @@ export class Raid {
     if (this.boss) this.updateBoss(dt, live);
     if (this.vigil) this.updateVigil(dt, live);
     if (this.warden) this.updateWarden(dt, live);
+    if (this.widow) this.updateWidow(dt, live);
     creatureGore.update(dt);
     this.hostArm.update(dt);
     this.harvestFx.update(dt);
@@ -1461,6 +1476,70 @@ export class Raid {
     for (const s of f.strikes) this.bossStrike(s, `${w.t.label} ${s.source}`, w.brain.yaw);
   }
 
+  // ------------------------------------------------------------------ desert boss (the Sandwidow)
+  private updateWidow(dt: number, live: boolean): void {
+    const w = this.widow!, p = this.player;
+    const host = {
+      x: p.position.x, y: p.position.y, z: p.position.z, vx: p.velocity.x, vz: p.velocity.z,
+      alive: live, hidden: this.elapsed < RAID.spawn.safeTime, visibility: 1, forward: null,
+    };
+    const f = w.update(dt, host);
+    this.widowSlow = f.slow;
+    const sand = (x: number, z: number) => new THREE.Vector3(x, groundHeight(x, z) + 0.15, z);
+    for (const e of f.events) {
+      switch (e.type) {
+        case 'wake': this.bus.emit('bossAwake', { boss: w.id, label: w.t.label, songRadius: w.t.songRadius }); p.addTrauma(0.4); break;
+        case 'phase': this.bus.emit('bossPhase', { boss: w.id, phase: e.id }); p.addTrauma(0.5); break;
+        case 'enrage': this.bus.emit('bossEnraged', { boss: w.id }); break;
+        case 'funnel': this.fx.ring(sand(e.at.x, e.at.z), SAND_SPRAY, e.radius, e.warning); this.noise(sand(e.at.x, e.at.z), 15, 'boss'); break;
+        case 'undertow': case 'breach': case 'thrash':
+          this.fx.burst(sand(e.at.x, e.at.z).add(new THREE.Vector3(0, 1, 0)), SAND_SPRAY, 2.4);
+          this.fx.ring(sand(e.at.x, e.at.z), SAND_SPRAY, e.radius, 0.5);
+          this.noise(sand(e.at.x, e.at.z), 35, 'boss');
+          if (Math.hypot(p.position.x - e.at.x, p.position.z - e.at.z) < e.radius * 2) p.addTrauma(0.5);
+          break;
+        case 'surface': this.fx.burst(w.centre(new THREE.Vector3()), SAND_SPRAY, 2); this.noise(w.position, 30, 'boss'); break;
+        case 'quicksand': this.fx.ring(sand(w.crater.x, w.crater.z), SAND_SPRAY, e.fraction * w.crater.radius, 1.5); break;
+        default: break;
+      }
+      if (e.type !== 'wake' && e.type !== 'phase' && e.type !== 'enrage' && e.type !== 'funnel' && e.type !== 'surface' && e.type !== 'dive' && e.type !== 'quicksand') this.bus.emit('bossAttack', { boss: w.id, attack: e.type });
+    }
+    if (f.blind > 0) { p.addTrauma(0.6); this.bus.emit('hostBlinded', { seconds: f.blind, source: w.id }); }
+    for (const b of f.brood) {
+      if (!ABOMINATIONS[b.type]) continue;
+      for (let i = 0; i < b.count; i++) {
+        const a = (i / b.count) * Math.PI * 2, x = b.x + Math.cos(a) * 2, z = b.z + Math.sin(a) * 2;
+        const c = this.addCreature(b.type as AbominationKind, x, z);
+        c.place(x, z, Math.cos(a) * 4, Math.sin(a) * 4);
+        c.alert({ x: p.position.x, z: p.position.z });
+      }
+    }
+    for (const s of f.strikes) {
+      if (s.source === 'quicksand') { this.hurt(s.damage, 'limb', 'the quicksand', null); continue; }
+      this.bossStrike(s, `${w.t.label} ${s.source}`, w.brain.yaw);
+    }
+  }
+
+  /** Damages the Sandwidow. Returns true on a weak-point hit. */
+  private damageWidow(amount: number, sphere: WidowHit | null, at: THREE.Vector3): boolean {
+    const w = this.widow;
+    if (!w?.alive || w.brain.submerged) return false;
+    const r = w.damage(amount, sphere);
+    this.fx.impact(at, r.weak ? GORE.limeFluid : SAND_SPRAY, r.weak ? 12 : 5);
+    this.bus.emit('bossDamaged', { boss: w.id, biomass: w.biomass, fraction: w.fraction, weakPoint: r.weak, part: sphere?.tag ?? 'body' });
+    if (r.popped) this.bus.emit('bossPartDestroyed', { boss: w.id, part: r.popped });
+    if (r.killed) {
+      const rw = w.t.rewards, c = w.position;
+      this.kills++;
+      this.widowSlow = 1;
+      this.noise(c, HOST.noiseRadius.egoCharge, 'boss');
+      this.bossKilled(w.id, c.x, c.z);
+      const container = rw.container && LOOT.containers[rw.container] ? rw.container : null;
+      this.bus.emit('bossDefeated', { boss: w.id, dna: rw.dna, container });
+    }
+    return r.weak;
+  }
+
   /** Damages the Warden. Returns true on a weak-point hit. */
   private damageWarden(amount: number, sphere: WardenHit | null, at: THREE.Vector3): boolean {
     const w = this.warden;
@@ -1548,6 +1627,10 @@ export class Raid {
     if (v?.awake && Math.hypot(v.position.x - p.x, v.position.z - p.z) <= v.lair.radius * 1.6) {
       return { label: `${v.t.label} · ${v.brain.enraged ? 'ENRAGED' : v.brain.phase.id.toUpperCase()}`, fraction: v.fraction, wave: 0, waves: 0 };
     }
+    const sw = this.widow;
+    if (sw?.awake && Math.hypot(sw.crater.x - p.x, sw.crater.z - p.z) <= sw.crater.radius * 1.5) {
+      return { label: `${sw.t.label} · ${sw.brain.enraged ? 'ENRAGED' : sw.brain.phase.id.toUpperCase()}`, fraction: sw.fraction, wave: 0, waves: 0 };
+    }
     const w = this.warden;
     if (w?.awake && p.x >= w.arena.x0 - 10 && p.x <= w.arena.x1 + 10 && p.z >= w.arena.z0 - 10 && p.z <= w.arena.z1 + 10) {
       return { label: `${w.t.label} · ${w.brain.enraged ? 'ENRAGED' : w.brain.phase.id.toUpperCase()}`, fraction: w.fraction, wave: 0, waves: 0 };
@@ -1594,13 +1677,21 @@ export class Raid {
     }
     // PvP (online raids): another host's body, if nothing else is nearer along the shot.
     const hh = this.net?.hitHost(a, b) ?? null;
-    if (hh && hh.t < Math.min(bestT, nestHit?.t ?? Infinity, this.vigil?.hit(a, b)?.t ?? Infinity, this.boss?.hit(a, b)?.t ?? Infinity, this.warden?.hit(a, b)?.t ?? Infinity)) {
+    if (hh && hh.t < Math.min(bestT, nestHit?.t ?? Infinity, this.vigil?.hit(a, b)?.t ?? Infinity, this.boss?.hit(a, b)?.t ?? Infinity, this.warden?.hit(a, b)?.t ?? Infinity, this.widow?.hit(a, b)?.t ?? Infinity)) {
       const point = a.clone().lerp(b, hh.t);
       const dmg = pr.kind === 'ego' ? pr.damage : projectileDamage(this.weapon.w, point.distanceTo(pr.origin), 1);
       this.net!.hitOther(hh.id, dmg, hh.zone, pr.origin);
       this.fx.impact(point, new THREE.Color(HIVE.danger), 8);
       this.bus.emit('hit', { target: 'host', id: -1, damage: dmg, weakPoint: hh.zone === 'head', kill: false, position: { x: point.x, y: point.y, z: point.z } });
       return { point, t: hh.t };
+    }
+    const sh = this.widow?.hit(a, b) ?? null;
+    if (sh && sh.t < (nestHit?.t ?? bestT)) {
+      const point = a.clone().lerp(b, sh.t);
+      const dmg = pr.kind === 'ego' ? pr.damage : projectileDamage(this.weapon.w, point.distanceTo(pr.origin), 1);
+      const weak = this.damageWidow(dmg, sh.sphere, point);
+      if (pr.kind === 'spore') this.weapon.credit(weak);
+      return { point, t: sh.t };
     }
     const wh = this.warden?.hit(a, b) ?? null, valve = this.warden?.valveHit(a, b) ?? null;
     if (valve && valve.t < (wh?.t ?? Infinity) && valve.t < (nestHit?.t ?? bestT)) {
@@ -1787,6 +1878,7 @@ export class Raid {
       enemies: this.creatures.map((c) => ({ id: c.id, kind: c.kind, alive: c.alive, state: c.state, biomass: c.biomass, position: [c.position.x, c.position.y, c.position.z], centre: [c.centre.x, c.centre.y, c.centre.z] })),
       result: this.result, gore: gore.stats(),
       boss: this.boss ? { state: this.boss.brain.state, phase: this.boss.brain.phase.id, action: this.boss.brain.action, biomass: this.boss.biomass, fraction: this.boss.fraction, hearts: [...this.boss.hearts], sac: this.boss.sac, legs: [...this.boss.legs], pinned: this.boss.pinned, pool: this.boss.poolRadius, position: [this.boss.position.x, this.boss.position.y, this.boss.position.z], centre: this.boss.centre(new THREE.Vector3()).toArray() } : null,
+      widow: this.widow ? { state: this.widow.brain.state, phase: this.widow.brain.phase.id, action: this.widow.brain.action, surface: this.widow.brain.surface, submerged: this.widow.brain.submerged, quicksand: this.widow.brain.quicksand, biomass: this.widow.biomass, fraction: this.widow.fraction, sacs: [...this.widow.sacs], petals: [...this.widow.petals], position: this.widow.position.toArray(), centre: this.widow.centre(new THREE.Vector3()).toArray(), crater: { ...this.widow.crater, pillars: this.widow.arena.pillars } } : null,
       warden: this.warden ? { state: this.warden.brain.state, phase: this.warden.brain.phase.id, action: this.warden.brain.action, surface: this.warden.brain.surface, biomass: this.warden.biomass, fraction: this.warden.fraction, pods: [...this.warden.pods], seams: this.warden.brain.seamOpen.map((_, i) => this.warden!.brain.seamExposed(i)), position: this.warden.position.toArray(), centre: this.warden.centre(new THREE.Vector3()).toArray(), arena: { x0: this.warden.arena.x0, x1: this.warden.arena.x1, z0: this.warden.arena.z0, z1: this.warden.arena.z1, core: this.warden.arena.core, valves: this.warden.arena.valves, catwalks: this.warden.arena.catwalks.map((c) => ({ id: c.id, collapsed: c.collapsed })) } } : null,
       vigil: this.vigil ? { state: this.vigil.brain.state, phase: this.vigil.brain.phase.id, action: this.vigil.brain.action, hidden: this.vigil.brain.hidden, hang: this.vigil.brain.hang, biomass: this.vigil.biomass, fraction: this.vigil.fraction, lure: this.vigil.lure, spines: [...this.vigil.spines], limbs: [...this.vigil.limbs], pinned: this.vigil.pinned, position: this.vigil.position.toArray(), centre: this.vigil.centre(new THREE.Vector3()).toArray(), lair: { x: this.vigil.lair.x, z: this.vigil.lair.z, floorY: this.vigil.lair.floorY, radius: this.vigil.lair.radius, exit: this.vigil.lair.exit, sealed: this.vigil.lair.entrances.map((m) => m.sealed) } } : null,
       arena: this.arena ? { x: this.arena.x, z: this.arena.z, radius: this.arena.radius, floorY: this.arena.floorY, entrances: this.arena.entrances, pillars: this.arena.pillars.map((q) => ({ id: q.id, broken: q.broken })) } : null,
@@ -1835,6 +1927,15 @@ export class Raid {
         const s = tag ? w.body.hitSpheres.find((h) => h.tag === tag && h.index === index) ?? null : null;
         return this.damageWarden(amount, s, s ? s.world.clone() : w.centre(new THREE.Vector3()));
       },
+      /** Damages the Sandwidow directly: a tagged sphere ('throatSac', 'petal', 'head') or null; only while she is up. */
+      hitWidow: (amount: number, tag: string | null = null, index = 0) => {
+        const w = this.widow;
+        if (!w) return null;
+        const s = tag ? w.body.hitSpheres.find((h) => h.tag === tag && h.index === index) ?? null : null;
+        return this.damageWidow(amount, s, s ? s.world.clone() : w.centre(new THREE.Vector3()));
+      },
+      /** Brings the Sandwidow up to breathe now (for tests and screenshots). */
+      surfaceWidow: (seconds = 6) => this.widow?.brain.breathe(seconds),
       /** Vents coolant valve i as if shot. */
       ventValve: (i: number) => this.warden?.vent(i),
       killAll: () => { for (const c of this.creatures) if (c.alive) this.damageCreature(c, 1e6, false, null, c.centre, 'debug'); },

@@ -9,7 +9,7 @@ import {
 } from '../render/desert';
 import DATA from '../../data/ochre.json';
 import { mulberry32 } from './rng';
-import { Kit, oldBone, type BuiltStructures, type LootSpot } from './structures';
+import { Kit, oldBone, type BuiltStructures, type LootSpot, type WidowArena } from './structures';
 import type { SiteDressing } from './sites';
 import type { ExtractSite, SpawnPlacement, Zone7Layout } from './layout';
 import { SOLIDS, setTerrain } from './zone7';
@@ -696,6 +696,8 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
   }
 
   // ---- The Skyfall Crater: fused debris from the ring, the biggest pieces solid.
+  // The six biggest rocks are the Sandwidow fight's pillars (PvE AI's fallback until the crater gets fixed spots).
+  const widowPillars: WidowArena['pillars'] = [];
   {
     const c = D.crater, rock = skyfallRock();
     const geo = boulderGeometry(mulberry32(5), 1);
@@ -705,6 +707,7 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
       const x = c.x + Math.cos(a) * d, z = c.z + Math.sin(a) * d, s = i < 6 ? 2.5 + rand() * 2.5 : 0.5 + rand() * 1.4;
       at.push({ x, y: G(x, z) + s * 0.15, z, s, yaw: rand() * 6, tilt: (rand() - 0.5) * 0.6 });
       if (s > 1.2) SOLIDS.add({ cx: x, cz: z, hx: s * 0.7, hz: s * 0.7, yaw: 0, y0: G(x, z) - 1, y1: G(x, z) + s * 0.7, tag: 'skyfall-rock' });
+      if (i < 6) widowPillars.push({ id: `skyfall-rock-${i}`, x, z, radius: s * 0.7, top: G(x, z) + s * 0.7 });
     }
     scene.add(instances(geo, rock, at, 'skyfall-debris'));
     scene.add(hazeVolume({ centre: new THREE.Vector3(c.x, G(c.x, c.z) + 6, c.z), size: new THREE.Vector3(c.radius * 1.6, 14, c.radius * 1.6), colour: OCHRE.dust, density: 0.012 }));
@@ -844,7 +847,10 @@ export function buildOchre(scene: THREE.Scene, seed: number): OchreWorld {
   return {
     layout,
     sites: { group: sites, setExtractOpen(id, open) { const r = rings.get(id); if (r) r.visible = open; }, setNodeHarvested() { /* no harvest nodes here */ } },
-    structures: { group: village, loot, arena: null, breakPillar() { /* no boss arena yet */ } },
+    structures: {
+      group: village, loot, arena: null, breakPillar() { /* no boss arena yet */ },
+      widow: { id: 'skyfallCrater', x: D.crater.x, z: D.crater.z, radius: D.crater.radius, floorY: G(D.crater.x, D.crater.z), pillars: widowPillars, entrances: [], bossSpawn: { x: D.crater.x, z: D.crater.z } },
+    },
     landmarkAt: ochreLandmarkAt,
   };
 }

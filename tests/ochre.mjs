@@ -87,6 +87,34 @@ try {
   console.log(`ochre: den of ${buried.length} lay still: ${still}; after the host walked up: ${out.map((e) => e.state).join(', ')}`);
   if (!still || !hunting) fail('the buried pack did not wait under the sand and then come out hunting');
 
+  // The Sandwidow (PvE AI): under the Skyfall Crater until a host steps onto its floor; up to breathe, she can be killed.
+  const sw0 = await page.evaluate(() => window.__biophage.state.widow);
+  if (!sw0) fail('no Sandwidow under the Skyfall Crater');
+  await page.evaluate(() => window.__biophage.debug.killAll());
+  await page.evaluate(([x, z]) => window.__biophage.debug.teleport(x + 8, z + 8), [sw0.crater.x, sw0.crater.z]);
+  let sw = sw0;
+  for (let i = 0; i < 60 && sw.state !== 'awake'; i++) {
+    const f = await page.evaluate(() => window.__biophage.frames);
+    await page.waitForFunction((k) => window.__biophage.frames > k + 1, f, { timeout: 60000 });
+    sw = await page.evaluate(() => window.__biophage.state.widow);
+  }
+  if (sw.state !== 'awake') fail(`the Sandwidow did not wake: ${JSON.stringify(sw)}`);
+  await page.evaluate(() => window.__biophage.debug.surfaceWidow(8));
+  const f2 = await page.evaluate(() => window.__biophage.frames);
+  await page.waitForFunction((f) => window.__biophage.frames > f + 4, f2, { timeout: 120000 });
+  sw = await page.evaluate(() => window.__biophage.state.widow);
+  await page.evaluate((c) => window.__biophage.debug.aimAt(c[0], c[1], c[2]), sw.centre);
+  const f3 = await page.evaluate(() => window.__biophage.frames);
+  await page.waitForFunction((f) => window.__biophage.frames > f + 2, f3, { timeout: 120000 });
+  await page.screenshot({ path: 'tests/out/ochre-widow.png', timeout: 120000 });
+  const dna0 = await page.evaluate(() => window.__biophage.state.carried.dna);
+  await page.evaluate(() => window.__biophage.debug.hitWidow(1e6, null));
+  const f4 = await page.evaluate(() => window.__biophage.frames);
+  await page.waitForFunction((f) => window.__biophage.frames > f + 2, f4, { timeout: 120000 });
+  const end = await page.evaluate(() => ({ w: window.__biophage.state.widow, bosses: window.__biophage.state.log.bosses, dna: window.__biophage.state.carried.dna }));
+  if (end.w.state !== 'dead' || !end.bosses.includes('sandwidow') || end.dna <= dna0) fail(`the Sandwidow kill did not pay out: ${JSON.stringify(end)}`);
+  console.log(`ochre: the Sandwidow woke in the crater, surfaced and was killed: +${end.dna - dna0} DNA`);
+
   await browser.close();
   const real = errors.filter((e) => !/GPU stall|ReadPixels|swiftshader|Automatic fallback|deprecated/i.test(e));
   if (real.length) fail(real.join('\n'));
