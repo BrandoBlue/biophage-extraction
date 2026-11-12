@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ABOMINATIONS, AI, NESTS } from '../data';
 import {
-  AttackTokens, Awareness, WaveDirector, WebField, archetypeOf, createBrain, hostVisibility, sightRate,
+  AttackTokens, Awareness, RaidMemory, mindLevels, mindPulse, WaveDirector, WebField, archetypeOf, createBrain, hostVisibility, sightRate,
   type AIEvent, type Brain, type BrainWorld, type HostView,
 } from '../src/ai';
 import type { Noise } from '../src/game/perception';
@@ -14,10 +14,10 @@ const host = (o: Partial<HostView> = {}): HostView => ({
 interface Sim { world: BrainWorld; events: { brain: Brain; e: AIEvent; t: number }[]; t: number }
 
 /** Steps brains against a host for `seconds`. `move` can steer the host each frame. */
-function simulate(brains: Brain[], seconds: number, h: HostView, opts: { noises?: Noise[]; move?: (h: HostView, t: number, dt: number) => void; each?: (s: Sim) => void } = {}): Sim {
-  const tokens = new AttackTokens();
+function simulate(brains: Brain[], seconds: number, h: HostView, opts: { noises?: Noise[]; move?: (h: HostView, t: number, dt: number) => void; each?: (s: Sim) => void; memory?: RaidMemory; tokens?: AttackTokens } = {}): Sim {
+  const tokens = opts.tokens ?? new AttackTokens();
   const allies = brains.map((b) => ({ id: b.id, kind: b.kind, get alive() { return b.mode !== 'dead'; }, position: { x: b.body.x, y: 0, z: b.body.z } }));
-  const world: BrainWorld = { host: h, noises: opts.noises ?? [], allies, tokens, playableRadius: 500 };
+  const world: BrainWorld = { host: h, noises: opts.noises ?? [], allies, tokens, playableRadius: 500, memory: opts.memory };
   const sim: Sim = { world, events: [], t: 0 };
   const dt = 1 / 60;
   for (let i = 0; i < seconds * 60; i++) {
@@ -713,5 +713,88 @@ describe('thinking: readable tactics over every hunt (ai.json tactics)', () => {
     simulate([c], 4, host(), { each: () => { if (c.intent === 'stare') stared = true; } });
     expect(stared).toBe(true);
     expect(['hunt', 'stalk', 'attack', 'press', 'evade']).toContain(c.intent);
+  });
+});
+
+describe('learning within a raid (ai.json learning)', () => {
+  const L = AI.learning;
+  const adapted = (s: Sim) => s.events.some((e) => e.e.type === 'tactic' && (e.e as { what: string }).what === 'adapt');
+
+  it('the pack notices a host digging into one spot, and once learned, waits outside instead of coming in', () => {
+    const fresh = new RaidMemory();
+    const pack = [0, 1, 2, 3].map((i) => hunting(at('needlemaw', 50 + i, Math.cos(i * 1.6) * 8, Math.sin(i * 1.6) * 8, 50 + i)));
+    simulate(pack, L.campTime + 1, host({ forward: null }), { memory: fresh });
+    expect(fresh.count('needlemaw', 'camp')).toBe(1);
+
+    const mem = new RaidMemory();
+    for (let i = 0; i < L.after; i++) mem.note('needlemaw', 'camp');
+    const wary = [0, 1, 2, 3].map((i) => hunting(at('needlemaw', 60 + i, Math.cos(i * 1.6) * 8, Math.sin(i * 1.6) * 8, 60 + i)));
+    const h = host({ forward: null });
+    simulate(wary, L.campTime + 0.5, h, { memory: mem });
+    let closest = Infinity;
+    const s = simulate(wary, 6, h, { memory: mem, each: (sim) => { if (sim.t > 1.5) for (const b of wary) closest = Math.min(closest, Math.hypot(b.body.x, b.body.z)); } });
+    expect(s.events.some((e) => e.e.type === 'melee')).toBe(false);
+    expect(closest).toBeGreaterThan(AI.swarm.ringRadius[0]);
+    // The host leaves the corner: they come.
+    const out = simulate(wary, 8, h, { memory: mem, move: (hh, t) => { hh.x = t * 3; } });
+    expect(out.events.some((e) => e.e.type === 'melee')).toBe(true);
+  });
+
+  it('kill the lunger twice and the pack starts faking the coil before the real lunge', () => {
+    const mem = new RaidMemory();
+    for (let k = 0; k < L.after; k++) {
+      const n = hunting(at('needlemaw', 70 + k, 0, 6, 70 + k));
+      simulate([n], 6, host({ forward: null }), { memory: mem, each: () => { if (n.phase === 'windup' && n.mode !== 'dead') n.kill(); } });
+    }
+    expect(mem.learned('needlemaw', 'lungerKilled')).toBe(true);
+    const p = hunting(at('needlemaw', 80, 0, 6, 80));
+    const phases: string[] = [];
+    const s = simulate([p], 12, host({ forward: null }), { memory: mem, each: () => { if (phases[phases.length - 1] !== p.phase) phases.push(p.phase); } });
+    const firstReal = phases.indexOf('windup');
+    expect(phases.indexOf('fakeout')).toBeGreaterThanOrEqual(0);
+    expect(phases.indexOf('fakeout')).toBeLessThan(firstReal < 0 ? Infinity : firstReal);
+    expect(adapted(s)).toBe(true);
+  });
+
+  it('a Mournback learns which way the host sidesteps its charge and aims that side next time', () => {
+    const mem = new RaidMemory();
+    // Dodge: the host steps off the line as it charges.
+    const m = hunting(at('mournback', 90, 0, 18, 90));
+    m.body.yaw = Math.PI;
+    const h = host({ forward: null });
+    simulate([m], 8, h, { memory: mem, move: (hh) => { if (m.phase === 'charge') hh.x = Math.min(4, hh.x + 0.2); } });
+    expect(mem.count('mournback', 'dodge+') + mem.count('mournback', 'dodge-')).toBeGreaterThan(0);
+    // Learned: the next wind-up lines up beside the host, on the side it dodges to.
+    const side = mem.count('mournback', 'dodge+') > 0 ? 'dodge+' : 'dodge-';
+    for (let i = 0; i < L.after; i++) mem.note('mournback', side);
+    const m2 = hunting(at('mournback', 91, 0, 18, 91));
+    m2.body.yaw = Math.PI;
+    let off = 0;
+    const s = simulate([m2], 6, host({ forward: null }), { memory: mem, each: () => { if (m2.phase === 'chargeWindup' && m2.strike) off = Math.max(off, Math.abs(m2.strike.x)); } });
+    expect(off).toBeGreaterThan(L.cutAhead * 0.8);
+    expect(adapted(s)).toBe(true);
+  });
+});
+
+describe('body language: the brain\'s thinking on Creature\'s drive.mind', () => {
+  it('stares with a cocked head, braces before committing, recoils when a packmate falls, sleepy-eyed Oculimoth', () => {
+    const v = (o: Partial<Parameters<typeof mindLevels>[0]>) => mindLevels({ kind: 'needlemaw', intent: 'hunt', windup: 0, phase: 'ring', frozen: false, ...o });
+    expect(v({ intent: 'stare' })).toMatchObject({ tilt: expect.any(Number), still: expect.any(Number) });
+    expect(v({ intent: 'stare' }).tilt).toBeGreaterThan(0.5);
+    expect(v({ intent: 'attack', windup: 0.8 }).brace).toBeGreaterThan(0.9);
+    expect(v({ intent: 'falter' }).recoil).toBeGreaterThan(0.5);
+    expect(v({ kind: 'oculimoth', intent: 'idle' }).eyes).toBeLessThan(0.5);
+    expect(v({ kind: 'oculimoth', intent: 'hunt' }).eyes).toBe(1);
+    expect(v({ kind: 'glasswalker', frozen: true }).still).toBe(1);
+    expect(mindPulse({ type: 'tactic', what: 'press' })).toBe('call');
+    expect(mindPulse({ type: 'tactic', what: 'lure' })).toBe('glint');
+    expect(mindPulse({ type: 'alert' })).toBe('call');
+  });
+
+  it('a stalker in the host\'s gaze reads as frozen', () => {
+    const g = hunting(at('glasswalker', 99, 0, 14, 99));
+    simulate([g], 2, host({ forward: { x: 0, z: 1 } }));
+    expect(g.frozen).toBe(true);
+    expect(mindLevels(g).still).toBe(1);
   });
 });

@@ -18,6 +18,7 @@ export class StalkerBrain extends Brain {
   private struck = false;
   /** True while the host is looking straight at it. */
   watched = false;
+  get frozen(): boolean { return this.watched && this.mode === 'hunt' && this.phase === 'stalk'; }
   private readonly camo = (this.data.camouflage as Camo | undefined) ?? { visibilityIdle: 0.08, visibilityMoving: 0.35, revealOnHit: 3 };
 
   step(dt: number, w: BrainWorld): void {

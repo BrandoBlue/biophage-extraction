@@ -36,6 +36,8 @@ export interface BrainWorld {
   /** Shared attack-slot pool for this raid (see tokens.ts). */
   tokens: import('./tokens').AttackTokens;
   playableRadius: number;
+  /** What this raid's creatures have learned about the host (src/ai/memory.ts). Optional: none, nothing is learned. */
+  memory?: import('./memory').RaidMemory;
 }
 
 /** One-shot things a brain did this tick; the Abomination turns them into damage, projectiles, bus events and sound. */
@@ -62,7 +64,7 @@ export type AIEvent =
   | { type: 'reveal'; how: 'hatch' | 'disguise' | 'ambush' };
 
 /** A tactical choice a hunter just made (see Brain.intent). */
-export type Tactic = 'press' | 'evade' | 'lure' | 'spring' | 'falter' | 'rout';
+export type Tactic = 'press' | 'evade' | 'lure' | 'spring' | 'falter' | 'rout' | 'adapt';
 /** What a creature is thinking right now, readable by the body, sound and HUD. */
 export type Intent = 'idle' | 'wary' | 'stare' | 'hunt' | 'stalk' | 'attack' | 'search' | 'flee' | 'reel' | 'press' | 'evade' | 'lure' | 'falter' | 'dead';
 export type Mode = 'calm' | 'investigate' | 'hunt' | 'stagger' | 'dead';
