@@ -22,6 +22,7 @@ Owned by the Game Design department. Short living docs, one per system. **Every 
 | [07-economy-and-progression](07-economy-and-progression.md) | **Why you extract:** what every loot type is for, vendors, contracts, the Hive Body, evolution catalysts, difficulty |
 | [08-zones-and-bosses](08-zones-and-bosses.md) | **Zone roster** (Glowmire Isle, Wreck of the Long Seed, the Expanse, two Apex zones) and **bosses** (the Reliquary, the Warden) |
 | [09-weapons-and-habitats](09-weapons-and-habitats.md) | **16-gun roster** (reload styles, zoom or not, rarity, ammo feeds, where each is found) and **habitats**: where every creature lives and where containers sit |
+| [11-creature-minds](11-creature-minds.md) | **The bar for creature behaviour:** smart, creepy, readable thinking, no mob pulling; every creature's `mind` |
 | [10-new-zones](10-new-zones.md) | **The Ochre Reach, the Weeping Fen, the Marrow Pit**: creature homes, loot, threat and depth scaling, nine creatures, three bosses |
 | [06-roadmap-systems](06-roadmap-systems.md) | Decisions already made for Larva and Host: inventory, stash, viruses, Synapse tree, Flesh Market, PvP |
 | [spore-milestone](spore-milestone.md) | The Spore feature list with acceptance criteria per department |
