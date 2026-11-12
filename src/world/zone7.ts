@@ -201,7 +201,7 @@ export function isReserved(x: number, z: number, margin = 0): boolean {
 /** Flora glow tints (Art Bible, "Grounded and eerie"): cold mist and bruised flesh, a little amber; no neon bodies. */
 const GLOWS = [ORGANIC.mist, ORGANIC.mist, ORGANIC.vein, ORGANIC.amber, ZONE7_SHADE.moss];
 
-interface Fungus { pos: THREE.Vector3; height: number; cap: number; yaw: number; tilt: number; colour: string }
+export interface Fungus { pos: THREE.Vector3; height: number; cap: number; yaw: number; tilt: number; colour: string }
 
 /** Fungus placement for a disc. Exported for tests: deterministic and clear of the spawn and pool. */
 export function scatterFungi(rand: () => number, opts: { count: number; minR: number; maxR: number; height: [number, number]; cap: [number, number] }, at: (x: number, z: number) => number, centre = new THREE.Vector3()): Fungus[] {
@@ -224,7 +224,7 @@ export function scatterFungi(rand: () => number, opts: { count: number; minR: nu
 
 const BEND = 0.22;
 
-function fungusMeshes(list: Fungus[]): THREE.Group {
+export function fungusMeshes(list: Fungus[]): THREE.Group {
   const g = new THREE.Group();
   g.name = 'fungi';
   const stems = new THREE.InstancedMesh(stemGeometry(BEND, 8), fungusStem(), list.length);
@@ -307,7 +307,7 @@ const FLOATING: IslandSpec[] = [
   { pos: new THREE.Vector3(218, 176, -644), radius: 51 },
 ];
 
-function fall(from: THREE.Vector3, outward: THREE.Vector3, drop: number, width: number): THREE.Mesh {
+export function fall(from: THREE.Vector3, outward: THREE.Vector3, drop: number, width: number): THREE.Mesh {
   const o = outward.clone().setY(0).normalize();
   const curve = new THREE.CatmullRomCurve3([
     from.clone(),
