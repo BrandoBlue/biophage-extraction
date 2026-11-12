@@ -25,14 +25,14 @@ const BARK_GLSL = /* glsl */ `
   // count of ridges per trunk) and run up the height; planks lay their grain along the board instead.
   vec3 nrm = normalize(vBioNormal);
   float ang = atan(nrm.z, nrm.x);
-  vec2 q = mix(vec2(ang * 7.0 + bioNoise(w * 0.15) * 2.0, w.y * 0.35), vec2(w.x + w.z, w.y) * 0.6, uPlank);
+  vec2 q = mix(vec2(ang * uRidges + bioNoise(w * 0.15) * 2.0, w.y * 0.35), vec2(w.x + w.z, w.y) * 0.6, uPlank);
   float wander = bioFbm(vec3(q.x * 0.6, q.y * 0.25, 3.0)) * 2.5;
   float ridge = abs(sin((q.x + wander) * 6.0));
   float fissure = 1.0 - smoothstep(0.0, 0.18, ridge);
   float fibre = bioNoise(vec3(q.x * 26.0, q.y * 2.0, 7.0));
   float knots = 1.0 - smoothstep(0.05, 0.22, bioCells(w * 0.35 + vBioSeed));
   float grain = bioFbm(w * 1.3);
-  vec3 col = mix(uDeep * 1.5 + uBase * 0.15, uBase * (0.85 + grain * 0.7), smoothstep(0.05, 0.6, ridge)) * (0.85 + fibre * 0.3);
+  vec3 col = mix(uDeep * 1.5 + uBase * 0.15, uBase * (0.85 + grain * 0.7), mix(0.7, smoothstep(0.05, 0.6, ridge), 0.45 + 0.55 * min(1.0, uRidges / 7.0))) * (0.85 + fibre * 0.3);
   col = mix(col, uDeep * 0.6, knots * 0.7);
   // Moss creeps up from the water and gathers on ledges and the tops of roots.
   float up = smoothstep(0.1, 0.8, vBioNormal.y);
@@ -46,6 +46,8 @@ const BARK_GLSL = /* glsl */ `
   // Wet tide band: the bottom of everything is dark and glossy where the water has soaked it.
   float wet = 1.0 - smoothstep(0.0, 0.9 + grain * 0.6, vBioWorld.y - uWaterY);
   col *= 1.0 - wet * 0.55;
+  // Broad, soft ridges (low uRidges) are also flattened toward their mean so pale trunks don't shimmer at range.
+  col = mix(vec3(dot(col, vec3(0.333))), col, 0.75 + 0.25 * min(1.0, uRidges / 7.0)) * uDim;
   diffuseColor.rgb = col;
   roughnessFactor = mix(0.92, 0.3, wet) - moss * 0.1;
   float relief = ridge * 0.7 + fibre * 0.15 - fissure * 0.5 + knots * 0.3 + moss * 0.25;
@@ -54,7 +56,7 @@ const BARK_GLSL = /* glsl */ `
   totalEmissiveRadiance = uGlow * lichen * step(0.8, bioHash(floor(w * 0.9 + 4.0))) * (0.6 + 0.4 * sin(bioTime * 0.7 + vBioSeed.y)) * 0.6;
 `;
 
-export interface BarkOptions { base?: string; deep?: string; plank?: boolean; mossy?: number; scale?: number }
+export interface BarkOptions { base?: string; deep?: string; plank?: boolean; mossy?: number; scale?: number; /** Ridges round a trunk (default 7); fewer reads calmer at range. */ ridges?: number; /** Brightness multiplier on the palette base (default 1). */ dim?: number }
 
 /** Bark for trunks and roots; `plank` lays the grain along the board (huts, decks, walkways). */
 export function fenBark(o: BarkOptions = {}): THREE.MeshStandardMaterial {
@@ -62,8 +64,9 @@ export function fenBark(o: BarkOptions = {}): THREE.MeshStandardMaterial {
     uniforms: {
       uBase: u(o.base ?? ZONE7_SHADE.stem), uDeep: u(o.deep ?? ZONE7_SHADE.rockDeep), uMoss: u(ZONE7_SHADE.moss), uLichen: u(HIVE.bone),
       uGlow: u(ZONE7.cyan), uPlank: { value: o.plank ? 1 : 0 }, uMossy: { value: o.mossy ?? 1 }, uScale: { value: o.scale ?? 1 }, uWaterY: { value: FEN_WATER_Y },
+      uRidges: { value: o.ridges ?? 7 }, uDim: { value: o.dim ?? 1 },
     },
-    declarations: 'uniform vec3 uBase, uDeep, uMoss, uLichen, uGlow; uniform float uPlank, uMossy, uScale, uWaterY;\n',
+    declarations: 'uniform vec3 uBase, uDeep, uMoss, uLichen, uGlow; uniform float uPlank, uMossy, uScale, uWaterY, uRidges, uDim;\n',
     fragment: BARK_GLSL,
   });
 }

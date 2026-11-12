@@ -21,9 +21,9 @@
     },
     {
       "id": "causewayEnd",
-      "label": "Causeway End",
-      "x": 334,
-      "z": 96,
+      "label": "Causeway Ferry",
+      "x": 329.6,
+      "z": 124.4,
       "opensAt": 240
     },
     {
@@ -32,6 +32,13 @@
       "x": 214,
       "z": 262,
       "opensAt": 360
+    },
+    {
+      "id": "rootLift",
+      "label": "Root Lift",
+      "x": -113.5,
+      "z": 52.9,
+      "opensAt": 300
     }
   ],
   "islets": [
@@ -1098,18 +1105,18 @@
     },
     {
       "id": "causewayEnd",
-      "label": "Causeway End",
-      "x": 334,
-      "z": 96,
-      "radius": 16
+      "label": "Causeway Ferry",
+      "x": 332,
+      "z": 112,
+      "radius": 22
     }
   ],
   "waders": {
     "_note": "Ambient mistwaders beyond the walkable ring: tall long-necked grazers wading slowly through the outer mist. Visual only, never in reach; Creature and PvE AI own the real ones.",
     "count": 5,
     "ring": [
-      410,
-      470
+      462,
+      492
     ],
     "height": [
       14,
@@ -1442,6 +1449,14 @@
           [
             334,
             96
+          ],
+          [
+            331,
+            108
+          ],
+          [
+            329.6,
+            124.4
           ]
         ]
       },
@@ -1472,6 +1487,32 @@
           [
             214,
             262
+          ]
+        ]
+      },
+      {
+        "id": "toRootLift",
+        "to": "rootLift",
+        "points": [
+          [
+            -6,
+            126
+          ],
+          [
+            -40,
+            120
+          ],
+          [
+            -60,
+            70
+          ],
+          [
+            -90,
+            62
+          ],
+          [
+            -113.5,
+            52.9
           ]
         ]
       }
@@ -1661,5 +1702,33 @@
         "why": "a lone old one at the sunken shrine"
       }
     ]
+  },
+  "ferry": {
+    "_note": "Design's stilt-village ferry: a plank jetty off the Causeway End islet to a moored log raft. The extract is on the raft.",
+    "jetty": [
+      [
+        332,
+        104
+      ],
+      [
+        330,
+        121
+      ]
+    ],
+    "deck": 0.95,
+    "raft": {
+      "x": 329.6,
+      "z": 124.4,
+      "yaw": 95,
+      "length": 7,
+      "width": 4.6,
+      "top": 0.4
+    }
+  },
+  "rootLift": {
+    "_note": "Design's root-lift in the cathedral: a woven root basket under the Great Spire's gallery, hung on root cables from the gallery cap. The extract is in the basket.",
+    "x": -113.5,
+    "z": 52.9,
+    "radius": 1.7
   }
 }

@@ -12,7 +12,7 @@ const max = (...v: number[]) => Math.max(...v);
 
 // ------------------------------------------------------------------ weapons
 /** The organic crack every gun shares: a chitin snap plus a wet spray. */
-function snap(x: Synth, out: AudioNode, t: number, freq: number, gain: number, d: number): number {
+export function snap(x: Synth, out: AudioNode, t: number, freq: number, gain: number, d: number): number {
   return max(
     noise(x, out, t, { gain: gain * 1.5, d: d * 0.5, filters: [{ type: 'bandpass', freq: x.vary(freq), q: 0.8 }] }),
     // The crack: a few milliseconds of bright air.
@@ -20,7 +20,7 @@ function snap(x: Synth, out: AudioNode, t: number, freq: number, gain: number, d
     noise(x, out, t, { colour: 'pink', gain: gain * 0.8, a: 0.004, d, filters: [{ type: 'lowpass', freq: freq * 1.5, to: freq * 0.3, over: d }] }),
   );
 }
-function thump(x: Synth, out: AudioNode, t: number, from: number, to: number, gain: number, d: number): number {
+export function thump(x: Synth, out: AudioNode, t: number, from: number, to: number, gain: number, d: number): number {
   return tone(x, out, t, { freq: x.vary(from, 0.05), to: Math.max(to, 50), glide: d * 0.6, gain: gain * 0.6, d });
 }
 

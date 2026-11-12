@@ -11,7 +11,7 @@
     "lookdev": "node tests/lookdev.mjs",
     "lookdev:player": "node tests/playerview.mjs",
     "smoke:weapons": "node tests/weapons.mjs",
-    "check": "npm run release && npm test && npm run smoke && npm run smoke:release && npm run budget && npm run smoke:raid && npm run smoke:creatures && npm run smoke:raid:release && npm run smoke:raid:hive && npm run smoke:raid:hive:release && npm run smoke:online:release && npm run smoke:ochre && npm run smoke:bosses && npm run smoke:expanse && npm run smoke:weapons",
+    "check": "npm run release && npm test && npm run smoke && npm run smoke:release && npm run budget && npm run smoke:install && npm run smoke:raid && npm run smoke:creatures && npm run smoke:raid:release && npm run smoke:raid:hive && npm run smoke:raid:hive:release && npm run smoke:online:release && npm run smoke:ochre && npm run smoke:bosses && npm run smoke:expanse && npm run smoke:weapons",
     "release": "npm run build && node scripts/bundle-single.mjs",
     "smoke:release": "node tests/smoke.mjs --release",
     "budget": "node tests/budget.mjs",
@@ -26,7 +26,9 @@
     "smoke:online:release": "node tests/online.mjs --release",
     "smoke:ochre": "node tests/ochre.mjs",
     "smoke:bosses": "node tests/bosses.mjs",
-    "smoke:expanse": "node tests/expanse.mjs"
+    "smoke:expanse": "node tests/expanse.mjs",
+    "smoke:install": "node tests/install.mjs",
+    "app-icons": "node scripts/app-icons.mjs"
   },
   "repository": {
     "type": "git",

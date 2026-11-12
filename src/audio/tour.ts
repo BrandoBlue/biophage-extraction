@@ -6,8 +6,11 @@
 import { AudioEngine, type V3 } from './engine';
 import { Ambience } from './ambience';
 import { Music } from './music';
-import { ambienceFor } from './config';
+import { AUDIO, ambienceFor } from './config';
+import { EdgeMurk, edgeLevel } from './edge';
 import * as S from './sfx';
+import { WEAPONS } from '../../data';
+import { gunShot } from './guns';
 import { bossVoice, ribWind, speciesVoice, stalkWarn } from './voices';
 
 export const TOUR_SECONDS = 86;
@@ -136,6 +139,64 @@ export async function renderZoneTour(sampleRate = 44100): Promise<AudioBuffer> {
     const intensity = t >= 10 && t < 17 ? 0.85 : t >= 34 && t < 40 ? 0.8 : Math.max(0.05, dread * 0.38);
     music.update(t, intensity, false);
     amb.update(t);
+  }
+  return ctx.startRendering();
+}
+
+/** Each gun in the roster (data/weapons.json order), then one rifle with different grafts fitted. */
+export function gunTourScript(): { t: number; id: string; mods: string[]; label: string }[] {
+  const out: { t: number; id: string; mods: string[]; label: string }[] = [];
+  let t = 1;
+  for (const [id, w] of Object.entries(WEAPONS)) {
+    const gap = 1 / Math.max(0.6, Math.min(w.fireRate, 12));
+    const shots = Math.max(1, Math.min(6, Math.floor(1.6 / gap)));
+    for (let i = 0; i < shots; i++) out.push({ t: t + i * gap, id, mods: [], label: w.label });
+    t += Math.min(4, shots * gap + 1.4);
+  }
+  t += 1;
+  const fits: [string[], string][] = [[[], 'bare'], [['hushGill'], 'Hush Gill'], [['barbCrown'], 'Barb Crown'], [['lampreyMouth', 'splinterStrain'], 'Lamprey Mouth + Splinter Strain'], [['acidStrain', 'seekerStrain'], 'Acid + Seeker'], [['tendonBrace', 'swollenSac', 'leechStrain'], 'Tendon Brace + Swollen Sac + Leech']];
+  for (const [mods, label] of fits) {
+    for (let i = 0; i < 4; i++) out.push({ t: t + i * 0.3, id: 'vertebraRifle', mods, label: `Vertebra Rifle, ${label}` });
+    t += 2.6;
+  }
+  return out;
+}
+
+export async function renderGunTour(sampleRate = 44100): Promise<{ buffer: AudioBuffer; script: ReturnType<typeof gunTourScript> }> {
+  const script = gunTourScript();
+  const seconds = script[script.length - 1].t + 3;
+  const ctx = new OfflineAudioContext(2, Math.ceil(seconds * sampleRate), sampleRate);
+  const e = new AudioEngine(ctx);
+  const amb = new Ambience(e);
+  e.setListener({ x: 0, y: 1.7, z: 0 }, { x: 0, y: 0, z: -1 }, { x: 0, y: 1, z: 0 });
+  amb.set(ambienceFor('glowmireIsle'), 1, 0);
+  for (const s of script) {
+    const cls = WEAPONS[s.id]?.class ?? 'carbine';
+    gunShot(s.id, s.mods, S.FIRE[cls] ?? S.FIRE.carbine)(e.x, e.buses.sfx, s.t, true);
+  }
+  for (let t = 0; t < seconds; t += 0.25) amb.update(t);
+  return { buffer: await ctx.startRendering(), script };
+}
+
+/** Walking out of Glowmire toward the edge of the map: the island's sound gives way to the murk, then back. */
+export async function renderEdgeTour(sampleRate = 44100): Promise<AudioBuffer> {
+  const seconds = 50, R = 180;
+  const ctx = new OfflineAudioContext(2, Math.ceil(seconds * sampleRate), sampleRate);
+  const e = new AudioEngine(ctx);
+  const music = new Music(e), amb = new Ambience(e), murk = new EdgeMurk(e);
+  e.setListener({ x: 0, y: 1.7, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 });
+  music.start('raid', 0);
+  amb.set(ambienceFor('glowmireIsle'), 1, 0);
+  for (let t = 1; t < seconds - 1; t += 0.6) S.footstep(e.x, e.buses.sfx, t, 'moss', 'medium', 0.5);
+  for (let t = 0; t < seconds; t += 0.05) {
+    // Out from 0.55 R to the edge over 38 s, a moment at the edge, then a few steps back.
+    const r = R * (t < 38 ? 0.55 + (t / 38) * 0.45 : t < 44 ? 1 : 1 - ((t - 44) / 6) * 0.2);
+    const level = edgeLevel(r, 0, R);
+    e.setListener({ x: r, y: 1.7, z: 0 }, { x: 1, y: 0, z: 0 }, { x: 0, y: 1, z: 0 });
+    e.duck('music', 1 - level * AUDIO.edge.musicDuck, 0.5, t);
+    music.update(t, 0.1, false);
+    amb.update(t);
+    murk.update(t, level, r, 0);
   }
   return ctx.startRendering();
 }
