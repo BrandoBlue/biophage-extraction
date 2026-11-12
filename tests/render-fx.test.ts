@@ -305,3 +305,22 @@ describe('lighting, relief and world scale', () => {
     expect(shotStyle('nope')).toBe(SHOT_STYLES.spore);
   });
 });
+
+describe('per-zone grade', () => {
+  it('only adjusts known grade fields, and grounds the desert with real shadows and firmer contrast', async () => {
+    const { GRADE_PRESETS, ZONE_GRADE } = await import('../src/render/presets');
+    const keys = Object.keys(GRADE_PRESETS.zone7);
+    for (const over of Object.values(ZONE_GRADE)) for (const k of Object.keys(over)) expect(keys).toContain(k);
+    const ochre = { ...GRADE_PRESETS.zone7, ...ZONE_GRADE.ochreReach };
+    expect(ochre.lift).toBe(0);
+    expect(ochre.contrast).toBeGreaterThan(GRADE_PRESETS.zone7.contrast);
+    expect(ochre.exposure).toBeLessThan(GRADE_PRESETS.zone7.exposure);
+  });
+
+  it('gives mushroom caps a soft, damp skin instead of a lacquered one', async () => {
+    const { fungusCap } = await import('../src/render/materials');
+    const cap = fungusCap();
+    expect(cap.roughness).toBeGreaterThanOrEqual(0.5);
+    expect(cap.clearcoat).toBeLessThanOrEqual(0.3);
+  });
+});

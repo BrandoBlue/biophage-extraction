@@ -252,9 +252,10 @@ export function fungalCaves(solids: CollisionWorld, c: CaveSpec, floorY: number,
       glow.push({ x: fx, z: fz, big: j === 0 });
     }
   }
-  // One weak glow low in the middle so the room has shape; everything else is the patches and the lure.
-  const light = new THREE.PointLight(ORGANIC.mist, 5, 20, 2);
-  light.position.set(0, 1.2, 0);
+  // One soft glow hung mid-height in the middle so the room has shape and the floor and roof stay readable (Rendering,
+  // 2026-11-12: at 5, low and with a steep falloff, the chamber read as black); the patches and the lure carry the colour.
+  const light = new THREE.PointLight(ORGANIC.mist, 9, R * 2.2, 1);
+  light.position.set(0, H * 0.55, 0);
   k.group.add(light);
   const haze = hazeVolume({ centre: new THREE.Vector3(0, H * 0.3, 0), size: new THREE.Vector3(R * 1.8, H * 0.6, R * 1.8), colour: ZONE7_SHADE.rockDeep, density: 0.035 });
   haze.name = 'cave-haze';

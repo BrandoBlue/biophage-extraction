@@ -55,7 +55,10 @@ export const GRADE_PRESETS = {
 } satisfies Record<string, GradePreset>;
 
 /**
- * Exposure scale per zone on top of the raid grade: the night zones use the grade as tuned, the Ochre Reach is a
- * daylight desert and would wash out at night exposure.
+ * Per-zone adjustments on top of the raid grade. The night zones use it as tuned. The Ochre Reach is a daylight
+ * desert: at night exposure with the shadow floor it read hazy and flat, so it gets less exposure, firmer contrast,
+ * a little more colour and true shadows (2026-11-12 fresh-eyes pass).
  */
-export const ZONE_EXPOSURE: Record<string, number> = { ochreReach: 0.86 };
+export const ZONE_GRADE: Record<string, Partial<GradePreset>> = {
+  ochreReach: { exposure: 1.36, contrast: 1.26, saturation: 0.9, lift: 0, vignette: 0.38 },
+};
