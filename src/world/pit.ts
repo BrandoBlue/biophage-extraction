@@ -7,6 +7,7 @@ import { horizonLands } from '../render/horizon';
 import { heightFog } from '../render/fog';
 import { HABITATS, ZONE_SITES, depthLayer } from '../../data';
 import { mulberry32 } from './rng';
+import { organicBox, roughen } from './organic';
 import { Kit, oldBone, type ArenaInfo, type BuiltStructures, type LootSpot, type Walkway } from './structures';
 import { noise3 } from '../render/geometry';
 import type { SiteDressing } from './sites';
@@ -324,14 +325,14 @@ function hut(k: Kit, m: Mats, o: { x: number; z: number; yaw: number; w: number;
   wall(w / 2, door / 2 + side, T, side, f, f + h);
   wall(w / 2, 0, T, door / 2, f + 2.3, f + h);
   // Hide roof, pitched down to the door, overhanging; no collider.
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(w + 1.4, 0.18, d + 1.0), m.hide);
+  const roof = new THREE.Mesh(sagSheet(w + 1.4, 0.18, d + 1.0, 0.35, o.x * 0.13 + o.z * 0.07), m.hide);
   roof.position.set(fx, f + h + 0.55, fz);
   roof.rotation.set(0, o.yaw, -0.28, 'YXZ');
   k.group.add(roof);
   // Bone frame at the corners, poking through the roof like ribs.
   for (const [u, v] of [[-w / 2, -d / 2], [-w / 2, d / 2], [w / 2, -d / 2], [w / 2, d / 2]]) {
     const [x, z] = at(u, v);
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.16, h + 1.6 + (f - o.groundY), 6), m.frame);
+    const post = new THREE.Mesh(shaped(roughen(new THREE.CylinderGeometry(0.11, 0.16, h + 1.6 + (f - o.groundY), 6, 6), 1, x + z)), m.frame);
     post.position.set(x, (o.groundY + f + h + 1.6) / 2, z);
     k.group.add(post);
   }
@@ -343,6 +344,30 @@ function hut(k: Kit, m: Mats, o: { x: number; z: number; yaw: number; w: number;
     k.box(rx, rz, len / 2, 0.8, o.groundY - 0.4, f, m.deck, { yaw: o.yaw + Math.PI, rise: lift + 0.4, tag: `${o.tag}-ramp` });
   }
   return { floorY: f, back: at(-w / 2 + 1, 0) };
+}
+
+/** Mark geometry as already shaped here, so the scene-wide organic pass at boot leaves it alone. */
+function shaped<T extends THREE.BufferGeometry>(geo: T): T {
+  geo.userData.organic = true;
+  return geo;
+}
+
+/**
+ * A hide or plank sheet that sags between its supports: a segmented slab bowed down in the middle along both axes,
+ * with lumpy noise so no two read alike. Visual only.
+ */
+function sagSheet(w: number, t: number, d: number, sag: number, seed: number): THREE.BufferGeometry {
+  const geo = new THREE.BoxGeometry(w, t, d, Math.max(2, Math.ceil(w / 0.6)), 1, Math.max(2, Math.ceil(d / 0.6)));
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    const u = (2 * x) / w, v = (2 * z) / d;
+    const bow = (1 - u * u) * 0.65 + (1 - v * v) * 0.35;
+    const n = noise3(x * 0.9 + seed, seed * 0.37, z * 0.9 - seed) * 0.6 + noise3(x * 2.7, seed, z * 2.7) * 0.4;
+    pos.setY(i, pos.getY(i) - sag * bow + (n - 0.5) * sag * 0.6);
+  }
+  geo.computeVertexNormals();
+  return shaped(geo);
 }
 
 /** A lantern: a dim amber bulb in a bone cage, optionally with a real light (keep those few). */
@@ -514,10 +539,10 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
     const y = L[kk + 1].y + (L[kk].y - L[kk + 1].y) * (0.35 + rand() * 0.4);
     const r = edgeRadius(kk, a) - PIT.cliff - 2.2;
     const x = Math.cos(a) * r, z = Math.sin(a) * r, yaw = -a + Math.PI;
-    const plat = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.25, 6), mats.deck);
+    const plat = new THREE.Mesh(shaped(organicBox(2.25, 0.125, 3, { amount: 0.8, seed: i * 7 + 3, flatTop: false })), mats.deck);
     plat.position.set(x, y, z);
     plat.rotation.y = yaw;
-    const shack = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.4, 3.2), mats.wall);
+    const shack = new THREE.Mesh(shaped(organicBox(1.3, 1.2, 1.6, { seed: i * 5 + 1, flatTop: false })), mats.wall);
     shack.position.set(x + Math.cos(a) * 0.8, y + 1.3, z + Math.sin(a) * 0.8);
     shack.rotation.y = yaw;
     k.group.add(plat, shack);
@@ -555,7 +580,7 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
     k.group.add(wheel);
     const cageY = -24;
     k.group.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([boomEnd, new THREE.Vector3(boomEnd.x, cageY + 3, boomEnd.z)]), 2, 0.05, 4), mats.rope));
-    const cage = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 3, 8, 3, true), mats.frame);
+    const cage = new THREE.Mesh(shaped(roughen(new THREE.CylinderGeometry(1.6, 1.45, 3, 10, 5, true), 0.8, 4)), mats.frame);
     cage.position.set(boomEnd.x, cageY + 1.5, boomEnd.z);
     k.group.add(cage);
     lantern(k, mats, boomEnd.x, 16, boomEnd.z, 0);
@@ -633,7 +658,7 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
       for (const side of [-1, 1]) {
         const off = (b.width / 2 + 0.4) * side;
         const px = dx * dir * end - dz * dir * off, pz = dz * dir * end + dx * dir * off;
-        const pylon = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.45, 4.5, 6), mats.frame);
+        const pylon = new THREE.Mesh(shaped(roughen(new THREE.CylinderGeometry(0.22, 0.5, 4.5, 7, 6), 1.2, px + pz)), mats.frame);
         pylon.position.set(px, y0 + 1.6, pz);
         k.group.add(pylon);
       }
@@ -680,7 +705,7 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
       k.solids.add({ cx: fx, cz: fz, hx: 0.8, hz: 0.8, yaw: 0, y0: g - 1, y1: g + 6, tag: 'gallery-rib' });
       if (i < gl.ribs - 1) {
         const mid = bearing + (gl.to - gl.from) / (gl.ribs - 1) / 2, ma = mid * D2R;
-        const plate = new THREE.Mesh(new THREE.BoxGeometry(9, 0.4, ((gl.to - gl.from) / (gl.ribs - 1)) * D2R * (footR + 6) + 1), mats.hide);
+        const plate = new THREE.Mesh(sagSheet(9, 0.4, ((gl.to - gl.from) / (gl.ribs - 1)) * D2R * (footR + 6) + 1, 0.8, i * 3.1), mats.hide);
         plate.position.set(Math.cos(ma) * (footR + 5.5), y + 13.3, Math.sin(ma) * (footR + 5.5));
         plate.rotation.set(0, -ma, 0.18, 'YXZ');
         if (rand() < 0.8) k.group.add(plate);
@@ -779,7 +804,7 @@ export function buildPit(scene: THREE.Scene, seed: number): PitWorld {
     for (let i = 0; i < u.pillars; i++) {
       const a = (i / u.pillars) * TAU + 0.3, x = Math.cos(a) * u.pillarRadius, z = Math.sin(a) * u.pillarRadius, g = pitHeight(x, z);
       const hgt = 9 + rand() * 7;
-      const p = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.6, hgt, 7, 4), pillarMat);
+      const p = new THREE.Mesh(shaped(roughen(new THREE.CylinderGeometry(0.85, 1.7, hgt, 11, Math.ceil(hgt / 1.2)), 1.6, i * 2.3 + 1)), pillarMat);
       p.position.set(x, g + hgt / 2 - 0.3, z);
       p.rotation.set((rand() - 0.5) * 0.15, rand() * 3, (rand() - 0.5) * 0.15);
       k.group.add(p);
