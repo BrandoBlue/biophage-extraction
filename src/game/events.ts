@@ -10,7 +10,15 @@ export interface GameEvents {
   collapseWarning: { timeLeft: number };
   shot: { weapon: string; ammo: number; position: Vec3Like; ego: boolean };
   reload: { weapon: string; time: number };
+  /** A reload reached one of its feel beats (weapon-feel.json reload[style].beats; perShell: per shell). */
+  reloadBeat: { weapon: string; style: string; beat: number; cue: string };
   reloaded: { weapon: string; ammo: number };
+  /** The held weapon changed (mouse wheel or Z). */
+  weaponSwap: { weapon: string; slot: number };
+  /** A weapon found in the raid went into a free weapon slot. */
+  weaponPickup: { weapon: string; label: string; slot: number };
+  /** A fed weapon took rounds from its ammo item in the cavities or pouch. */
+  ammoFed: { weapon: string; item: string; count: number };
   hit: { target: string; id: number; damage: number; weakPoint: boolean; kill: boolean; position: Vec3Like };
   damaged: { amount: number; biomass: number; zone: HitZone; source: string; direction: Vec3Like | null };
   healed: { amount: number; biomass: number };
@@ -58,6 +66,10 @@ export interface GameEvents {
   bossAttack: { boss: string; attack: string };
   bossDamaged: { boss: string; biomass: number; fraction: number; weakPoint: boolean; part: string };
   bossPartDestroyed: { boss: string; part: string };
+  /** A coolant valve in the Warden's reactor chamber was shot open (its seam beside it cracks). */
+  valveVented: { boss: string; valve: string };
+  /** A sand blast (or similar) blinded the host for `seconds` (UI/Rendering can white the screen out). */
+  hostBlinded: { seconds: number; source: string };
   bossCoverBroken: { boss: string; pillar: string };
   bossDefeated: { boss: string; dna: number; container: string | null };
   extractStart: { label: string; time: number };

@@ -43,6 +43,12 @@ export type AIEvent =
   | { type: 'screech'; radius: number }
   | { type: 'slam'; radius: number; damage: number; knockback: number }
   | { type: 'charge' }
+  /** Strung a web strand between two ground points (Tithe Weaver). */
+  | { type: 'web'; from: Vec2; to: Vec2 }
+  /** A fan of projectiles (a Bristleback's quill volley): `count` shots of `damage` each at `target`, spread a little. */
+  | { type: 'volley'; target: Vec3; count: number; damage: number; spread: number }
+  /** Calls every creature of its own kind within `radius` (a herd's alarm). */
+  | { type: 'alarm'; radius: number }
   /** Juked sideways out of the host's aim. */
   | { type: 'dodge' }
   /** Burst from its tank, dropped its disguise, or sprang the ambush it laid where it lost the host. */

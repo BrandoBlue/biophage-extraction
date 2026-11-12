@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { WEAPONS } from '../data';
-import { RETICLE_BY_CLASS, coneRadius, gunOf, spreadNow } from '../src/ui/raid/reticle';
+import { EYE_SCOPE_CLASSES, RETICLE_BY_CLASS, coneRadius, gunOf, spreadNow } from '../src/ui/raid/reticle';
+import { getSettings } from '../src/ui/settings';
 
 describe('living reticle', () => {
   it('has a mark for every weapon class in data/weapons.json', () => {
@@ -31,5 +32,19 @@ describe('living reticle', () => {
     expect(gunOf('leviathanQuill').scope).toBe(true);
     expect(gunOf('synapseBurster').scope).toBe(false);
     expect(gunOf('gulletScatter').scope).toBe(false);
+  });
+
+  it('keeps the eye scope to long-range classes only', () => {
+    expect(EYE_SCOPE_CLASSES).toEqual(new Set(['marksman', 'sniper']));
+    for (const [id, w] of Object.entries(WEAPONS as Record<string, { class?: string; ads?: false | { scope: boolean } }>)) {
+      if (!w?.class) continue;
+      if (gunOf(id).scope) expect(EYE_SCOPE_CLASSES.has(w.class), id).toBe(true);
+    }
+  });
+
+  it('defaults the eye scope setting on and keeps it when stored off', () => {
+    expect(getSettings(null).eyeScope).toBe(true);
+    const store = { getItem: () => JSON.stringify({ eyeScope: false }) };
+    expect(getSettings(store).eyeScope).toBe(false);
   });
 });

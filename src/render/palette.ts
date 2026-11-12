@@ -51,6 +51,44 @@ export const ORGANIC = {
   mist: '#8C9BB4',
 } as const;
 
+/**
+ * The Ochre Reach (desert savannah zone): sun-baked clay, bleached bone and dust under a hazed amber sky.
+ * Grounded like the rest of Zone 7: earth tones lit by low suns, glow stays a rare accent.
+ */
+export const OCHRE = {
+  sand: '#B08A5E',
+  sandShade: '#6E5038',
+  clay: '#9C6B48',
+  clayDark: '#4E3427',
+  dust: '#C9A57A',
+  bleached: '#D8CBB0',
+  thorn: '#3B3326',
+  leaf: '#5E6440',
+  skyHaze: '#C79E74',
+  skyHigh: '#6F6A73',
+  sun: '#F4E2BE',
+  rust: '#7A4A30',
+} as const;
+
+/**
+ * Natural hides for the new-zone creatures (Creature & Mutation, zones/): sun-bleached sand and ochre dust for the
+ * Ochre Reach, rope-pale and soot for the Marrow Pit, reed, peat and moss for the Weeping Fen. Lit, not glowing.
+ */
+export const FAUNA = {
+  sand: '#B89870',
+  sandDeep: '#6E5238',
+  ochre: '#9A5B32',
+  dustPale: '#D8C6A2',
+  rope: '#A39A86',
+  soot: '#24201E',
+  sickGreen: '#7E9A52',
+  reed: '#8C8A5E',
+  peat: '#2E2A1E',
+  fenMoss: '#4E5A34',
+  pearl: '#D9D2C0',
+  water: '#2C3A36',
+} as const;
+
 /** Colour grading targets for the final post pass (split-tone shadows and highlights). */
 export const GRADE = {
   zone7Shadow: '#0B1315',
@@ -58,4 +96,4 @@ export const GRADE = {
   hiveShadow: '#03120E',
   hiveHighlight: '#E6FFD9',
 } as const;
-export const ALL_COLOURS: Record<string, string> = { ...HIVE, ...PATH, ...ZONE7, ...ZONE7_SHADE, ...ORGANIC, ...GRADE };
+export const ALL_COLOURS: Record<string, string> = { ...HIVE, ...PATH, ...ZONE7, ...ZONE7_SHADE, ...ORGANIC, ...OCHRE, ...FAUNA, ...GRADE };

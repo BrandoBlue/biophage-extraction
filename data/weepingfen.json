@@ -1,0 +1,784 @@
+{
+  "_note": "The Weeping Fen (zone weepingFen) (World & Level): a flooded forest of giant root-footed trees. Geometry and positions only; Design's numbers live in zones.json under the same id. Frame: metres, +x east, +z south. Water surface is y = 0; the ground under it is mud. Everything here is placed on purpose: titans, groves, huts and channels are named and fixed, the seed only varies small dressing.",
+  "radius": 146,
+  "water": {
+    "level": 0,
+    "shallow": -0.45,
+    "channel": -1.15,
+    "mudRise": 0.55
+  },
+  "spawn": {
+    "x": -6,
+    "z": 126
+  },
+  "extracts": [
+    {
+      "id": "lanternLift",
+      "label": "Lantern Lift",
+      "x": 18,
+      "z": -124,
+      "opensAt": 0
+    },
+    {
+      "id": "causewayEnd",
+      "label": "Causeway End",
+      "x": 126,
+      "z": 36,
+      "opensAt": 240
+    }
+  ],
+  "islets": [
+    {
+      "id": "landing",
+      "x": -6,
+      "z": 126,
+      "radius": 14,
+      "height": 0.9
+    },
+    {
+      "id": "spiderHollow",
+      "x": -36,
+      "z": 34,
+      "radius": 13,
+      "height": 0.8
+    },
+    {
+      "id": "hollowElderFoot",
+      "x": -58,
+      "z": 8,
+      "radius": 18,
+      "height": 1.0
+    },
+    {
+      "id": "lanternLift",
+      "x": 18,
+      "z": -124,
+      "radius": 12,
+      "height": 1.1
+    },
+    {
+      "id": "causewayEnd",
+      "x": 126,
+      "z": 36,
+      "radius": 11,
+      "height": 1.0
+    },
+    {
+      "id": "drownedPod",
+      "x": -74,
+      "z": -72,
+      "radius": 20,
+      "height": 0.6
+    },
+    {
+      "id": "reedBank",
+      "x": 20,
+      "z": 70,
+      "radius": 16,
+      "height": 0.5
+    },
+    {
+      "id": "mossCrown",
+      "x": 84,
+      "z": -18,
+      "radius": 14,
+      "height": 1.2
+    },
+    {
+      "id": "cathedralRise",
+      "x": -104,
+      "z": 56,
+      "radius": 22,
+      "height": 0.8
+    },
+    {
+      "id": "bloomRise",
+      "x": -16,
+      "z": -38,
+      "radius": 12,
+      "height": 0.9
+    },
+    {
+      "id": "shallowsIsleA",
+      "x": 6,
+      "z": 34,
+      "radius": 7,
+      "height": 0.5
+    },
+    {
+      "id": "shallowsIsleB",
+      "x": 38,
+      "z": 20,
+      "radius": 7,
+      "height": 0.55
+    }
+  ],
+  "channels": [
+    {
+      "id": "weepingChannel",
+      "halfWidth": 7,
+      "points": [
+        [
+          -140,
+          -30
+        ],
+        [
+          -96,
+          -28
+        ],
+        [
+          -60,
+          -40
+        ],
+        [
+          -22,
+          -70
+        ],
+        [
+          16,
+          -74
+        ],
+        [
+          44,
+          -96
+        ],
+        [
+          70,
+          -118
+        ]
+      ]
+    },
+    {
+      "id": "drownedRun",
+      "halfWidth": 6,
+      "points": [
+        [
+          -20,
+          140
+        ],
+        [
+          -26,
+          96
+        ],
+        [
+          -8,
+          60
+        ],
+        [
+          30,
+          40
+        ],
+        [
+          72,
+          52
+        ],
+        [
+          110,
+          70
+        ],
+        [
+          140,
+          90
+        ]
+      ]
+    }
+  ],
+  "titans": [
+    {
+      "id": "hollowElder",
+      "x": -58,
+      "z": 8,
+      "radius": 8.5,
+      "height": 64,
+      "roots": 11,
+      "hollow": true
+    },
+    {
+      "id": "greyMatriarch",
+      "x": 36,
+      "z": 6,
+      "radius": 6.5,
+      "height": 54,
+      "roots": 9
+    },
+    {
+      "id": "kneelingGiant",
+      "x": -12,
+      "z": 88,
+      "radius": 5.2,
+      "height": 44,
+      "roots": 8
+    },
+    {
+      "id": "stiltMother",
+      "x": 58,
+      "z": -64,
+      "radius": 6,
+      "height": 50,
+      "roots": 9
+    },
+    {
+      "id": "theWidow",
+      "x": -104,
+      "z": -12,
+      "radius": 5.5,
+      "height": 46,
+      "roots": 8
+    },
+    {
+      "id": "northSentinel",
+      "x": -24,
+      "z": -104,
+      "radius": 5.8,
+      "height": 50,
+      "roots": 8
+    },
+    {
+      "id": "rimTwinA",
+      "x": 104,
+      "z": -70,
+      "radius": 4.8,
+      "height": 42,
+      "roots": 7
+    },
+    {
+      "id": "rimTwinB",
+      "x": 116,
+      "z": -52,
+      "radius": 4.2,
+      "height": 38,
+      "roots": 7
+    },
+    {
+      "id": "drownedKing",
+      "x": 100,
+      "z": 92,
+      "radius": 6.2,
+      "height": 48,
+      "roots": 9
+    },
+    {
+      "id": "bentElder",
+      "x": -96,
+      "z": 92,
+      "radius": 5.4,
+      "height": 44,
+      "roots": 8
+    },
+    {
+      "id": "mireWatcher",
+      "x": 46,
+      "z": 104,
+      "radius": 4.6,
+      "height": 40,
+      "roots": 7
+    },
+    {
+      "id": "hulkWarden",
+      "x": -112,
+      "z": -66,
+      "radius": 5,
+      "height": 42,
+      "roots": 8
+    },
+    {
+      "id": "bloomShade",
+      "x": 8,
+      "z": -50,
+      "radius": 4.4,
+      "height": 40,
+      "roots": 7
+    },
+    {
+      "id": "crownTree",
+      "x": 92,
+      "z": 4,
+      "radius": 4.6,
+      "height": 42,
+      "roots": 7
+    }
+  ],
+  "groves": [
+    {
+      "id": "elderGrove",
+      "x": -70,
+      "z": 30,
+      "radius": 34,
+      "trees": 14
+    },
+    {
+      "id": "stiltGrove",
+      "x": 52,
+      "z": -50,
+      "radius": 30,
+      "trees": 11
+    },
+    {
+      "id": "northWood",
+      "x": -30,
+      "z": -96,
+      "radius": 36,
+      "trees": 14
+    },
+    {
+      "id": "southFen",
+      "x": 54,
+      "z": 96,
+      "radius": 34,
+      "trees": 12
+    },
+    {
+      "id": "eastFen",
+      "x": 112,
+      "z": -20,
+      "radius": 26,
+      "trees": 9
+    },
+    {
+      "id": "mushroomCathedral",
+      "x": -104,
+      "z": 56,
+      "radius": 30,
+      "trees": 10,
+      "caps": true
+    }
+  ],
+  "stiltVillage": {
+    "_note": "Stilt Village: huts on platforms above the water joined by boardwalks. Deck height 2.4 m; ramps come down to the mud at the ends.",
+    "deck": 2.4,
+    "huts": [
+      {
+        "id": "stiltHutA",
+        "x": 40,
+        "z": -40,
+        "radius": 4.2,
+        "yaw": 20
+      },
+      {
+        "id": "stiltHutB",
+        "x": 58,
+        "z": -36,
+        "radius": 3.6,
+        "yaw": -30
+      },
+      {
+        "id": "stiltHutC",
+        "x": 70,
+        "z": -52,
+        "radius": 4.6,
+        "yaw": 60
+      },
+      {
+        "id": "stiltHutD",
+        "x": 42,
+        "z": -62,
+        "radius": 3.8,
+        "yaw": 0
+      },
+      {
+        "id": "stiltHutE",
+        "x": 64,
+        "z": -80,
+        "radius": 4.0,
+        "yaw": 90
+      }
+    ],
+    "walks": [
+      [
+        "stiltHutA",
+        "stiltHutB"
+      ],
+      [
+        "stiltHutB",
+        "stiltHutC"
+      ],
+      [
+        "stiltHutA",
+        "stiltHutD"
+      ],
+      [
+        "stiltHutD",
+        "stiltHutE"
+      ],
+      [
+        "stiltHutC",
+        "stiltHutE"
+      ]
+    ],
+    "ramps": [
+      {
+        "from": "stiltHutA",
+        "x": 24,
+        "z": -30
+      },
+      {
+        "from": "stiltHutC",
+        "x": 86,
+        "z": -40
+      }
+    ]
+  },
+  "loot": [
+    {
+      "id": "roothut-room",
+      "container": "fenHollow",
+      "site": "rootHut",
+      "onFloorOf": "rootHutRoom"
+    },
+    {
+      "id": "roothut-lookout",
+      "container": "fenHollow",
+      "site": "rootHut",
+      "onFloorOf": "rootHutLookout"
+    },
+    {
+      "id": "stilt-a",
+      "container": "fenHollow",
+      "site": "stiltHutA",
+      "onFloorOf": "stiltHutA"
+    },
+    {
+      "id": "stilt-b",
+      "container": "fenHollow",
+      "site": "stiltHutB",
+      "onFloorOf": "stiltHutB"
+    },
+    {
+      "id": "stilt-c",
+      "container": "fenHollow",
+      "site": "stiltHutC",
+      "onFloorOf": "stiltHutC"
+    },
+    {
+      "id": "stilt-e",
+      "container": "fenHollow",
+      "site": "stiltHutE",
+      "onFloorOf": "stiltHutE"
+    },
+    {
+      "id": "pod-hold",
+      "container": "drownedLocker",
+      "site": "drownedPod",
+      "onFloorOf": "drownedPod"
+    },
+    {
+      "id": "pod-bow",
+      "container": "drownedLocker",
+      "site": "drownedPod",
+      "onFloorOf": "drownedPod"
+    }
+  ],
+  "pods": [
+    {
+      "id": "hollow-nest-a",
+      "type": "fenHollow",
+      "x": -41,
+      "z": 38
+    },
+    {
+      "id": "hollow-nest-b",
+      "type": "fenHollow",
+      "x": -31,
+      "z": 29
+    },
+    {
+      "id": "cathedral-a",
+      "type": "fenHollow",
+      "x": -96,
+      "z": 50
+    },
+    {
+      "id": "cathedral-b",
+      "type": "fenHollow",
+      "x": -110,
+      "z": 63
+    },
+    {
+      "id": "shallows-a",
+      "type": "bioPod",
+      "x": 6,
+      "z": 34
+    },
+    {
+      "id": "shallows-b",
+      "type": "bioPod",
+      "x": 38,
+      "z": 20
+    },
+    {
+      "id": "shallows-c",
+      "type": "bioPod",
+      "x": 24,
+      "z": 66
+    }
+  ],
+  "blooms": [
+    {
+      "id": "bloomRise",
+      "x": -14,
+      "z": -36
+    },
+    {
+      "id": "cathedralBloom",
+      "x": -100,
+      "z": 60
+    }
+  ],
+  "areas": [
+    {
+      "id": "fenLanding",
+      "label": "The Landing",
+      "x": -6,
+      "z": 126,
+      "radius": 22
+    },
+    {
+      "id": "spiderHollow",
+      "label": "Spider Hollow",
+      "x": -36,
+      "z": 34,
+      "radius": 16
+    },
+    {
+      "id": "rootHut",
+      "label": "The Root Hut",
+      "x": -58,
+      "z": 8,
+      "radius": 22
+    },
+    {
+      "id": "stiltVillage",
+      "label": "Stilt Village",
+      "x": 54,
+      "z": -56,
+      "radius": 34
+    },
+    {
+      "id": "drownedPod",
+      "label": "The Drowned Pod",
+      "x": -74,
+      "z": -72,
+      "radius": 24
+    },
+    {
+      "id": "regentPool",
+      "label": "The Regent's Pool",
+      "x": 78,
+      "z": 52,
+      "radius": 28
+    },
+    {
+      "id": "mushroomCathedral",
+      "label": "Mushroom Cathedral",
+      "x": -104,
+      "z": 56,
+      "radius": 30
+    },
+    {
+      "id": "mistwaderShallows",
+      "label": "Mistwader Shallows",
+      "x": 20,
+      "z": 40,
+      "radius": 34
+    },
+    {
+      "id": "weepingChannel",
+      "label": "Weeping Channel",
+      "x": -22,
+      "z": -70,
+      "radius": 24
+    },
+    {
+      "id": "mossCrown",
+      "label": "Moss Crown",
+      "x": 84,
+      "z": -18,
+      "radius": 16
+    },
+    {
+      "id": "lanternLift",
+      "label": "Lantern Lift",
+      "x": 18,
+      "z": -124,
+      "radius": 16
+    }
+  ],
+  "waders": {
+    "_note": "Ambient mistwaders beyond the walkable ring: tall long-necked grazers wading slowly through the outer mist. Visual only, never in reach; Creature and PvE AI own the real ones.",
+    "count": 5,
+    "ring": [
+      170,
+      230
+    ],
+    "height": [
+      14,
+      22
+    ]
+  },
+  "landmarks": {
+    "_note": "Design's zones.json landmark ids for weepingFen, resolved to the areas above.",
+    "ids": [
+      "rootHut",
+      "mushroomCathedral",
+      "stiltVillage",
+      "mistwaderShallows",
+      "spiderHollow",
+      "drownedPod",
+      "regentPool"
+    ]
+  },
+  "rootHut": {
+    "_note": "The hut grown into the Hollow Elder (rootHut): a doorway on the south-east face, a round room inside the trunk, a ramp to a ring deck outside the trunk at 7 m, and a lookout at 13 m.",
+    "doorBearing": 140,
+    "roomRadius": 5.2,
+    "deck": 7,
+    "lookout": 13
+  },
+  "spiderHollow": {
+    "_note": "An old campfire on the islet under the Hollow Elder, still smouldering; the Mirebrood nest round it. Two lean-to shelters, webbed over.",
+    "fire": {
+      "x": -36,
+      "z": 34
+    },
+    "shelters": [
+      {
+        "x": -44,
+        "z": 30,
+        "yaw": 70
+      },
+      {
+        "x": -30,
+        "z": 42,
+        "yaw": -150
+      }
+    ]
+  },
+  "drownedPod": {
+    "_note": "A seed pod hulk that came down in the fen and settled on its side: an enterable shell with a torn opening facing the bank.",
+    "x": -74,
+    "z": -72,
+    "yaw": 25,
+    "length": 30,
+    "radius": 7
+  },
+  "regentPool": {
+    "_note": "The zone boss arena (Design's mireRegent): a deep black pool ringed by half-drowned bone arches. Waist-deep in the middle.",
+    "x": 80,
+    "z": 50,
+    "radius": 22,
+    "arches": 9,
+    "depth": -1.3
+  },
+  "logs": [
+    {
+      "id": "fallenSpan",
+      "_note": "The fallen trunk the host lands beside: walk it over the Drowned Run.",
+      "x0": -10,
+      "z0": 112,
+      "x1": -30,
+      "z1": 82,
+      "radius": 1.6
+    },
+    {
+      "id": "channelLog",
+      "x0": -30,
+      "z0": -56,
+      "x1": -14,
+      "z1": -84,
+      "radius": 1.2
+    },
+    {
+      "id": "crownLog",
+      "x0": 70,
+      "z0": -24,
+      "x1": 96,
+      "z1": -30,
+      "radius": 1.1
+    }
+  ],
+  "spawns_note": "Creature homes, matching Design's data/habitats.json weepingFen. Fenstalkers wait under the water (buried: they surge up when the host comes within that many metres).",
+  "spawns": [
+    {
+      "kind": "fenstalker",
+      "x": 10,
+      "z": 44,
+      "count": 1,
+      "buried": 7,
+      "roam": 30
+    },
+    {
+      "kind": "fenstalker",
+      "x": 34,
+      "z": 32,
+      "count": 1,
+      "buried": 7,
+      "roam": 30
+    },
+    {
+      "kind": "fenstalker",
+      "x": 30,
+      "z": -50,
+      "count": 1,
+      "buried": 7,
+      "roam": 30
+    },
+    {
+      "kind": "fenstalker",
+      "x": 72,
+      "z": -66,
+      "count": 1,
+      "buried": 7,
+      "roam": 30
+    },
+    {
+      "kind": "fenstalker",
+      "x": 80,
+      "z": 50,
+      "count": 1,
+      "buried": 9,
+      "roam": 30
+    },
+    {
+      "kind": "mirebrood",
+      "x": -37,
+      "z": 36,
+      "count": 3,
+      "packed": true,
+      "spread": 10,
+      "roam": 15
+    },
+    {
+      "kind": "mirebrood",
+      "x": -45,
+      "z": -2,
+      "count": 1,
+      "packed": true,
+      "spread": 8,
+      "roam": 15
+    },
+    {
+      "kind": "mistwader",
+      "x": 20,
+      "z": 40,
+      "count": 2,
+      "spread": 40,
+      "roam": 70
+    },
+    {
+      "kind": "titheWeaver",
+      "x": -104,
+      "z": 56,
+      "count": 2,
+      "spread": 20,
+      "roam": 12
+    },
+    {
+      "kind": "glasswalker",
+      "x": -74,
+      "z": -72,
+      "count": 2,
+      "spread": 6,
+      "roam": 10
+    }
+  ]
+}

@@ -102,7 +102,9 @@ function primDistance(p: SdfPrim, x: number, y: number, z: number): number {
     const ax = p.b.x - p.a.x, ay = p.b.y - p.a.y, az = p.b.z - p.a.z;
     const len = Math.hypot(ax, ay, az) || 1;
     const t = ((x - p.a.x) * ax + (y - p.a.y) * ay + (z - p.a.z) * az) / len;
-    d += (0.5 - 0.5 * Math.cos(t * p.ribs.freq * Math.PI * 2)) * p.ribs.depth;
+    // Grown, not machined: each ring wanders along the axis and swells or fades around the body.
+    const w = vnoise(x * 9 + 3, y * 9, z * 9);
+    d += (0.5 - 0.5 * Math.cos((t * p.ribs.freq + (w - 0.5) * 0.7) * Math.PI * 2)) * p.ribs.depth * (0.45 + w * 1.1);
   } else if (p.ribs) {
     d += (0.5 - 0.5 * Math.cos((z - p.a.z) * p.ribs.freq * Math.PI * 2)) * p.ribs.depth;
   }
@@ -121,6 +123,12 @@ function primBounds(p: SdfPrim, box: THREE.Box3): void {
   }
 }
 
+/** Minimum smooth-union radius for a primitive: a third of its thinnest radius, so joins read as flesh, not seams. */
+function softJoin(p: SdfPrim): number {
+  const r = p.shape === 'ellipsoid' ? Math.min(p.radii!.x, p.radii!.y, p.radii!.z) : Math.min(p.ra!, p.rb!);
+  return r * 0.33;
+}
+
 /** The whole field: smooth union of additive primitives, then carves, then surface noise. */
 export function sdfField(prims: SdfPrim[], opts: SdfOptions = {}): (x: number, y: number, z: number) => number {
   const noise = opts.noise;
@@ -128,11 +136,15 @@ export function sdfField(prims: SdfPrim[], opts: SdfOptions = {}): (x: number, y
     let d = 1e9;
     for (const p of prims) {
       const di = primDistance(p, x, y, z);
-      d = p.subtract ? smax(d, -di, p.blend ?? 0.02) : smin(d, di, p.blend ?? 0.05);
+      d = p.subtract ? smax(d, -di, p.blend ?? 0.02) : smin(d, di, Math.max(p.blend ?? 0.05, softJoin(p)));
     }
     if (noise) {
       const f = noise.freq, s = noise.seed;
       d += (vnoise(x * f + s, y * f, z * f) - 0.5) * noise.amp * 2 + (vnoise(x * f * 2.7, y * f * 2.7 + s, z * f * 2.7) - 0.5) * noise.amp;
+      // Broad, lopsided swellings (Brandon 2026-11-12: "less geometric, more organic"): a slow octave so no two
+      // sides of a body match and no primitive keeps its clean ellipse.
+      const g = f * 0.3;
+      d += (vnoise(x * g + 31 + s, y * g, z * g + 7) - 0.5) * noise.amp * 3.2;
     }
     return d;
   };
@@ -146,7 +158,7 @@ export function meshSdf(prims: SdfPrim[], boneCount: number, opts: SdfOptions = 
   const field = sdfField(prims, opts);
   const box = new THREE.Box3();
   for (const p of prims) if (!p.subtract) primBounds(p, box);
-  const pad = 0.06 + (opts.noise?.amp ?? 0) * 3;
+  const pad = 0.06 + (opts.noise?.amp ?? 0) * 5;
   box.min.addScalar(-pad); box.max.addScalar(pad);
   const size = box.getSize(new THREE.Vector3());
   const res = opts.resolution ?? 48;
@@ -254,7 +266,7 @@ export function meshSdf(prims: SdfPrim[], boneCount: number, opts: SdfOptions = 
     });
     for (let s = 0; s < 4; s++) {
       skinIndex[v * 4 + s] = order[s] ?? 0;
-      skinWeight[v * 4 + s] = sum > 0 ? w4[s] / sum : s === 0 ? 1 : 0;
+      skinWeight[v * 4 + s] = sum > 0 ? (w4[s] ?? 0) / sum : s === 0 ? 1 : 0; // bodies with fewer than 4 bones pad with 0
     }
   }
 

@@ -47,6 +47,23 @@ const POSES = {
   bowl: { at: [52, 3], eye: 7, yaw: -1.5, pitch: -0.05 },
   bowlFloor: { at: [80, -6], eye: 1.7, yaw: -0.5, pitch: 0.12 },
   debris: { at: [-42, 66], eye: 2.2, yaw: 0.85, pitch: 0.05 },
+  // The Marrow Pit: run with ZONE=marrowPit (rim camp, from above, the Cable Bridge, the Warrens, the floor).
+  pitRim: { at: [-141.6, 19.9], eye: 1.7, yaw: -1.43, pitch: -0.3 },
+  pitAerial: { pos: [0, 30, -178], yaw: Math.PI, pitch: -0.5 },
+  pitBridge: { pos: [0, -68.3, -60], yaw: Math.PI, pitch: -0.08 },
+  pitWarren: { at: [-71, 41], eye: 1.7, yaw: 1.26, pitch: 0.08 },
+  pitGallery: { at: [-7.7, -87.7], eye: 1.7, yaw: 1.6, pitch: 0.12 },
+  pitFloor: { at: [-51.7, -18.8], eye: 1.7, yaw: -1.92, pitch: 0.05 },
+  pitUp: { at: [10, -30], eye: 1.7, yaw: 0, pitch: 1.05 },
+  // The Weeping Fen: run with ZONE=weepingFen (World & Level, data/weepingfen.json).
+  fenSpawn: { at: [-6, 124], eye: 1.7, yaw: 0.25, pitch: 0.06 },
+  fenRootHut: { at: [-36, 28], eye: 1.7, yaw: 0.85, pitch: 0.18 },
+  fenStilts: { at: [22, -24], eye: 1.7, yaw: -0.8, pitch: 0.08 },
+  fenCamp: { at: [-38, 47], eye: 1.7, yaw: -0.14, pitch: -0.12 },
+  fenPool: { at: [58, 72], eye: 1.9, yaw: -0.8, pitch: 0.02 },
+  fenPod: { at: [-62, -56], eye: 1.7, yaw: 0.9, pitch: 0.04 },
+  fenAerial: { pos: [0, 60, 150], yaw: 0, pitch: -0.38 },
+  fenShallows: { at: [-2, 62], eye: 1.8, yaw: -0.6, pitch: 0.05 },
 };
 const width = Number(process.env.LOOKDEV_W || 1280), height = Number(process.env.LOOKDEV_H || 720);
 const server = spawn('npx', ['vite', 'preview', '--port', '4174', '--strictPort'], { stdio: 'ignore' });
@@ -70,7 +87,7 @@ try {
   mkdirSync('tests/out', { recursive: true });
   const only = process.argv[2];
   for (const [name, pose] of Object.entries(POSES)) {
-    if (only && only !== name) continue;
+    if (only && !only.split(',').includes(name)) continue;
     await page.evaluate(() => window.__biophageLookdev.lab(false));
     if (pose.lab !== undefined) await page.evaluate((y) => window.__biophageLookdev.lab(true, y), pose.lab);
     else if (pose.main) await page.evaluate(() => window.__biophageLookdev.clear());

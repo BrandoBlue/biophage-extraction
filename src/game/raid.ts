@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ABILITIES, ABOMINATIONS, BOSSES, CLASSES, HOST, KITS, LOOT, RAID, VIRUSES, VIRUS_RULES, WEAPONS, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
+import { ABILITIES, ABOMINATIONS, BOSSES, CLASSES, HOST, KITS, LOOT, RAID, VIRUSES, VIRUS_RULES, extractTimeFor, itemDef, layoutPosition, projectileDamage, rollContainer, type ClassId } from '../../data';
 import { groundHeight, ISLAND_RADIUS, mulberry32 } from '../world/zone7';
 import { Abomination, type AbominationContext, type AbominationKind, type HitSphere } from './abominations';
 import { AbilitySystem } from './abilities';
@@ -12,10 +12,14 @@ import type { Placed } from './grid';
 import { Injection, SporeInfection, virusForItem, virusModifiers } from './virus';
 import { Grenade, huskRules, Mine, throwVelocity } from './gear';
 import type { Noise } from './perception';
-import { hostVisibility } from '../ai';
+import { hostVisibility, WebField } from '../ai';
 import { BroodNest } from './nest';
 import { RaidBoss, type HostStrike } from './boss';
 import { RaidVigil } from './vigil';
+import { RaidWarden } from './warden';
+import { RaidWidow } from './widow';
+import type { WidowHit } from '../creatures/zones/sandwidow';
+import type { WardenHit } from '../creatures/warden';
 import type { VigilHit } from '../creatures/palevigil';
 import type { ReliquaryHit } from '../creatures/reliquary';
 import { liquidLight } from '../render/materials';
@@ -27,16 +31,64 @@ import { gravityAt, zone7Layout, type Zone7Layout } from '../world/layout';
 import type { SiteDressing } from '../world/sites';
 import type { ArenaInfo, BuiltStructures } from '../world/structures';
 
+/** Another host in an online raid, as the creature brains on the squad leader's machine see it (src/net). */
+export interface NetTarget {
+  id: string;
+  position: THREE.Vector3; velocity: THREE.Vector3;
+  /** How lit up it is (src/ai/light.ts) and where it looks. */
+  visibility: number; forward: { x: number; z: number };
+  hurt(damage: number, source: string, from: THREE.Vector3): void;
+  push(dx: number, dz: number, strength: number): void;
+}
+
+/**
+ * Online raids (Online & Backend, src/net): the seam between this raid and the other hosts in it. Absent in solo
+ * play, where every branch below behaves exactly as before. The squad leader's machine has `authority`: it runs the
+ * creature brains, reinforcements and nests and hunts every host; the others pose creatures from its snapshots and
+ * send it their damage.
+ */
+export interface RaidNet {
+  readonly authority: boolean;
+  /** Guests: pose every creature from the leader's latest snapshots (instead of running brains). */
+  follow(dt: number): void;
+  /** Leader: the other living hosts creatures may hunt. */
+  targets(): NetTarget[];
+  /** Leader: noises other hosts made since last frame. Guests: forward this host's noise to the leader. */
+  heard(into: Noise[]): void;
+  noise(x: number, z: number, radius: number): void;
+  /** PvP: the nearest other host a swept segment strikes. */
+  hitHost(a: THREE.Vector3, b: THREE.Vector3): { t: number; id: string; zone: 'head' | 'torso' | 'limb' } | null;
+  /** This host's shot struck another host for `damage`. */
+  hitOther(id: string, damage: number, zone: 'head' | 'torso' | 'limb', from: THREE.Vector3): void;
+  /** Guests: creature damage goes to the leader, which owns biomass and deaths. */
+  damageCreature(c: Abomination, amount: number, weak: boolean, dir: THREE.Vector3 | null, at: THREE.Vector3, sphere?: HitSphere): void;
+  /** Leader: a creature died; `by` is the killer's id, null for this host. */
+  killed(c: Abomination, by: string | null): void;
+  harvested(c: Abomination): void;
+  /** Every projectile this machine fires (not replicas): replayed on the others as harmless copies. */
+  fired(p: Projectile): void;
+  /** Squadmates and visible rival hosts for the scanner. */
+  pings(): ScannerPing[];
+}
+
 /** One Seed Spire of the raid: the World layout says where and when it opens (src/world/layout.ts). */
 export interface SpireSite { id: string; label: string; opensAt: number; open: boolean; point: ExtractionPoint; spire: SeedSpire }
 import { gore } from '../render/gore';
 import { simplifyForSoftware } from '../render/pipeline';
 import { creatureGore } from '../creatures/gore';
 import { HostArm, VIRUS_LOOKS, attachToViewmodel, type VirusLook } from '../creatures/hostarm';
+import type { AmmoFeed } from './weapon-state';
 import { HarvestFx } from '../creatures/organs';
-import { HIVE, ZONE7 } from '../render/palette';
+import { SPECIES } from '../creatures/species';
+import { HIVE, OCHRE, ZONE7 } from '../render/palette';
 import { NeuralOverload, Biomass } from './vitals';
-import { SynapseBurster, projectileLooks } from './weapon';
+import { LivingWeapon, STARTER_WEAPON, projectileLooks } from './weapon';
+import { isWeapon, weaponSlots } from './arsenal';
+import { WeaponRig } from './weapon-rig';
+import { createWeaponModel } from './weapon-view';
+import { weaponSpec, WEAPONS as WEAPON_DATA, WEAPON_FEEL, type WeaponSpec } from '../../data';
+import { applyMods } from './mods';
+import { planHabitats, usesHabitats, type HabitatMap, type PlannedGroup } from './habitats';
 import { DEFAULT_ZONE, RaidLog } from './economy';
 
 export type Phase = 'briefing' | 'raid' | 'extracted' | 'lost';
@@ -52,6 +104,16 @@ export interface HudState {
   biomass: number; biomassMax: number;
   overload: number; overloaded: boolean;
   ammo: number; magazine: number; reloading: number; ego: number; egoReady: boolean; aiming: boolean;
+  /** The held weapon: slot index in `slots`, rounds left in its ammo item (Infinity: regrows), charge and scope 0..1. */
+  weapon: { id: string; label: string; class: string; slot: number; slots: number; reserve: number; charge: number; scope: number; canAim: boolean };
+  /**
+   * What the crosshair should show: `radius` is the live spread cone as a fraction of half the viewport height
+   * (hip spread + movement + shot bloom, shrinking as you aim), `bloom` 0..1 how far shot bloom has opened it,
+   * `style` the class reticle (weapon-feel.json), `ready` false while reloading, empty, swapping or sprint-blocked,
+   * `pellets` > 1 for spread guns, `charge` 0..1 for charge guns, `onTarget` when the aim ray rests on a live
+   * creature, `weak` when on its live weak point.
+   */
+  crosshair: { radius: number; bloom: number; style: string; ready: boolean; pellets: number; charge: number; onTarget: boolean; weak: boolean };
   timeLeft: number; collapse: boolean;
   slots: ReturnType<AbilitySystem['slots']>;
   carried: { item: string; label: string; count: number; kind: string }[];
@@ -70,6 +132,7 @@ export interface HudState {
 }
 
 const tmp = new THREE.Vector3();
+const SAND_SPRAY = new THREE.Color(OCHRE.dust);
 const CHEST = 1.2;
 const PLAYER_RADIUS = 0.55;
 
@@ -85,7 +148,11 @@ export class Raid {
   readonly player: Player;
   readonly biomass: Biomass;
   readonly overload: NeuralOverload;
-  readonly weapon: SynapseBurster;
+  /** The weapons carried into the raid (loadout slots), and which one is held. */
+  readonly weapons: LivingWeapon[] = [];
+  private held = 0;
+  readonly rig: WeaponRig;
+  get weapon(): LivingWeapon { return this.weapons[this.held]; }
   readonly hostArm = new HostArm();
   private harvestFx = new HarvestFx();
   /** Raid-select zone and the contract log for this raid (src/game/economy.ts). */
@@ -105,6 +172,17 @@ export class Raid {
   readonly boss: RaidBoss | null = null;
   /** The Pale Vigil hanging in World's Fungal Cave lair (PvE AI). Null when the zone has no lair. */
   readonly vigil: RaidVigil | null = null;
+  /** The Warden of the Long Seed in World's reactor chamber aboard the wreck (PvE AI). Null in other zones. */
+  readonly warden: RaidWarden | null = null;
+  /** The Sandwidow under World's Skyfall Crater on the Ochre Reach (PvE AI). Null in other zones. */
+  readonly widow: RaidWidow | null = null;
+  /** Quicksand slow on the host this frame (1: none). */
+  private widowSlow = 1;
+  /** Tithe Weaver web strands (PvE AI, src/ai/web.ts): walking through one roots the host and rings the web. */
+  readonly webs = new WebField();
+  private readonly webLines = new Map<number, THREE.Line>();
+  private rootedFor = 0;
+  private readonly lastFeet = new THREE.Vector3();
   private bossPool: THREE.Mesh | null = null;
   readonly fx: Fx;
   readonly projectiles: Projectiles;
@@ -116,11 +194,21 @@ export class Raid {
   timeLeft = RAID.raidTime;
   timeScale = 1;
   pipeline: PipelineHooks = {};
+  /** Online raid (src/net); null in solo play. Set before deploy. */
+  net: RaidNet | null = null;
 
   private rand = mulberry32(2026);
   private raycaster = new THREE.Raycaster();
   private lastDecal = new Map<number, number>();
   private noises: Noise[] = [];
+  /** Acid graft burns (mods special 'acid'): damage per second on a creature until it runs out. */
+  /** What the aim ray rested on last frame (crosshair target feedback). */
+  private aimTarget: { weak: boolean } | null = null;
+  /** Reload feel beats already played this reload (or this shell). */
+  private reloadBeat = { idx: 0, last: 0 };
+  /** Habitat homes this raid (Design's habitats.json), for placement and reinforcements. */
+  private homes: PlannedGroup[] = [];
+  private acidBurns: { c: Abomination; dps: number; left: number }[] = [];
   private trigger = false;
   private aimHeld = false;
   private egoQueued = false;
@@ -155,7 +243,7 @@ export class Raid {
   private collapseWarned = false;
   private spireSignal = 0;
   private sinceHit = 99;
-  private result: (CarriedSnapshot & { cause?: string }) | null = null;
+  private result: (CarriedSnapshot & { cause?: string; weapons: string[]; mods: string[][] }) | null = null;
   private classId: ClassId = 'neuroInfiltrator';
   private spawnScale: number;
 
@@ -165,22 +253,28 @@ export class Raid {
     readonly layout: Zone7Layout = zone7Layout(1),
     private sites?: SiteDressing,
     structures?: BuiltStructures,
+    /** The zone this map was built for (habitats are placed against it); deploy may confirm it. */
+    zone: string = layout.area ? 'longSeedWreck' : DEFAULT_ZONE,
   ) {
+    this.zone = zone;
     this.arena = structures?.arena ?? null;
     const cls = CLASSES[this.classId];
-    this.playable = Math.min(RAID.playableRadius, ISLAND_RADIUS * 0.84);
-    this.spawnScale = this.playable / RAID.playableRadius;
+    // Bigger zones give their own walkable radius; spawn distances keep Glowmire's scale.
+    const island = Math.min(RAID.playableRadius, ISLAND_RADIUS * 0.84);
+    this.playable = layout.playableRadius ?? island;
+    this.spawnScale = island / RAID.playableRadius;
     scene.add(camera);
 
     this.player = new Player(camera, cls, HOST, canvas);
+    if (layout.playableRadius) this.player.edge = layout.playableRadius;
     this.biomass = new Biomass(cls.biomass);
     this.overload = new NeuralOverload(HOST.neuralOverload, cls.overloadDecayMultiplier);
     this.fx = new Fx(scene);
     this.hazards = new Hazards(scene);
     this.projectiles = new Projectiles(scene, projectileLooks());
-    this.weapon = new SynapseBurster(WEAPONS.synapseBurster, camera, this.projectiles);
-    // Creature & Mutation: the host's forearm dissolve-grows into the injected virus's look.
-    attachToViewmodel(this.weapon.view, this.hostArm);
+    this.rig = new WeaponRig(camera);
+    this.arm([STARTER_WEAPON]);
+    this.projectiles.onFire = (pr) => this.net?.fired(pr);
     // Contracts: what happened this raid (settled in the Hive by economy.settleContracts).
     this.bus.on('harvestDone', (e) => this.log.harvest(e.item));
     this.bus.on('creatureDeath', (e) => this.log.kill(e.type));
@@ -223,6 +317,14 @@ export class Raid {
       this.vigil = new RaidVigil(structures.lair, scene, Math.floor(this.rand() * 1e6));
       scene.add(this.vigil.body.root);
     }
+    if (structures?.warden && BOSSES.warden) {
+      this.warden = new RaidWarden(structures.warden, scene, Math.floor(this.rand() * 1e6));
+      scene.add(this.warden.body.root);
+    }
+    if (structures?.widow && BOSSES.sandwidow) {
+      this.widow = new RaidWidow(structures.widow, groundHeight, scene, Math.floor(this.rand() * 1e6));
+      scene.add(this.widow.body.root);
+    }
 
     const [sx, sz] = [layout.spawn.x, layout.spawn.z];
     this.player.spawn(sx, sz, Math.atan2(-(ex - sx), -(ez - sz)));
@@ -260,7 +362,58 @@ export class Raid {
   get spire(): SeedSpire { return this.currentSpire.spire; }
 
   // ------------------------------------------------------------------ setup
+  private habitatMap(): HabitatMap {
+    return { zone: this.zone, playable: this.playable, extract: { x: this.extract.x, z: this.extract.z }, pods: this.pods.map((p) => ({ type: p.type, x: p.position.x, z: p.position.z })), rand: this.rand };
+  }
+
+  /** Design's habitats: each species starts at its home (landmark, room, band...), packed or alone, never at random. */
+  private spawnHabitats(): void {
+    const spawn = this.player.position;
+    const minFromSpawn = Math.max(15, RAID.spawn.noEnemyWithin * this.spawnScale);
+    this.homes = planHabitats(this.habitatMap()).filter((g) => ABOMINATIONS[g.kind as AbominationKind]);
+    for (const g of this.homes) {
+      // A home on top of the drop point would ambush the host on frame one: those groups wait for reinforcements.
+      if (Math.hypot(g.home.x - spawn.x, g.home.z - spawn.z) < minFromSpawn) continue;
+      this.spawnGroup(g, false);
+    }
+  }
+
+  /** Places one habitat group at its home and hands each body its home and habits (PvE AI's setHome). */
+  private spawnGroup(g: PlannedGroup, alertTo: { x: number; z: number } | false): number {
+    const kind = g.kind as AbominationKind, data = ABOMINATIONS[kind];
+    const size = g.group.packed ? data.packSize[0] + Math.floor(this.rand() * (data.packSize[1] - data.packSize[0] + 1)) : 1;
+    for (let k = 0; k < size; k++) {
+      const a = this.rand() * Math.PI * 2, d = this.rand() * (g.home.spread || (size > 1 ? 3 : 0));
+      const c = this.addCreature(kind, g.home.x + Math.cos(a) * d, g.home.z + Math.sin(a) * d);
+      c.setHome(g.home.x, g.home.z, {
+        roam: g.roam, hatchOnApproach: g.group.hatchOnApproach, disguise: g.group.disguise, height: g.group.height,
+      });
+      if (alertTo) c.alert(alertTo);
+    }
+    return size;
+  }
+
   private spawnInitial(): void {
+    this.homes = [];
+    // Zones that place their own life (layout.spawns): fixed homes, some buried until the host comes close.
+    if (this.layout.spawns) {
+      for (const s of this.layout.spawns) {
+        const kind = s.kind as AbominationKind, data = ABOMINATIONS[kind];
+        if (!data || !(kind in SPECIES)) continue; // no body yet (Creature builds it): skip rather than crash
+        for (let n = 0; n < (s.count ?? 1); n++) {
+          const size = s.packed ? data.packSize[0] + Math.floor(this.rand() * (data.packSize[1] - data.packSize[0] + 1)) : 1;
+          for (let k = 0; k < size; k++) {
+            const a = this.rand() * Math.PI * 2, d = (s.spread ?? 3) * Math.sqrt(this.rand());
+            const c = this.addCreature(kind, s.x + Math.cos(a) * d, s.z + Math.sin(a) * d);
+            c.setHome(c.position.x, c.position.z, { roam: s.roam, hatchOnApproach: s.buried });
+            if (s.buried) c.burrowed = true;
+            if (s.toughness) c.biomass *= s.toughness;
+          }
+        }
+      }
+      return;
+    }
+    if (usesHabitats(this.zone)) { this.spawnHabitats(); return; }
     const minFromSpawn = Math.max(15, RAID.spawn.noEnemyWithin * this.spawnScale);
     const spawn = this.player.position;
     const [ex, ez] = [this.extract.x, this.extract.z];
@@ -295,11 +448,11 @@ export class Raid {
     }
   }
 
-  private addCreature(kind: AbominationKind, x: number, z: number): Abomination {
+  private addCreature(kind: AbominationKind, x: number, z: number, seed = Math.floor(this.rand() * 1e9)): Abomination {
     const r = Math.hypot(x, z), edge = this.playable * 0.95, ar = this.layout.area;
     if (ar) { x = Math.min(ar.x1, Math.max(ar.x0, x)); z = Math.min(ar.z1, Math.max(ar.z0, z)); }
     else if (r > edge) { x *= edge / r; z *= edge / r; }
-    const c = new Abomination(kind, ABOMINATIONS[kind], x, z, Math.floor(this.rand() * 1e9));
+    const c = new Abomination(kind, ABOMINATIONS[kind], x, z, seed);
     this.creatures.push(c);
     this.scene.add(c.root);
     // Creatures spawned after the first frame miss the pipeline's one-time software-tier simplification.
@@ -307,9 +460,35 @@ export class Raid {
     return c;
   }
 
+  /** Online guests: a creature the squad leader spawned (reinforcement, nest brood), with the leader's seed. */
+  netSpawn(kind: AbominationKind, x: number, z: number, seed: number): Abomination {
+    const c = this.addCreature(kind, x, z, seed);
+    c.place(x, z);
+    return c;
+  }
+
   private reinforce(): void {
     const alive = this.creatures.filter((c) => c.alive).length;
     const min = Math.max(15, RAID.reinforcements.spawnMinDistanceFromPlayer * this.spawnScale);
+    if (this.homes.length) {
+      // Reinforcements walk in from the nearest home of their species that the host cannot see.
+      const p = this.player.position;
+      const fwd = { x: -Math.sin(this.player.yaw), z: -Math.cos(this.player.yaw) };
+      let total = alive;
+      for (const w of RAID.reinforcements.wave) {
+        for (let n = 0; n < w.count; n++) {
+          const homes = this.homes.filter((g) => g.kind === w.type).map((g) => {
+            const dx = g.home.x - p.x, dz = g.home.z - p.z, d = Math.hypot(dx, dz);
+            return { g, d, seen: d < 60 && (dx * fwd.x + dz * fwd.z) / (d || 1) > 0.5 };
+          }).filter((h) => h.d >= min && !h.seen).sort((a, b) => a.d - b.d);
+          if (!homes[0]) continue;
+          const kind = w.type as AbominationKind;
+          if (total + (w.packed ? ABOMINATIONS[kind].packSize[1] : 1) > RAID.reinforcements.maxAlive) return;
+          total += this.spawnGroup({ ...homes[0].g, group: { ...homes[0].g.group, packed: w.packed } }, { x: p.x, z: p.z });
+        }
+      }
+      return;
+    }
     for (const w of RAID.reinforcements.wave) {
       const kind = w.type as AbominationKind;
       for (let n = 0; n < w.count; n++) {
@@ -335,6 +514,10 @@ export class Raid {
       if (e.button === 2) this.aimHeld = true;
       if (e.button === 1) { this.egoQueued = true; e.preventDefault(); }
     });
+    addEventListener('wheel', (e) => {
+      if (!locked() || this.phase !== 'raid' || Math.abs(e.deltaY) < 1) return;
+      this.cycleWeapon(e.deltaY > 0 ? 1 : -1);
+    }, { passive: true });
     addEventListener('mouseup', (e) => {
       if (e.button === 0) this.trigger = false;
       if (e.button === 2) this.aimHeld = false;
@@ -349,6 +532,7 @@ export class Raid {
       if (e.code === 'KeyV') this.meleeQueued = true;
       if (e.code === 'KeyG') this.throwGrenade();
       if (e.code === 'KeyX') this.placeMine();
+      if (e.code === 'KeyZ') this.cycleWeapon(1);
     });
   }
 
@@ -356,6 +540,7 @@ export class Raid {
   deploy(d: Deployment): void {
     if (this.phase !== 'briefing') return;
     this.carried.load(d.loadout, d.cavitySize, d.pouchSize);
+    if (d.weapons?.length) this.arm(d.weapons, d.mods);
     this.zone = d.zone ?? DEFAULT_ZONE;
     this.log = new RaidLog(this.zone);
     this.begin();
@@ -404,12 +589,13 @@ export class Raid {
   }
 
   private onReload(): void {
-    this.bus.emit('reload', { weapon: this.weapon.id, time: this.weapon.w.reloadTime });
+    this.bus.emit('reload', { weapon: this.weapon.id, time: this.weapon.state.reloadTotal });
     this.noise(this.player.position, HOST.noiseRadius.reload, 'reload');
   }
 
   private noise(at: THREE.Vector3, radius: number, source: string): void {
     this.noises.push({ x: at.x, z: at.z, radius });
+    this.net?.noise(at.x, at.z, radius);
     this.bus.emit('noise', { position: { x: at.x, y: at.y, z: at.z }, radius, source });
   }
 
@@ -458,6 +644,15 @@ export class Raid {
 
   private damageCreature(c: Abomination, amount: number, weak: boolean, dir: THREE.Vector3 | null, at: THREE.Vector3, source: string, sphere?: HitSphere): void {
     if (!c.alive) return;
+    if (this.net && !this.net.authority) {
+      // Online guest: the leader owns the creature's biomass. Show the wound now; the kill arrives from the leader.
+      this.net.damageCreature(c, amount, weak, dir, at, sphere);
+      this.fx.bleed(at, dir ?? new THREE.Vector3(0, -1, 0), c.fluid, weak ? 12 : 5);
+      this.wound(c, at, dir, weak);
+      this.bus.emit('hit', { target: c.kind, id: c.id, damage: amount, weakPoint: weak, kill: false, position: { x: at.x, y: at.y, z: at.z } });
+      if (this.injection.active === 'plagueStalkerStrain' && source !== 'debug') this.spores.infect(c.id);
+      return;
+    }
     const kill = c.damage(amount, dir, sphere);
     this.fx.bleed(at, dir ?? new THREE.Vector3(0, -1, 0), c.fluid, weak ? 12 : 5);
     this.wound(c, at, dir, weak);
@@ -466,12 +661,39 @@ export class Raid {
     if (kill) this.onKill(c);
   }
 
+  /**
+   * Online leader: damage another host dealt to creature `c` (relayed by src/net). The leader applies it so one
+   * machine decides every death; `by` gets the kill credit.
+   */
+  netDamageCreature(c: Abomination, amount: number, weak: boolean, dir: THREE.Vector3 | null, at: THREE.Vector3, sphere: HitSphere | undefined, by: string): void {
+    if (!c.alive) return;
+    const kill = c.damage(amount, dir, sphere);
+    this.fx.bleed(at, dir ?? new THREE.Vector3(0, -1, 0), c.fluid, weak ? 12 : 5);
+    this.wound(c, at, dir, weak);
+    if (kill) { this.deathFx(c); this.net?.killed(c, by); }
+  }
+
+  /** Online guests: the leader says creature `c` died; `mine` when this host landed the killing blow. */
+  netKilled(c: Abomination, mine: boolean): void {
+    if (!c.alive) return;
+    c.killedRemotely();
+    this.deathFx(c);
+    if (mine) this.creditKill(c);
+  }
+
+  /** A corpse another host harvested: it cannot be harvested again here. */
+  netHarvested(c: Abomination): void { this.harvested.add(c.id); if (this.harvestTarget === c) { this.harvestTarget = null; this.harvestProgress = 0; } }
+
   private onKill(c: Abomination): void {
+    this.deathFx(c);
+    this.creditKill(c);
+    this.net?.killed(c, null);
+  }
+
+  /** What every machine shows when a creature dies: the fountain, the pool, the Bile Cantor's death cloud. */
+  private deathFx(c: Abomination): void {
+    this.fx.burst(c.centre.clone(), c.fluid, c.kind === 'bilecantor' ? 1.8 : 1);
     {
-      this.kills++;
-      const dna = ABOMINATIONS[c.kind].dnaDrop;
-      this.carried.dna += dna;
-      this.fx.burst(c.centre.clone(), c.fluid, c.kind === 'bilecantor' ? 1.8 : 1);
       // Death: a big fountain and a glowing pool where the body falls.
       const colour = `#${c.fluid.getHexString()}`;
       const big = c.kind === 'bilecantor';
@@ -483,6 +705,15 @@ export class Raid {
         const cloud = ABOMINATIONS.bilecantor.deathCloud as { radius: number; duration: number; damagePerSecond: number; overloadPerSecond: number };
         this.hazards.deathCloud(c.position.x, c.centre.y - 1.5, c.position.z, cloud.radius, cloud.damagePerSecond, cloud.overloadPerSecond, cloud.duration);
       }
+    }
+  }
+
+  /** The kill's rewards, for the host that landed it: kill count, DNA, contracts, virus on-kill effects. */
+  private creditKill(c: Abomination): void {
+    {
+      this.kills++;
+      const dna = ABOMINATIONS[c.kind].dnaDrop;
+      this.carried.dna += dna;
       this.bus.emit('creatureDeath', { id: c.id, type: c.kind, position: { x: c.position.x, y: c.position.y, z: c.position.z }, dna });
       // Plague-Stalker: an infected death spreads spores to its neighbours.
       if (this.spores.stacksOf(c.id) > 0) {
@@ -540,6 +771,7 @@ export class Raid {
     for (const [id, dmg] of this.spores.update(dt)) {
       const c = this.creatures.find((x) => x.id === id);
       if (!c?.alive) { this.spores.clear(id); continue; }
+      if (this.net && !this.net.authority) { this.net.damageCreature(c, dmg, false, null, c.centre); continue; }
       if (c.damage(dmg, null)) { this.bus.emit('hit', { target: c.kind, id: c.id, damage: dmg, weakPoint: false, kill: true, position: { x: c.centre.x, y: c.centre.y, z: c.centre.z } }); this.onKill(c); }
     }
     // Parasites seek the nearest Abomination and bite once.
@@ -641,6 +873,14 @@ export class Raid {
       if (this.vigil?.alive && !this.vigil.brain.hidden) {
         const core = this.vigil.centre(new THREE.Vector3()), dmg = q.g.damageAt(Math.max(0, core.distanceTo(at) - 1));
         if (dmg > 0) this.damageVigil(dmg, null, core);
+      }
+      if (this.widow?.alive && !this.widow.brain.submerged) {
+        const core = this.widow.centre(new THREE.Vector3()), dmg = q.g.damageAt(Math.max(0, core.distanceTo(at) - 2));
+        if (dmg > 0) this.damageWidow(dmg, null, core);
+      }
+      if (this.warden?.alive) {
+        const core = this.warden.centre(new THREE.Vector3()), dmg = q.g.damageAt(Math.max(0, core.distanceTo(at) - 1.5));
+        if (dmg > 0) this.damageWarden(dmg, null, core);
       }
       const self = p.position.distanceTo(at);
       if (self <= q.g.r.radius) { this.overload.add(q.g.r.overload); this.hurt(q.g.damageAt(self) * 0.5, 'torso', 'own grenade', at); }
@@ -745,7 +985,7 @@ export class Raid {
   private lose(cause: string): void {
     if (this.phase !== 'raid') return;
     this.phase = 'lost';
-    this.result = { ...this.carried.snapshot(), cause };
+    this.result = { ...this.carried.snapshot(), cause, weapons: this.weapons.map((w) => w.id), mods: this.weapons.map((w) => [...w.spec.mods]) };
     this.player.enabled = false;
     this.trigger = false;
     this.bus.emit('death', { cause, items: this.result.items, dna: this.result.dna, value: this.result.value });
@@ -756,7 +996,7 @@ export class Raid {
   private win(): void {
     if (this.phase !== 'raid') return;
     this.phase = 'extracted';
-    this.result = this.carried.snapshot();
+    this.result = { ...this.carried.snapshot(), weapons: this.weapons.map((w) => w.id), mods: this.weapons.map((w) => [...w.spec.mods]) };
     this.player.enabled = false;
     this.trigger = false;
     this.spire.launch();
@@ -775,11 +1015,12 @@ export class Raid {
     const dir = this.camera.getWorldDirection(new THREE.Vector3());
     const far = origin.clone().addScaledVector(dir, 80);
     let best = 1;
+    this.aimTarget = null;
     for (const c of this.creatures) {
       if (!c.alive) continue;
       for (const h of c.hitSpheres) {
         const t = segmentSphere(origin, far, h.world, h.r);
-        if (t !== null && t < best && t > 0.002) best = t;
+        if (t !== null && t < best && t > 0.002) { best = t; this.aimTarget = { weak: c.isLiveWeakPoint(h) }; }
       }
     }
     // March the ground so spores land where the crosshair points at terrain.
@@ -798,11 +1039,12 @@ export class Raid {
     const live = this.phase === 'raid';
     if (live) { this.elapsed += dt; this.timeLeft = Math.max(0, RAID.raidTime - this.elapsed); }
     this.noises.length = 0;
+    this.net?.heard(this.noises);
 
     // Movement and Overload.
     p.canSprint = !this.overload.overloaded && this.useLeft <= 0;
     p.slowed = this.useLeft > 0 ? Number(ABILITIES.clotGel.movementMultiplierWhileUsing ?? 0.6) : 1;
-    p.speedMultiplier = (this.injection.injecting ? VIRUS_RULES.injectMovementMultiplier : 1) * (this.boss && this.boss.pinned > 0 ? 0 : 1) * (this.vigil && this.vigil.pinned > 0 ? 0 : 1);
+    p.speedMultiplier = (this.injection.injecting ? VIRUS_RULES.injectMovementMultiplier : 1) * (this.boss && this.boss.pinned > 0 ? 0 : 1) * (this.vigil && this.vigil.pinned > 0 ? 0 : 1) * (this.rootedFor > 0 ? 0 : 1) * this.widowSlow * this.weapon.spec.handling.moveSpeed;
     const mods = virusModifiers(this.injection.active);
     p.sprintBoost = mods.sprint;
     p.footstepScale = mods.footstep;
@@ -842,37 +1084,47 @@ export class Raid {
     // Weapon.
     for (const c of this.creatures) c.refreshHitSpheres();
     const trigger = live && (this.debugTrigger ?? this.trigger);
-    const fire = this.weapon.update(dt, trigger, live && this.aimHeld, { aimPoint: this.aimPoint(), moving: p.moving, sprinting: p.sprinting });
+    const w = this.weapon;
+    const fire = w.update(dt, trigger, live && this.aimHeld, { aimPoint: this.aimPoint(), moving: p.moving, sprinting: p.sprinting }, !this.rig.equipping);
     if (fire.shots > 0) {
-      const w = this.weapon.w;
-      p.kick(w.recoil.pitch * (Math.PI / 180) * fire.shots * (1 - this.weapon.aim * 0.5));
-      p.yaw += (this.rand() - 0.5) * w.recoil.yawJitter * (Math.PI / 180) * fire.shots;
-      p.addTrauma(0.03);
-      this.noise(p.position, HOST.noiseRadius.gunfire, 'gunfire');
-      this.bus.emit('shot', { weapon: this.weapon.id, ammo: this.weapon.state.ammo, position: { x: p.position.x, y: p.position.y, z: p.position.z }, ego: false });
+      const rc = w.spec.recoil;
+      p.kick(rc.pitch * (Math.PI / 180) * fire.shots * (1 - w.aim * 0.5));
+      p.yaw += (this.rand() - 0.5) * rc.yawJitter * (Math.PI / 180) * fire.shots;
+      // Screen shake per class from Design's feel table, halved while aiming down the sight.
+      p.addTrauma((WEAPON_FEEL.fire[w.spec.class]?.shake ?? 0.06) * (1 - w.aim * 0.5));
+      for (let i = 0; i < fire.shots; i++) this.rig.fired(fire.kick);
+      if (w.spec.overloadPerShot) this.overload.add(w.spec.overloadPerShot * fire.shots); // charge weapons heat the host
+      this.noise(p.position, HOST.noiseRadius.gunfire * w.spec.noise.gunfire, 'gunfire');
+      this.bus.emit('shot', { weapon: w.id, ammo: w.state.ammo, position: { x: p.position.x, y: p.position.y, z: p.position.z }, ego: false });
     }
     if (fire.startedReload) this.onReload();
-    if (fire.reloaded) this.bus.emit('reloaded', { weapon: this.weapon.id, ammo: this.weapon.state.ammo });
+    this.playReloadBeats(w, fire.startedReload);
+    if (fire.reloaded) this.bus.emit('reloaded', { weapon: w.id, ammo: w.state.ammo });
     if (this.egoQueued) {
       this.egoQueued = false;
-      if (live && this.weapon.egoReady) {
+      if (live && w.egoReady) {
         if (this.overload.overloaded) this.bus.emit('abilityDenied', { id: 'egoCharge', reason: 'overloaded' });
-        else if (this.weapon.fireEgo(this.aimPoint())) {
-          this.overload.add(this.weapon.w.egoCharge.overloadFill);
+        else if (w.fireEgo(this.aimPoint())) {
+          this.overload.add(w.spec.egoCharge!.overloadFill);
           this.noise(p.position, HOST.noiseRadius.egoCharge, 'egoCharge');
           p.addTrauma(0.3);
           p.kick(0.05);
-          this.bus.emit('shot', { weapon: this.weapon.id, ammo: this.weapon.state.ammo, position: { x: p.position.x, y: p.position.y, z: p.position.z }, ego: true });
+          this.rig.fired(w.lastKick);
+          this.bus.emit('shot', { weapon: w.id, ammo: w.state.ammo, position: { x: p.position.x, y: p.position.y, z: p.position.z }, ego: true });
         }
       }
     }
-    this.weapon.view.update(dt, { yaw: p.yaw, pitch: p.pitch, speed: Math.hypot(p.velocity.x, p.velocity.z), sprinting: p.sprinting, grounded: p.grounded }, this.weapon.state.ammo / this.weapon.w.magazine, this.weapon.egoFraction, this.lookTarget());
+    // Aiming down sights zooms by the weapon's ads.zoom (weapons without ADS never zoom).
+    p.zoom = 1 + (w.adsZoom - 1) * THREE.MathUtils.smoothstep(w.aim, 0, 1);
+    this.rig.update(dt, { yaw: p.yaw, pitch: p.pitch, speed: Math.hypot(p.velocity.x, p.velocity.z), sprinting: p.sprinting, grounded: p.grounded },
+      { ammoFrac: w.state.ammo / w.spec.magazine, aim: w.aim, ego: w.egoFraction, charge: fire.charge, reloading: w.state.isReloading, look: this.lookTarget(), eyeScope: w.eyeScope });
 
     // Abilities.
     this.abilities.update(dt);
 
     // Projectiles.
     this.projectiles.update(dt, (pr, a, b) => this.projectileHit(pr, a, b), (pr, at) => this.projectileLand(pr, at), (pr, sdt) => this.steer(pr, sdt));
+    this.updateAcid(dt);
 
     // Creatures.
     const ctx: AbominationContext = {
@@ -884,16 +1136,24 @@ export class Raid {
       onKnockback: (c, strength) => {
         const d = new THREE.Vector3(p.position.x - c.position.x, 0, p.position.z - c.position.z);
         if (d.lengthSq() < 1e-6) d.set(Math.sin(c.yaw), 0, Math.cos(c.yaw));
-        d.normalize();
-        p.velocity.x += d.x * strength; p.velocity.z += d.z * strength;
-        p.velocity.y = Math.max(p.velocity.y, strength * 0.45);
-        p.grounded = false;
-        p.addTrauma(Math.min(0.8, strength / 12));
+        this.knockback(d.x, d.z, strength);
+      },
+      onWeb: (c, from, to) => {
+        const W = c.t.web as { maxStrands: number; strandBiomass: number } | undefined;
+        const r = this.webs.add(c.id, from, to, W?.strandBiomass ?? 15, W?.maxStrands ?? 6);
+        for (const s of r.dropped) this.dropStrand(s.id);
+        const y = (x: number, z: number) => groundHeight(x, z) + 0.7;
+        const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(from.x, y(from.x, from.z), from.z), new THREE.Vector3(to.x, y(to.x, to.z), to.z)]);
+        const line = new THREE.Line(g, new THREE.LineBasicMaterial({ color: HIVE.bone, transparent: true, opacity: 0.55 }));
+        this.webLines.set(r.strand.id, line);
+        this.scene.add(line);
       },
       onReveal: (c, how) => {
         this.bus.emit('creatureReveal', { id: c.id, type: c.kind, how, position: { x: c.position.x, y: c.position.y, z: c.position.z } });
         this.noise(c.position, 20, how);
-        this.fx.burst(c.centre.clone(), c.fluid, 0.8);
+        // Burrowers erupt in a spray of sand and a dust ring instead of a fluid burst.
+        if (c.burrowed) { this.fx.burst(c.position.clone().setY(groundHeight(c.position.x, c.position.z) + 0.4), SAND_SPRAY, 1.6); this.fx.ring(c.position, SAND_SPRAY, 4 + c.radius * 2, 0.7); }
+        else this.fx.burst(c.centre.clone(), c.fluid, 0.8);
       },
       onScreech: (c, radius) => {
         this.bus.emit('alert', { id: c.id, type: c.kind, position: { x: c.position.x, y: c.position.y, z: c.position.z } });
@@ -908,21 +1168,30 @@ export class Raid {
         this.hurt(dmg, 'torso', c.kind, c.position);
         this.fx.bleed(p.eyePosition.clone().add(new THREE.Vector3(0, -0.4, 0)), c.position.clone().sub(p.position).normalize(), GORE.flesh, 6);
       },
-      onSpit: (c, from, vel) => {
+      onSpit: (c, from, vel, damage) => {
         this.bus.emit('attack', { id: c.id, type: c.kind, position: { x: c.position.x, y: c.position.y, z: c.position.z } });
-        const proj = ABOMINATIONS.bilecantor.projectile as { gravity: number };
-        this.projectiles.fire('bile', 'enemy', from, vel, { damage: c.t.damage, gravity: proj.gravity, life: 6 });
+        const proj = (c.t.projectile ?? ABOMINATIONS.bilecantor.projectile) as { gravity: number };
+        this.projectiles.fire('bile', 'enemy', from, vel, { damage: damage ?? c.t.damage, gravity: damage !== undefined ? 0 : proj.gravity, life: 6 });
       },
     };
-    for (const c of this.creatures) c.update(dt, ctx);
-    if (live) this.updateNests(dt);
+    const net = this.net;
+    if (net && !net.authority) net.follow(dt);
+    else {
+      // Online leader: each creature hunts the nearest living host, this one or another player's.
+      const targets = net?.targets() ?? [];
+      for (const c of this.creatures) c.update(dt, targets.length ? this.ctxFor(c, ctx, targets, live) : ctx);
+    }
+    if (!net || net.authority) this.updateWebs(dt, live);
+    if (live && (!net || net.authority)) this.updateNests(dt);
     if (this.boss) this.updateBoss(dt, live);
     if (this.vigil) this.updateVigil(dt, live);
+    if (this.warden) this.updateWarden(dt, live);
+    if (this.widow) this.updateWidow(dt, live);
     creatureGore.update(dt);
     this.hostArm.update(dt);
     this.harvestFx.update(dt);
     for (let i = this.creatures.length - 1; i >= 0; i--) if (this.creatures[i].removable) { this.scene.remove(this.creatures[i].root); this.creatures.splice(i, 1); }
-    if (live && this.elapsed >= this.nextReinforce) { this.nextReinforce += RAID.reinforcements.interval; this.reinforce(); }
+    if (live && this.elapsed >= this.nextReinforce) { this.nextReinforce += RAID.reinforcements.interval; if (!net || net.authority) this.reinforce(); }
 
     // Hazards.
     const hz = this.hazards.update(dt, p.position.x, p.position.z);
@@ -1012,6 +1281,37 @@ export class Raid {
     this.fx.update(dt);
   }
 
+  /** Shoves the host along (dx, dz) (creature horns and slams, here or relayed from the squad leader). */
+  knockback(dx: number, dz: number, strength: number): void {
+    const p = this.player, l = Math.hypot(dx, dz) || 1;
+    p.velocity.x += (dx / l) * strength; p.velocity.z += (dz / l) * strength;
+    p.velocity.y = Math.max(p.velocity.y, strength * 0.45);
+    p.grounded = false;
+    p.addTrauma(Math.min(0.8, strength / 12));
+  }
+
+  /** Online leader: the context a creature sees when another player's host is nearer than this one. */
+  private ctxFor(c: Abomination, ctx: AbominationContext, targets: NetTarget[], live: boolean): AbominationContext {
+    const at = c.position;
+    let best: NetTarget | null = null;
+    let bd = live ? Math.hypot(this.player.position.x - at.x, this.player.position.z - at.z) : Infinity;
+    for (const t of targets) {
+      const d = Math.hypot(t.position.x - at.x, t.position.z - at.z);
+      if (d < bd) { bd = d; best = t; }
+    }
+    if (!best) return ctx;
+    const t = best;
+    return {
+      ...ctx, player: t.position, playerVelocity: t.velocity, playerAlive: true,
+      playerVisibility: t.visibility, playerForward: t.forward,
+      onMelee: (a, dmg) => {
+        this.bus.emit('attack', { id: a.id, type: a.kind, position: { x: a.position.x, y: a.position.y, z: a.position.z } });
+        t.hurt(dmg, a.kind, a.position);
+      },
+      onKnockback: (a, strength) => t.push(t.position.x - a.position.x, t.position.z - a.position.z, strength),
+    };
+  }
+
   private lookTarget(): THREE.Vector3 | null {
     // Eyes on the gun track the nearest engaged creature (in camera space).
     let best: Abomination | null = null, bd = 30;
@@ -1031,6 +1331,7 @@ export class Raid {
     this.harvestProgress = 0;
     if (this.carried.add(item, 1) > 0) { this.bus.emit('cavityFull', { items: [{ item, count: 1 }] }); return; }
     this.harvested.add(c.id);
+    this.net?.harvested(c);
     this.harvestTarget = null;
     const colour = `#${c.fluid.getHexString()}`;
     gore.burst(this.scene, { point: c.centre.clone(), colour, count: 50, speed: 4 });
@@ -1053,6 +1354,7 @@ export class Raid {
     }
     this.fx.burst(pod.position.clone().add(new THREE.Vector3(0, 0.7, 0)), GORE.cyanFluid, 0.6);
     if (items.length) this.bus.emit('pickup', { items, dna: 0, source: pod.type });
+    this.pickUpWeapons();
     // Never auto-drop what is carried: what does not fit stays in the pod (swap UI comes with the cavity overlay).
     if (left.length) { pod.reseal(left); this.bus.emit('cavityFull', { items: left }); }
   }
@@ -1144,6 +1446,38 @@ export class Raid {
     }
   }
 
+  /** Web strands: a host who walks through one is rooted and every creature within the web's alert radius comes. */
+  private updateWebs(dt: number, live: boolean): void {
+    const p = this.player.position;
+    this.rootedFor = Math.max(0, this.rootedFor - dt);
+    // A dead weaver's web falls.
+    for (const s of [...this.webs.strands]) {
+      const owner = this.creatures.find((c) => c.id === s.owner);
+      if (!owner?.alive) { this.webs.clear(s.owner).forEach((x) => this.dropStrand(x.id)); }
+    }
+    if (live && this.lastFeet.lengthSq() > 0) {
+      const hit = this.webs.tripped({ x: this.lastFeet.x, z: this.lastFeet.z }, { x: p.x, z: p.z });
+      for (const s of hit) {
+        this.dropStrand(s.id);
+        const W = ABOMINATIONS.titheWeaver?.web as { rootDuration: number; alertRadius: number } | undefined;
+        this.rootedFor = Math.max(this.rootedFor, W?.rootDuration ?? 1.8);
+        this.player.addTrauma(0.25);
+        this.noise(p, W?.alertRadius ?? 40, 'web');
+        for (const c of this.creatures) if (c.alive && c.position.distanceTo(p) <= (W?.alertRadius ?? 40)) c.alert({ x: p.x, z: p.z });
+      }
+    }
+    this.lastFeet.copy(p);
+  }
+
+  private dropStrand(id: number): void {
+    const l = this.webLines.get(id);
+    if (!l) return;
+    this.scene.remove(l);
+    l.geometry.dispose();
+    (l.material as THREE.Material).dispose();
+    this.webLines.delete(id);
+  }
+
   /** A boss hit on the host: damage, knockback away from `from` (or along `yaw`), and a shake. */
   private bossStrike(s: HostStrike, source: string, yaw: number): void {
     const p = this.player;
@@ -1195,6 +1529,137 @@ export class Raid {
       if (e.type !== 'wake' && e.type !== 'phase' && e.type !== 'enrage' && e.type !== 'chunk' && e.type !== 'collapseWarn') this.bus.emit('bossAttack', { boss: v.id, attack: e.type });
     }
     for (const s of f.strikes) this.bossStrike(s, `${v.t.label} ${s.source}`, v.brain.body.yaw);
+  }
+
+  // ------------------------------------------------------------------ wreck boss (the Warden of the Long Seed)
+  private updateWarden(dt: number, live: boolean): void {
+    const w = this.warden!, p = this.player;
+    const host = {
+      x: p.position.x, y: p.position.y, z: p.position.z, vx: p.velocity.x, vz: p.velocity.z,
+      alive: live, hidden: this.elapsed < RAID.spawn.safeTime, visibility: 1, forward: null,
+    };
+    const f = w.update(dt, host);
+    const floor = (x: number, z: number) => new THREE.Vector3(x, w.arena.floorY + 0.15, z);
+    for (const e of f.events) {
+      switch (e.type) {
+        case 'wake': this.bus.emit('bossAwake', { boss: w.id, label: w.t.label, songRadius: w.t.songRadius }); p.addTrauma(0.35); break;
+        case 'phase': this.bus.emit('bossPhase', { boss: w.id, phase: e.id }); p.addTrauma(0.5); this.fx.burst(w.centre(new THREE.Vector3()), GORE.limeFluid, 2.2); break;
+        case 'enrage': this.bus.emit('bossEnraged', { boss: w.id }); break;
+        case 'spear': this.fx.ring(new THREE.Vector3(e.at.x, e.at.y + 0.15, e.at.z), GORE.bone, e.radius, 0.3); this.noise(floor(e.at.x, e.at.z), 20, 'boss'); break;
+        case 'steam': this.fx.ring(new THREE.Vector3(e.at.x, e.at.y + 0.2, e.at.z), GORE.bone, e.radius, 0.6); this.noise(floor(e.at.x, e.at.z), 25, 'boss'); break;
+        case 'pulse': {
+          this.fx.ring(floor(w.arena.core.x, w.arena.core.z), GORE.limeFluid, e.radius, 0.9);
+          this.noise(floor(w.arena.core.x, w.arena.core.z), e.radius * 2, 'boss');
+          p.addTrauma(0.7);
+          break;
+        }
+        default: break;
+      }
+      if (e.type !== 'wake' && e.type !== 'phase' && e.type !== 'enrage') this.bus.emit('bossAttack', { boss: w.id, attack: e.type });
+    }
+    for (const id of f.fallen) {
+      const c = w.arena.catwalks.find((x) => x.id === id)!;
+      const mid = new THREE.Vector3((c.x0 + c.x1) / 2, c.y, (c.z0 + c.z1) / 2);
+      this.fx.burst(mid, GORE.bone, 2);
+      gore.burst(this.scene, { point: mid, colour: HIVE.bone, count: 50, speed: 6 });
+      this.noise(mid, 30, 'boss');
+      this.bus.emit('bossCoverBroken', { boss: w.id, pillar: id });
+    }
+    for (const b of f.brood) {
+      if (!ABOMINATIONS[b.type]) continue;
+      for (let i = 0; i < b.count; i++) {
+        const a = (i / b.count) * Math.PI * 2, x = b.x + Math.cos(a) * 1.2, z = b.z + Math.sin(a) * 1.2;
+        const c = this.addCreature(b.type as AbominationKind, x, z);
+        c.place(x, z, Math.cos(a) * 3, Math.sin(a) * 3);
+        c.alert({ x: p.position.x, z: p.position.z });
+      }
+    }
+    for (const s of f.strikes) this.bossStrike(s, `${w.t.label} ${s.source}`, w.brain.yaw);
+  }
+
+  // ------------------------------------------------------------------ desert boss (the Sandwidow)
+  private updateWidow(dt: number, live: boolean): void {
+    const w = this.widow!, p = this.player;
+    const host = {
+      x: p.position.x, y: p.position.y, z: p.position.z, vx: p.velocity.x, vz: p.velocity.z,
+      alive: live, hidden: this.elapsed < RAID.spawn.safeTime, visibility: 1, forward: null,
+    };
+    const f = w.update(dt, host);
+    this.widowSlow = f.slow;
+    const sand = (x: number, z: number) => new THREE.Vector3(x, groundHeight(x, z) + 0.15, z);
+    for (const e of f.events) {
+      switch (e.type) {
+        case 'wake': this.bus.emit('bossAwake', { boss: w.id, label: w.t.label, songRadius: w.t.songRadius }); p.addTrauma(0.4); break;
+        case 'phase': this.bus.emit('bossPhase', { boss: w.id, phase: e.id }); p.addTrauma(0.5); break;
+        case 'enrage': this.bus.emit('bossEnraged', { boss: w.id }); break;
+        case 'funnel': this.fx.ring(sand(e.at.x, e.at.z), SAND_SPRAY, e.radius, e.warning); this.noise(sand(e.at.x, e.at.z), 15, 'boss'); break;
+        case 'undertow': case 'breach': case 'thrash':
+          this.fx.burst(sand(e.at.x, e.at.z).add(new THREE.Vector3(0, 1, 0)), SAND_SPRAY, 2.4);
+          this.fx.ring(sand(e.at.x, e.at.z), SAND_SPRAY, e.radius, 0.5);
+          this.noise(sand(e.at.x, e.at.z), 35, 'boss');
+          if (Math.hypot(p.position.x - e.at.x, p.position.z - e.at.z) < e.radius * 2) p.addTrauma(0.5);
+          break;
+        case 'surface': this.fx.burst(w.centre(new THREE.Vector3()), SAND_SPRAY, 2); this.noise(w.position, 30, 'boss'); break;
+        case 'quicksand': this.fx.ring(sand(w.crater.x, w.crater.z), SAND_SPRAY, e.fraction * w.crater.radius, 1.5); break;
+        default: break;
+      }
+      if (e.type !== 'wake' && e.type !== 'phase' && e.type !== 'enrage' && e.type !== 'funnel' && e.type !== 'surface' && e.type !== 'dive' && e.type !== 'quicksand') this.bus.emit('bossAttack', { boss: w.id, attack: e.type });
+    }
+    if (f.blind > 0) { p.addTrauma(0.6); this.bus.emit('hostBlinded', { seconds: f.blind, source: w.id }); }
+    for (const b of f.brood) {
+      if (!ABOMINATIONS[b.type]) continue;
+      for (let i = 0; i < b.count; i++) {
+        const a = (i / b.count) * Math.PI * 2, x = b.x + Math.cos(a) * 2, z = b.z + Math.sin(a) * 2;
+        const c = this.addCreature(b.type as AbominationKind, x, z);
+        c.place(x, z, Math.cos(a) * 4, Math.sin(a) * 4);
+        c.alert({ x: p.position.x, z: p.position.z });
+      }
+    }
+    for (const s of f.strikes) {
+      if (s.source === 'quicksand') { this.hurt(s.damage, 'limb', 'the quicksand', null); continue; }
+      this.bossStrike(s, `${w.t.label} ${s.source}`, w.brain.yaw);
+    }
+  }
+
+  /** Damages the Sandwidow. Returns true on a weak-point hit. */
+  private damageWidow(amount: number, sphere: WidowHit | null, at: THREE.Vector3): boolean {
+    const w = this.widow;
+    if (!w?.alive || w.brain.submerged) return false;
+    const r = w.damage(amount, sphere);
+    this.fx.impact(at, r.weak ? GORE.limeFluid : SAND_SPRAY, r.weak ? 12 : 5);
+    this.bus.emit('bossDamaged', { boss: w.id, biomass: w.biomass, fraction: w.fraction, weakPoint: r.weak, part: sphere?.tag ?? 'body' });
+    if (r.popped) this.bus.emit('bossPartDestroyed', { boss: w.id, part: r.popped });
+    if (r.killed) {
+      const rw = w.t.rewards, c = w.position;
+      this.kills++;
+      this.widowSlow = 1;
+      this.noise(c, HOST.noiseRadius.egoCharge, 'boss');
+      this.bossKilled(w.id, c.x, c.z);
+      const container = rw.container && LOOT.containers[rw.container] ? rw.container : null;
+      this.bus.emit('bossDefeated', { boss: w.id, dna: rw.dna, container });
+    }
+    return r.weak;
+  }
+
+  /** Damages the Warden. Returns true on a weak-point hit. */
+  private damageWarden(amount: number, sphere: WardenHit | null, at: THREE.Vector3): boolean {
+    const w = this.warden;
+    if (!w?.alive) return false;
+    const r = w.damage(amount, sphere);
+    this.fx.impact(at, r.weak ? GORE.limeFluid : GORE.bone, r.weak ? 12 : 5);
+    this.bus.emit('bossDamaged', { boss: w.id, biomass: w.biomass, fraction: w.fraction, weakPoint: r.weak, part: sphere?.tag ?? 'body' });
+    if (r.popped) this.bus.emit('bossPartDestroyed', { boss: w.id, part: r.popped });
+    if (r.killed) {
+      const rw = w.t.rewards, c = w.position, A = w.arena;
+      this.kills++;
+      this.noise(c, HOST.noiseRadius.egoCharge, 'boss');
+      // It may die on the roof: the spoils land on the floor below it, kept inside the chamber.
+      const x = Math.min(A.x1 - 4, Math.max(A.x0 + 4, c.x)), z = Math.min(A.z1 - 4, Math.max(A.z0 + 4, c.z));
+      this.bossKilled(w.id, x, z);
+      const container = rw.container && LOOT.containers[rw.container] ? rw.container : null;
+      this.bus.emit('bossDefeated', { boss: w.id, dna: rw.dna, container });
+    }
+    return r.weak;
   }
 
   /** Damages the Pale Vigil. Returns true on a weak-point hit. */
@@ -1249,6 +1714,7 @@ export class Raid {
     this.kills++;
     this.dropContainer(o.container, c.x + 3.5, c.z, `${o.container}-${n.id}`);
     this.noise(c, HOST.noiseRadius.egoCharge, 'nest');
+    this.log.destroyNest();
     this.bus.emit('nestDestroyed', { id: n.id, type: n.type, dna: o.dnaDrop, container: o.container });
   }
 
@@ -1263,6 +1729,14 @@ export class Raid {
     if (v?.awake && Math.hypot(v.position.x - p.x, v.position.z - p.z) <= v.lair.radius * 1.6) {
       return { label: `${v.t.label} · ${v.brain.enraged ? 'ENRAGED' : v.brain.phase.id.toUpperCase()}`, fraction: v.fraction, wave: 0, waves: 0 };
     }
+    const sw = this.widow;
+    if (sw?.awake && Math.hypot(sw.crater.x - p.x, sw.crater.z - p.z) <= sw.crater.radius * 1.5) {
+      return { label: `${sw.t.label} · ${sw.brain.enraged ? 'ENRAGED' : sw.brain.phase.id.toUpperCase()}`, fraction: sw.fraction, wave: 0, waves: 0 };
+    }
+    const w = this.warden;
+    if (w?.awake && p.x >= w.arena.x0 - 10 && p.x <= w.arena.x1 + 10 && p.z >= w.arena.z0 - 10 && p.z <= w.arena.z1 + 10) {
+      return { label: `${w.t.label} · ${w.brain.enraged ? 'ENRAGED' : w.brain.phase.id.toUpperCase()}`, fraction: w.fraction, wave: 0, waves: 0 };
+    }
     for (const n of this.nests) {
       if (n.state !== 'active' && n.state !== 'spent') continue;
       if (Math.hypot(n.position.x - p.x, n.position.z - p.z) > n.t.activationRadius * 1.5) continue;
@@ -1272,6 +1746,8 @@ export class Raid {
   }
 
   private projectileHit(pr: Projectile, a: THREE.Vector3, b: THREE.Vector3): { point: THREE.Vector3; t: number } | null {
+    // Another host's shot replayed here: it stops on what it meets, but its shooter's machine decides the damage.
+    if (pr.remote && pr.owner === 'player') return this.replicaHit(a, b);
     if (pr.owner === 'enemy') {
       if (this.phase !== 'raid') return null;
       const chest = this.player.position.clone(); chest.y += CHEST;
@@ -1284,7 +1760,7 @@ export class Raid {
     }
     let bestT = Infinity, bestC: Abomination | null = null, bestS: HitSphere | null = null;
     for (const c of this.creatures) {
-      if (!c.alive) continue;
+      if (!c.alive || pr.hit?.has(c.id)) continue;
       let weakHit: { t: number; s: HitSphere } | null = null;
       let bodyHit: { t: number; s: HitSphere } | null = null;
       for (const h of c.hitSpheres) {
@@ -1301,45 +1777,225 @@ export class Raid {
       const h = n.hit(a, b);
       if (h && h.t < (nestHit?.t ?? bestT)) nestHit = { n, ...h };
     }
+    // PvP (online raids): another host's body, if nothing else is nearer along the shot.
+    const hh = this.net?.hitHost(a, b) ?? null;
+    if (hh && hh.t < Math.min(bestT, nestHit?.t ?? Infinity, this.vigil?.hit(a, b)?.t ?? Infinity, this.boss?.hit(a, b)?.t ?? Infinity, this.warden?.hit(a, b)?.t ?? Infinity, this.widow?.hit(a, b)?.t ?? Infinity)) {
+      const point = a.clone().lerp(b, hh.t);
+      const dmg = (pr.weapon ? projectileDamage({ damage: pr.damage, range: pr.weapon.range }, point.distanceTo(pr.origin), 1) : pr.damage);
+      this.net!.hitOther(hh.id, dmg, hh.zone, pr.origin);
+      this.fx.impact(point, new THREE.Color(HIVE.danger), 8);
+      this.bus.emit('hit', { target: 'host', id: -1, damage: dmg, weakPoint: hh.zone === 'head', kill: false, position: { x: point.x, y: point.y, z: point.z } });
+      return { point, t: hh.t };
+    }
+    const sh = this.widow?.hit(a, b) ?? null;
+    if (sh && sh.t < (nestHit?.t ?? bestT)) {
+      const point = a.clone().lerp(b, sh.t);
+      const dmg = (pr.weapon ? projectileDamage({ damage: pr.damage, range: pr.weapon.range }, point.distanceTo(pr.origin), 1) : pr.damage);
+      const weak = this.damageWidow(dmg, sh.sphere, point);
+      if (pr.weapon) this.weaponFor(pr)?.credit(weak);
+      return { point, t: sh.t };
+    }
+    const wh = this.warden?.hit(a, b) ?? null, valve = this.warden?.valveHit(a, b) ?? null;
+    if (valve && valve.t < (wh?.t ?? Infinity) && valve.t < (nestHit?.t ?? bestT)) {
+      // Shooting a coolant valve's wheel vents it: the Warden's seam beside it cracks open.
+      const point = a.clone().lerp(b, valve.t);
+      this.warden!.vent(valve.index);
+      this.fx.impact(point, GORE.bone, 6);
+      this.noise(point, 25, 'valve');
+      this.bus.emit('valveVented', { boss: 'warden', valve: this.warden!.arena.valves[valve.index].id });
+      return { point, t: valve.t };
+    }
+    if (wh && wh.t < (nestHit?.t ?? bestT)) {
+      const point = a.clone().lerp(b, wh.t);
+      const dmg = (pr.weapon ? projectileDamage({ damage: pr.damage, range: pr.weapon.range }, point.distanceTo(pr.origin), 1) : pr.damage);
+      const weak = this.damageWarden(dmg, wh.sphere, point);
+      if (pr.weapon) this.weaponFor(pr)?.credit(weak);
+      return { point, t: wh.t };
+    }
     const vh = this.vigil?.hit(a, b) ?? null;
     if (vh && vh.t < (nestHit?.t ?? bestT) && vh.t < (this.boss?.hit(a, b)?.t ?? Infinity)) {
       const point = a.clone().lerp(b, vh.t);
-      const dmg = pr.kind === 'ego' ? pr.damage : projectileDamage(this.weapon.w, point.distanceTo(pr.origin), 1);
+      if (pr.stick) return { point, t: vh.t }; // sticky rounds burst on their fuse
+      const dmg = pr.weapon ? projectileDamage({ damage: pr.damage, range: pr.weapon.range }, point.distanceTo(pr.origin), 1) : pr.damage;
       const weak = this.damageVigil(dmg, vh.sphere, point);
-      if (pr.kind === 'spore') this.weapon.credit(weak);
+      if (pr.weapon) this.weaponFor(pr)?.credit(weak);
       return { point, t: vh.t };
     }
     const bh = this.boss?.hit(a, b) ?? null;
     if (bh && bh.t < (nestHit?.t ?? bestT)) {
       const point = a.clone().lerp(b, bh.t);
-      const dmg = pr.kind === 'ego' ? pr.damage : projectileDamage(this.weapon.w, point.distanceTo(pr.origin), 1);
+      if (pr.stick) return { point, t: bh.t }; // sticky rounds burst on their fuse
+      const dmg = pr.weapon ? projectileDamage({ damage: pr.damage, range: pr.weapon.range }, point.distanceTo(pr.origin), 1) : pr.damage;
       const weak = this.damageBoss(dmg, bh.sphere, pr.origin, point);
-      if (pr.kind === 'spore') this.weapon.credit(weak);
+      if (pr.weapon) this.weaponFor(pr)?.credit(weak);
       return { point, t: bh.t };
     }
     if (nestHit) {
       const point = a.clone().lerp(b, nestHit.t);
-      const dmg = pr.kind === 'ego' ? pr.damage : projectileDamage(this.weapon.w, point.distanceTo(pr.origin), 1);
+      if (pr.stick) return { point, t: nestHit.t }; // sticky rounds burst on their fuse
+      const dmg = pr.weapon ? projectileDamage({ damage: pr.damage, range: pr.weapon.range }, point.distanceTo(pr.origin), 1) : pr.damage;
       this.damageNest(nestHit.n, dmg, nestHit.vent, point);
-      if (pr.kind === 'spore') this.weapon.credit(nestHit.vent !== null);
+      if (pr.weapon) this.weaponFor(pr)?.credit(nestHit.vent !== null);
       return { point, t: nestHit.t };
     }
     if (!bestC || !bestS) return null;
     const point = a.clone().lerp(b, bestT);
     const weak = bestC.isLiveWeakPoint(bestS);
     const dist = point.distanceTo(pr.origin);
-    const mult = weak ? (bestC.t.weakPoint.multiplier ?? this.weapon.w.weakPointMultiplier) : 1;
-    const dmg = pr.kind === 'ego' ? pr.damage * mult : projectileDamage(this.weapon.w, dist, mult);
+    if (pr.stick) {
+      // Sticky rounds burst on their fuse, riding the creature they hit.
+      const c = bestC, off = point.clone().sub(c.centre);
+      pr.follow = () => (c.alive ? c.centre.clone().add(off) : null);
+      return { point, t: bestT };
+    }
+    const mult = weak ? (bestC.t.weakPoint.multiplier ?? pr.weapon?.weakPointMultiplier ?? 2) : 1;
+    const dmg = pr.weapon ? projectileDamage({ damage: pr.damage, range: pr.weapon.range }, dist, mult) : pr.damage * mult;
     const dir = pr.vel.clone().normalize();
+    (pr.hit ??= new Set()).add(bestC.id);
     this.damageCreature(bestC, dmg, weak, dir, point, pr.kind, bestS);
-    if (pr.kind === 'spore') this.weapon.credit(weak);
+    if (pr.weapon) { this.weaponFor(pr)?.credit(weak); this.graftHit(pr.weapon, bestC, dmg, point); }
     this.fx.impact(point, weak ? GORE.limeFluid : GORE.spore, weak ? 12 : 6);
     this.splash(pr, point, bestC);
     return { point, t: bestT };
   }
 
+  /** Walks the reload's feel beats (Design's weapon-feel.json) and tells the body and the sound about each. */
+  private playReloadBeats(w: LivingWeapon, started: boolean): void {
+    const b = this.reloadBeat;
+    if (!w.state.isReloading) { b.idx = 0; b.last = 0; return; }
+    const style = w.state.reloadStyle;
+    const beats = WEAPON_FEEL.reload[style]?.beats ?? [];
+    const prog = w.state.reloadProgress;
+    if (started || prog < b.last) b.idx = 0; // a new reload, or the next shell
+    b.last = prog;
+    while (b.idx < beats.length && prog >= beats[b.idx].at) {
+      w.model.beat?.(b.idx, beats[b.idx].pose);
+      this.bus.emit('reloadBeat', { weapon: w.id, style, beat: b.idx, cue: beats[b.idx].cue });
+      b.idx++;
+    }
+  }
+
+  /** Grafted behaviours on a creature hit (mods.json effects.special): acid burn, leech, splinter shards. */
+  private graftHit(spec: WeaponSpec, c: Abomination, dmg: number, at: THREE.Vector3): void {
+    for (const sp of spec.specials) {
+      const n = (k: string, d: number) => Number(sp[k] ?? d);
+      if (sp.id === 'acid') {
+        const b = this.acidBurns.find((x) => x.c === c);
+        if (b) b.left = n('duration', 3); else this.acidBurns.push({ c, dps: n('dps', 3), left: n('duration', 3) });
+      } else if (sp.id === 'leech' && this.phase === 'raid') {
+        this.biomass.heal(dmg * n('fraction', 0.04));
+      } else if (sp.id === 'splinter') {
+        const others = this.creatures.filter((o) => o.alive && o !== c && o.centre.distanceTo(at) < 6)
+          .sort((a, b) => a.centre.distanceTo(at) - b.centre.distanceTo(at)).slice(0, n('shards', 3));
+        for (const o of others) this.damageCreature(o, n('damage', 8), false, o.centre.clone().sub(at).normalize(), o.centre.clone(), 'splinter');
+        this.fx.impact(at, GORE.bone, 8);
+      }
+    }
+  }
+
+  private updateAcid(dt: number): void {
+    for (const b of this.acidBurns) {
+      b.left -= dt;
+      if (b.c.alive) this.damageCreature(b.c, b.dps * dt, false, null, b.c.centre, 'acid');
+    }
+    this.acidBurns = this.acidBurns.filter((b) => b.left > 0 && b.c.alive);
+  }
+
+  /** The carried weapon that fired a player round (Ego Charge is credited to it). */
+  private weaponFor(pr: Projectile): LivingWeapon | undefined { return this.weapons.find((w) => w.spec === pr.weapon); }
+
+  // ------------------------------------------------------------------ arsenal
+  /** Loads the raid's weapon slots (weapons.json ids; unknown ids are skipped) and holds the first. */
+  arm(ids: string[], mods: string[][] = []): void {
+    const known = ids.map((id, i) => ({ id, mods: mods[i] ?? [] })).filter((k) => WEAPON_DATA[k.id]);
+    if (!known.length) known.push({ id: STARTER_WEAPON, mods: [] });
+    for (const w of this.weapons) w.model.root.removeFromParent();
+    this.weapons.length = 0;
+    for (const { id, mods: grafts } of known) {
+      const spec = applyMods(weaponSpec(id), grafts);
+      const w = new LivingWeapon(spec, createWeaponModel(spec), this.projectiles, spec.ammo ? this.ammoFeed(id, spec.ammo) : null);
+      this.weapons.push(w);
+      this.rig.add(w.model);
+    }
+    this.held = -1;
+    this.equip(0, true);
+  }
+
+  /** Draws carried weapon `i` (its equipTime swing; instantly at raid start). */
+  equip(i: number, instant = false): boolean {
+    if (i === this.held || !this.weapons[i]) return false;
+    const prev = this.weapons[this.held];
+    if (prev) { prev.state.cancelReload(); prev.aim = 0; }
+    this.held = i;
+    const w = this.weapons[i];
+    this.rig.setFeel(WEAPON_FEEL.fire[w.spec.class]);
+    if (instant) this.rig.equip(w.model, 0); else this.rig.swap(w.model, w.spec.handling.equipTime);
+    // Creature & Mutation: the host's forearm (and its virus mutation) moves onto the drawn weapon's grip.
+    if (w.model.grip) {
+      w.model.grip.add(this.hostArm.root);
+      this.hostArm.root.position.set(0, 0, 0);
+      this.hostArm.root.quaternion.identity();
+      this.hostArm.root.scale.setScalar(1);
+    } else attachToViewmodel(w.model as { root: THREE.Object3D }, this.hostArm);
+    if (!instant) this.bus.emit('weaponSwap', { weapon: w.id, slot: i });
+    return true;
+  }
+
+  /**
+   * Weapons found in a raid: while a weapon slot is free, a weapon item in the cavities is taken into the hands
+   * (mouse wheel or Z to draw it). With every slot full it rides home in the cavities as loot.
+   */
+  pickUpWeapons(): string[] {
+    const taken: string[] = [];
+    for (const s of this.carried.items) {
+      if (!isWeapon(s.item) || this.weapons.some((w) => w.id === s.item)) continue;
+      if (this.weapons.length >= 1 + weaponSlots()) break;
+      if (!this.carried.consume(s.item)) continue;
+      const spec = weaponSpec(s.item);
+      const w = new LivingWeapon(spec, createWeaponModel(spec), this.projectiles, spec.ammo ? this.ammoFeed(spec.id, spec.ammo) : null);
+      this.weapons.push(w);
+      this.rig.add(w.model);
+      taken.push(s.item);
+      this.bus.emit('weaponPickup', { weapon: s.item, label: spec.label, slot: this.weapons.length - 1 });
+    }
+    return taken;
+  }
+
+  private ammoFeed(id: string, item: string): AmmoFeed {
+    return {
+      available: () => this.carried.count(item),
+      take: (n) => { let got = 0; while (got < n && this.carried.consume(item)) got++; if (got) this.bus.emit('ammoFed', { weapon: id, item, count: got }); return got; },
+    };
+  }
+
+  private cycleWeapon(step: number): void {
+    if (this.weapons.length < 2) return;
+    this.equip((this.held + step + this.weapons.length) % this.weapons.length);
+  }
+
+  /** A replayed shot from another host: stops at the first creature or host it meets, deals nothing. */
+  private replicaHit(a: THREE.Vector3, b: THREE.Vector3): { point: THREE.Vector3; t: number } | null {
+    let bestT = Infinity;
+    for (const c of this.creatures) {
+      if (!c.alive) continue;
+      for (const h of c.hitSpheres) { const t = segmentSphere(a, b, h.world, h.r); if (t !== null && t < bestT) bestT = t; }
+    }
+    const chest = this.player.position.clone(); chest.y += CHEST;
+    const me = this.phase === 'raid' ? segmentSphere(a, b, chest, PLAYER_RADIUS + 0.25) : null;
+    if (me !== null && me < bestT) bestT = me;
+    if (!Number.isFinite(bestT)) return null;
+    const point = a.clone().lerp(b, bestT);
+    this.fx.impact(point, GORE.spore, 5, 4);
+    return { point, t: bestT };
+  }
+
   private splash(pr: Projectile, at: THREE.Vector3, except: Abomination | null): void {
     if (pr.splashRadius <= 0) return;
+    // Weapons with selfDamage (launchers) hurt the host inside their own blast.
+    if (pr.weapon?.selfDamage && this.phase === 'raid') {
+      const chest = this.player.position.clone(); chest.y += CHEST;
+      if (chest.distanceTo(at) <= pr.splashRadius) this.hurt(pr.splashDamage * (HOST.throwables?.selfDamageMultiplier ?? 0.5), 'torso', pr.weapon.id, at);
+    }
     for (const c of this.creatures) {
       if (!c.alive || c === except) continue;
       const d = c.centre.distanceTo(at) - c.radius;
@@ -1357,7 +2013,7 @@ export class Raid {
       return;
     }
     this.fx.impact(at, pr.kind === 'ego' ? GORE.cyanFluid : GORE.spore, pr.kind === 'ego' ? 16 : 5, 4);
-    this.splash(pr, at, null);
+    if (!pr.remote) this.splash(pr, at, null);
   }
 
   // ------------------------------------------------------------------ HUD + test hooks
@@ -1368,7 +2024,15 @@ export class Raid {
       phase: this.phase,
       biomass: this.biomass.current, biomassMax: this.biomass.max,
       overload: this.overload.fraction, overloaded: this.overload.overloaded,
-      ammo: w.state.ammo, magazine: w.w.magazine, reloading: w.state.isReloading ? 1 - w.state.reloading / w.w.reloadTime : 0,
+      ammo: w.state.ammo, magazine: w.spec.magazine, reloading: w.state.reloadProgress,
+      weapon: { id: w.id, label: w.spec.label, class: w.spec.class, slot: this.held, slots: this.weapons.length, reserve: w.state.reserve, charge: w.state.charge, scope: w.eyeScope ? w.aim : 0, canAim: w.canAim },
+      crosshair: {
+        radius: Math.tan(w.spreadRadians()) / Math.tan((this.player.camera.fov * Math.PI) / 360),
+        bloom: Math.min(1, w.bloom / (w.feel?.bloomMax ?? 2)),
+        style: w.eyeScope && w.aim > 0.95 ? 'scope' : (w.feel?.reticle ?? 'cross'),
+        ready: !w.state.isReloading && w.state.ammo > 0 && !this.rig.equipping && !(w.spec.spread.sprintBlocksFire && this.player.sprinting),
+        pellets: w.spec.pellets, charge: w.state.charge, onTarget: !!this.aimTarget, weak: !!this.aimTarget?.weak,
+      },
       ego: w.egoFraction, egoReady: w.egoReady, aiming: w.aim > 0.5,
       timeLeft: this.timeLeft, collapse: this.timeLeft <= RAID.zoneCollapse.warningAt,
       slots: this.abilities.slots(),
@@ -1380,7 +2044,10 @@ export class Raid {
         x: p.x, z: p.z, yaw: this.player.yaw, range: 60,
         extract: { x: this.extract.x, z: this.extract.z },
         pods: this.pods.map((q) => ({ x: q.position.x, z: q.position.z, opened: q.opened })),
-        pings: this.creatures.filter((c) => c.alive && (c.revealed > 0 || (c.engaged && c.position.distanceTo(p) < 25))).map((c) => ({ x: c.position.x, z: c.position.z, kind: c.kind, revealed: c.revealed > 0 })),
+        pings: [
+          ...this.creatures.filter((c) => c.alive && (c.revealed > 0 || (c.engaged && c.position.distanceTo(p) < 25))).map((c) => ({ x: c.position.x, z: c.position.z, kind: c.kind, revealed: c.revealed > 0 })),
+          ...(this.net?.pings() ?? []),
+        ],
       },
       healing: this.useLeft > 0 || this.healLeft > 0,
       boss: this.bossHud(),
@@ -1447,9 +2114,12 @@ export class Raid {
       ammo: this.weapon.state.ammo, ego: this.weapon.ego, timeLeft: this.timeLeft, kills: this.kills,
       carried: this.carried.snapshot(), extractProgress: this.extract.progress,
       extractPosition: [this.extract.x, this.extract.z], pods: this.pods.map((q) => ({ id: q.id, position: [q.position.x, q.position.z], opened: q.opened })),
+      weapons: { held: this.held, zoom: this.player.zoom, fov: this.player.camera.fov, list: this.weapons.map((w) => ({ id: w.id, ammo: w.state.ammo, reloading: w.state.isReloading, aim: w.aim, charge: w.state.charge, mods: w.spec.mods, magazine: w.spec.magazine })) },
       enemies: this.creatures.map((c) => ({ id: c.id, kind: c.kind, alive: c.alive, state: c.state, biomass: c.biomass, position: [c.position.x, c.position.y, c.position.z], centre: [c.centre.x, c.centre.y, c.centre.z] })),
       result: this.result, gore: gore.stats(),
       boss: this.boss ? { state: this.boss.brain.state, phase: this.boss.brain.phase.id, action: this.boss.brain.action, biomass: this.boss.biomass, fraction: this.boss.fraction, hearts: [...this.boss.hearts], sac: this.boss.sac, legs: [...this.boss.legs], pinned: this.boss.pinned, pool: this.boss.poolRadius, position: [this.boss.position.x, this.boss.position.y, this.boss.position.z], centre: this.boss.centre(new THREE.Vector3()).toArray() } : null,
+      widow: this.widow ? { state: this.widow.brain.state, phase: this.widow.brain.phase.id, action: this.widow.brain.action, surface: this.widow.brain.surface, submerged: this.widow.brain.submerged, quicksand: this.widow.brain.quicksand, biomass: this.widow.biomass, fraction: this.widow.fraction, sacs: [...this.widow.sacs], petals: [...this.widow.petals], position: this.widow.position.toArray(), centre: this.widow.centre(new THREE.Vector3()).toArray(), crater: { ...this.widow.crater, pillars: this.widow.arena.pillars } } : null,
+      warden: this.warden ? { state: this.warden.brain.state, phase: this.warden.brain.phase.id, action: this.warden.brain.action, surface: this.warden.brain.surface, biomass: this.warden.biomass, fraction: this.warden.fraction, pods: [...this.warden.pods], seams: this.warden.brain.seamOpen.map((_, i) => this.warden!.brain.seamExposed(i)), position: this.warden.position.toArray(), centre: this.warden.centre(new THREE.Vector3()).toArray(), arena: { x0: this.warden.arena.x0, x1: this.warden.arena.x1, z0: this.warden.arena.z0, z1: this.warden.arena.z1, core: this.warden.arena.core, valves: this.warden.arena.valves, catwalks: this.warden.arena.catwalks.map((c) => ({ id: c.id, collapsed: c.collapsed })) } } : null,
       vigil: this.vigil ? { state: this.vigil.brain.state, phase: this.vigil.brain.phase.id, action: this.vigil.brain.action, hidden: this.vigil.brain.hidden, hang: this.vigil.brain.hang, biomass: this.vigil.biomass, fraction: this.vigil.fraction, lure: this.vigil.lure, spines: [...this.vigil.spines], limbs: [...this.vigil.limbs], pinned: this.vigil.pinned, position: this.vigil.position.toArray(), centre: this.vigil.centre(new THREE.Vector3()).toArray(), lair: { x: this.vigil.lair.x, z: this.vigil.lair.z, floorY: this.vigil.lair.floorY, radius: this.vigil.lair.radius, exit: this.vigil.lair.exit, sealed: this.vigil.lair.entrances.map((m) => m.sealed) } } : null,
       arena: this.arena ? { x: this.arena.x, z: this.arena.z, radius: this.arena.radius, floorY: this.arena.floorY, entrances: this.arena.entrances, pillars: this.arena.pillars.map((q) => ({ id: q.id, broken: q.broken })) } : null,
       nests: this.nests.map((n) => ({ id: n.id, state: n.state, biomass: n.biomass, wave: n.wave, brood: n.brood.size, position: [n.position.x, n.position.z] })),
@@ -1470,7 +2140,15 @@ export class Raid {
       },
       clearAim: () => { this.debugAim = null; },
       trigger: (on: boolean | null) => { this.debugTrigger = on; },
-      ego: () => { this.weapon.ego = this.weapon.w.egoCharge.chargeToFire; this.egoQueued = true; },
+      ego: () => { this.weapon.ego = this.weapon.spec.egoCharge?.chargeToFire ?? 0; this.egoQueued = true; },
+      /** Loads these weapons.json ids as the raid's weapon slots. */
+      arm: (ids: string[], mods?: string[][]) => this.arm(ids, mods),
+      pickUpWeapons: () => this.pickUpWeapons(),
+      /** Spawns an Abomination at (x, z) and returns its id (weapon tests need a target). */
+      spawn: (kind: string, x: number, z: number) => this.addCreature(kind as AbominationKind, x, z).id,
+      equip: (i: number) => this.equip(i),
+      reload: () => { const ok = this.weapon.reload(); if (ok) this.onReload(); return ok; },
+      aim: (on: boolean) => { this.aimHeld = on; },
       ability: (slot: number) => this.useAbility(slot),
       hold: (code: string, on: boolean) => { if (on) this.player.keys.add(code); else this.player.keys.delete(code); },
       /** Damages nest `i` directly (ventricle index or null for the body). */
@@ -1490,6 +2168,24 @@ export class Raid {
         const s = tag ? v.body.hitSpheres.find((h) => h.tag === tag && h.index === index) ?? null : null;
         return this.damageVigil(amount, s, s ? s.world.clone() : v.centre(new THREE.Vector3()));
       },
+      /** Damages the Warden directly: a tagged sphere ('seedPod', 'reactorSeam', 'plate', 'head') or null for a blast. */
+      hitWarden: (amount: number, tag: string | null = null, index = 0) => {
+        const w = this.warden;
+        if (!w) return null;
+        const s = tag ? w.body.hitSpheres.find((h) => h.tag === tag && h.index === index) ?? null : null;
+        return this.damageWarden(amount, s, s ? s.world.clone() : w.centre(new THREE.Vector3()));
+      },
+      /** Damages the Sandwidow directly: a tagged sphere ('throatSac', 'petal', 'head') or null; only while she is up. */
+      hitWidow: (amount: number, tag: string | null = null, index = 0) => {
+        const w = this.widow;
+        if (!w) return null;
+        const s = tag ? w.body.hitSpheres.find((h) => h.tag === tag && h.index === index) ?? null : null;
+        return this.damageWidow(amount, s, s ? s.world.clone() : w.centre(new THREE.Vector3()));
+      },
+      /** Brings the Sandwidow up to breathe now (for tests and screenshots). */
+      surfaceWidow: (seconds = 6) => this.widow?.brain.breathe(seconds),
+      /** Vents coolant valve i as if shot. */
+      ventValve: (i: number) => this.warden?.vent(i),
       killAll: () => { for (const c of this.creatures) if (c.alive) this.damageCreature(c, 1e6, false, null, c.centre, 'debug'); },
       damage: (n: number) => this.hurt(n, 'torso', 'debug', null),
       extractNow: () => { const ex = this.extract; this.player.position.set(ex.x, groundHeight(ex.x, ex.z), ex.z); },

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ABOMINATIONS, AI, NESTS } from '../data';
 import {
-  AttackTokens, Awareness, WaveDirector, archetypeOf, createBrain, hostVisibility, sightRate,
+  AttackTokens, Awareness, WaveDirector, WebField, archetypeOf, createBrain, hostVisibility, sightRate,
   type AIEvent, type Brain, type BrainWorld, type HostView,
 } from '../src/ai';
 import type { Noise } from '../src/game/perception';
@@ -45,7 +45,7 @@ describe('archetypes', () => {
       expect(ABOMINATIONS[k], k).toBeDefined();
       expect(AI.archetypes[k], k).toBeDefined();
     }
-    expect(new Set(Object.values(AI.archetypes))).toEqual(new Set(['swarm', 'spitter', 'stalker', 'flyer', 'tank']));
+    expect(new Set(Object.values(AI.archetypes))).toEqual(new Set(['swarm', 'spitter', 'stalker', 'flyer', 'tank', 'mimic', 'grazer', 'weaver', 'burrower', 'herd', 'wader']));
     for (const k of Object.keys(AI.archetypes)) expect(ABOMINATIONS[k], k).toBeDefined();
     expect(archetypeOf('glasswalker')).toBe('stalker');
   });
@@ -481,5 +481,167 @@ describe('menace: the stare, the fanned search, the ambush, the wounded retreat'
       return 60 - b.body.z;
     };
     expect(run(M.wounded.limpBelow - 0.01)).toBeLessThan(run(1) * 0.9);
+  });
+});
+
+describe('Host-milestone creatures: Husk Mimic, Lumen Grazer, Tithe Weaver', () => {
+  it('maps the new kinds to their own archetypes', () => {
+    expect(archetypeOf('huskMimic')).toBe('mimic');
+    expect(archetypeOf('lumenGrazer')).toBe('grazer');
+    expect(archetypeOf('titheWeaver')).toBe('weaver');
+  });
+
+  it('a Husk Mimic walks up like a host with no tell, splits open inside its reveal distance, then lunges', () => {
+    const m = hunting(at('huskMimic', 1, 0, 16));
+    const reveal = (ABOMINATIONS.huskMimic.disguise as { revealDistance: number }).revealDistance;
+    let maxSpeed = 0, windupWhileActing = 0;
+    const s = simulate([m], 8, host(), { each: () => {
+      if (m.phase === 'act') { maxSpeed = Math.max(maxSpeed, m.speed); windupWhileActing = Math.max(windupWhileActing, m.windup); }
+    } });
+    expect(maxSpeed).toBeLessThanOrEqual(ABOMINATIONS.huskMimic.speed * AI.mimic.walkFactor + 0.01);
+    expect(windupWhileActing).toBe(0);
+    const rv = s.events.find((e) => e.e.type === 'reveal');
+    expect(rv?.e).toMatchObject({ how: 'disguise' });
+    expect(s.events.some((e) => e.e.type === 'melee' && e.t > rv!.t)).toBe(true);
+    // It split open no further out than its reveal distance.
+    expect(reveal).toBeGreaterThan(ABOMINATIONS.huskMimic.attackRange);
+  });
+
+  it('a shot Husk Mimic drops the act at once', () => {
+    const m = hunting(at('huskMimic', 2, 0, 25));
+    simulate([m], 0.5, host());
+    m.hurt();
+    const s = simulate([m], 0.1, host());
+    expect(s.events.some((e) => e.e.type === 'reveal')).toBe(true);
+    expect(m.phase).not.toBe('act');
+  });
+
+  it('a Lumen Grazer ignores hosts until hurt, then dives on them and calms after its dives', () => {
+    const g = at('lumenGrazer', 3, 0, 20);
+    simulate([g], 5, host({ x: 0, z: 18 }), { noises: [{ x: 0, z: 18, radius: 60 }] });
+    expect(g.mode).toBe('calm');
+    expect(g.body.altitude).toBeGreaterThan(AI.grazer.idleHeight * 0.5);
+    g.hurt();
+    const dives = (ABOMINATIONS.lumenGrazer.temperament as { panicDives: number }).panicDives;
+    const s = simulate([g], 60, host({ x: 0, z: 0 }));
+    const slams = s.events.filter((e) => e.e.type === 'slam');
+    expect(slams.length).toBe(dives);
+    expect(slams[0].e).toMatchObject({ damage: ABOMINATIONS.lumenGrazer.damage, radius: ABOMINATIONS.lumenGrazer.attackRange });
+    simulate([g], (ABOMINATIONS.lumenGrazer.temperament as { calmAfter: number }).calmAfter + 2, host({ x: 0, z: 0 }));
+    expect(g.mode).toBe('calm');
+  });
+
+  it('a Tithe Weaver strings webs round its home, strands across a running host\'s path, and spits from range', () => {
+    const w = at('titheWeaver', 4, 0, 0);
+    w.setHome(0, 0, { roam: 10 });
+    const calm = simulate([w], 30, host({ x: 200, z: 200, visibility: 0.3, forward: null }));
+    expect(calm.events.filter((e) => e.e.type === 'web').length).toBeGreaterThan(2);
+    const hunt = hunting(at('titheWeaver', 5, 0, 15));
+    const s = simulate([hunt], 12, host({ vx: 5 }), { move: (h, _t, dt) => { h.x += 5 * dt; } });
+    expect(s.events.some((e) => e.e.type === 'spit')).toBe(true);
+    const webs = s.events.filter((e) => e.e.type === 'web');
+    expect(webs.length).toBeGreaterThan(0);
+  });
+
+  it('web strands root a host that walks through them and break; a dead weaver\'s web can be cleared', () => {
+    const f = new WebField();
+    f.add(1, { x: -5, z: 3 }, { x: 5, z: 3 }, 15, 6);
+    expect(f.tripped({ x: 0, z: 0 }, { x: 0, z: 1 })).toEqual([]);
+    expect(f.tripped({ x: 0, z: 2.5 }, { x: 0, z: 3.5 }).length).toBe(1);
+    expect(f.strands.length).toBe(0);
+    for (let i = 0; i < 8; i++) f.add(2, { x: i, z: 0 }, { x: i, z: 5 }, 15, 6);
+    expect(f.strands.length).toBe(6);
+    expect(f.clear(2).length).toBe(6);
+    const s = f.add(3, { x: 0, z: 0 }, { x: 1, z: 0 }, 15).strand;
+    expect(f.damage(s.id, 10)).toBe(false);
+    expect(f.damage(s.id, 10)).toBe(true);
+  });
+});
+
+describe('desert creatures: Dunewake and Bristleback', () => {
+  it('a Dunewake swims under the sand out of reach, ripples in, bursts out to bite, then fights on the surface and dives', () => {
+    const d = hunting(at('dunewake', 1, 0, 30));
+    const B = ABOMINATIONS.dunewake.burrow as { triggerRadius: number; rippleTell: number };
+    let swamUnder = false, rippleAt = -1, burstAt = -1, surfacedFor = 0, dived = false;
+    const s = simulate([d], 20, host(), { each: (sim) => {
+      if (d.phase === 'swim' && d.submerged >= 1) swamUnder = true;
+      if (d.phase === 'ripple' && rippleAt < 0) { rippleAt = sim.t; expect(d.submerged).toBeGreaterThan(0.5); }
+      if (d.phase === 'burst' && burstAt < 0) burstAt = sim.t;
+      if (d.phase === 'surface') surfacedFor += 1 / 60;
+      if (surfacedFor > 0 && d.phase === 'swim') dived = true;
+    } });
+    expect(swamUnder).toBe(true);
+    expect(burstAt - rippleAt).toBeCloseTo(B.rippleTell, 1);
+    const bite = s.events.find((e) => e.e.type === 'melee');
+    expect(bite?.e).toMatchObject({ damage: ABOMINATIONS.dunewake.damage });
+    expect(s.events.some((e) => e.e.type === 'reveal' && (e.e as { how: string }).how === 'ambush')).toBe(true);
+    expect(surfacedFor).toBeGreaterThan(2);
+    expect(dived).toBe(true);
+  });
+
+  it('a calm Dunewake idles under the sand', () => {
+    const d = at('dunewake', 2, 0, 0);
+    simulate([d], 3, host({ x: 300, z: 300, alive: false }));
+    expect(d.submerged).toBe(1);
+  });
+
+  it('a Bristleback herd grazes past a host, but gunfire nearby raises the alarm and it stampedes', () => {
+    const b = at('bristleback', 3, 0, 0);
+    simulate([b], 5, host({ x: 0, z: 12 }));
+    expect(b.mode).toBe('calm');
+    const shot = simulate([b], 0.2, host({ x: 0, z: 18 }), { noises: [{ x: 0, z: 18, radius: 25 }] });
+    expect(shot.events.some((e) => e.e.type === 'alarm')).toBe(true);
+    const run = simulate([b], 6, host({ x: 0, z: 18 }));
+    expect(b.engaged).toBe(true);
+    expect(run.events.some((e) => e.e.type === 'charge' || e.e.type === 'volley')).toBe(true);
+  });
+
+  it('a hurt Bristleback stampedes through the host and trampling hits; it looses quill volleys between charges', () => {
+    const b = at('bristleback', 4, 0, 0);
+    b.hurt();
+    const st = ABOMINATIONS.bristleback.stampede as { trampleDamage: number };
+    const v = ABOMINATIONS.bristleback.quillVolley as { count: number; damage: number };
+    const s = simulate([b], 40, host({ x: 0, z: 20 }));
+    expect(s.events.some((e) => e.e.type === 'melee' && (e.e as { damage: number }).damage === st.trampleDamage)).toBe(true);
+    const volley = s.events.find((e) => e.e.type === 'volley');
+    expect(volley?.e).toMatchObject({ count: v.count, damage: v.damage });
+  });
+});
+
+describe('swamp creatures: Fenstalker and Mistwader', () => {
+  it('a Fenstalker lies under the water, creeps in, and bursts out to bite only inside its ambush range', () => {
+    const f = hunting(at('fenstalker', 1, 0, 25));
+    const S = ABOMINATIONS.fenstalker.submerge as { ambushRange: number; ripplesTell: number };
+    let rippleAt = -1, burstAt = -1, rippleDist = 0, maxSpeed = 0;
+    const s = simulate([f], 20, host(), { each: (sim) => {
+      if (f.phase === 'swim' && f.submerged >= 1) maxSpeed = Math.max(maxSpeed, f.speed);
+      if (f.phase === 'ripple' && rippleAt < 0) { rippleAt = sim.t; rippleDist = Math.hypot(f.body.x, f.body.z); }
+      if (f.phase === 'burst' && burstAt < 0) burstAt = sim.t;
+    } });
+    expect(maxSpeed).toBeLessThanOrEqual(ABOMINATIONS.fenstalker.speed * AI.burrower.lurkCreep + 0.01);
+    expect(rippleDist).toBeLessThanOrEqual(S.ambushRange + 0.5);
+    expect(burstAt - rippleAt).toBeCloseTo(S.ripplesTell, 1);
+    expect(s.events.find((e) => e.e.type === 'melee')?.e).toMatchObject({ damage: ABOMINATIONS.fenstalker.damage });
+  });
+
+  it('a Mistwader ignores hosts and gunfire, but hurt it and it wades in, rears and stamps, then calms', () => {
+    const m = at('mistwader', 2, 0, 0);
+    const st = ABOMINATIONS.mistwader.stomp as { radius: number; damage: number; knockback: number };
+    const calm = simulate([m], 5, host({ x: 0, z: 14 }), { noises: [{ x: 0, z: 14, radius: 40 }] });
+    expect(m.mode).toBe('calm');
+    expect(calm.events.some((e) => e.e.type === 'slam')).toBe(false);
+    m.hurt();
+    let reared = 0;
+    const s = simulate([m], 40, host({ x: 0, z: 10 }), { each: () => { if (m.phase === 'rear') reared = Math.max(reared, m.windup); } });
+    const stamps = s.events.filter((e) => e.e.type === 'slam');
+    expect(reared).toBeGreaterThan(0.95);
+    expect(stamps[0].e).toMatchObject({ radius: st.radius, damage: st.damage, knockback: st.knockback });
+    expect(stamps.length).toBe((ABOMINATIONS.mistwader.temperament as { panicStomps: number }).panicStomps);
+  });
+
+  it('a host underfoot gets one warning stamp', () => {
+    const m = at('mistwader', 3, 0, 0);
+    const s = simulate([m], 6, host({ x: 0, z: 1.5 }));
+    expect(s.events.filter((e) => e.e.type === 'slam').length).toBe(1);
   });
 });

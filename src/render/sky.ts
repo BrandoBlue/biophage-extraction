@@ -47,13 +47,13 @@ export function zone7Sky(radius = 900): THREE.Mesh {
         // Ethereal, not neon: the gas is a veil, partly desaturated toward its own luminance.
         // Grounded and eerie: the nebula is a faint, mostly grey veil behind an overcast night, not a light show.
         gas = mix(vec3(dot(gas, vec3(0.2126, 0.7152, 0.0722))), gas, 0.3);
-        sky += gas * density * 0.22;
+        sky += gas * density * 0.36;
         sky += uMagenta * smoothstep(0.6, 0.95, n2) * 0.03;
 
         // Plasma rift: a bright band of cyan-white across the sky, broken by noise.
         vec3 axis = normalize(vec3(0.35, 0.82, -0.45));
         float band = exp(-pow(dot(d, axis) * 7.0 + (n - 0.5) * 2.2, 2.0)) * smoothstep(-0.05, 0.25, h);
-        sky += mix(uCyan, vec3(1.0), 0.6) * band * smoothstep(0.55, 0.9, n2 + n * 0.4) * 0.18;
+        sky += mix(uCyan, vec3(1.0), 0.6) * band * smoothstep(0.55, 0.9, n2 + n * 0.4) * 0.26;
         sky += uViolet * band * 0.06;
 
         // Dust lanes eat into the gas.

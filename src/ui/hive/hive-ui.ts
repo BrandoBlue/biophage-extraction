@@ -12,18 +12,19 @@ import type { HiveActions, ProfileView } from './model';
 import { drawOrbit, HOST_ORDER, hostSelect, mainMenu, raidSelect, results } from './screens';
 import type { ResultData } from './screens';
 import { stashScreen } from './stash';
+import { bodyScreen } from './body';
 import { marketScreen } from './market';
 import { vendorRow, vendorScreen } from './vendors';
 import { CLASSES } from '../../../data';
 import type { ClassId } from '../../../data';
 
-export type Tab = 'menu' | 'host' | 'stash' | 'raid' | 'market' | 'vendors' | 'settings' | 'results';
+export type Tab = 'menu' | 'host' | 'stash' | 'raid' | 'market' | 'vendors' | 'body' | 'settings' | 'results';
 
 const TITLES: Record<Tab, string> = {
   menu: 'THE HIVE', host: 'STARTER HOST SELECT & PROGRESSION', stash: 'STASH & INTERNAL CAVITIES',
-  raid: 'EXCLUSION ZONE SELECT', market: 'FLESH MARKET', vendors: 'HIVE VENDORS', settings: 'SETTINGS', results: 'RAID DEBRIEF',
+  raid: 'EXCLUSION ZONE SELECT', market: 'FLESH MARKET', vendors: 'HIVE VENDORS', body: 'THE HIVE BODY', settings: 'SETTINGS', results: 'RAID DEBRIEF',
 };
-const NAV_TAB: Partial<Record<Tab, string>> = { menu: 'menu', host: 'host', stash: 'stash', raid: 'raid', market: 'vendors', vendors: 'vendors' };
+const NAV_TAB: Partial<Record<Tab, string>> = { menu: 'menu', host: 'host', stash: 'stash', raid: 'raid', market: 'vendors', vendors: 'vendors', body: 'body' };
 
 export interface HiveUIOptions {
   /** Called when the host changes (Gameplay stores it on the profile). */
@@ -53,7 +54,7 @@ export class HiveUI {
     const p = this.view();
     const f = frame({ title: TITLES[tab], tab: NAV_TAB[tab], callsign: p.callsign, dna: p.dna,
       extras: [{ label: 'HOST', value: CLASSES[p.host].label.replace('The ', '').toUpperCase(), tone: 'lime' }, { label: 'EXTRACTS', value: String(p.stats.extracts), tone: 'amber' }],
-      unlocked: this.trades() ? ['vendors'] : [] });
+      unlocked: [...(this.trades() ? ['vendors'] : []), ...(this.actions.hiveBody ? ['body'] : [])] });
     f.nav.addEventListener('click', (e) => {
       const t = (e.target as HTMLElement).closest<HTMLButtonElement>('.tab');
       if (t && !t.disabled) this.show(t.dataset.tab === 'vendors' ? this.tradeTab() : t.dataset.tab as Tab);
@@ -71,6 +72,7 @@ export class HiveUI {
       }
       case 'vendors': screen = vendorScreen(p, this.vendor, { actions: this.actions, changed: () => this.show('vendors'), notice: (m, t) => this.notice(m, t), next: () => this.show('stash'),
         market: () => this.show('market'), pick: (id) => { this.vendor = id; this.show('vendors'); } }); break;
+      case 'body': screen = bodyScreen(p, { actions: this.actions, changed: () => this.show('body'), notice: (m, t) => this.notice(m, t), next: () => this.show('stash') }); break;
       case 'raid': screen = raidSelect(p, { deploy: () => this.actions.deploy(), notice: (m, t) => this.notice(m, t), zones: this.actions.zones, selectZone: this.actions.selectZone, changed: () => this.show('raid') }); this.animateOrbit(screen); break;
       case 'results': screen = results(this.lastResult!, { again: () => (this.opts.afterResults ? this.opts.afterResults() : this.show('stash')) }); break;
       default: screen = this.settingsScreen();
@@ -137,7 +139,8 @@ export class HiveUI {
       return `<label>${label}<input type="range" data-k="${k}" min="${lo}" max="${hi}" step="${step}" value="${s[k]}"/><output>${fmt(s[k])}</output></label>`;
     };
     pnl.insertAdjacentHTML('beforeend', row('sensitivity', 'MOUSE SENSITIVITY', (v) => `${v.toFixed(2)}×`) + row('fov', 'FIELD OF VIEW', (v) => `${v}°`) + row('volume', 'MASTER VOLUME', (v) => `${Math.round(v * 100)}%`)
-      + `<label>REDUCE MOTION<input type="checkbox" data-k="reduceMotion" ${s.reduceMotion ? 'checked' : ''}/><output></output></label>`);
+      + `<label>REDUCE MOTION<input type="checkbox" data-k="reduceMotion" ${s.reduceMotion ? 'checked' : ''}/><output></output></label>`
+      + `<label>EYE SCOPE ON LONG GUNS<input type="checkbox" data-k="eyeScope" ${s.eyeScope ? 'checked' : ''}/><output></output></label>`);
     pnl.addEventListener('input', (e) => {
       const i = e.target as HTMLInputElement;
       const k = i.dataset.k as keyof Settings;
@@ -171,7 +174,7 @@ export class HiveUI {
       if (this.tab === 'menu') this.show('host');
       else if (this.tab === 'host') this.show('stash');
       else if (this.tab === 'stash') this.show('raid');
-      else if (this.tab === 'raid') this.actions.deploy();
+      else if (this.tab === 'raid') this.root.querySelector<HTMLButtonElement>('#deploy:not(:disabled)')?.click();
       else if (this.tab === 'results') this.root.querySelector<HTMLButtonElement>('#deploy-again')?.click();
       return;
     }

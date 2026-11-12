@@ -1,14 +1,14 @@
 import * as THREE from 'three';
-import { groundHeight, ISLAND_RADIUS, SOLIDS } from '../world/zone7';
+import { climbBlocked, groundHeight, ISLAND_RADIUS, SOLIDS } from '../world/zone7';
 import { footstepRadius } from './perception';
 import type { HostClass, HostRules } from '../../data';
+import { getSettings } from '../ui/settings';
 
 const EYE = 1.7;
 const EYE_CROUCH = 1.05;
 const GRAVITY = 22;
 /** Body radius against World structure walls. */
 const BODY_RADIUS = 0.4;
-const BASE_FOV = 75;
 
 /**
  * Movement feel constants (not balance): proposed to Game Design for data/host.json in Larva.
@@ -34,6 +34,12 @@ export class Player {
   crouched = false;
   /** Set by the raid each frame (abilities, overload). */
   speedMultiplier = 1;
+  /** Set by the raid each frame from the held weapon's aim: the FOV divides by it, and so does mouse look. */
+  zoom = 1;
+  /** Mouse sensitivity and field of view from the player's Settings (kept live). */
+  private look = getSettings();
+  /** Walkable radius from the origin (the raid sets it from the zone layout). */
+  edge = ISLAND_RADIUS * 0.84;
   /** Set by the raid each frame from the World layout (Gravity Bloom anomaly); 1 = normal gravity. */
   gravityScale = 1;
   /** Virus modifiers: sprint speed and how far footsteps carry. */
@@ -60,6 +66,7 @@ export class Player {
   onLand: (fallHeight: number) => void = () => {};
 
   constructor(readonly camera: THREE.PerspectiveCamera, private stats: HostClass, private host: HostRules, dom: HTMLElement) {
+    if (typeof addEventListener === 'function') addEventListener('biophage:settings', () => { this.look = getSettings(); });
     this.position.set(0, groundHeight(0, 0), 0);
     camera.position.set(0, this.position.y + EYE, 0);
     addEventListener('keydown', (e) => { this.keys.add(e.code); if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault(); });
@@ -74,8 +81,9 @@ export class Player {
       if (document.pointerLockElement !== dom || !this.enabled) return;
       if (freshLock) { freshLock = false; return; }
       if (Math.abs(e.movementX) > MAX_MOUSE_DELTA || Math.abs(e.movementY) > MAX_MOUSE_DELTA) return;
-      this.yaw -= e.movementX * 0.0022;
-      this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * 0.0022, -1.5, 1.5);
+      const k = (0.0022 * this.look.sensitivity) / this.zoom;
+      this.yaw -= e.movementX * k;
+      this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * k, -1.5, 1.5);
     });
   }
 
@@ -156,13 +164,19 @@ export class Player {
     this.velocity.y -= GRAVITY * this.gravityScale * dt;
 
     const p = this.position;
-    const prevY = p.y;
+    const prevY = p.y, prevX = p.x, prevZ = p.z;
     p.addScaledVector(this.velocity, dt);
+    // Terrain cliffs (maps that set a max slope, e.g. the Marrow Pit's walls): slide along them, never up them.
+    if (climbBlocked(prevY, prevX, prevZ, p.x, p.z)) {
+      if (!climbBlocked(prevY, prevX, prevZ, p.x, prevZ)) { p.z = prevZ; this.velocity.z = 0; }
+      else if (!climbBlocked(prevY, prevX, prevZ, prevX, p.z)) { p.x = prevX; this.velocity.x = 0; }
+      else { p.x = prevX; p.z = prevZ; this.velocity.x = this.velocity.z = 0; }
+    }
     // World structures: walls push the body out, decks and ramps are floors, ceilings stop a jump.
     SOLIDS.collide(p, BODY_RADIUS, this.crouched ? 1.2 : 1.8);
     const ceiling = SOLIDS.ceilingAt(p.x, p.z, prevY);
     if (p.y + 1.8 > ceiling && this.velocity.y > 0) { p.y = Math.max(prevY, ceiling - 1.8); this.velocity.y = 0; }
-    const edge = ISLAND_RADIUS * 0.84;
+    const edge = this.edge;
     const r = Math.hypot(p.x, p.z);
     if (r > edge) { p.x *= edge / r; p.z *= edge / r; }
     const floor = SOLIDS.floorAt(p.x, p.z, Math.max(prevY, p.y));
@@ -209,7 +223,8 @@ export class Player {
     c.position.addScaledVector(right, bobX);
     c.rotation.set(THREE.MathUtils.clamp(this.pitch + this.recoilPitch, -1.55, 1.55) + sy, this.yaw + sx, this.roll + sr, 'YXZ');
 
-    const fov = BASE_FOV + (sprint ? 6 : 0) + (this.sliding ? 9 : 0);
-    if (Math.abs(c.fov - fov) > 0.01) { c.fov = THREE.MathUtils.damp(c.fov, fov, 6, dt); c.updateProjectionMatrix(); }
+    const base = this.look.fov;
+    const fov = (base + (sprint ? 6 : 0) + (this.sliding ? 9 : 0)) / this.zoom;
+    if (Math.abs(c.fov - fov) > 0.01) { c.fov = THREE.MathUtils.damp(c.fov, fov, this.zoom > 1.01 || c.fov < base - 1 ? 18 : 6, dt); c.updateProjectionMatrix(); }
   }
 }

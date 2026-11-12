@@ -179,6 +179,7 @@ export class RaidLog {
   readonly bosses = new Set<string>();
   readonly placed = new Set<string>();
   rivals = 0;
+  nests = 0;
   constructor(readonly zone: string = DEFAULT_ZONE) {}
   private static bump(m: Map<string, number>, k: string, n = 1): void { m.set(k, (m.get(k) ?? 0) + n); }
   harvest(item: string): void { RaidLog.bump(this.harvested, item); }
@@ -187,6 +188,7 @@ export class RaidLog {
   visit(landmark: string): void { this.visited.add(landmark); }
   killBoss(boss: string): void { this.bosses.add(boss); }
   killRival(): void { this.rivals++; }
+  destroyNest(): void { this.nests++; }
   place(item: string, landmark: string): void { this.placed.add(`${item}@${landmark}`); }
 }
 

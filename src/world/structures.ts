@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import { HIVE, ZONE7, ZONE7_SHADE } from '../render/palette';
+import { HIVE, ORGANIC, ZONE7_SHADE } from '../render/palette';
 import { bioNode, bioTime, chitin, liquidLight, membrane, zoneRock } from '../render/materials';
 import type { Collider, CollisionWorld } from './collision';
 import type { CaveLair } from './cave';
+import type { WardenArena } from './wreck';
 import { mulberry32 } from './rng';
 import { noise3 } from '../render/geometry';
 
@@ -16,7 +17,7 @@ import { noise3 } from '../render/geometry';
 type Height = (x: number, z: number) => number;
 
 /** Weathered bone: the Art Bible's bone, dimmed so it reads as old and lit, not glowing. */
-export function oldBone(glow: string = ZONE7.cyan, scale = 0.5): THREE.MeshPhysicalMaterial {
+export function oldBone(glow: string = ORGANIC.mist, scale = 0.5): THREE.MeshPhysicalMaterial {
   const m = chitin(HIVE.bone, glow, scale);
   m.color.multiplyScalar(0.42);
   m.sheen = 0.15;
@@ -39,12 +40,37 @@ export interface ArenaInfo {
   onLedge(x: number, z: number): boolean;
 }
 
+export interface Walkway {
+  id: string; x: number; y: number; z: number;
+  /** Half length along the walkway and half width across it, and its yaw (collision convention). */
+  halfLength: number; halfWidth: number; yaw: number;
+  readonly isCut: boolean;
+  cut(): void;
+}
+
+/** The Sandwidow's crater (PvE AI): its centre and swimming floor, the debris rocks a host can stand on, the ways in. */
+export interface WidowArena {
+  id: string; x: number; z: number;
+  /** Radius of the crater floor she swims in; floor height at the centre (read groundHeight elsewhere). */
+  radius: number; floorY: number;
+  /** Debris rocks to stand on, safe from the quicksand: centre, footprint radius and standing height. */
+  pillars: { id: string; x: number; z: number; radius: number; top: number }[];
+  entrances: { id: string; x: number; z: number }[];
+  bossSpawn: { x: number; z: number };
+}
+
 export interface BuiltStructures {
   group: THREE.Group;
   loot: LootSpot[];
   arena: ArenaInfo | null;
   /** The Pale Vigil's cave lair (src/world/cave.ts), on zones that have one. */
   lair?: CaveLair | null;
+  /** The Sandwidow's Skyfall Crater (src/world/ochre.ts), on the Ochre Reach. */
+  widow?: WidowArena | null;
+  /** Walkway segments that can be cut (the Marrow Pit's bridge decks): `cut()` drops the deck out from under you. */
+  walkways?: Walkway[];
+  /** The Warden's reactor-chamber arena (src/world/wreck.ts), on the Wreck. */
+  warden?: WardenArena | null;
   /** Break an arena pillar (boss phase 2): hides it and removes its collider. */
   breakPillar(id: string): void;
 }
@@ -98,8 +124,8 @@ export function hollowSpire(solids: CollisionWorld, x: number, z: number, yaw: n
   const base = height(x, z);
   const k = new Kit(solids, x, z, yaw, base);
   k.group.name = 'hollow-spire';
-  const shell = chitin(ZONE7_SHADE.stem, ZONE7.violet, 0.35);
-  const deck = zoneRock({ veinColour: ZONE7.violet, mossColour: ZONE7.cyan, scale: 1.6 });
+  const shell = chitin(ZONE7_SHADE.stem, ORGANIC.vein, 0.35);
+  const deck = zoneRock({ veinColour: ORGANIC.vein, mossColour: ZONE7_SHADE.moss, scale: 1.6 });
   const R = 8, H = 18, T = 0.6;
   const side = 2 * R * Math.tan(Math.PI / 8);
   const doors = new Set([0, 4]);
@@ -141,7 +167,7 @@ export function hollowSpire(solids: CollisionWorld, x: number, z: number, yaw: n
   k.box(0.85, -5.6, 2.85, 1.6, 14.6, 15, deck, { tag: 'spire-roost' });
 
   // Crown: chitin spikes curling inward over the open top, and resin veins down the outside.
-  const bone = oldBone(ZONE7.cyan, 0.6);
+  const bone = oldBone(ORGANIC.mist, 0.6);
   for (let i = 0; i < 11; i++) {
     const a = (i / 11) * Math.PI * 2 + rand() * 0.2;
     const r0 = R + 0.2, h = H + 4 + rand() * 7;
@@ -179,11 +205,11 @@ export function hollowSpire(solids: CollisionWorld, x: number, z: number, yaw: n
     k.group.add(ring);
   }
   // One dim light inside so the rooms read; the windows and the open top do the rest.
-  const lamp = new THREE.PointLight(ZONE7.cyan, 80, 26, 2);
+  const lamp = new THREE.PointLight(ORGANIC.amber, 28, 22, 2);
   lamp.position.set(0, 7.5, 0);
   k.group.add(lamp);
   // Inside: a few softly glowing egg clusters on the decks (the only light in the tower).
-  const glow = bioNode(ZONE7.cyan, 0.8);
+  const glow = bioNode(ORGANIC.amber, 0.8);
   for (const [u, y, v] of [[-3, 0.3, 3], [2, 5.3, -5.5], [-2, 10.3, 5.6], [4, 10.3, 5]]) {
     for (let j = 0; j < 4; j++) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(0.22 + rand() * 0.18, 10, 8), glow);
@@ -236,8 +262,8 @@ export function reliquaryBowl(solids: CollisionWorld, x: number, z: number, yaw:
   const rand = mulberry32(seed);
   const k = new Kit(solids, x, z, yaw, floorY);
   k.group.name = 'reliquary-bowl';
-  const stone = zoneRock({ veinColour: ZONE7.violet, mossColour: ZONE7.cyan, scale: 0.8 });
-  const bone = oldBone(ZONE7.cyan, 0.4);
+  const stone = zoneRock({ veinColour: ORGANIC.vein, mossColour: ZONE7_SHADE.moss, scale: 0.8 });
+  const bone = oldBone(ORGANIC.mist, 0.4);
 
   // Sheer walls: a ring of stone segments inside the rim, open at the two entrances (local angle 90° and 270°).
   const wallR = radius * 0.8, n = 30, entranceHalf = 0.3;
@@ -252,7 +278,7 @@ export function reliquaryBowl(solids: CollisionWorld, x: number, z: number, yaw:
     k.box(u, v, half, 1.4, -1, top, stone, { yaw: a, tag: `bowl-wall-${i}` }).mesh.visible = false;
   }
   // The cliff face: two sculpted arcs of layered stone with overhangs and fissures, following the rim's height.
-  const cliffMat = zoneRock({ veinColour: ZONE7.violet, mossColour: ZONE7.cyan, scale: 1.3 });
+  const cliffMat = zoneRock({ veinColour: ORGANIC.vein, mossColour: ZONE7_SHADE.moss, scale: 1.3 });
   cliffMat.side = THREE.DoubleSide;
   const arcHalf = Math.acos(entranceHalf);
   for (const centre of [0, Math.PI]) {
@@ -315,7 +341,7 @@ export function reliquaryBowl(solids: CollisionWorld, x: number, z: number, yaw:
     });
   });
   // Centre pool of liquid light (pale, slow: it floods outward in phase 3).
-  const pool = new THREE.Mesh(new THREE.CircleGeometry(radius * 0.18, 48).rotateX(-Math.PI / 2), liquidLight({ pool: true, a: ZONE7_SHADE.moss, b: ZONE7_SHADE.stem, c: ZONE7.cyan, flow: 0.2 }));
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(radius * 0.18, 48).rotateX(-Math.PI / 2), liquidLight({ pool: true, a: ZONE7_SHADE.moss, b: ZONE7_SHADE.stem, c: ORGANIC.mist, flow: 0.2 }));
   pool.position.y = 0.08;
   pool.name = 'reliquary-pool';
   k.group.add(pool);
@@ -347,7 +373,7 @@ export function reliquaryBowl(solids: CollisionWorld, x: number, z: number, yaw:
     k.group.add(vert, rib([new THREE.Vector3(0, y + 1, v), new THREE.Vector3(0.3, y + 3.5, v - 0.8), new THREE.Vector3(0, y + 5, v - 2)], 0.3, bone, 10));
   }
   // A few hanging membranes between ribs, faintly lit: the boss's shed skin.
-  const veil = membrane(ZONE7.violet, 0.25);
+  const veil = membrane(ORGANIC.vein, 0.25);
   for (let i = 0; i < 5; i++) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(6 + rand() * 6, 8 + rand() * 8, 6, 8), veil);
     m.position.set((rand() - 0.5) * radius, 14 + rand() * 6, (rand() - 0.5) * radius);
@@ -384,8 +410,8 @@ export function longSeedDebris(solids: CollisionWorld, x: number, z: number, yaw
   const base = height(x, z);
   const k = new Kit(solids, x, z, yaw, base);
   k.group.name = 'long-seed-debris';
-  const hull = oldBone(ZONE7.cyan, 0.25);
-  const plate = chitin(ZONE7_SHADE.rock, ZONE7.cyan, 0.8);
+  const hull = oldBone(ORGANIC.mist, 0.25);
+  const plate = chitin(ZONE7_SHADE.rock, ORGANIC.mist, 0.8);
   const crateMat = chitin(ZONE7_SHADE.stem, HIVE.acid, 1.4);
   const roots = chitin(ZONE7_SHADE.stem, ZONE7_SHADE.moss, 2);
   const loot: LootSpot[] = [];

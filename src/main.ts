@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { haulValue } from '../data';
+import { awardXp, raidXp } from './game/progression';
+import { haulValue, weaponSpec, ZONE7_SITES } from '../data';
 import { Raid } from './game/raid';
 import { RaidHud } from './ui/raid-hud';
 import { HiveMenu } from './ui/hive-menu';
@@ -10,7 +11,13 @@ import { settleContracts } from './game/economy';
 import { BUILT_ZONES, buildZone } from './world/zones';
 import { createPipeline } from './render/pipeline';
 import { installLookdev } from './render/lookdev';
+import { GameAudio } from './audio';
+import { getSettings } from './ui/settings';
+import { caveDistance } from './world/cave';
+import { layerAt } from './world/pit';
+import { AUDIO } from './audio';
 import pkg from '../package.json';
+import { Online } from './net';
 
 import { creatureViewerRequested, startCreatureViewer } from './creatures/viewer';
 
@@ -39,12 +46,15 @@ function bootRaid(): void {
   // Picking another zone saves and reloads straight into the deploy (AUTO_DEPLOY).
   const zoneParam = new URLSearchParams(location.search).get('zone');
   const world = buildZone(scene, zoneParam ?? profile.economy.zone, raidSeed);
-  const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures);
+  const raid = new Raid(scene, camera, canvas, world.layout, world.sites, world.structures, world.zone);
   const hud = new RaidHud(raid.bus, raid);
   function deployNow(): void {
     if (raid.phase !== 'briefing') return;
+    // Online squads (src/net): guests wait for the leader; the leader's Deploy drops everyone into the raid it built.
+    const gate = online.deployGate();
+    if (gate === 'wait') { menu.say('Waiting for the squad leader to deploy.'); return; }
     const want = profile.economy.zone;
-    if (!zoneParam && want !== world.zone && BUILT_ZONES.includes(want)) {
+    if (gate === 'solo' && !zoneParam && want !== world.zone && BUILT_ZONES.includes(want)) {
       save();
       try { sessionStorage.setItem(AUTO_DEPLOY, want); } catch { /* storage blocked: the player presses deploy again */ }
       location.reload();
@@ -59,6 +69,10 @@ function bootRaid(): void {
     raid.deploy(d);
   }
   const menu = new HiveMenu(profile, save, deployNow, loaded.notice);
+  const online = new Online({
+    raid, scene, seed: raidSeed, zone: world.zone, build: pkg.version, cls: () => profile.host,
+    deploy: deployNow, say: (t) => menu.say(t), menuVisible: () => menu.visible,
+  });
   let auto: string | null = null;
   try { auto = sessionStorage.getItem(AUTO_DEPLOY); sessionStorage.removeItem(AUTO_DEPLOY); } catch { /* storage blocked */ }
   if (auto && auto === world.zone) setTimeout(deployNow, 0); // after boot has wired the pipeline
@@ -68,18 +82,33 @@ function bootRaid(): void {
     if (e.result === 'extracted') {
       const st = extract(profile, r, e.kills);
       const done = settleContracts(profile, raid.log, true).filter((c) => c.completed);
+      const xp = awardXp(profile, raidXp(raid.log, true, st.dnaBanked));
       save();
-      const note = `${st.dnaBanked} DNA banked.${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}${done.length ? ` Contract complete: ${done.map((c) => c.title).join(', ')}.` : ''}`;
+      const note = `${st.dnaBanked} DNA banked. +${xp.xp} XP${xp.to > xp.from ? `, level ${xp.to}` : ''}.${xp.unlocked.length ? ` Armoury: ${xp.unlocked.map((w) => weaponSpec(w).label).join(', ')} unlocked.` : ''}${st.overflow.length ? ' Stash full: the rest waits in your cavities.' : ''}${done.length ? ` Contract complete: ${done.map((c) => c.title).join(', ')}.` : ''}`;
       menu.showResults({ result: 'extracted', items: r.items, dna: r.dna, value: r.value, kills: e.kills, time: e.time, note });
     } else {
       die(profile, r, e.kills);
       settleContracts(profile, raid.log, false);
+      awardXp(profile, raidXp(raid.log, false));
       save();
       const lost = totals(r.cavity);
       menu.showResults({ result: 'lost', items: lost, dna: r.dna, value: haulValue(lost, r.dna), kills: e.kills, time: e.time, cause: r.cause, kept: totals(r.pouch) });
     }
   });
 
+
+  // Audio (src/audio): starts on the first click or key press, reads the raid each frame.
+  const audio = new GameAudio(raid, {
+    zone: world.zone,
+    hostClass: () => profile.host,
+    menuVisible: () => menu.visible,
+    enclosed: world.zone === 'longSeedWreck' || world.zone === 'marrowPit' ? () => true
+      : world.zone === 'glowmireIsle' ? (x, z) => ZONE7_SITES.caves.some((c) => caveDistance(c, x, z) < 0) : () => false,
+    // Marrow Pit: each layer has its own ambience, and dread grows with depth.
+    region: world.zone === 'marrowPit' ? (x, y, z) => `pit${layerAt(x, z, y).replace(/^./, (c) => c.toUpperCase())}` : undefined,
+    depth: world.zone === 'marrowPit' ? (_x, y) => -y / -AUDIO.pitDepth.floorY : undefined,
+    volume: () => getSettings().volume,
+  });
 
   const pipeline = createPipeline(canvas, scene, camera, 'zone7');
   installLookdev(pipeline, camera, scene);
@@ -103,12 +132,16 @@ function bootRaid(): void {
   // `begin` deploys through the Hive so scripted raids (tests/raid.mjs, scripts/playtest.mjs) follow the real loop.
   const debug = { ...raid.debug(), begin: deployNow };
   const clock = new THREE.Clock();
+  // Online raids keep simulating while this tab is in the background (src/net keepAlive), so others don't freeze.
+  online.keepAlive((dt) => { raid.update(dt); online.tick(dt); });
   pipeline.renderer.setAnimationLoop(() => {
     const dt = Math.min(clock.getDelta(), 0.05);
     raid.update(dt);
+    online.tick(dt);
     // Landmarks (Design's zones.json) count toward contracts the first time the host walks into one.
-    if (!menu.visible) { const lm = world.landmarkAt(camera.position.x, camera.position.z); if (lm) raid.visit(lm); }
+    if (!menu.visible) { const lm = world.landmarkAt(camera.position.x, camera.position.z, raid.player.position.y); if (lm) raid.visit(lm); }
     hud.update(dt, raid.hud());
+    audio.update(dt, camera);
     // The main menu draws the 3D Hive lab with the host on its pedestal; other Hive screens cover the whole view, so
     // the 3D frame behind them is skipped (the loop and frame counter keep running). The first frames always render
     // the raid scene so its shaders compile at boot, not on the DEPLOY click.
@@ -117,6 +150,6 @@ function bootRaid(): void {
     if (!menu.visible || frames < 3 || stage.due()) pipeline.render(dt);
     frames++;
     // Read by tests/smoke.mjs and tests/raid.mjs: proves the loop is alive and drives scripted raids.
-    (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), profile, debug, layout: world.layout };
+    (window as unknown as { __biophage: object }).__biophage = { frames, position: camera.position.toArray(), state: raid.testState(), audio: audio.stats(), profile, debug, layout: world.layout, net: online.test };
   });
 }

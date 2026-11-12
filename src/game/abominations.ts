@@ -36,7 +36,8 @@ export interface AbominationContext {
   playableRadius: number;
   onAlert(a: Abomination): void;
   onMelee(a: Abomination, damage: number): void;
-  onSpit(a: Abomination, from: THREE.Vector3, vel: THREE.Vector3): void;
+  /** A projectile it threw; `damage` overrides its data damage (a Bristleback quill). */
+  onSpit(a: Abomination, from: THREE.Vector3, vel: THREE.Vector3, damage?: number): void;
   /** How easy the host is to see (src/ai/light.ts hostVisibility). Default 1. */
   playerVisibility?: number;
   /** Unit XZ direction the host is looking. Stalkers freeze when watched. */
@@ -47,12 +48,26 @@ export interface AbominationContext {
   onScreech?(a: Abomination, radius: number): void;
   /** It burst from its tank or dropped its disguise (PvE AI habitats): play the burst, make the noise. */
   onReveal?(a: Abomination, how: 'hatch' | 'disguise' | 'ambush'): void;
+  /** A Tithe Weaver strung a web strand between two ground points. */
+  onWeb?(a: Abomination, from: { x: number; z: number }, to: { x: number; z: number }): void;
 }
 
 /** Coarse state for HUD, tests and debug (derived from the brain). */
-type State = 'idle' | 'alert' | 'chase' | 'windup' | 'lunge' | 'recover' | 'stagger' | 'dead';
+export type State = 'idle' | 'alert' | 'chase' | 'windup' | 'lunge' | 'recover' | 'stagger' | 'dead';
+
+/** One creature as the online squad leader's snapshot describes it (src/net). */
+export interface FollowState {
+  x: number; z: number; yaw: number; vx: number; vz: number; altitude: number;
+  excite: number; windup: number; visibility: number; look: Vec3 | null; biomass: number; state: State;
+}
 
 let nextId = 1;
+/** Where the hit spheres of a submerged creature are parked, out of reach of every shot and blast. */
+const UNDERGROUND = -1e4;
+/** Seconds a burrower takes to haul itself out of the sand. */
+const BURROW_EMERGE_TIME = 0.9;
+/** Bodies that dive and surface themselves (Creature's drive.burrow) rather than being sunk whole. */
+const NATIVE_BURROW = new Set<string>(['dunewake', 'fenstalker']);
 
 interface Pustule { mesh: THREE.Mesh; mat: THREE.MeshStandardMaterial; hp: number; popped: boolean }
 
@@ -81,8 +96,12 @@ export class Abomination {
   private limbDamage = new Map<string, number>();
   private rand: () => number;
   readonly home: THREE.Vector3;
+  /** Waits under the sand (layout.spawns `buried`): sunk out of sight while lurking, then claws its way up. */
+  burrowed = false;
+  /** 0 = fully under, 1 = out. */
+  private emerged = 1;
 
-  constructor(readonly kind: AbominationKind, readonly t: AbominationData, x: number, z: number, seed: number) {
+  constructor(readonly kind: AbominationKind, readonly t: AbominationData, x: number, z: number, readonly seed: number) {
     this.biomass = t.biomass;
     this.rand = mulberry32(seed);
     this.home = new THREE.Vector3(x, 0, z);
@@ -137,6 +156,8 @@ export class Abomination {
   refreshHitSpheres(): void {
     this.root.updateMatrixWorld(true);
     for (const h of this.hitSpheres) h.world.copy(h.local).applyMatrix4(h.bone.matrixWorld);
+    // Under the sand or water (a swimming Dunewake): nothing can reach it, not even splash.
+    if (this.brain.submerged > 0.5) for (const h of this.hitSpheres) h.world.y = UNDERGROUND;
   }
 
   /**
@@ -245,12 +266,54 @@ export class Abomination {
     this.handleEvents(ctx);
 
     const b = brain.body, pos = this.root.position;
-    pos.set(b.x, groundHeight(b.x, b.z), b.z);
+    pos.set(b.x, groundHeight(b.x, b.z) - this.burrowSink(dt), b.z);
     this.yaw = b.yaw;
     this.velocity.set(b.vx, 0, b.vz);
     this.root.rotation.y = this.yaw;
     this.setState(this.coarseState());
     this.animate(dt);
+  }
+
+  /** How far below the ground a burrower sits this frame: under while lurking, rising with a lurch once revealed. */
+  private burrowSink(dt: number): number {
+    if (!this.burrowed) return 0;
+    if (this.brain.lurking) this.emerged = 0;
+    else this.emerged = Math.min(1, this.emerged + dt / BURROW_EMERGE_TIME);
+    // Species with their own dive and surfacing (the Dunewake swims under the sand) play it on the drive instead.
+    if (NATIVE_BURROW.has(this.kind)) { this.creature.drive.burrow = Math.max(1 - this.emerged, this.brain.submerged); return 0; }
+    if (this.emerged >= 1) return 0;
+    const t = this.emerged, ease = 1 - (1 - t) * (1 - t) * (1 - t);
+    // Claws up in two heaves rather than a smooth lift.
+    const heave = Math.sin(t * Math.PI * 4) * 0.08 * (1 - t);
+    return (this.radius * 2.2 + 0.6) * (1 - ease) + heave;
+  }
+
+  /**
+   * Online raids (src/net): on a guest's machine the squad leader runs the brain, and the body follows the leader's
+   * snapshots (interpolated). Same animation path as update(), fed from the snapshot instead of the brain.
+   */
+  follow(dt: number, s: FollowState): void {
+    this.stateTime += dt;
+    this.revealed = Math.max(0, this.revealed - dt);
+    if (this.state === 'dead') { this.animateDeath(dt); return; }
+    const b = this.brain.body;
+    b.x = s.x; b.z = s.z; b.yaw = s.yaw; b.vx = s.vx; b.vz = s.vz; b.altitude = s.altitude;
+    this.brain.excite = s.excite; this.brain.windup = s.windup; this.brain.visibility = s.visibility;
+    this.brain.look = s.look; this.brain.strike = null;
+    this.root.position.set(s.x, groundHeight(s.x, s.z), s.z);
+    this.yaw = s.yaw;
+    this.velocity.set(s.vx, 0, s.vz);
+    this.root.rotation.y = this.yaw;
+    this.biomass = s.biomass;
+    if (s.state !== 'dead') this.setState(s.state);
+    this.animate(dt);
+  }
+
+  /** Online raids: the squad leader's machine says this creature died. Plays the same death as a local kill. */
+  killedRemotely(): void {
+    if (!this.alive) return;
+    this.biomass = Math.min(this.biomass, 0);
+    this.die();
   }
 
   private coarseState(): State {
@@ -288,6 +351,11 @@ export class Abomination {
           }
           break;
         case 'reveal': ctx.onReveal?.(this, e.how); break;
+        case 'web': ctx.onWeb?.(this, e.from, e.to); break;
+        case 'volley': this.volley(ctx, e.target, e.count, e.damage, e.spread); break;
+        case 'alarm':
+          for (const o of ctx.others) if (o !== this && o.alive && o.kind === this.kind && o.position.distanceTo(pos) <= e.radius) o.alert({ x: p.x, z: p.z });
+          break;
         case 'charge': case 'notice': case 'dodge': break; // read by audio through the bus later
       }
     }
@@ -314,11 +382,25 @@ export class Abomination {
     ctx.onSpit(this, from, vel);
   }
 
+  /** A fan of quills from the back toward `target`, spread round it. */
+  private volley(ctx: AbominationContext, target: Vec3, count: number, damage: number, spread: number): void {
+    const from = this.root.position.clone();
+    from.y += this.radius * 2.2;
+    const proj = (this.t.quillVolley as { speed?: number } | undefined)?.speed ?? 34;
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + this.rand() * 0.5, r = spread * Math.sqrt(this.rand());
+      const tgt = new THREE.Vector3(target.x + Math.cos(a) * r, target.y, target.z + Math.sin(a) * r);
+      const vel = tgt.sub(from).normalize().multiplyScalar(proj);
+      ctx.onSpit(this, from.clone(), vel, damage);
+    }
+  }
+
   private animate(dt: number): void {
     const c = this.creature, d = c.drive, brain = this.brain;
     d.velocity.set(brain.body.vx, 0, brain.body.vz);
     d.excite = 0.25 + brain.excite * 0.75;
     d.windup = brain.windup;
+    d.action = brain.action;
     d.reveal = this.revealed > 0 ? 1.8 : 1;
     d.look = brain.look ? new THREE.Vector3(brain.look.x, brain.look.y + 0.3, brain.look.z) : null;
     d.strike = brain.strike ? new THREE.Vector3(brain.strike.x, brain.strike.y, brain.strike.z) : null;

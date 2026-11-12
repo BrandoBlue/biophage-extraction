@@ -77,6 +77,13 @@
     ],
     "reconnectWindow": 60
   },
+  "peerToPeer": {
+    "_note": "Online & Backend: what the free build actually runs. No paid server: the squad leader's browser hosts the raid over WebRTC and runs the creatures, so its upload carries every host. Hence fewer hosts and a lower send rate than the dedicated-server targets above; raise them when a server exists.",
+    "maxHosts": 6,
+    "hostSendRate": 20,
+    "creatureSendRate": 12,
+    "squadSpread": 3
+  },
   "bots": {
     "replaceRivalsWithHumans": true,
     "note": "rival host bots (rivals.json) fill empty slots up to botsFillTo; they leave as humans join late"

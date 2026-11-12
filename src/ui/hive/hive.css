@@ -247,7 +247,7 @@
 .scr-raid .orbit { position:absolute; left:calc(var(--u) * 3); top:calc(var(--u) * 10.5); width:calc(var(--u) * 44); height:calc(var(--u) * 44); }
 .scr-raid .orbit canvas { width:100%; height:100%; }
 .scr-raid .orbit-label { position:absolute; left:calc(var(--u) * 1); top:calc(var(--u) * 1.5); display:flex; flex-direction:column; }
-.scr-raid .orbit-label b { font-family:var(--display); font-size:calc(var(--u) * 2.6); color:var(--bone); letter-spacing:.1em; text-shadow:0 0 calc(var(--u) * 1) color-mix(in srgb, var(--violet) 35%, transparent); }
+.scr-raid .orbit-label b { max-width:calc(var(--u) * 21); line-height:1.05; font-family:var(--display); font-size:calc(var(--u) * 2.1); color:var(--bone); letter-spacing:.1em; text-shadow:0 0 calc(var(--u) * 1) color-mix(in srgb, var(--violet) 35%, transparent); }
 .scr-raid .orbit-label span { font-size:calc(var(--u) * .85); color:var(--magenta); letter-spacing:.16em; }
 .scr-raid .legend { position:absolute; left:calc(var(--u) * 1); bottom:calc(var(--u) * 1); list-style:none; margin:0; padding:0; font-size:calc(var(--u) * .85); display:grid; gap:.2em; }
 .scr-raid .legend li { display:flex; gap:.4em; align-items:center; }
@@ -380,6 +380,18 @@
 .scr-raid .zone.locked { opacity:.55; } .scr-raid .zone.locked:hover { opacity:.8; }
 .scr-raid .zone.locked b { color:color-mix(in srgb, var(--bone) 70%, transparent); }
 .raid-info .mods .bone { color:var(--bone); }
+/* A shut zone the player is reading: its card stays lit, its map dims behind a veil, and the reason leads the panel. */
+.scr-raid .zone.shown:not(.on) { opacity:1; border-color:color-mix(in srgb, var(--amber) 55%, transparent); }
+.scr-raid .zone.shown:not(.on) em { color:var(--amber); }
+.scr-raid .orbit.shut canvas { filter:saturate(.5) brightness(.75); }
+.scr-raid .orbit .uncharted { position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); text-align:center; font-family:var(--display); font-style:italic; font-size:calc(var(--u) * 2.4); color:color-mix(in srgb, var(--bone) 70%, transparent); pointer-events:none; }
+.scr-raid .orbit .uncharted small { display:block; font-family:var(--ui); font-style:normal; font-size:calc(var(--u) * .7); letter-spacing:.2em; text-transform:uppercase; color:var(--lab); margin-top:.4em; }
+.raid-info > h2 small { line-height:1.35; }
+.raid-info.shut > h2 small { color:var(--amber); font-size:.6em; }
+.scr-raid .orbit-label.long b { font-size:calc(var(--u) * 1.6); }
+.scr-raid .orbit-label span { color:var(--lab); max-width:calc(var(--u) * 30); }
+.hv-cta:disabled { cursor:default; filter:grayscale(.85) brightness(.6); transform:none; box-shadow:none; }
+.hv-cta:disabled .arrow { opacity:.4; }
 
 /* Hive vendors (src/ui/hive/vendors.ts): switcher row, reputation, unlocks, stock, contracts. Bone frames, amber for standing. */
 .vd-row { position:absolute; top:calc(var(--u) * 8.2); left:50%; transform:translateX(-50%); display:flex; gap:calc(var(--u) * .6); z-index:2; }
@@ -438,6 +450,7 @@
 .scr-raid .zone b, .vd-pick b { font-family:var(--display); font-size:calc(var(--u) * 1.15); letter-spacing:.03em; font-weight:600; text-transform:capitalize; }
 .vd-pick { padding:calc(var(--u) * .5) calc(var(--u) * 1.4); }
 .scr-raid .orbit-label b { font-family:var(--display); font-weight:500; font-size:calc(var(--u) * 3); letter-spacing:.06em; text-shadow:none; }
+.scr-raid .orbit-label.long b { font-size:calc(var(--u) * 1.6); }
 .scr-raid .orbit-label span { color:var(--lab); font-size:calc(var(--u) * .7); letter-spacing:.24em; }
 .scr-raid .legend { color:var(--lab); } .scr-raid .legend .spire, .scr-raid .legend .drop { color:var(--acid); }
 .raid-info .threat b { font-family:var(--display); font-size:1.3em; }
@@ -531,3 +544,71 @@
 .carry-row .hv-btn { flex:none; width:auto; margin:0; }
 /* Vendor stock scrolls once guns, feeds and mods join it (Design #53); keep the scrollbar a hairline. */
 .vd-mid .mk-cards { scrollbar-width:thin; scrollbar-color:var(--hair2) transparent; }
+/* Eight zones now (Design #74): sealed zones fold to a numbered seed and unfold their name on hover, so the open
+   zones keep full cards and the whole route fits on one line. */
+.scr-raid .zone.locked { opacity:.8; min-width:0; padding:calc(var(--u) * .45) calc(var(--u) * .55); gap:0; transition:gap .25s var(--ease), padding .25s var(--ease), opacity .2s; }
+.scr-raid .zone.locked > div { max-width:0; overflow:hidden; opacity:0; transition:max-width .35s var(--ease), opacity .25s; }
+.scr-raid .zone.locked:hover { opacity:1; gap:calc(var(--u) * .7); padding-right:calc(var(--u) * .9); }
+.scr-raid .zone.locked:hover > div { max-width:calc(var(--u) * 20); opacity:1; }
+.scr-raid .zone.locked em { font-size:calc(var(--u) * 1.25); }
+
+/* ------------------------------------------------------------------ HIVE BODY (src/ui/hive/body.ts)
+   One accent for this screen: the amber seed of growth. Organs are quiet glass cards; a grown level is a filled seed,
+   the next one a ringed seed. Costs you can't meet dim to a hairline; the one action that is ready glows amber. */
+.scr-body .bd-organs { left:calc(var(--u) * 5); top:calc(var(--u) * 11.4); right:calc(var(--u) * 40); bottom:calc(var(--u) * 3.6); display:flex; flex-direction:column; }
+.scr-body .bd-grid { flex:1; min-height:0; overflow:auto; display:grid; grid-template-columns:1fr 1fr; grid-auto-rows:minmax(min-content, 1fr); gap:calc(var(--u) * .9); scrollbar-width:thin; scrollbar-color:var(--hair2) transparent; }
+.bd-organ { position:relative; display:flex; flex-direction:column; gap:calc(var(--u) * .35); padding:calc(var(--u) * .8) calc(var(--u) * 1.1);
+  border-radius:calc(var(--u) * 1.2) calc(var(--u) * .3); background:color-mix(in srgb, var(--bone) 3%, transparent); box-shadow:inset 0 0 0 1px var(--hair); transition:box-shadow .25s var(--ease), transform .25s var(--ease); }
+.bd-organ:hover { box-shadow:inset 0 0 0 1px var(--hair2); transform:translateY(-1px); }
+.bd-organ.grown { background:radial-gradient(ellipse at 15% 0%, color-mix(in srgb, var(--amber) 9%, transparent), transparent 60%), color-mix(in srgb, var(--bone) 3%, transparent); }
+.bd-organ.st-coming { opacity:.55; }
+.bd-organ.grew { animation:bd-grew 1.1s var(--ease); }
+@keyframes bd-grew { 0% { box-shadow:inset 0 0 0 1px var(--amber), 0 0 0 0 color-mix(in srgb, var(--amber) 45%, transparent); transform:scale(1.02); } 100% { box-shadow:inset 0 0 0 1px var(--hair), 0 0 0 calc(var(--u) * 1.6) transparent; transform:none; } }
+.bd-organ header { display:flex; justify-content:space-between; align-items:baseline; }
+.bd-organ h3 { margin:0; font-family:var(--display); font-weight:600; font-size:calc(var(--u) * 1.5); color:var(--bone); letter-spacing:.01em; }
+.bd-seeds { display:flex; gap:calc(var(--u) * .35); }
+.bd-seeds i { display:block; width:calc(var(--u) * .6); height:calc(var(--u) * .6); border-radius:50%; box-shadow:inset 0 0 0 1px var(--hair2); }
+.bd-seeds i.on { background:var(--amber); box-shadow:none; }
+.bd-seeds i.nx { box-shadow:inset 0 0 0 1px var(--amber); }
+.bd-organ .brief { margin:0; font-size:calc(var(--u) * .78); color:var(--lab); line-height:1.35; }
+.bd-organ ul { margin:0; padding:0; list-style:none; font-size:calc(var(--u) * .8); line-height:1.35; }
+.bd-organ .now li { color:var(--bone); } .bd-organ .now li::before { content:'—'; margin-right:.5em; color:var(--amber); }
+.bd-organ .dormant { margin:0; font-family:var(--display); font-style:italic; font-size:calc(var(--u) * .95); color:var(--lab); }
+.bd-organ .next { margin-top:auto; padding-top:calc(var(--u) * .5); border-top:1px solid var(--hair); display:flex; flex-direction:column; gap:calc(var(--u) * .35); }
+.bd-organ .next .lab { font-size:calc(var(--u) * .62); letter-spacing:.2em; font-weight:600; color:var(--lab); text-transform:uppercase; }
+.bd-organ .next li { color:color-mix(in srgb, var(--bone) 78%, transparent); } .bd-organ .next li::before { content:'+'; margin-right:.5em; color:var(--amber); }
+.bd-organ .costs { display:flex; flex-wrap:wrap; gap:calc(var(--u) * .5); align-items:center; }
+.bd-cost { display:inline-flex; align-items:center; gap:.35em; font-size:calc(var(--u) * .8); color:var(--bone); }
+.bd-cost b { font-family:var(--display); font-size:1.25em; font-weight:600; }
+.bd-cost.dna { color:var(--path-dna); } .bd-cost .glyph { width:1.2em; height:1.2em; }
+.bd-cost .tile { width:calc(var(--u) * 2.2); height:calc(var(--u) * 2.2); }
+.bd-cost.short { color:var(--danger); } .bd-cost.short .tile { opacity:.55; }
+.bd-organ .grow { align-self:flex-start; }
+.hv-btn.ready { box-shadow:inset 0 0 0 1px var(--amber); color:var(--amber); }
+.hv-btn.ready:hover { background:color-mix(in srgb, var(--amber) 14%, transparent); }
+
+.scr-body .bd-side { position:absolute; right:calc(var(--u) * 5); top:calc(var(--u) * 11.4); width:calc(var(--u) * 33); bottom:calc(var(--u) * 10.4); display:flex; flex-direction:column; gap:calc(var(--u) * .9); }
+.scr-body .bd-side .hv-panel { position:relative; inset:auto; }
+.scr-body .bd-vat { flex:1; min-height:0; display:flex; flex-direction:column; }
+.scr-body .hv-panel.dormant > h2 { opacity:.6; }
+.bd-fruit { display:flex; align-items:baseline; gap:.4em; } .bd-fruit b { font-family:var(--display); font-size:calc(var(--u) * 2.6); color:var(--path-dna); font-weight:600; line-height:1; }
+.bd-fruit span { font-size:calc(var(--u) * .8); color:var(--lab); }
+.bd-meter { height:calc(var(--u) * .35); margin:calc(var(--u) * .6) 0 calc(var(--u) * .8); border-radius:99px; background:color-mix(in srgb, var(--bone) 10%, transparent); overflow:hidden; }
+.bd-meter i { display:block; height:100%; border-radius:99px; background:linear-gradient(90deg, color-mix(in srgb, var(--path-dna) 35%, var(--mist)), color-mix(in srgb, var(--path-dna) 70%, var(--bone))); transition:width .6s var(--ease); }
+.bd-garden .full { margin:0 0 calc(var(--u) * .6); font-size:calc(var(--u) * .75); color:var(--amber); }
+.bd-job { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:calc(var(--u) * .8); padding:calc(var(--u) * .6) 0 calc(var(--u) * .9); border-bottom:1px solid var(--hair); position:relative; }
+.bd-job svg { position:absolute; left:calc(var(--u) * -.45); top:calc(var(--u) * .15); width:calc(var(--u) * 4.5); height:calc(var(--u) * 4.5); transform:rotate(-90deg); pointer-events:none; }
+.bd-job svg circle { fill:none; stroke-width:3; } .bd-job svg .trk { stroke:var(--hair); } .bd-job svg .val { stroke:var(--amber); stroke-dasharray:264; stroke-linecap:round; transition:stroke-dashoffset .6s var(--ease); }
+.bd-job .tile { width:calc(var(--u) * 3.6); height:calc(var(--u) * 3.6); }
+.bd-job p { margin:0; display:flex; flex-direction:column; } .bd-job p b { font-family:var(--display); font-size:calc(var(--u) * 1.2); color:var(--bone); font-weight:600; }
+.bd-job p span { font-size:calc(var(--u) * .75); color:var(--lab); }
+.bd-job.ready p span { color:var(--amber); }
+.bd-recipes { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:calc(var(--u) * .4); padding-top:calc(var(--u) * .7); scrollbar-width:thin; scrollbar-color:var(--hair2) transparent; }
+.bd-recipe { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:calc(var(--u) * .7); padding:calc(var(--u) * .35) calc(var(--u) * .4); border-radius:calc(var(--u) * .6); }
+.bd-recipe:hover { background:color-mix(in srgb, var(--bone) 4%, transparent); }
+.bd-recipe .tile { width:calc(var(--u) * 2.6); height:calc(var(--u) * 2.6); } .bd-recipe .tile.pool { font-family:var(--display); font-size:calc(var(--u) * 1.4); color:var(--lab); box-shadow:inset 0 0 0 1px var(--hair); }
+.bd-recipe .txt { display:flex; flex-direction:column; gap:.2em; min-width:0; } .bd-recipe .txt b { font-size:calc(var(--u) * .85); color:var(--bone); font-weight:600; }
+.bd-recipe .txt span { display:flex; align-items:center; gap:calc(var(--u) * .4); flex-wrap:wrap; } .bd-recipe em { font-style:normal; font-size:calc(var(--u) * .7); color:var(--lab); margin-left:auto; }
+.bd-recipe .bd-cost .tile { width:calc(var(--u) * 1.7); height:calc(var(--u) * 1.7); }
+.bd-recipe .hv-btn { padding:calc(var(--u) * .35) calc(var(--u) * .8); font-size:calc(var(--u) * .68); white-space:nowrap; }
+.bd-recipe.st-items, .bd-recipe.st-busy { opacity:.75; }

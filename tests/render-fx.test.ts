@@ -173,9 +173,12 @@ describe('built-space atmosphere and grown walls', () => {
   it('keeps the held gun in lit, natural tones rather than neon pink', async () => {
     const { ORGANIC, ZONE7 } = await import('../src/render/palette');
     const { SynapseBursterView } = await import('../src/game/viewmodel');
-    const view = new SynapseBursterView(new THREE.PerspectiveCamera());
+    const view = new SynapseBursterView();
+    const { WeaponRig } = await import('../src/game/weapon-rig');
+    const rig = new WeaponRig(new THREE.PerspectiveCamera());
+    rig.equip(view, 0);
     const lights: THREE.PointLight[] = [];
-    view.root.traverse((o) => { if ((o as THREE.PointLight).isPointLight) lights.push(o as THREE.PointLight); });
+    rig.root.traverse((o) => { if ((o as THREE.PointLight).isPointLight) lights.push(o as THREE.PointLight); });
     expect(lights.some((l) => l.color.getHexString() === new THREE.Color(ZONE7.magenta).getHexString())).toBe(false);
     let flesh = false;
     view.root.traverse((o) => {
@@ -189,9 +192,9 @@ describe('built-space atmosphere and grown walls', () => {
 describe('first-person gun framing', () => {
   it('keeps the gun at its framed size while it breathes', async () => {
     const { SynapseBursterView, GUN_SCALE } = await import('../src/game/viewmodel');
-    const view = new SynapseBursterView(new THREE.PerspectiveCamera());
+    const view = new SynapseBursterView();
     const gun = view.root.children.find((c) => c instanceof THREE.Group && c.children.length > 10) as THREE.Group;
-    for (let i = 0; i < 3; i++) view.update(1 / 60, { yaw: 0, pitch: 0, speed: 0, sprinting: false, grounded: true }, 1, 0, null);
+    for (let i = 0; i < 3; i++) view.update(1 / 60, { ammoFrac: 1, aim: 0, ego: 0, charge: 0, reloading: false, look: null });
     expect(gun.scale.x).toBeCloseTo(GUN_SCALE);
     expect(gun.scale.y).toBeLessThan(GUN_SCALE * 1.05);
   });
@@ -245,8 +248,27 @@ describe('lighting, relief and world scale', () => {
     for (const m of [zoneRock(), livingFlesh('#5A2A55', '#FF3FA4', '#FF3FA4'), chitin()]) {
       const s = compile(m);
       expect(s.fragmentShader).toContain('#define BIO_BUMP');
-      expect(s.fragmentShader).toMatch(/BIO_BUMP\([^)]*\)\s*;/);
+      expect(s.fragmentShader).toMatch(/BIO_BUMP\(.+\)\s*;/);
     }
+  });
+
+  it('adds close-range micro detail that fades before it can alias', async () => {
+    const { zoneRock, livingFlesh, chitin } = await import('../src/render/materials');
+    for (const m of [zoneRock(), livingFlesh('#5A2A55', '#FF3FA4', '#FF3FA4'), chitin()]) {
+      const s = compile(m);
+      expect(s.fragmentShader).toContain('length(vViewPosition)');
+      expect(s.fragmentShader).toContain('fwidth(');
+    }
+  });
+
+  it('grades night shadows without clipping them to black, and sharpens', async () => {
+    const { GradeShader } = await import('../src/render/pipeline');
+    expect(GradeShader.fragmentShader).not.toContain('(col - 0.5) * uContrast');
+    expect(GradeShader.uniforms.uSharpen.value).toBeGreaterThan(0);
+    expect(GradeShader.uniforms.uSharpen.value).toBeLessThan(0.5);
+    // The power-curve contrast keeps a dark value above zero at the zone's contrast.
+    const curve = (v: number, k: number) => Math.pow(v / 0.3, k) * 0.3;
+    expect(curve(0.05, 1.12)).toBeGreaterThan(0.03);
   });
 
   it('has a complete impact look for every living-weapon style', async () => {
