@@ -50,3 +50,4 @@ export function createBrain(kind: string, id: number, x: number, z: number, seed
   if (!data) throw new Error(`no Abomination data for ${kind}`);
   return new BRAINS[archetypeOf(kind)](id, kind, data, x, z, seed, radius);
 }
+export { pickReinforcement } from './reinforce';

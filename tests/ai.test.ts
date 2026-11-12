@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ABOMINATIONS, AI, NESTS } from '../data';
 import {
-  AttackTokens, Awareness, RaidMemory, mindLevels, mindPulse, WaveDirector, WebField, archetypeOf, createBrain, hostVisibility, sightRate,
+  AttackTokens, Awareness, RaidMemory, mindLevels, mindPulse, WaveDirector, WebField, archetypeOf, createBrain, hostVisibility, pickReinforcement, sightRate,
   type AIEvent, type Brain, type BrainWorld, type HostView,
 } from '../src/ai';
 import type { Noise } from '../src/game/perception';
@@ -64,6 +64,22 @@ describe('light: host visibility', () => {
   it('Plague-Stalker glowing footprints make a moving host easier to spot', () => {
     expect(hostVisibility({ ...base, virus: 1.5 })).toBeCloseTo(hostVisibility(base) * 1.5);
     expect(hostVisibility({ ...base, moving: false, virus: 1.5 })).toBeCloseTo(hostVisibility({ ...base, moving: false }));
+  });
+});
+
+describe('pit reinforcements', () => {
+  it('come from a home on the host level, out of view, never from the layers above or below', () => {
+    const ground = (x: number) => (x > 100 ? -70 : 0); // past x = 100 is the next layer down
+    const homes = [
+      { kind: 'glasswalker', x: 0, z: 10 }, // too close
+      { kind: 'glasswalker', x: 0, z: 55 }, // right in front of the host
+      { kind: 'hollowed', x: 110, z: 0 }, // a layer down
+      { kind: 'glasswalker', x: 0, z: -80 }, // behind, on its level
+      { kind: 'glasswalker', x: 0, z: -400 }, // too far
+    ];
+    const pick = pickReinforcement(homes, { x: 0, y: 0, z: 0 }, { x: 0, z: 1 }, 45, ground);
+    expect(pick).toBe(homes[3]);
+    expect(pickReinforcement(homes.slice(0, 3), { x: 0, y: 0, z: 0 }, { x: 0, z: 1 }, 45, ground)).toBeNull();
   });
 });
 

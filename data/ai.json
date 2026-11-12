@@ -19,6 +19,11 @@
     "veilwing": "grabber",
     "hollowed": "gunner"
   },
+  "reinforce": {
+    "_note": "Zones that place their own creatures (Marrow Pit): a reinforcement walks out of a home of a species that lives there, on the host's own level (ground within sameLevel m of the host's height), between the usual minimum distance and maxDistance m away, out of the host's view.",
+    "sameLevel": 20,
+    "maxDistance": 140
+  },
   "awareness": {
     "_note": "Awareness fills 0..1. At suspicious the creature turns and investigates the stimulus; at 1 it hunts. Sight fill per second = sightRate * visibility * (1 - distance/range); peripheral (outer half of the field of view) fills at peripheralFactor. A noise adds noiseGain scaled by how far inside its radius the creature is. Awareness decays at decayRate while nothing is sensed.",
     "suspicious": 0.35,
